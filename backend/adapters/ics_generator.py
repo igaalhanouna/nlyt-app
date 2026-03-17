@@ -94,6 +94,8 @@ class ICSGenerator:
         location = ICSGenerator.escape_ics_text(event_data.get('location', ''))
         
         # Build ICS content with proper line folding
+        status = event_data.get('status', 'CONFIRMED')
+        
         lines = [
             "BEGIN:VCALENDAR",
             "VERSION:2.0",
@@ -118,14 +120,22 @@ class ICSGenerator:
             lines.append(ICSGenerator.fold_line(f"LOCATION:{location}"))
         
         lines.extend([
-            "STATUS:CONFIRMED",
+            f"STATUS:{status}",
             "TRANSP:OPAQUE",
             "SEQUENCE:0",
-            "BEGIN:VALARM",
-            "ACTION:DISPLAY",
-            "DESCRIPTION:Rappel NLYT",
-            "TRIGGER:-PT1H",
-            "END:VALARM",
+        ])
+        
+        # Only add alarm for confirmed events
+        if status == "CONFIRMED":
+            lines.extend([
+                "BEGIN:VALARM",
+                "ACTION:DISPLAY",
+                "DESCRIPTION:Rappel NLYT",
+                "TRIGGER:-PT1H",
+                "END:VALARM",
+            ])
+        
+        lines.extend([
             "END:VEVENT",
             "END:VCALENDAR"
         ])
@@ -137,3 +147,105 @@ class ICSGenerator:
     def generate_ics_bytes(event_data: Dict) -> bytes:
         """Generate ICS content as UTF-8 bytes"""
         return ICSGenerator.generate_ics(event_data).encode('utf-8')
+    
+    @staticmethod
+    def generate_feed(appointments: list, calendar_name: str = "NLYT") -> str:
+        """
+        Generate an ICS feed containing multiple appointments.
+        Suitable for calendar subscription (webcal://).
+        
+        Args:
+            appointments: List of appointment dicts from MongoDB
+            calendar_name: Name for the calendar feed
+        
+        Returns:
+            Complete ICS feed as string
+        """
+        from datetime import timedelta
+        
+        now_utc_dt = datetime.now(timezone.utc)
+        now_ics = now_utc_dt.strftime('%Y%m%dT%H%M%SZ')
+        
+        lines = [
+            "BEGIN:VCALENDAR",
+            "VERSION:2.0",
+            "PRODID:-//NLYT//Appointment Commitment System//FR",
+            "CALSCALE:GREGORIAN",
+            "METHOD:PUBLISH",
+            f"X-WR-CALNAME:NLYT - {ICSGenerator.escape_ics_text(calendar_name)}",
+            "X-WR-TIMEZONE:UTC",
+        ]
+        
+        for apt in appointments:
+            try:
+                # Parse datetime
+                start_str = apt.get('start_datetime', '')
+                if '+' in start_str or 'Z' in start_str:
+                    start_dt = datetime.fromisoformat(start_str.replace('Z', '+00:00'))
+                else:
+                    start_dt = datetime.fromisoformat(start_str).replace(tzinfo=timezone.utc)
+                
+                duration = apt.get('duration_minutes', 60)
+                end_dt = start_dt + timedelta(minutes=duration)
+                
+                start_utc = start_dt.astimezone(timezone.utc)
+                end_utc = end_dt.astimezone(timezone.utc)
+                
+                start_ics = start_utc.strftime('%Y%m%dT%H%M%SZ')
+                end_ics = end_utc.strftime('%Y%m%dT%H%M%SZ')
+                
+                uid = f"{apt.get('appointment_id', 'event')}@nlyt.app"
+                
+                # Determine status
+                is_cancelled = apt.get('status') in ['cancelled', 'deleted']
+                status = "CANCELLED" if is_cancelled else "CONFIRMED"
+                
+                # Build title
+                title = apt.get('title', 'Rendez-vous NLYT')
+                if is_cancelled:
+                    title = f"[ANNULÉ] {title}"
+                title = ICSGenerator.escape_ics_text(title)
+                
+                # Location
+                location = apt.get('location', '')
+                if not location and apt.get('meeting_provider'):
+                    location = f"Visio - {apt.get('meeting_provider')}"
+                location = ICSGenerator.escape_ics_text(location)
+                
+                # Description
+                if is_cancelled:
+                    desc = "Ce rendez-vous a été annulé."
+                else:
+                    desc = f"Rendez-vous NLYT. Pénalité: {apt.get('penalty_amount', 0)} {apt.get('penalty_currency', 'EUR').upper()}"
+                desc = ICSGenerator.escape_ics_text(desc)
+                
+                lines.append("BEGIN:VEVENT")
+                lines.append(f"DTSTART:{start_ics}")
+                lines.append(f"DTEND:{end_ics}")
+                lines.append(f"DTSTAMP:{now_ics}")
+                lines.append(f"UID:{uid}")
+                lines.append(ICSGenerator.fold_line(f"SUMMARY:{title}"))
+                lines.append(ICSGenerator.fold_line(f"DESCRIPTION:{desc}"))
+                if location:
+                    lines.append(ICSGenerator.fold_line(f"LOCATION:{location}"))
+                lines.append(f"STATUS:{status}")
+                lines.append("TRANSP:OPAQUE")
+                lines.append("SEQUENCE:0")
+                
+                # Alarm only for confirmed events
+                if status == "CONFIRMED":
+                    lines.append("BEGIN:VALARM")
+                    lines.append("ACTION:DISPLAY")
+                    lines.append("DESCRIPTION:Rappel NLYT")
+                    lines.append("TRIGGER:-PT1H")
+                    lines.append("END:VALARM")
+                
+                lines.append("END:VEVENT")
+            
+            except Exception as e:
+                # Skip malformed appointments
+                continue
+        
+        lines.append("END:VCALENDAR")
+        
+        return '\r\n'.join(lines)

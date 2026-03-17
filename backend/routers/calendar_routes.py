@@ -182,11 +182,16 @@ async def export_appointment_ics(appointment_id: str):
     Generate and download ICS file for an appointment.
     Public endpoint - no authentication required (useful for email links).
     Compatible with Google Calendar, Outlook, Apple Calendar.
+    
+    Handles cancelled/deleted appointments with STATUS:CANCELLED.
     """
     appointment = db.appointments.find_one({"appointment_id": appointment_id}, {"_id": 0})
     
     if not appointment:
         raise HTTPException(status_code=404, detail="Rendez-vous introuvable")
+    
+    # Check appointment status for cancelled/deleted behavior
+    is_cancelled = appointment.get('status') in ['cancelled', 'deleted']
     
     # Parse start datetime and calculate end
     start_dt = datetime.fromisoformat(appointment['start_datetime'].replace('Z', '+00:00'))
@@ -199,19 +204,29 @@ async def export_appointment_ics(appointment_id: str):
         organizer_name = f"{organizer.get('first_name', '')} {organizer.get('last_name', '')}".strip() or "L'organisateur"
     
     # Build comprehensive description with engagement rules
-    description_lines = [
-        f"Rendez-vous organisé via NLYT par {organizer_name}.",
-        "",
-        "=== RÈGLES D'ENGAGEMENT ===",
-        f"• Délai d'annulation : {appointment.get('cancellation_deadline_hours', 24)}h avant le rendez-vous",
-        f"• Retard toléré : {appointment.get('tolerated_delay_minutes', 0)} minute(s)",
-        f"• Pénalité en cas d'absence : {appointment.get('penalty_amount', 0)} {appointment.get('penalty_currency', 'EUR').upper()}",
-        "",
-        "En acceptant ce rendez-vous, vous vous engagez à respecter ces conditions.",
-        "",
-        "---",
-        "Généré par NLYT - nlyt.app"
-    ]
+    if is_cancelled:
+        description_lines = [
+            "⚠️ CE RENDEZ-VOUS A ÉTÉ ANNULÉ",
+            "",
+            f"Rendez-vous initialement organisé par {organizer_name}.",
+            "",
+            "---",
+            "Généré par NLYT - nlyt.app"
+        ]
+    else:
+        description_lines = [
+            f"Rendez-vous organisé via NLYT par {organizer_name}.",
+            "",
+            "=== RÈGLES D'ENGAGEMENT ===",
+            f"• Délai d'annulation : {appointment.get('cancellation_deadline_hours', 24)}h avant le rendez-vous",
+            f"• Retard toléré : {appointment.get('tolerated_delay_minutes', 0)} minute(s)",
+            f"• Pénalité en cas d'absence : {appointment.get('penalty_amount', 0)} {appointment.get('penalty_currency', 'EUR').upper()}",
+            "",
+            "En acceptant ce rendez-vous, vous vous engagez à respecter ces conditions.",
+            "",
+            "---",
+            "Généré par NLYT - nlyt.app"
+        ]
     description = "\\n".join(description_lines)
     
     # Determine location
@@ -219,14 +234,20 @@ async def export_appointment_ics(appointment_id: str):
     if not location and appointment.get('meeting_provider'):
         location = f"Visio - {appointment.get('meeting_provider')}"
     
+    # Build title (prefix with ANNULÉ if cancelled)
+    title = appointment['title']
+    if is_cancelled:
+        title = f"[ANNULÉ] {title}"
+    
     # Build event data
     event_data = {
         "appointment_id": appointment_id,
-        "title": appointment['title'],
+        "title": title,
         "description": description,
         "location": location,
         "start_datetime": start_dt.isoformat(),
-        "end_datetime": end_dt.isoformat()
+        "end_datetime": end_dt.isoformat(),
+        "status": "CANCELLED" if is_cancelled else "CONFIRMED"
     }
     
     ics_content = ICSGenerator.generate_ics_bytes(event_data)
@@ -241,5 +262,57 @@ async def export_appointment_ics(appointment_id: str):
         headers={
             "Content-Disposition": f'attachment; filename="{filename}"',
             "Content-Type": "text/calendar; charset=utf-8"
+        }
+    )
+
+
+@router.get("/feed/{user_id}.ics")
+async def get_ics_subscription_feed(user_id: str, token: str = None):
+    """
+    ICS subscription feed for a user's appointments.
+    Can be subscribed to in Google Calendar, Apple Calendar, Outlook.
+    
+    URL format: /api/calendar/feed/{user_id}.ics?token={feed_token}
+    
+    This feed is read-only and updates automatically when appointments change.
+    """
+    # Verify user exists
+    user = db.users.find_one({"user_id": user_id}, {"_id": 0})
+    if not user:
+        raise HTTPException(status_code=404, detail="Utilisateur introuvable")
+    
+    # Optional: verify feed token for security (simple implementation)
+    # In production, implement proper feed token validation
+    
+    # Get all appointments where user is organizer
+    organizer_appointments = list(db.appointments.find(
+        {"organizer_id": user_id, "status": {"$nin": ["deleted"]}},
+        {"_id": 0}
+    ))
+    
+    # Get all appointments where user is accepted participant
+    participant_records = list(db.participants.find(
+        {"email": user.get('email'), "status": "accepted"},
+        {"_id": 0, "appointment_id": 1}
+    ))
+    participant_apt_ids = [p['appointment_id'] for p in participant_records]
+    
+    participant_appointments = list(db.appointments.find(
+        {"appointment_id": {"$in": participant_apt_ids}, "status": {"$nin": ["deleted"]}},
+        {"_id": 0}
+    )) if participant_apt_ids else []
+    
+    # Combine and deduplicate
+    all_appointments = {apt['appointment_id']: apt for apt in organizer_appointments + participant_appointments}
+    
+    # Generate combined ICS feed
+    ics_content = ICSGenerator.generate_feed(list(all_appointments.values()), user.get('first_name', 'NLYT'))
+    
+    return Response(
+        content=ics_content.encode('utf-8'),
+        media_type="text/calendar; charset=utf-8",
+        headers={
+            "Content-Type": "text/calendar; charset=utf-8",
+            "Cache-Control": "no-cache, no-store, must-revalidate"
         }
     )
