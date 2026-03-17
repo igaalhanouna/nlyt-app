@@ -191,9 +191,11 @@ class EmailService:
         location: str = None,
         penalty_amount: float = None,
         penalty_currency: str = "EUR",
-        cancellation_deadline_hours: int = None
+        cancellation_deadline_hours: int = None,
+        appointment_id: str = None,
+        ics_link: str = None
     ):
-        """Send invitation email with full appointment details"""
+        """Send invitation email with full appointment details and ICS calendar link"""
         # Parse datetime for display
         try:
             from datetime import datetime, timezone
@@ -225,6 +227,20 @@ class EmailService:
         
         # Build location info
         location_display = location if location else "Non spécifié"
+        
+        # Build ICS calendar link section
+        calendar_section = ""
+        if ics_link:
+            calendar_section = f"""
+                    <div style="text-align: center; margin-top: 15px; padding-top: 15px; border-top: 1px solid #E2E8F0;">
+                        <a href="{ics_link}" style="display: inline-block; padding: 10px 20px; background: #64748B; color: white; text-decoration: none; border-radius: 6px; font-size: 13px;">
+                            📅 Ajouter au calendrier (ICS)
+                        </a>
+                        <p style="color: #94A3B8; font-size: 11px; margin-top: 8px;">
+                            Compatible Google Calendar, Outlook, Apple Calendar
+                        </p>
+                    </div>
+            """
         
         subject = f"Invitation à un rendez-vous - {appointment_title}"
         html_content = f"""
@@ -278,6 +294,8 @@ class EmailService:
                     <p style="color: #94A3B8; font-size: 13px; text-align: center;">
                         Vous pourrez consulter toutes les conditions avant d'accepter ou de refuser.
                     </p>
+                    
+                    {calendar_section}
                 </div>
                 <div class="footer">
                     <p>© 2026 NLYT. Tous droits réservés.</p>
@@ -288,6 +306,126 @@ class EmailService:
         </html>
         """
         return await EmailService.send_email(to_email, subject, html_content, email_type="invitation")
+
+
+    @staticmethod
+    async def send_acceptance_confirmation_email(
+        to_email: str,
+        to_name: str,
+        organizer_name: str,
+        appointment_title: str,
+        appointment_datetime: str,
+        location: str = None,
+        penalty_amount: float = None,
+        penalty_currency: str = "EUR",
+        cancellation_deadline_hours: int = None,
+        ics_link: str = None,
+        invitation_link: str = None
+    ):
+        """Send confirmation email after participant accepts invitation, with ICS download link"""
+        # Parse datetime for display
+        try:
+            from datetime import datetime, timezone
+            if '+' in appointment_datetime or 'Z' in appointment_datetime:
+                dt = datetime.fromisoformat(appointment_datetime.replace('Z', '+00:00'))
+            else:
+                dt = datetime.strptime(appointment_datetime, "%Y-%m-%dT%H:%M")
+            formatted_date = dt.strftime("%A %d %B %Y à %H:%M")
+        except:
+            formatted_date = appointment_datetime
+        
+        location_display = location if location else "Non spécifié"
+        
+        # Build penalty reminder
+        penalty_reminder = ""
+        if penalty_amount and penalty_amount > 0:
+            penalty_reminder = f"""
+            <div style="background: #FEF3C7; border-left: 4px solid #F59E0B; padding: 15px; margin: 20px 0;">
+                <p style="margin: 0; color: #92400E;">
+                    <strong>Rappel d'engagement :</strong> Une pénalité de {penalty_amount} {penalty_currency.upper()} 
+                    s'appliquera en cas d'absence ou de retard excessif.
+                    {f"Vous pouvez annuler sans pénalité jusqu'à {cancellation_deadline_hours}h avant le rendez-vous." if cancellation_deadline_hours else ""}
+                </p>
+            </div>
+            """
+        
+        # ICS button
+        ics_button = ""
+        if ics_link:
+            ics_button = f"""
+                    <div style="text-align: center; margin: 25px 0;">
+                        <a href="{ics_link}" style="display: inline-block; padding: 14px 28px; background: #3B82F6; color: white; text-decoration: none; border-radius: 8px; font-weight: bold;">
+                            📅 Ajouter à mon calendrier
+                        </a>
+                        <p style="color: #94A3B8; font-size: 12px; margin-top: 10px;">
+                            Téléchargez le fichier .ics pour l'ajouter à Google Calendar, Outlook ou Apple Calendar
+                        </p>
+                    </div>
+            """
+        
+        # View invitation link
+        view_link = ""
+        if invitation_link:
+            view_link = f"""
+                    <p style="text-align: center; margin-top: 20px;">
+                        <a href="{invitation_link}" style="color: #3B82F6; text-decoration: underline;">
+                            Voir les détails du rendez-vous
+                        </a>
+                    </p>
+            """
+        
+        subject = f"✅ Confirmation - {appointment_title}"
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <style>
+                body {{ font-family: 'Inter', Arial, sans-serif; line-height: 1.6; color: #334155; }}
+                .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+                .header {{ background: #059669; color: white; padding: 30px; text-align: center; }}
+                .content {{ background: #ffffff; padding: 30px; border: 1px solid #E2E8F0; }}
+                .info-box {{ background: #F0FDF4; padding: 20px; border-radius: 8px; border: 1px solid #BBF7D0; margin: 20px 0; }}
+                .footer {{ text-align: center; color: #64748B; font-size: 14px; padding: 20px; }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1 style="margin: 0;">✅ Rendez-vous confirmé</h1>
+                    <p style="margin: 10px 0 0 0; opacity: 0.9;">NLYT</p>
+                </div>
+                <div class="content">
+                    <h2 style="color: #1E293B;">Bonjour {to_name},</h2>
+                    <p style="color: #475569;">
+                        Vous avez accepté l'invitation de <strong>{organizer_name}</strong>. 
+                        Le rendez-vous est maintenant confirmé.
+                    </p>
+                    
+                    <div class="info-box">
+                        <h3 style="margin: 0 0 15px 0; color: #1E293B;">📋 {appointment_title}</h3>
+                        <p style="margin: 8px 0; color: #64748B;">
+                            <strong>📅 Date :</strong> {formatted_date}
+                        </p>
+                        <p style="margin: 8px 0; color: #64748B;">
+                            <strong>📍 Lieu :</strong> {location_display}
+                        </p>
+                    </div>
+                    
+                    {penalty_reminder}
+                    
+                    {ics_button}
+                    
+                    {view_link}
+                </div>
+                <div class="footer">
+                    <p>© 2026 NLYT. Tous droits réservés.</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+        return await EmailService.send_email(to_email, subject, html_content, email_type="acceptance_confirmation")
+
 
     @staticmethod
     async def send_participant_cancellation_notification(

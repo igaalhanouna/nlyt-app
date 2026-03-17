@@ -112,6 +112,7 @@ async def create_appointment(appointment: AppointmentCreate, request: Request):
                     organizer_name = f"{organizer.get('first_name', '')} {organizer.get('last_name', '')}"
                     base_url = get_frontend_url(request)
                     invitation_link = f"{base_url}/invitation/{invitation_token}"
+                    ics_link = f"{base_url}/api/calendar/export/ics/{appointment_id}"
                     
                     # Build participant name from first_name + last_name
                     participant_name = f"{p.first_name or ''} {p.last_name or ''}".strip()
@@ -128,7 +129,9 @@ async def create_appointment(appointment: AppointmentCreate, request: Request):
                         location=appointment.location or appointment.meeting_provider,
                         penalty_amount=appointment.penalty_amount,
                         penalty_currency=appointment.penalty_currency,
-                        cancellation_deadline_hours=appointment.cancellation_deadline_hours
+                        cancellation_deadline_hours=appointment.cancellation_deadline_hours,
+                        appointment_id=appointment_id,
+                        ics_link=ics_link
                     )
                 except Exception as e:
                     # Log error but don't fail the appointment creation

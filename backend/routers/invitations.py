@@ -231,6 +231,43 @@ async def respond_to_invitation(token: str, response: InvitationResponse):
         {"_id": 0}
     )
     
+    # Send confirmation email if accepted
+    if response.action == "accept":
+        try:
+            from services.email_service import EmailService
+            import os
+            
+            # Get organizer info
+            organizer = db.users.find_one({"user_id": appointment.get('organizer_id')}, {"_id": 0})
+            organizer_name = f"{organizer.get('first_name', '')} {organizer.get('last_name', '')}".strip() if organizer else "L'organisateur"
+            
+            # Build participant name
+            participant_name = f"{participant.get('first_name', '')} {participant.get('last_name', '')}".strip()
+            if not participant_name:
+                participant_name = participant.get('email', '').split('@')[0]
+            
+            # Build URLs
+            frontend_url = os.environ.get('FRONTEND_URL', '').rstrip('/')
+            ics_link = f"{frontend_url}/api/calendar/export/ics/{appointment['appointment_id']}"
+            invitation_link = f"{frontend_url}/invitation/{token}"
+            
+            await EmailService.send_acceptance_confirmation_email(
+                to_email=participant.get('email', ''),
+                to_name=participant_name,
+                organizer_name=organizer_name,
+                appointment_title=appointment.get('title', ''),
+                appointment_datetime=appointment.get('start_datetime', ''),
+                location=appointment.get('location') or appointment.get('meeting_provider'),
+                penalty_amount=appointment.get('penalty_amount'),
+                penalty_currency=appointment.get('penalty_currency', 'EUR'),
+                cancellation_deadline_hours=appointment.get('cancellation_deadline_hours'),
+                ics_link=ics_link,
+                invitation_link=invitation_link
+            )
+        except Exception as e:
+            # Log error but don't fail the acceptance
+            print(f"Failed to send confirmation email: {e}")
+    
     return {
         "success": True,
         "message": message,
