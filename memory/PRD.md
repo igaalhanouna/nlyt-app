@@ -43,6 +43,11 @@ Application SaaS NLYT - Système de rendez-vous avec engagement financier.
 - Deadline reminder service (1h before deadline)
 - Event reminder service (10min/1h/1day before RDV)
 - Email notifications via Resend
+- **ICS file generation** (17 Mars 2026)
+  - Endpoint: GET /api/calendar/export/ics/{appointment_id}
+  - Description complète avec règles d'engagement
+  - Compatible Google Calendar, Outlook, Apple Calendar
+  - Bouton sur page détail RDV et page invitation
 
 ### ⚠️ Partial/Pending
 - Stripe payment integration (routes exist, not connected)
