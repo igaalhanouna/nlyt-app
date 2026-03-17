@@ -48,6 +48,11 @@ Application SaaS NLYT - Système de rendez-vous avec engagement financier.
   - Description complète avec règles d'engagement
   - Compatible Google Calendar, Outlook, Apple Calendar
   - Bouton sur page détail RDV et page invitation
+- **Address Autocomplete** (17 Mars 2026)
+  - API BAN (Base Adresse Nationale) - gratuite, sans clé
+  - Suggestions en temps réel avec debounce 300ms
+  - Stockage lat/lng/place_id en base
+  - Intégré au wizard step 2 (type physique)
 
 ### ⚠️ Partial/Pending
 - Stripe payment integration (routes exist, not connected)
