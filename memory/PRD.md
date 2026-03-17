@@ -53,6 +53,12 @@ Application SaaS NLYT - Système de rendez-vous avec engagement financier.
   - Suggestions en temps réel avec debounce 300ms
   - Stockage lat/lng/place_id en base
   - Intégré au wizard step 2 (type physique)
+- **Calendar MVP** (17 Mars 2026)
+  - Export ICS individuel: GET /api/calendar/export/ics/{id}
+  - Feed ICS subscription: GET /api/calendar/feed/{user_id}.ics
+  - Gestion RDV annulés: STATUS:CANCELLED, titre [ANNULÉ], pas d'alarme
+  - Boutons frontend sur page détail et page invitation
+  - Compatible Google Calendar, Outlook, Apple Calendar
 
 ### ⚠️ Partial/Pending
 - Stripe payment integration (routes exist, not connected)
