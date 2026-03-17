@@ -8,6 +8,7 @@ import { Label } from '../../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { ArrowLeft, ArrowRight, Check, Calendar, MapPin, Video, DollarSign, Shield, Users, Plus, Trash2, Lock, Building2, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
+import AddressAutocomplete from '../../components/AddressAutocomplete';
 
 export default function AppointmentWizard() {
   const navigate = useNavigate();
@@ -32,6 +33,9 @@ export default function AppointmentWizard() {
     title: '',
     appointment_type: 'physical',
     location: '',
+    location_latitude: null,
+    location_longitude: null,
+    location_place_id: null,
     meeting_provider: '',
     start_datetime: '',
     duration_minutes: 60,
@@ -347,14 +351,26 @@ export default function AppointmentWizard() {
       {formData.appointment_type === 'physical' ? (
         <div>
           <Label htmlFor="location">Lieu *</Label>
-          <Input
-            id="location"
-            data-testid="appointment-location-input"
-            value={formData.location}
-            onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-            placeholder="Adresse complète du rendez-vous"
-            className="mt-1"
-          />
+          <div className="mt-1">
+            <AddressAutocomplete
+              value={formData.location}
+              onChange={(value) => setFormData({ ...formData, location: value })}
+              onSelect={(addressData) => {
+                setFormData({
+                  ...formData,
+                  location: addressData.address,
+                  location_latitude: addressData.latitude,
+                  location_longitude: addressData.longitude,
+                  location_place_id: addressData.place_id
+                });
+              }}
+              placeholder="Tapez une adresse..."
+              data-testid="appointment-location-input"
+            />
+          </div>
+          <p className="text-xs text-slate-500 mt-1">
+            Commencez à taper pour voir les suggestions d'adresses
+          </p>
         </div>
       ) : (
         <div>

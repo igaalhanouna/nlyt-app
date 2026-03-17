@@ -119,6 +119,9 @@ class AppointmentCreate(BaseModel):
     title: str
     appointment_type: AppointmentType
     location: Optional[str] = None
+    location_latitude: Optional[float] = None
+    location_longitude: Optional[float] = None
+    location_place_id: Optional[str] = None
     meeting_provider: Optional[str] = None
     start_datetime: str
     duration_minutes: int
