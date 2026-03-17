@@ -1,0 +1,136 @@
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
+import { Button } from '../../components/ui/button';
+import { Input } from '../../components/ui/input';
+import { Label } from '../../components/ui/label';
+import { AlertCircle, Mail } from 'lucide-react';
+import { toast } from 'sonner';
+
+export default function SignIn() {
+  const navigate = useNavigate();
+  const { login } = useAuth();
+  const [formData, setFormData] = useState({
+    email: '',
+    password: ''
+  });
+  const [loading, setLoading] = useState(false);
+  const [notVerifiedEmail, setNotVerifiedEmail] = useState(null);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    // Don't reset notVerifiedEmail here - only reset on successful login
+
+    try {
+      await login(formData.email, formData.password);
+      setNotVerifiedEmail(null); // Reset only on success
+      toast.success('Connexion réussie');
+      navigate('/dashboard');
+    } catch (error) {
+      const errorData = error.response?.data;
+      
+      // Check if error is due to unverified email
+      // Backend can return either {detail: "not_verified"} or {detail: {error: "not_verified", message: "..."}}
+      const errorType = typeof errorData?.detail === 'object' ? errorData.detail.error : errorData?.detail;
+      
+      if (errorType === 'not_verified' || errorData?.error === 'not_verified') {
+        setNotVerifiedEmail(formData.email);
+        // Don't show toast for not_verified - the yellow banner is enough
+      } else {
+        setNotVerifiedEmail(null); // Reset for other errors
+        toast.error(errorData?.detail || errorData?.message || 'Erreur de connexion');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendVerification = () => {
+    navigate('/resend-verification', { state: { email: notVerifiedEmail } });
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background px-4">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-slate-900 mb-2">NLYT</h1>
+          <h2 className="text-2xl font-semibold text-slate-800 mb-2">Connexion</h2>
+          <p className="text-slate-600">Accédez à votre espace</p>
+        </div>
+
+        <div className="bg-white p-8 rounded-lg shadow-sm border border-slate-200">
+          {notVerifiedEmail && (
+            <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg" data-testid="not-verified-alert">
+              <div className="flex items-start gap-3 mb-3">
+                <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5" />
+                <div>
+                  <p className="font-medium text-amber-900">Email non vérifié</p>
+                  <p className="text-sm text-amber-800 mt-1">
+                    Votre compte existe mais votre email n'a pas encore été vérifié. 
+                    Veuillez vérifier votre boîte mail ou demander un nouvel email.
+                  </p>
+                </div>
+              </div>
+              <Button
+                onClick={handleResendVerification}
+                variant="outline"
+                size="sm"
+                className="w-full border-amber-300 hover:bg-amber-100"
+                data-testid="resend-from-signin-btn"
+              >
+                <Mail className="w-4 h-4 mr-2" />
+                Renvoyer l'email de vérification
+              </Button>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div>
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                data-testid="signin-email-input"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                required
+                className="mt-1"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="password">Mot de passe</Label>
+              <Input
+                id="password"
+                type="password"
+                data-testid="signin-password-input"
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                required
+                className="mt-1"
+              />
+            </div>
+
+            <div className="text-right">
+              <Link to="/forgot-password" className="text-sm text-blue-600 hover:text-blue-800 hover:underline font-medium" data-testid="forgot-password-link">
+                Mot de passe oublié ?
+              </Link>
+            </div>
+
+            <Button type="submit" className="w-full" disabled={loading} data-testid="signin-submit-btn">
+              {loading ? 'Connexion...' : 'Se connecter'}
+            </Button>
+          </form>
+
+          <div className="mt-6 text-center text-sm text-slate-600">
+            Pas encore de compte ?{' '}
+            <Link to="/signup" className="text-blue-600 hover:text-blue-800 hover:underline font-semibold">
+              Créer un compte
+            </Link>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
