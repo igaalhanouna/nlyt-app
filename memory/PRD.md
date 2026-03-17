@@ -59,6 +59,8 @@ Application SaaS NLYT - Système de rendez-vous avec engagement financier.
   - Gestion RDV annulés: STATUS:CANCELLED, titre [ANNULÉ], pas d'alarme
   - Boutons frontend sur page détail et page invitation
   - Compatible Google Calendar, Outlook, Apple Calendar
+  - **Lien ICS dans email d'invitation** ✅
+  - **Email de confirmation après acceptation avec bouton calendrier** ✅
 
 ### ⚠️ Partial/Pending
 - Stripe payment integration (routes exist, not connected)
