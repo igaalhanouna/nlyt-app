@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Calendar, MapPin, Clock, Users, AlertTriangle, Check, X, Loader2, Ban } from 'lucide-react';
+import { Calendar, MapPin, Clock, Users, AlertTriangle, Check, X, Loader2, Ban, Download } from 'lucide-react';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL || '';
 
@@ -347,6 +347,22 @@ export default function InvitationPage() {
                     })}
                   </p>
                 )}
+                
+                {/* Add to calendar button */}
+                <div className="mt-6 pt-4 border-t border-slate-200">
+                  <a
+                    href={`${API_URL}/api/calendar/export/ics/${appointment.appointment_id}`}
+                    download
+                    className="inline-flex items-center gap-2 px-6 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition-colors font-medium"
+                    data-testid="download-ics-btn"
+                  >
+                    <Download className="w-4 h-4" />
+                    Ajouter au calendrier
+                  </a>
+                  <p className="text-xs text-slate-500 mt-2">
+                    Téléchargez le fichier .ics pour l'ajouter à votre calendrier
+                  </p>
+                </div>
                 
                 {/* Cancel button if deadline not passed */}
                 {engagement_rules.can_cancel && !engagement_rules.cancellation_deadline_passed && (

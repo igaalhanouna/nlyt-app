@@ -178,27 +178,68 @@ async def sync_appointment_to_calendar(appointment_id: str, connection_id: str, 
 
 @router.get("/export/ics/{appointment_id}")
 async def export_appointment_ics(appointment_id: str):
+    """
+    Generate and download ICS file for an appointment.
+    Public endpoint - no authentication required (useful for email links).
+    Compatible with Google Calendar, Outlook, Apple Calendar.
+    """
     appointment = db.appointments.find_one({"appointment_id": appointment_id}, {"_id": 0})
     
     if not appointment:
         raise HTTPException(status_code=404, detail="Rendez-vous introuvable")
     
+    # Parse start datetime and calculate end
     start_dt = datetime.fromisoformat(appointment['start_datetime'].replace('Z', '+00:00'))
     end_dt = start_dt + timedelta(minutes=appointment['duration_minutes'])
     
+    # Get organizer info for description
+    organizer = db.users.find_one({"user_id": appointment.get('organizer_id')}, {"_id": 0, "first_name": 1, "last_name": 1})
+    organizer_name = "L'organisateur"
+    if organizer:
+        organizer_name = f"{organizer.get('first_name', '')} {organizer.get('last_name', '')}".strip() or "L'organisateur"
+    
+    # Build comprehensive description with engagement rules
+    description_lines = [
+        f"Rendez-vous organisé via NLYT par {organizer_name}.",
+        "",
+        "=== RÈGLES D'ENGAGEMENT ===",
+        f"• Délai d'annulation : {appointment.get('cancellation_deadline_hours', 24)}h avant le rendez-vous",
+        f"• Retard toléré : {appointment.get('tolerated_delay_minutes', 0)} minute(s)",
+        f"• Pénalité en cas d'absence : {appointment.get('penalty_amount', 0)} {appointment.get('penalty_currency', 'EUR').upper()}",
+        "",
+        "En acceptant ce rendez-vous, vous vous engagez à respecter ces conditions.",
+        "",
+        "---",
+        "Généré par NLYT - nlyt.app"
+    ]
+    description = "\\n".join(description_lines)
+    
+    # Determine location
+    location = appointment.get('location', '')
+    if not location and appointment.get('meeting_provider'):
+        location = f"Visio - {appointment.get('meeting_provider')}"
+    
+    # Build event data
     event_data = {
         "appointment_id": appointment_id,
         "title": appointment['title'],
-        "description": f"Rendez-vous NLYT avec engagement",
-        "location": appointment.get('location', ''),
+        "description": description,
+        "location": location,
         "start_datetime": start_dt.isoformat(),
         "end_datetime": end_dt.isoformat()
     }
     
     ics_content = ICSGenerator.generate_ics_bytes(event_data)
     
+    # Clean filename (remove special characters)
+    safe_title = "".join(c if c.isalnum() or c in ' -_' else '' for c in appointment['title'])[:30]
+    filename = f"nlyt_{safe_title}_{appointment_id[:8]}.ics"
+    
     return Response(
         content=ics_content,
-        media_type="text/calendar",
-        headers={"Content-Disposition": f"attachment; filename=appointment_{appointment_id}.ics"}
+        media_type="text/calendar; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Content-Type": "text/calendar; charset=utf-8"
+        }
     )

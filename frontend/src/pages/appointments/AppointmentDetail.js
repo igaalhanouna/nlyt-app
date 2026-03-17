@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { appointmentAPI, participantAPI } from '../../services/api';
+import { appointmentAPI, participantAPI, calendarAPI } from '../../services/api';
 import { Button } from '../../components/ui/button';
-import { ArrowLeft, Calendar, MapPin, Video, Clock, Users, Ban, Check, X, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Calendar, MapPin, Video, Clock, Users, Ban, Check, X, AlertTriangle, Download } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function AppointmentDetail() {
@@ -71,6 +71,13 @@ export default function AppointmentDetail() {
   const pendingCount = participants.filter(p => p.status === 'invited').length;
   const isCancelled = appointment.status === 'cancelled';
 
+  const handleDownloadICS = () => {
+    // Open ICS download in new tab/trigger download
+    const icsUrl = calendarAPI.exportICS(id);
+    window.open(icsUrl, '_blank');
+    toast.success('Téléchargement du fichier calendrier...');
+  };
+
   // Status badge helper
   const getParticipantStatusBadge = (status) => {
     switch (status) {
@@ -125,6 +132,16 @@ export default function AppointmentDetail() {
             </span>
           </div>
           <div className="flex gap-2">
+            {/* ICS Download button - always visible */}
+            <Button 
+              variant="outline"
+              onClick={handleDownloadICS}
+              data-testid="download-ics-btn"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Ajouter au calendrier
+            </Button>
+            
             {!isCancelled && (
               <>
                 <Link to={`/appointments/${id}/participants`}>
