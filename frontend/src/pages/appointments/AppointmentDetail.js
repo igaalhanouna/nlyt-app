@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { appointmentAPI, participantAPI, calendarAPI, invitationAPI } from '../../services/api';
 import { Button } from '../../components/ui/button';
-import { ArrowLeft, Calendar, MapPin, Video, Clock, Users, Ban, Check, X, AlertTriangle, Download, Heart, ShieldCheck, CreditCard, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Calendar, MapPin, Video, Clock, Users, Ban, Check, X, AlertTriangle, Download, Heart, ShieldCheck, CreditCard, RefreshCw, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function AppointmentDetail() {
@@ -14,6 +14,8 @@ export default function AppointmentDetail() {
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [resendingToken, setResendingToken] = useState(null);
+  const [syncStatus, setSyncStatus] = useState(null);
+  const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -27,10 +29,33 @@ export default function AppointmentDetail() {
       ]);
       setAppointment(appointmentRes.data);
       setParticipants(participantsRes.data.participants || []);
+
+      // Check Google Calendar sync status (non-blocking)
+      calendarAPI.getSyncStatus(id)
+        .then(res => setSyncStatus(res.data))
+        .catch(() => setSyncStatus(null));
     } catch (error) {
       toast.error('Erreur lors du chargement');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSyncGoogleCalendar = async () => {
+    setSyncing(true);
+    try {
+      const response = await calendarAPI.syncAppointment(id);
+      setSyncStatus({ synced: true, html_link: response.data.html_link });
+      toast.success('Rendez-vous synchronisé avec Google Calendar');
+    } catch (error) {
+      const detail = error.response?.data?.detail;
+      if (detail === 'Google Calendar non connecté') {
+        toast.error('Google Calendar non connecté. Allez dans Paramètres > Intégrations.');
+      } else {
+        toast.error(detail || 'Erreur lors de la synchronisation');
+      }
+    } finally {
+      setSyncing(false);
     }
   };
 
@@ -148,16 +173,34 @@ export default function AppointmentDetail() {
                appointment.status === 'draft' ? 'Brouillon' : appointment.status}
             </span>
           </div>
-          <div className="flex gap-2">
-            {/* ICS Download button - always visible */}
+          <div className="flex gap-2 flex-wrap">
+            {/* ICS Download button */}
             <Button 
               variant="outline"
               onClick={handleDownloadICS}
               data-testid="download-ics-btn"
             >
               <Download className="w-4 h-4 mr-2" />
-              Ajouter au calendrier
+              ICS
             </Button>
+
+            {/* Google Calendar sync button */}
+            {syncStatus?.synced ? (
+              <Button variant="outline" className="text-emerald-700 border-emerald-300" disabled data-testid="google-synced-btn">
+                <Check className="w-4 h-4 mr-2" />
+                Google Calendar
+              </Button>
+            ) : syncStatus?.has_connection && !isCancelled ? (
+              <Button
+                variant="outline"
+                onClick={handleSyncGoogleCalendar}
+                disabled={syncing}
+                data-testid="sync-google-btn"
+              >
+                {syncing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Calendar className="w-4 h-4 mr-2" />}
+                Google Calendar
+              </Button>
+            ) : null}
             
             {!isCancelled && (
               <>

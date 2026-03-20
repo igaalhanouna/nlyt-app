@@ -1,10 +1,6 @@
 import os
-from google.oauth2.credentials import Credentials
-from googleapiclient.discovery import build
-from google.auth.transport.requests import Request as GoogleRequest
-from google_auth_oauthlib.flow import Flow
-import requests
 from typing import Optional, Dict
+import requests
 import sys
 sys.path.append('/app/backend')
 
@@ -12,29 +8,27 @@ CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID')
 CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET')
 SCOPES = ['https://www.googleapis.com/auth/calendar']
 
+
 class GoogleCalendarAdapter:
     @staticmethod
-    def get_authorization_url(redirect_uri: str) -> tuple:
-        flow = Flow.from_client_config(
-            {
-                "web": {
-                    "client_id": CLIENT_ID,
-                    "client_secret": CLIENT_SECRET,
-                    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-                    "token_uri": "https://oauth2.googleapis.com/token"
-                }
-            },
-            scopes=SCOPES,
-            redirect_uri=redirect_uri
-        )
-        
-        authorization_url, state = flow.authorization_url(
-            access_type='offline',
-            prompt='consent'
-        )
-        
-        return authorization_url, state
-    
+    def get_authorization_url(redirect_uri: str, state: str = None) -> tuple:
+        """Build Google OAuth2 authorization URL manually (no Flow dependency)."""
+        import urllib.parse
+
+        params = {
+            "client_id": CLIENT_ID,
+            "redirect_uri": redirect_uri,
+            "response_type": "code",
+            "scope": " ".join(SCOPES),
+            "access_type": "offline",
+            "prompt": "consent",
+        }
+        if state:
+            params["state"] = state
+
+        auth_url = "https://accounts.google.com/o/oauth2/auth?" + urllib.parse.urlencode(params)
+        return auth_url, state
+
     @staticmethod
     def exchange_code_for_tokens(code: str, redirect_uri: str) -> Optional[Dict]:
         try:
@@ -45,61 +39,68 @@ class GoogleCalendarAdapter:
                 'redirect_uri': redirect_uri,
                 'grant_type': 'authorization_code'
             }).json()
-            
+
             if 'error' in token_resp:
+                print(f"[GOOGLE] Token exchange error: {token_resp}")
                 return None
-            
+
             user_info = requests.get(
                 'https://www.googleapis.com/oauth2/v2/userinfo',
                 headers={'Authorization': f'Bearer {token_resp["access_token"]}'}
             ).json()
-            
+
             return {
                 "access_token": token_resp['access_token'],
                 "refresh_token": token_resp.get('refresh_token'),
-                "token_expiry": token_resp.get('expires_in'),
-                "user_email": user_info.get('email')
+                "expires_in": token_resp.get('expires_in'),
+                "user_email": user_info.get('email'),
+                "user_name": user_info.get('name', '')
             }
         except Exception as e:
-            print(f"Error exchanging code: {e}")
+            print(f"[GOOGLE] Error exchanging code: {e}")
             return None
-    
+
     @staticmethod
-    def refresh_credentials(refresh_token: str) -> Optional[Credentials]:
+    def refresh_access_token(refresh_token: str) -> Optional[str]:
+        """Refresh an expired access token. Returns new access_token or None."""
         try:
-            creds = Credentials(
-                token=None,
-                refresh_token=refresh_token,
-                token_uri='https://oauth2.googleapis.com/token',
-                client_id=CLIENT_ID,
-                client_secret=CLIENT_SECRET
-            )
-            creds.refresh(GoogleRequest())
-            return creds
+            resp = requests.post('https://oauth2.googleapis.com/token', data={
+                'client_id': CLIENT_ID,
+                'client_secret': CLIENT_SECRET,
+                'refresh_token': refresh_token,
+                'grant_type': 'refresh_token'
+            }).json()
+            if 'error' in resp:
+                print(f"[GOOGLE] Refresh error: {resp}")
+                return None
+            return resp.get('access_token')
         except Exception as e:
-            print(f"Error refreshing credentials: {e}")
+            print(f"[GOOGLE] Error refreshing token: {e}")
             return None
-    
+
     @staticmethod
-    def get_service(access_token: str, refresh_token: str):
-        creds = Credentials(
-            token=access_token,
-            refresh_token=refresh_token,
-            token_uri='https://oauth2.googleapis.com/token',
-            client_id=CLIENT_ID,
-            client_secret=CLIENT_SECRET
-        )
-        
-        if creds.expired and creds.refresh_token:
-            creds.refresh(GoogleRequest())
-        
-        return build('calendar', 'v3', credentials=creds), creds.token
-    
+    def _get_headers(access_token: str, refresh_token: str, connection_update_callback=None) -> Optional[dict]:
+        """Get valid auth headers refreshing token if needed."""
+        headers = {'Authorization': f'Bearer {access_token}', 'Content-Type': 'application/json'}
+        # Test current token
+        test = requests.get('https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=1', headers=headers)
+        if test.status_code == 401 and refresh_token:
+            new_token = GoogleCalendarAdapter.refresh_access_token(refresh_token)
+            if new_token:
+                if connection_update_callback:
+                    connection_update_callback(new_token)
+                headers['Authorization'] = f'Bearer {new_token}'
+            else:
+                return None
+        return headers
+
     @staticmethod
-    def create_event(access_token: str, refresh_token: str, event_data: dict) -> Optional[Dict]:
+    def create_event(access_token: str, refresh_token: str, event_data: dict, connection_update_callback=None) -> Optional[Dict]:
         try:
-            service, new_token = GoogleCalendarAdapter.get_service(access_token, refresh_token)
-            
+            headers = GoogleCalendarAdapter._get_headers(access_token, refresh_token, connection_update_callback)
+            if not headers:
+                return None
+
             event = {
                 'summary': event_data['title'],
                 'description': event_data.get('description', ''),
@@ -113,45 +114,49 @@ class GoogleCalendarAdapter:
                     'timeZone': 'UTC'
                 }
             }
-            
-            result = service.events().insert(calendarId='primary', body=event).execute()
-            return {
-                "event_id": result['id'],
-                "html_link": result.get('htmlLink'),
-                "new_access_token": new_token
-            }
+
+            resp = requests.post(
+                'https://www.googleapis.com/calendar/v3/calendars/primary/events',
+                headers=headers,
+                json=event
+            )
+            if resp.status_code in (200, 201):
+                result = resp.json()
+                return {
+                    "event_id": result['id'],
+                    "html_link": result.get('htmlLink')
+                }
+            else:
+                print(f"[GOOGLE] Create event error {resp.status_code}: {resp.text}")
+                return None
         except Exception as e:
-            print(f"Error creating event: {e}")
+            print(f"[GOOGLE] Error creating event: {e}")
             return None
-    
+
     @staticmethod
-    def update_event(access_token: str, refresh_token: str, event_id: str, event_data: dict) -> bool:
+    def delete_event(access_token: str, refresh_token: str, event_id: str, connection_update_callback=None) -> bool:
         try:
-            service, _ = GoogleCalendarAdapter.get_service(access_token, refresh_token)
-            
-            event = service.events().get(calendarId='primary', eventId=event_id).execute()
-            
-            event['summary'] = event_data.get('title', event['summary'])
-            event['description'] = event_data.get('description', event.get('description', ''))
-            event['location'] = event_data.get('location', event.get('location', ''))
-            
-            if 'start_datetime' in event_data:
-                event['start'] = {'dateTime': event_data['start_datetime'], 'timeZone': 'UTC'}
-            if 'end_datetime' in event_data:
-                event['end'] = {'dateTime': event_data['end_datetime'], 'timeZone': 'UTC'}
-            
-            service.events().update(calendarId='primary', eventId=event_id, body=event).execute()
-            return True
+            headers = GoogleCalendarAdapter._get_headers(access_token, refresh_token, connection_update_callback)
+            if not headers:
+                return False
+            resp = requests.delete(
+                f'https://www.googleapis.com/calendar/v3/calendars/primary/events/{event_id}',
+                headers=headers
+            )
+            return resp.status_code in (200, 204)
         except Exception as e:
-            print(f"Error updating event: {e}")
+            print(f"[GOOGLE] Error deleting event: {e}")
             return False
-    
+
     @staticmethod
-    def delete_event(access_token: str, refresh_token: str, event_id: str) -> bool:
+    def revoke_token(access_token: str) -> bool:
+        """Revoke Google OAuth token."""
         try:
-            service, _ = GoogleCalendarAdapter.get_service(access_token, refresh_token)
-            service.events().delete(calendarId='primary', eventId=event_id).execute()
-            return True
-        except Exception as e:
-            print(f"Error deleting event: {e}")
+            resp = requests.post(
+                'https://oauth2.googleapis.com/revoke',
+                params={'token': access_token},
+                headers={'Content-Type': 'application/x-www-form-urlencoded'}
+            )
+            return resp.status_code == 200
+        except Exception:
             return False
