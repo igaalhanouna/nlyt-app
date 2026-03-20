@@ -10,8 +10,11 @@ from datetime import datetime, timezone
 import time
 
 class StripeGuaranteeAPITester:
-    def __init__(self, base_url="https://nlyt-engage.preview.emergentagent.com"):
-        self.base_url = base_url
+    def __init__(self, base_url=None):
+        # Use environment variable, no hardcoded fallback
+        self.base_url = base_url or os.environ.get('REACT_APP_BACKEND_URL', os.environ.get('FRONTEND_URL', ''))
+        if not self.base_url:
+            raise ValueError("Base URL must be provided or set via REACT_APP_BACKEND_URL/FRONTEND_URL env var")
         self.token = None
         self.user_id = None
         self.tests_run = 0

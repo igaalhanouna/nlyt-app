@@ -45,7 +45,8 @@ class EventReminderService:
         frontend_url = os.environ.get('FRONTEND_URL', '')
         if frontend_url:
             return frontend_url.rstrip('/')
-        return 'https://engagement-system.preview.emergentagent.com'
+        # NEVER use a hardcoded fallback - fail explicitly
+        raise ValueError("FRONTEND_URL environment variable is required but not set")
     
     @staticmethod
     def parse_datetime(dt_str: str) -> datetime:
