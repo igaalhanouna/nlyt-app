@@ -317,6 +317,24 @@ class StripeGuaranteeService:
                 "dev_mode": True
             }
         
+        # Real mode: if still pending, check Stripe directly (fallback if webhook delayed)
+        if guarantee.get("status") == "pending" and guarantee.get("stripe_session_id"):
+            try:
+                session = stripe.checkout.Session.retrieve(guarantee["stripe_session_id"])
+                if session.status == "complete" and session.setup_intent:
+                    result = StripeGuaranteeService.handle_checkout_completed({
+                        "id": session.id,
+                        "setup_intent": session.setup_intent,
+                        "customer": session.customer,
+                        "metadata": dict(session.metadata) if session.metadata else {}
+                    })
+                    if result.get("success"):
+                        guarantee = db.payment_guarantees.find_one(
+                            {"stripe_session_id": session_id}, {"_id": 0}
+                        )
+            except Exception as e:
+                print(f"[GUARANTEE_STATUS] Stripe direct check failed: {e}")
+        
         return {
             "success": True,
             "guarantee_id": guarantee.get("guarantee_id"),

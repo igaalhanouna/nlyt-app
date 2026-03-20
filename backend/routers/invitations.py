@@ -264,6 +264,15 @@ async def respond_to_invitation(token: str, response: InvitationResponse, reques
                     detail=f"Erreur lors de la création de la session de paiement: {result.get('error')}"
                 )
             
+            # Write guarantee_id to participant immediately (don't wait for webhook)
+            db.participants.update_one(
+                {"invitation_token": token},
+                {"$set": {
+                    "guarantee_id": result['guarantee_id'],
+                    "stripe_session_id": result['session_id']
+                }}
+            )
+            
             return {
                 "success": True,
                 "requires_guarantee": True,

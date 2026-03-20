@@ -300,7 +300,8 @@ export default function InvitationPage() {
         <div className="bg-white rounded-2xl shadow-xl overflow-hidden" data-testid="invitation-card">
           {/* Status Header */}
           <div className={`px-6 py-4 ${
-            responseStatus === 'accepted' ? 'bg-green-500' :
+            responseStatus === 'accepted' || responseStatus === 'accepted_guaranteed' ? 'bg-green-500' :
+            responseStatus === 'accepted_pending_guarantee' ? 'bg-amber-500' :
             responseStatus === 'declined' ? 'bg-red-500' :
             responseStatus === 'cancelled_by_participant' ? 'bg-orange-500' :
             'bg-slate-800'

@@ -224,8 +224,12 @@ async def list_appointments(workspace_id: str = None, request: Request = None):
         status_summary = {"invited": 0, "accepted": 0, "declined": 0, "cancelled_by_participant": 0}
         for p in participants:
             status = p.get('status', 'invited')
-            if status in status_summary:
+            if status in ('accepted', 'accepted_pending_guarantee', 'accepted_guaranteed'):
+                status_summary['accepted'] += 1
+            elif status in status_summary:
                 status_summary[status] += 1
+            else:
+                status_summary['invited'] += 1
         apt['participants_status_summary'] = status_summary
     
     return {"appointments": appointments}
