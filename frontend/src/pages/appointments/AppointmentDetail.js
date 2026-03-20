@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { appointmentAPI, participantAPI, calendarAPI } from '../../services/api';
+import { appointmentAPI, participantAPI, calendarAPI, invitationAPI } from '../../services/api';
 import { Button } from '../../components/ui/button';
-import { ArrowLeft, Calendar, MapPin, Video, Clock, Users, Ban, Check, X, AlertTriangle, Download, Heart, ShieldCheck, CreditCard } from 'lucide-react';
+import { ArrowLeft, Calendar, MapPin, Video, Clock, Users, Ban, Check, X, AlertTriangle, Download, Heart, ShieldCheck, CreditCard, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function AppointmentDetail() {
@@ -13,6 +13,7 @@ export default function AppointmentDetail() {
   const [loading, setLoading] = useState(true);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [resendingToken, setResendingToken] = useState(null);
 
   useEffect(() => {
     loadData();
@@ -45,6 +46,18 @@ export default function AppointmentDetail() {
       toast.error(error.response?.data?.detail || 'Erreur lors de l\'annulation');
     } finally {
       setCancelling(false);
+    }
+  };
+
+  const handleResendInvitation = async (token) => {
+    setResendingToken(token);
+    try {
+      await invitationAPI.resend(token);
+      toast.success('Invitation renvoyée avec succès');
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Erreur lors du renvoi de l'invitation");
+    } finally {
+      setResendingToken(null);
     }
   };
 
@@ -319,7 +332,20 @@ export default function AppointmentDetail() {
                     </p>
                     <p className="text-sm text-slate-600">{participant.email}</p>
                   </div>
-                  {getParticipantStatusBadge(participant.status)}
+                  <div className="flex items-center gap-2">
+                    {getParticipantStatusBadge(participant.status)}
+                    {participant.status === 'invited' && !isCancelled && (
+                      <button
+                        title="Renvoyer l'invitation"
+                        data-testid={`resend-detail-btn-${participant.participant_id}`}
+                        disabled={resendingToken === participant.invitation_token}
+                        onClick={() => handleResendInvitation(participant.invitation_token)}
+                        className="p-1.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors disabled:opacity-50"
+                      >
+                        <RefreshCw className={`w-3.5 h-3.5 ${resendingToken === participant.invitation_token ? 'animate-spin' : ''}`} />
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
