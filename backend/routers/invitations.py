@@ -110,8 +110,8 @@ async def get_invitation_details(token: str):
         now = datetime.now(timezone.utc)
         deadline_passed = now >= cancellation_deadline_dt
         
-        # Can cancel if: accepted AND deadline not passed
-        if participant.get('status') == 'accepted' and not deadline_passed:
+        # Can cancel if: accepted (with or without guarantee) AND deadline not passed
+        if participant.get('status') in ('accepted', 'accepted_guaranteed') and not deadline_passed:
             can_cancel = True
     
     # Build response with limited, privacy-conscious data
@@ -125,7 +125,9 @@ async def get_invitation_details(token: str):
             "status": participant.get('status', 'invited'),
             "accepted_at": participant.get('accepted_at'),
             "declined_at": participant.get('declined_at'),
-            "cancelled_at": participant.get('cancelled_at')
+            "cancelled_at": participant.get('cancelled_at'),
+            "guaranteed_at": participant.get('guaranteed_at'),
+            "guarantee_id": participant.get('guarantee_id')
         },
         "appointment": {
             "appointment_id": appointment['appointment_id'],

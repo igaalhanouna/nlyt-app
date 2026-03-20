@@ -1,0 +1,136 @@
+<analysis>**original_problem_statement**: 
+Tu reprends le développement de mon application SaaS NLYT (application de rendez-vous avec engagement financier). Objectif : zéro friction, automatisation maximale, logique d’engagement claire.
+Tasks required:
+1. Complete functional audit of Profile -> Defaults -> Wizard flow. Ensure strict decoupling and immutable snapshots.
+2. Ensure default penalty distribution strictly equals 100%.
+3. Dashboard UX: Separate Upcoming and Past appointments using Tabs. 
+4. Display Charity Association info on Appointment Detail page.
+5. Complete audit of Stripe payment chain (security, idempotency, webhook logic) before going live.
+6. Connect real Stripe test keys.
+7. Fix UI/Backend bug where Participant status and counters do not update from Invited after a successful Stripe Guarantee completion.
+
+**User's preferred language**: French (INSTRUCT NEXT AGENT: You MUST respond to the user in French).
+
+**what currently exists?**: 
+A functional SaaS application (React + FastAPI + MongoDB) for booking appointments with financial commitments. The app allows organizers to define appointment rules (penalty amounts, cancellation logic, charity distribution) in their Profile, which auto-fill an Appointment Wizard. Rules are saved as immutable snapshots. The Dashboard separates Upcoming, In Progress, and Past appointments. The Stripe integration is now functioning in REAL test mode (Checkout Sessions -> SetupIntents -> Webhooks), capturing real payment methods.
+
+**Last working item**:
+- **Last item agent was working**: Fixing the participant status and dashboard counters post-Stripe completion. The webhook was succeeding, but the frontend kept showing participants as Invited with 0 Accepted because the frontend and backend counters were not tracking the intermediate/final Stripe statuses (, ).
+- **Status**: TESTING PENDING (Agent applied backend/frontend code fixes and verified via bash script, but session ended before UI/E2E visual verification and  tool execution).
+- **Agent Testing Done**: Y (Backend bash/API tests only for this final step).
+- **Which testing method agent to use?**: Frontend testing agent or manual testing via screenshot tool to visually verify the counters and badges in the UI ( and ).
+- **User Testing Done**: N
+
+**All Pending/In progress Issue list**: 
+Issue 1: Participant Status UI/Counters not updating post-Stripe (P0)
+- Attempted fixes: Agent updated backend  to count  & , fixed  to save  on session creation, and updated  &  to parse these new statuses correctly.
+- Next debug checklist: Check  and  to confirm the badges and summary texts render properly when a participant completes the Stripe flow.
+- Why fix this issue and what will be achieved with the fix? Organizers need to accurately see which participants have committed financially.
+- Status: TESTING PENDING
+- Is recurring issue? N
+- Should Test frontend/backend/both after fix? Frontend
+- Blocked on other issue: None.
+
+**In progress Task List**: 
+None.
+
+**Upcoming and Future Tasks**:
+- P1: Clean up Stripe dead code (, , ). These were identified as obsolete during the Stripe audit.
+- P1: Calendar Phase 2 - Google Calendar OAuth Integration ( exists but needs UI).
+- P1: Calendar Phase 2 - Outlook / Microsoft 365 OAuth Integration.
+- P2: No-show detection and automated penalty capture (cron job/scheduler logic).
+- P2: Stripe Connect Implementation (Automated fund splits between participant, charity, and platform).
+- P3: Organizer analytics dashboard.
+
+**Completed work in this session**:
+- Functional audit of Profile -> Wizard -> Appointment flow (Fixed missing validations, protected system fields like platform commission) (DONE)
+- Fixed default penalty split: enforced strict auto-adjustment so Participant + Charity + Platform = 100% at all times (DONE)
+- Dashboard separation: Implemented Shadcn Tabs to separate À venir (Upcoming/In Progress) and Passés (Past) based on  (DONE)
+- Charity details visibility: Added Charity Association info to the  page if a charity is selected (DONE)
+- Stripe Security Audit: Fixed 8 bugs including webhook signature enforcement, idempotency, and status checks (DONE)
+- Configured real Stripe API and Webhook keys in  (TEST mode now active) (DONE)
+
+**Earlier issues found/mentioned but not fixed**:
+None.
+
+**Known issue recurrence from previous fork**:
+- Issue recurrence in previous fork: N/A
+- Recurrence count: 0
+- Status: N/A
+
+**Code Architecture**:
+
+
+**Key Technical Concepts**:
+Frontend: React.js, TailwindCSS, Shadcn UI
+Backend: FastAPI, Python, APScheduler 
+Database: MongoDB
+Integrations: Resend (Emails), Stripe (Payments - SetupIntents & Webhooks)
+
+**key DB schema**:
+- : {..., : {cancellation_hours, penalty_amount, platform_commission_percent...}}
+- : {..., , , }
+- : {...,  (invited, accepted_pending_guarantee, accepted_guaranteed, declined, cancelled), }
+- : {, , }
+- : {..., , , }
+
+**changes in tech stack**:
+- Transitioned Stripe from simulated dummy-key mode to real TEST mode. Webhooks are now live and strictly enforcing signatures.
+
+**All files of reference**:
+-  (Modified: Added summary counters for guaranteed participants, enforced server-side platform %).
+-  (Modified: Attached  on session creation).
+-  (Modified: Webhook security, status validation, idempotency).
+-  (Modified: Tab logic for past/upcoming/in-progress, added badges).
+-  (Modified: Charity UI block, updated participant counters).
+-  (Modified: Handles polling response for ).
+
+**Areas that need refactoring**:
+- Code dead paths: , , and  are no longer used by the active Stripe flow and should be deleted to prevent confusion.
+
+**key api endpoints**:
+-  (Receives  from Stripe)
+-  (Generates Stripe Setup Checkout Session)
+-  (Frontend polling for guarantee success)
+
+**Critical Info for New Agent**:
+1. **Stripe is LIVE in TEST mode:** Real keys ( and ) are now in the backend . Webhooks are functioning. Do not revert to the mock  key.
+2. **Participant Statuses:** Ensure you strictly use and account for  and  when calculating counts or rendering badges.
+3. **Immutability:** The appointment creation flow correctly copies Profile Defaults -> Local State -> Immutable Snapshot. Never read from  after an appointment is created.
+
+**documents and test reports created in this job**:
+-  (Updated)
+-  (Profile Flow E2E)
+-  (Profile Validation Logic)
+
+**Last 10 User Messages and any pending HUMAN messages**:
+1. (User) Requested to fix the penalty distribution sum to strictly equal 100%.
+2. (User) Requested separating Upcoming and Past appointments on the Dashboard using Tabs.
+3. (User) Requested a targeted review of the temporal logic to handle In progress appointments correctly.
+4. (User) Requested displaying the Charity Association on the Appointment Details page if one is selected.
+5. (User) Requested a full security and architectural audit of the Stripe flow before going live.
+6. (User) Asked for the exact production webhook URL.
+7. (User) Asked where to put the Stripe Webhook Secret.
+8. (User) Provided the Webhook Secret and asked agent to implement it.
+9. (User) Provided the real Stripe Test API Key.
+10. (User) Reported a bug where, after a successful real Stripe flow, the participant remains visually Invited and the counters show 0. Requested an audit and fix of the frontend/backend participant status tracking.
+
+**Project Health Check**:
+- Broken: None (Pending visual verification of participant counters).
+- Mocked: None.
+
+**3rd Party Integrations**:
+- Resend (Emails) — requires User API Key
+- Stripe (Payments) — requires User API Key (Provided and active in TEST mode)
+
+**Testing status**:
+- Testing agent used after significant changes: YES
+- Troubleshoot agent used after agent stuck in loop: NO
+- Test files created: None manually, heavy use of python/bash scripts for database verification.
+- Known regressions: None.
+
+**Credentials to test flow**:
+- Test User:  /  (If needed, check older summary, but mostly you can create users dynamically).
+
+**What agent forgot to execute**:
+The agent identified and patched the bugs causing the participant status and counters not to update after Stripe completion (Issue 1). However, the agent ran out of turns before triggering the  tool, so they did not capture a final UI screenshot or run the frontend testing agent to visually confirm the fixes work end-to-end in the browser.</analysis>
