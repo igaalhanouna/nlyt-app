@@ -159,10 +159,15 @@ async def get_invitation_details(token: str):
 
 
 @router.post("/{token}/respond")
-async def respond_to_invitation(token: str, response: InvitationResponse):
+async def respond_to_invitation(token: str, response: InvitationResponse, request: Request):
     """
     Public endpoint to accept or decline an invitation.
-    No authentication required - uses token for security.
+    
+    For acceptance:
+    - If penalty_amount > 0: Creates Stripe session for guarantee, returns checkout_url
+    - If penalty_amount = 0: Directly accepts without Stripe
+    
+    For decline: Directly declines
     """
     if response.action not in ["accept", "decline"]:
         raise HTTPException(status_code=400, detail="Action invalide. Utilisez 'accept' ou 'decline'.")
@@ -178,7 +183,7 @@ async def respond_to_invitation(token: str, response: InvitationResponse):
     
     # Check if already responded
     current_status = participant.get('status', 'invited')
-    if current_status in ['accepted', 'declined']:
+    if current_status in ['accepted', 'accepted_guaranteed', 'accepted_pending_guarantee', 'declined']:
         raise HTTPException(
             status_code=400, 
             detail=f"Vous avez déjà répondu à cette invitation (statut actuel: {current_status})"
@@ -205,6 +210,66 @@ async def respond_to_invitation(token: str, response: InvitationResponse):
     now = now_utc().isoformat()
     
     if response.action == "accept":
+        penalty_amount = appointment.get('penalty_amount', 0)
+        
+        # If there's a penalty, require Stripe guarantee
+        if penalty_amount and penalty_amount > 0:
+            from services.stripe_guarantee_service import StripeGuaranteeService
+            
+            # Update status to pending guarantee
+            db.participants.update_one(
+                {"invitation_token": token},
+                {"$set": {
+                    "status": "accepted_pending_guarantee",
+                    "accept_initiated_at": now,
+                    "updated_at": now
+                }}
+            )
+            
+            # Get frontend URL
+            frontend_url = os.environ.get('FRONTEND_URL', '').rstrip('/')
+            if not frontend_url:
+                frontend_url = str(request.base_url).rstrip('/')
+            
+            # Create Stripe guarantee session
+            participant_name = f"{participant.get('first_name', '')} {participant.get('last_name', '')}".strip()
+            if not participant_name:
+                participant_name = participant.get('email', '').split('@')[0]
+            
+            result = StripeGuaranteeService.create_guarantee_session(
+                participant_id=participant['participant_id'],
+                appointment_id=appointment['appointment_id'],
+                participant_email=participant.get('email', ''),
+                participant_name=participant_name,
+                appointment_title=appointment.get('title', 'Rendez-vous'),
+                penalty_amount=float(penalty_amount),
+                penalty_currency=appointment.get('penalty_currency', 'eur'),
+                frontend_url=frontend_url,
+                invitation_token=token
+            )
+            
+            if not result.get('success'):
+                # Revert status if Stripe session creation failed
+                db.participants.update_one(
+                    {"invitation_token": token},
+                    {"$set": {"status": "invited", "updated_at": now}}
+                )
+                raise HTTPException(
+                    status_code=500, 
+                    detail=f"Erreur lors de la création de la session de paiement: {result.get('error')}"
+                )
+            
+            return {
+                "success": True,
+                "requires_guarantee": True,
+                "message": "Une garantie financière est requise pour confirmer votre participation",
+                "checkout_url": result['checkout_url'],
+                "session_id": result['session_id'],
+                "guarantee_id": result['guarantee_id'],
+                "status": "accepted_pending_guarantee"
+            }
+        
+        # No penalty - direct acceptance
         update_data = {
             "status": "accepted",
             "accepted_at": now,
@@ -235,7 +300,6 @@ async def respond_to_invitation(token: str, response: InvitationResponse):
     if response.action == "accept":
         try:
             from services.email_service import EmailService
-            import os
             
             # Get organizer info
             organizer = db.users.find_one({"user_id": appointment.get('organizer_id')}, {"_id": 0})
@@ -280,6 +344,40 @@ async def respond_to_invitation(token: str, response: InvitationResponse):
             "accepted_at": updated_participant.get('accepted_at'),
             "declined_at": updated_participant.get('declined_at')
         }
+    }
+
+
+
+@router.get("/{token}/guarantee-status")
+async def check_guarantee_status(token: str, session_id: str = None):
+    """
+    Check the status of a payment guarantee for an invitation.
+    Used after Stripe redirect to verify completion.
+    """
+    participant = db.participants.find_one(
+        {"invitation_token": token},
+        {"_id": 0}
+    )
+    
+    if not participant:
+        raise HTTPException(status_code=404, detail="Invitation non trouvée")
+    
+    status = participant.get('status', 'invited')
+    guarantee_id = participant.get('guarantee_id')
+    
+    # If session_id provided, check Stripe session
+    if session_id:
+        from services.stripe_guarantee_service import StripeGuaranteeService
+        result = StripeGuaranteeService.get_guarantee_status(session_id)
+        
+        if result.get('success') and result.get('status') == 'completed':
+            status = 'accepted_guaranteed'
+    
+    return {
+        "status": status,
+        "guarantee_id": guarantee_id,
+        "is_guaranteed": status == "accepted_guaranteed",
+        "participant_id": participant.get('participant_id')
     }
 
 

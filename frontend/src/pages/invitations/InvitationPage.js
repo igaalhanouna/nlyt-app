@@ -1,22 +1,71 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { Calendar, MapPin, Clock, Users, AlertTriangle, Check, X, Loader2, Ban, Download } from 'lucide-react';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { Calendar, MapPin, Clock, Users, AlertTriangle, Check, X, Loader2, Ban, Download, CreditCard, ShieldCheck } from 'lucide-react';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL || '';
 
 export default function InvitationPage() {
   const { token } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [invitation, setInvitation] = useState(null);
   const [loading, setLoading] = useState(true);
   const [responding, setResponding] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [error, setError] = useState(null);
   const [responseStatus, setResponseStatus] = useState(null);
+  const [guaranteeMessage, setGuaranteeMessage] = useState(null);
 
   useEffect(() => {
+    // Check for Stripe redirect params
+    const guaranteeStatus = searchParams.get('guarantee_status');
+    const sessionId = searchParams.get('session_id');
+    
+    if (guaranteeStatus === 'success' && sessionId) {
+      // Poll for guarantee confirmation
+      pollGuaranteeStatus(sessionId);
+    } else if (guaranteeStatus === 'cancelled') {
+      setGuaranteeMessage({
+        type: 'warning',
+        text: 'Vous avez annulé la configuration de la garantie. Votre participation n\'est pas encore confirmée.'
+      });
+    }
+    
     fetchInvitation();
   }, [token]);
+
+  const pollGuaranteeStatus = async (sessionId, attempts = 0) => {
+    const maxAttempts = 10;
+    const pollInterval = 2000;
+
+    if (attempts >= maxAttempts) {
+      setGuaranteeMessage({
+        type: 'info',
+        text: 'Vérification en cours... Veuillez rafraîchir la page dans quelques instants.'
+      });
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_URL}/api/invitations/${token}/guarantee-status?session_id=${sessionId}`);
+      const data = await response.json();
+
+      if (data.is_guaranteed) {
+        setResponseStatus('accepted_guaranteed');
+        setGuaranteeMessage({
+          type: 'success',
+          text: 'Garantie confirmée ! Votre participation est maintenant validée.'
+        });
+        fetchInvitation(); // Refresh data
+        return;
+      }
+
+      // Continue polling
+      setTimeout(() => pollGuaranteeStatus(sessionId, attempts + 1), pollInterval);
+    } catch (error) {
+      console.error('Error polling guarantee status:', error);
+    }
+  };
 
   const fetchInvitation = async () => {
     try {
@@ -32,7 +81,7 @@ export default function InvitationPage() {
       setInvitation(data);
       
       // Check if already responded
-      if (['accepted', 'declined', 'cancelled_by_participant'].includes(data.participant.status)) {
+      if (['accepted', 'accepted_guaranteed', 'accepted_pending_guarantee', 'declined', 'cancelled_by_participant'].includes(data.participant.status)) {
         setResponseStatus(data.participant.status);
       }
     } catch (err) {
@@ -45,6 +94,8 @@ export default function InvitationPage() {
   const handleResponse = async (action) => {
     try {
       setResponding(true);
+      setError(null);
+      
       const response = await fetch(`${API_URL}/api/invitations/${token}/respond`, {
         method: 'POST',
         headers: {
@@ -59,6 +110,18 @@ export default function InvitationPage() {
       }
       
       const data = await response.json();
+      
+      // Check if Stripe redirect is required
+      if (data.requires_guarantee && data.checkout_url) {
+        setGuaranteeMessage({
+          type: 'info',
+          text: 'Redirection vers la page de garantie...'
+        });
+        // Redirect to Stripe Checkout
+        window.location.href = data.checkout_url;
+        return;
+      }
+      
       setResponseStatus(data.status);
       
       // Update invitation data
@@ -67,12 +130,12 @@ export default function InvitationPage() {
         participant: {
           ...prev.participant,
           status: data.status,
-          accepted_at: data.participant.accepted_at,
-          declined_at: data.participant.declined_at,
+          accepted_at: data.participant?.accepted_at,
+          declined_at: data.participant?.declined_at,
         },
         engagement_rules: {
           ...prev.engagement_rules,
-          can_cancel: data.status === 'accepted' && !prev.engagement_rules.cancellation_deadline_passed
+          can_cancel: ['accepted', 'accepted_guaranteed'].includes(data.status) && !prev.engagement_rules.cancellation_deadline_passed
         }
       }));
     } catch (err) {
@@ -333,7 +396,92 @@ export default function InvitationPage() {
 
           {/* Response Section */}
           <div className="p-6" data-testid="response-section">
-            {responseStatus === 'accepted' ? (
+            {/* Guarantee message banner */}
+            {guaranteeMessage && (
+              <div className={`mb-4 p-4 rounded-lg ${
+                guaranteeMessage.type === 'success' ? 'bg-green-50 border border-green-200 text-green-800' :
+                guaranteeMessage.type === 'warning' ? 'bg-amber-50 border border-amber-200 text-amber-800' :
+                'bg-blue-50 border border-blue-200 text-blue-800'
+              }`}>
+                <div className="flex items-center gap-2">
+                  {guaranteeMessage.type === 'success' && <ShieldCheck className="w-5 h-5" />}
+                  {guaranteeMessage.type === 'warning' && <AlertTriangle className="w-5 h-5" />}
+                  {guaranteeMessage.type === 'info' && <Loader2 className="w-5 h-5 animate-spin" />}
+                  <p className="font-medium">{guaranteeMessage.text}</p>
+                </div>
+              </div>
+            )}
+            
+            {/* Accepted with guarantee */}
+            {responseStatus === 'accepted_guaranteed' ? (
+              <div className="text-center py-4">
+                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <ShieldCheck className="w-8 h-8 text-green-600" />
+                </div>
+                <h3 className="text-xl font-semibold text-green-800 mb-2">Participation confirmée avec garantie !</h3>
+                <p className="text-slate-600">Votre moyen de paiement a été enregistré comme garantie.</p>
+                <p className="text-xs text-slate-500 mt-2">
+                  Aucun montant ne sera prélevé sauf en cas d'absence ou de retard excessif.
+                </p>
+                {participant.guaranteed_at && (
+                  <p className="text-xs text-slate-400 mt-2">
+                    Garanti le {new Date(participant.guaranteed_at).toLocaleDateString('fr-FR', {
+                      day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                    })}
+                  </p>
+                )}
+                
+                {/* Add to calendar button */}
+                <div className="mt-6 pt-4 border-t border-slate-200">
+                  <a
+                    href={`${API_URL}/api/calendar/export/ics/${appointment.appointment_id}`}
+                    download
+                    className="inline-flex items-center gap-2 px-6 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition-colors font-medium"
+                    data-testid="download-ics-btn"
+                  >
+                    <Download className="w-4 h-4" />
+                    Ajouter au calendrier
+                  </a>
+                </div>
+                
+                {/* Cancel button if deadline not passed */}
+                {engagement_rules.can_cancel && !engagement_rules.cancellation_deadline_passed && (
+                  <div className="mt-6 pt-4 border-t border-slate-200">
+                    <p className="text-sm text-slate-500 mb-3">
+                      Vous pouvez annuler votre participation jusqu'au {engagement_rules.cancellation_deadline_formatted}
+                    </p>
+                    <button
+                      onClick={handleCancelParticipation}
+                      disabled={cancelling}
+                      className="px-6 py-2 border-2 border-orange-300 text-orange-700 rounded-lg hover:bg-orange-50 transition-colors font-medium disabled:opacity-50 flex items-center gap-2 mx-auto"
+                      data-testid="cancel-participation-btn"
+                    >
+                      {cancelling ? <Loader2 className="w-4 h-4 animate-spin" /> : <Ban className="w-4 h-4" />}
+                      Annuler ma participation
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : responseStatus === 'accepted_pending_guarantee' ? (
+              <div className="text-center py-4">
+                <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <CreditCard className="w-8 h-8 text-amber-600" />
+                </div>
+                <h3 className="text-xl font-semibold text-amber-800 mb-2">Garantie en attente</h3>
+                <p className="text-slate-600 mb-4">
+                  Vous avez accepté cette invitation mais la garantie financière n'est pas encore configurée.
+                </p>
+                <button
+                  onClick={() => handleResponse('accept')}
+                  disabled={responding}
+                  className="px-8 py-3 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors font-medium disabled:opacity-50 flex items-center gap-2 mx-auto"
+                  data-testid="complete-guarantee-btn"
+                >
+                  {responding ? <Loader2 className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />}
+                  Compléter la garantie
+                </button>
+              </div>
+            ) : responseStatus === 'accepted' ? (
               <div className="text-center py-4">
                 <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Check className="w-8 h-8 text-green-600" />
@@ -355,6 +503,7 @@ export default function InvitationPage() {
                     download
                     className="inline-flex items-center gap-2 px-6 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition-colors font-medium"
                     data-testid="download-ics-btn"
+                  >
                   >
                     <Download className="w-4 h-4" />
                     Ajouter au calendrier
@@ -424,6 +573,27 @@ export default function InvitationPage() {
             ) : (
               <div>
                 <h3 className="font-semibold text-slate-800 mb-4 text-center">Votre réponse</h3>
+                
+                {/* Guarantee notice if penalty > 0 */}
+                {engagement_rules.penalty_amount > 0 && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                    <div className="flex items-start gap-3">
+                      <CreditCard className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-medium text-blue-800">Garantie financière requise</p>
+                        <p className="text-sm text-blue-700 mt-1">
+                          Pour confirmer votre participation, vous devrez enregistrer un moyen de paiement.
+                          <strong> Aucun montant ne sera prélevé immédiatement.</strong>
+                        </p>
+                        <p className="text-xs text-blue-600 mt-2">
+                          La pénalité de {engagement_rules.penalty_amount} {engagement_rules.penalty_currency} ne sera prélevée 
+                          qu'en cas d'absence ou de retard excessif.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
                 <p className="text-sm text-slate-600 text-center mb-6">
                   En acceptant, vous vous engagez à respecter les règles ci-dessus. 
                   En cas de non-respect, la pénalité définie sera appliquée.
@@ -445,7 +615,7 @@ export default function InvitationPage() {
                     data-testid="accept-btn"
                   >
                     {responding ? <Loader2 className="w-5 h-5 animate-spin" /> : <Check className="w-5 h-5" />}
-                    Accepter
+                    {engagement_rules.penalty_amount > 0 ? 'Accepter et configurer la garantie' : 'Accepter'}
                   </button>
                 </div>
               </div>

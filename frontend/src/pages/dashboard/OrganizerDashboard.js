@@ -4,7 +4,7 @@ import { useWorkspace } from '../../contexts/WorkspaceContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { appointmentAPI } from '../../services/api';
 import { Button } from '../../components/ui/button';
-import { CalendarPlus, LogOut, Settings, Calendar, Users, MapPin, Video, Trash2, Check, X, Clock, Building2, ChevronDown, Plus, Ban } from 'lucide-react';
+import { CalendarPlus, LogOut, Settings, Calendar, Users, MapPin, Video, Trash2, Check, X, Clock, Building2, ChevronDown, Plus, Ban, ShieldCheck, CreditCard } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function OrganizerDashboard() {
@@ -307,26 +307,34 @@ export default function OrganizerDashboard() {
                                   : p.name || p.email.split('@')[0];
                                 const status = p.status || 'invited';
                                 
+                                // Determine status label and style
+                                const getStatusInfo = (s) => {
+                                  switch(s) {
+                                    case 'accepted_guaranteed':
+                                      return { label: 'Garanti', icon: ShieldCheck, className: 'bg-green-100 text-green-800' };
+                                    case 'accepted_pending_guarantee':
+                                      return { label: 'Garantie en cours', icon: CreditCard, className: 'bg-amber-100 text-amber-800' };
+                                    case 'accepted':
+                                      return { label: 'Accepté', icon: Check, className: 'bg-green-100 text-green-800' };
+                                    case 'declined':
+                                      return { label: 'Refusé', icon: X, className: 'bg-red-100 text-red-800' };
+                                    case 'cancelled_by_participant':
+                                      return { label: 'Annulé', icon: Ban, className: 'bg-orange-100 text-orange-800' };
+                                    default:
+                                      return { label: 'En attente', icon: Clock, className: 'bg-slate-100 text-slate-800' };
+                                  }
+                                };
+                                
+                                const statusInfo = getStatusInfo(status);
+                                const StatusIcon = statusInfo.icon;
+                                
                                 return (
                                   <span 
                                     key={idx}
-                                    className={`inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full ${
-                                      status === 'accepted' ? 'bg-green-100 text-green-800' :
-                                      status === 'declined' ? 'bg-red-100 text-red-800' :
-                                      status === 'cancelled_by_participant' ? 'bg-orange-100 text-orange-800' :
-                                      'bg-amber-100 text-amber-800'
-                                    }`}
-                                    title={`${name} - ${
-                                      status === 'accepted' ? 'Accepté' :
-                                      status === 'declined' ? 'Refusé' : 
-                                      status === 'cancelled_by_participant' ? 'Annulé par le participant' :
-                                      'En attente'
-                                    }`}
+                                    className={`inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full ${statusInfo.className}`}
+                                    title={`${name} - ${statusInfo.label}`}
                                   >
-                                    {status === 'accepted' && <Check className="w-3 h-3" />}
-                                    {status === 'declined' && <X className="w-3 h-3" />}
-                                    {status === 'cancelled_by_participant' && <Ban className="w-3 h-3" />}
-                                    {status === 'invited' && <Clock className="w-3 h-3" />}
+                                    <StatusIcon className="w-3 h-3" />
                                     {name}
                                   </span>
                                 );

@@ -15,7 +15,9 @@ class AppointmentType(str, Enum):
 
 class ParticipantStatus(str, Enum):
     INVITED = "invited"
-    ACCEPTED = "accepted"
+    ACCEPTED_PENDING_GUARANTEE = "accepted_pending_guarantee"
+    ACCEPTED_GUARANTEED = "accepted_guaranteed"
+    ACCEPTED = "accepted"  # Legacy support
     DECLINED = "declined"
     CANCELLED_BY_PARTICIPANT = "cancelled_by_participant"
     ON_TIME = "on_time"
