@@ -1,25 +1,31 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useWorkspace } from '../../contexts/WorkspaceContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { appointmentAPI } from '../../services/api';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
-import { ArrowLeft, ArrowRight, Check, Calendar, MapPin, Video, DollarSign, Shield, Users, Plus, Trash2, Lock, Building2, ChevronDown } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, Calendar, MapPin, Video, DollarSign, Shield, Users, Plus, Trash2, Lock, Building2, ChevronDown, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import AddressAutocomplete from '../../components/AddressAutocomplete';
 
+const API_URL = process.env.REACT_APP_BACKEND_URL || '';
+
 export default function AppointmentWizard() {
   const navigate = useNavigate();
+  const { token } = useAuth();
   const { currentWorkspace, workspaces, selectWorkspace, createWorkspace, loading: workspaceLoading } = useWorkspace();
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [loadingDefaults, setLoadingDefaults] = useState(true);
   const [workspaceDropdownOpen, setWorkspaceDropdownOpen] = useState(false);
   const [showCreateWorkspace, setShowCreateWorkspace] = useState(false);
   const [newWorkspaceName, setNewWorkspaceName] = useState('');
   const [newWorkspaceDescription, setNewWorkspaceDescription] = useState('');
   const [creatingWorkspace, setCreatingWorkspace] = useState(false);
+  const [charityAssociations, setCharityAssociations] = useState([]);
   
   // Freemium status - TODO: Get from user context when subscription system is implemented
   const isFreemium = true;
@@ -45,8 +51,53 @@ export default function AppointmentWizard() {
     penalty_currency: 'eur',
     affected_compensation_percent: isFreemium ? 80 : 70,
     platform_commission_percent: isFreemium ? FREEMIUM_PLATFORM_COMMISSION : 30,
-    charity_percent: 0
+    charity_percent: 0,
+    charity_association_id: ''
   });
+
+  // Load user defaults and charity associations on mount
+  useEffect(() => {
+    const loadDefaults = async () => {
+      try {
+        // Fetch user appointment defaults
+        const defaultsResponse = await fetch(`${API_URL}/api/user-settings/me/appointment-defaults`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (defaultsResponse.ok) {
+          const defaults = await defaultsResponse.json();
+          
+          // Pre-fill form with user defaults
+          setFormData(prev => ({
+            ...prev,
+            cancellation_deadline_hours: defaults.default_cancellation_hours ?? 24,
+            tolerated_delay_minutes: defaults.default_late_tolerance_minutes ?? 15,
+            penalty_amount: defaults.default_penalty_amount ?? 50,
+            penalty_currency: defaults.default_penalty_currency ?? 'eur',
+            affected_compensation_percent: defaults.default_participant_percent ?? (isFreemium ? 80 : 70),
+            charity_percent: defaults.default_charity_percent ?? 0,
+            charity_association_id: defaults.default_charity_association_id || '',
+            // Platform commission is calculated
+            platform_commission_percent: 100 - (defaults.default_participant_percent ?? 70) - (defaults.default_charity_percent ?? 0)
+          }));
+        }
+        
+        // Fetch charity associations
+        const assocResponse = await fetch(`${API_URL}/api/charity-associations/`);
+        if (assocResponse.ok) {
+          const assocData = await assocResponse.json();
+          setCharityAssociations(assocData.associations || []);
+        }
+      } catch (error) {
+        console.error('Error loading defaults:', error);
+        // Keep default values if fetch fails
+      } finally {
+        setLoadingDefaults(false);
+      }
+    };
+    
+    loadDefaults();
+  }, [token]);
 
   const steps = [
     { number: 1, title: 'Participants', icon: Users },
@@ -582,6 +633,32 @@ export default function AppointmentWizard() {
           <p className="text-sm text-slate-500 mt-1">Optionnel - Reversé à une association partenaire</p>
         </div>
 
+        {/* Charity Association Selection */}
+        {formData.charity_percent > 0 && (
+          <div>
+            <Label htmlFor="charity_association">Association bénéficiaire</Label>
+            <Select
+              value={formData.charity_association_id || "none"}
+              onValueChange={(value) => setFormData({ ...formData, charity_association_id: value === "none" ? '' : value })}
+            >
+              <SelectTrigger className="mt-1" data-testid="charity-association-select">
+                <SelectValue placeholder="Sélectionnez une association" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Aucune association</SelectItem>
+                {charityAssociations.map((assoc) => (
+                  <SelectItem key={assoc.association_id} value={assoc.association_id}>
+                    {assoc.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-sm text-slate-500 mt-1">
+              Choisissez l'association qui recevra le don caritatif
+            </p>
+          </div>
+        )}
+
         <div className="p-4 bg-slate-50 rounded-lg">
           <div className="flex justify-between items-center">
             <span className="font-medium">Total répartition:</span>
@@ -712,6 +789,15 @@ export default function AppointmentWizard() {
           Retour au tableau de bord
         </button>
 
+        {loadingDefaults ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="flex items-center gap-3 text-slate-500">
+              <Loader2 className="w-5 h-5 animate-spin" />
+              <span>Chargement de vos paramètres par défaut...</span>
+            </div>
+          </div>
+        ) : (
+          <>
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-slate-900 mb-2">Créer un rendez-vous</h1>
           <p className="text-slate-600 mb-4">Définissez les conditions d'engagement pour votre rendez-vous</p>
@@ -903,6 +989,8 @@ export default function AppointmentWizard() {
             )}
           </div>
         </div>
+          </>
+        )}
       </div>
     </div>
   );
