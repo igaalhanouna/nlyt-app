@@ -116,10 +116,11 @@ async def update_user_settings(
         charity_pct = defaults.get("default_charity_percent", 0.0)
         max_distributable = 100 - PLATFORM_COMMISSION_PERCENT
         
-        if participant_pct + charity_pct > max_distributable:
+        total = round(participant_pct + charity_pct, 2)
+        if total != max_distributable:
             raise HTTPException(
                 status_code=400,
-                detail=f"La somme participant ({participant_pct}%) + charité ({charity_pct}%) dépasse le maximum distribuable ({max_distributable}%). La commission plateforme est fixée à {PLATFORM_COMMISSION_PERCENT}%."
+                detail=f"La somme participant ({participant_pct}%) + charité ({charity_pct}%) doit être exactement {max_distributable}%. Commission plateforme fixée à {PLATFORM_COMMISSION_PERCENT}%."
             )
         
         # Merge with existing defaults

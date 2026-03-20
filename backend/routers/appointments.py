@@ -47,12 +47,13 @@ async def create_appointment(appointment: AppointmentCreate, request: Request):
     # Platform commission is a SYSTEM value — override any client-sent value
     platform_pct = PLATFORM_COMMISSION_PERCENT
     
-    # Validate distribution: participant + charity must not exceed (100 - platform)
+    # Validate distribution: participant + charity must equal (100 - platform) for total = 100%
     max_distributable = 100 - platform_pct
-    if appointment.affected_compensation_percent + appointment.charity_percent > max_distributable:
+    total_distributed = round(appointment.affected_compensation_percent + appointment.charity_percent, 2)
+    if total_distributed != max_distributable:
         raise HTTPException(
             status_code=400,
-            detail=f"La somme compensation ({appointment.affected_compensation_percent}%) + charité ({appointment.charity_percent}%) dépasse le maximum distribuable ({max_distributable}%). La commission plateforme est fixée à {platform_pct}%."
+            detail=f"La somme compensation ({appointment.affected_compensation_percent}%) + charité ({appointment.charity_percent}%) doit être exactement {max_distributable}%. Commission plateforme fixée à {platform_pct}%."
         )
     
     # Validate charity association if charity > 0

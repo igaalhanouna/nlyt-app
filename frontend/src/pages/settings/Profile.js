@@ -4,7 +4,7 @@ import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
-import { ArrowLeft, User, Settings, Clock, Euro, Heart, Save, Loader2, Check, AlertCircle } from 'lucide-react';
+import { ArrowLeft, User, Settings, Clock, Euro, Heart, Save, Loader2, Check } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'sonner';
 
@@ -143,8 +143,29 @@ export default function Profile() {
   // Platform percent is a SYSTEM value — not computed from user inputs
   const platformPercent = systemPlatformPercent;
   const maxDistributable = 100 - platformPercent;
-  const userSum = profileData.default_participant_percent + profileData.default_charity_percent;
-  const isDistributionValid = userSum <= maxDistributable;
+
+  // Auto-adjust handlers: participant + charity must always = maxDistributable
+  const handleParticipantChange = (value) => {
+    const participant = Math.min(Math.max(parseFloat(value) || 0, 0), maxDistributable);
+    const charity = Math.max(0, maxDistributable - participant);
+    setProfileData(prev => ({
+      ...prev,
+      default_participant_percent: participant,
+      default_charity_percent: charity
+    }));
+    setHasChanges(true);
+  };
+
+  const handleCharityChange = (value) => {
+    const charity = Math.min(Math.max(parseFloat(value) || 0, 0), maxDistributable);
+    const participant = Math.max(0, maxDistributable - charity);
+    setProfileData(prev => ({
+      ...prev,
+      default_participant_percent: participant,
+      default_charity_percent: charity
+    }));
+    setHasChanges(true);
+  };
 
   if (loading) {
     return (
@@ -322,9 +343,9 @@ export default function Profile() {
                   id="participant_percent"
                   type="number"
                   min="0"
-                  max="100"
+                  max={maxDistributable}
                   value={profileData.default_participant_percent}
-                  onChange={(e) => handleInputChange('default_participant_percent', parseFloat(e.target.value) || 0)}
+                  onChange={(e) => handleParticipantChange(e.target.value)}
                   className="mt-1"
                   data-testid="profile-participant-percent"
                 />
@@ -336,9 +357,9 @@ export default function Profile() {
                   id="charity_percent"
                   type="number"
                   min="0"
-                  max="100"
+                  max={maxDistributable}
                   value={profileData.default_charity_percent}
-                  onChange={(e) => handleInputChange('default_charity_percent', parseFloat(e.target.value) || 0)}
+                  onChange={(e) => handleCharityChange(e.target.value)}
                   className="mt-1"
                   data-testid="profile-charity-percent"
                 />
@@ -355,17 +376,15 @@ export default function Profile() {
               </div>
             </div>
 
-            {!isDistributionValid && (
-              <div className="mt-4 flex items-center gap-2 text-red-600 text-sm">
-                <AlertCircle className="w-4 h-4" />
-                La somme participant + charité ne peut pas dépasser {maxDistributable}% (commission plateforme fixée à {platformPercent}%)
+            {/* Visual distribution bar — always 100% */}
+            <div className="mt-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-medium text-slate-500">Répartition totale</span>
+                <span className="text-xs font-semibold text-emerald-600">
+                  {profileData.default_participant_percent + profileData.default_charity_percent + platformPercent}%
+                </span>
               </div>
-            )}
-
-            {/* Visual distribution bar */}
-            {isDistributionValid && (
-              <div className="mt-4">
-                <div className="h-3 bg-slate-100 rounded-full overflow-hidden flex">
+              <div className="h-3 bg-slate-100 rounded-full overflow-hidden flex">
                   <div 
                     className="bg-emerald-500 transition-all"
                     style={{ width: `${profileData.default_participant_percent}%` }}
@@ -397,7 +416,6 @@ export default function Profile() {
                   </span>
                 </div>
               </div>
-            )}
           </div>
 
           {/* Association caritative */}
