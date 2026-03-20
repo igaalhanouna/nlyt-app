@@ -22,7 +22,6 @@ import AppointmentWizard from './pages/appointments/AppointmentWizard';
 import AppointmentDetail from './pages/appointments/AppointmentDetail';
 import ParticipantManagement from './pages/appointments/ParticipantManagement';
 
-import AcceptInvitation from './pages/invitations/AcceptInvitation';
 import InvitationPage from './pages/invitations/InvitationPage';
 
 import PolicyTemplates from './pages/policies/PolicyTemplates';
@@ -66,7 +65,6 @@ function App() {
               <Route path="/verify-email" element={<VerifyEmail />} />
               <Route path="/resend-verification" element={<ResendVerification />} />
               
-              <Route path="/accept-invitation/:token" element={<AcceptInvitation />} />
               <Route path="/invitation/:token" element={<InvitationPage />} />
               
               <Route path="/workspace/select" element={<PrivateRoute><SelectWorkspace /></PrivateRoute>} />

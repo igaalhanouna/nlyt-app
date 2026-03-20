@@ -3,7 +3,6 @@ from . import workspaces
 from . import appointments
 from . import participants
 from . import contracts
-from . import payments
 from . import calendar_routes
 from . import disputes
 from . import admin

@@ -7,7 +7,7 @@ import os
 
 load_dotenv()
 
-from routers import auth, workspaces, appointments, participants, contracts, payments, calendar_routes, disputes, admin, webhooks, debug, invitations, user_settings, charity_associations
+from routers import auth, workspaces, appointments, participants, contracts, calendar_routes, disputes, admin, webhooks, debug, invitations, user_settings, charity_associations
 from scheduler import start_scheduler, stop_scheduler
 
 
@@ -37,7 +37,6 @@ app.include_router(workspaces.router, prefix="/api/workspaces", tags=["Workspace
 app.include_router(appointments.router, prefix="/api/appointments", tags=["Appointments"])
 app.include_router(participants.router, prefix="/api/participants", tags=["Participants"])
 app.include_router(contracts.router, prefix="/api/contracts", tags=["Contracts"])
-app.include_router(payments.router, prefix="/api/payments", tags=["Payments"])
 app.include_router(calendar_routes.router, prefix="/api/calendar", tags=["Calendar"])
 app.include_router(disputes.router, prefix="/api/disputes", tags=["Disputes"])
 app.include_router(admin.router, prefix="/api/admin", tags=["Admin"])

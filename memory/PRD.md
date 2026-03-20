@@ -27,7 +27,7 @@ Application SaaS NLYT : plateforme de rendez-vous avec engagement financier. Obj
 ├── backend/
 │   ├── adapters/          # ICS generator, Calendar adapters
 │   ├── models/            # Pydantic schemas (schemas.py)
-│   ├── routers/           # API routes (appointments, invitations, webhooks, user_settings, participants)
+│   ├── routers/           # API routes (appointments, invitations, webhooks, user_settings, participants, contracts, calendar_routes, disputes, admin, debug)
 │   ├── services/          # Business logic (stripe_guarantee_service, contract_service, email_service)
 │   ├── server.py          # FastAPI entry point
 │   └── .env
@@ -35,7 +35,7 @@ Application SaaS NLYT : plateforme de rendez-vous avec engagement financier. Obj
 │   ├── src/
 │   │   ├── components/    # UI components (AddressAutocomplete, Shadcn)
 │   │   ├── pages/         # dashboard, appointments, invitations, settings
-│   │   ├── services/      # Axios API calls
+│   │   ├── services/      # Axios API calls (api.js)
 │   │   └── App.js
 │   └── .env
 ```
@@ -61,7 +61,7 @@ accepted_guaranteed → guarantee_released (organizer cancels appointment)
 3. ✅ Profile defaults management
 4. ✅ Appointment creation wizard with immutable policy snapshots
 5. ✅ Participant invitations via email (Resend)
-6. ✅ Invitation acceptance/decline (public pages)
+6. ✅ Invitation acceptance/decline (public pages via InvitationPage.js)
 7. ✅ Stripe integration (real TEST mode) - Checkout Sessions, SetupIntents, Webhooks
 8. ✅ Dashboard with Upcoming/Past tabs
 9. ✅ Appointment detail page with participant statuses and charity info
@@ -69,16 +69,15 @@ accepted_guaranteed → guarantee_released (organizer cancels appointment)
 11. ✅ Participant cancellation with deadline enforcement
 12. ✅ ICS calendar export
 13. ✅ Event reminders (APScheduler)
-14. ✅ **P0 FIX: Participant status + counters post-Stripe** (March 20, 2026)
-    - Root cause: InvitationPage getStatusBadge() didn't handle accepted_guaranteed/accepted_pending_guarantee
-    - Fixed frontend: getStatusBadge with ShieldCheck/CreditCard icons, other_participants badges
-    - Fixed backend: invitation endpoint returns guaranteed_at/guarantee_id, can_cancel for guaranteed
-    - Tested: 9/9 automated tests + 11 visual verifications all passed
+14. ✅ P0 FIX: Participant status + counters post-Stripe (March 20, 2026)
+15. ✅ P1: Stripe dead code cleanup (March 20, 2026)
+    - Deleted: payments.py, payment_service.py, AcceptInvitation.js
+    - Cleaned: webhooks.py, server.py, __init__.py, App.js, api.js
+    - Removed: contractAPI, paymentAPI, legacy webhook handler, /accept-invitation route
 
 ## Prioritized Backlog
 
 ### P1
-- Clean up dead Stripe code: payments.py, payment_service.py, AcceptInvitation.js
 - Google Calendar OAuth Integration (Phase 2)
 - Outlook/Microsoft 365 OAuth Integration (Phase 2)
 

@@ -64,26 +64,6 @@ export const participantAPI = {
   get: (id) => api.get(`/api/participants/${id}`),
 };
 
-export const contractAPI = {
-  getInvitation: (token) => api.get(`/api/contracts/invitation/${token}`),
-  getContractHTML: (appointment_id, participant_id) => 
-    api.get(`/api/contracts/contract/${appointment_id}/html?participant_id=${participant_id}`),
-  accept: (data) => api.post('/api/contracts/accept', data),
-  getAcceptance: (id) => api.get(`/api/contracts/acceptance/${id}`),
-};
-
-export const paymentAPI = {
-  createGuarantee: (participant_id, appointment_id) => 
-    api.post(`/api/payments/guarantee/create?participant_id=${participant_id}&appointment_id=${appointment_id}`),
-  setupPaymentMethod: (guarantee_id) => 
-    api.post(`/api/payments/guarantee/${guarantee_id}/setup`),
-  getGuarantee: (id) => api.get(`/api/payments/guarantee/${id}`),
-  releaseGuarantee: (id, reason) => 
-    api.post(`/api/payments/guarantee/${id}/release?reason=${reason}`),
-  listTransactions: (appointment_id) => 
-    api.get('/api/payments/transactions', { params: { appointment_id } }),
-};
-
 export const calendarAPI = {
   connectGoogle: () => api.get('/api/calendar/connect/google'),
   connectOutlook: () => api.get('/api/calendar/connect/outlook'),

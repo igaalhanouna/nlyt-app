@@ -5,7 +5,6 @@ import sys
 import json
 import stripe
 sys.path.append('/app/backend')
-from services.payment_service import PaymentService
 from services.stripe_guarantee_service import StripeGuaranteeService
 from datetime import datetime, timezone
 
@@ -133,17 +132,6 @@ async def stripe_webhook(request: Request):
                         print(f"[WEBHOOK] Email error: {email_error}")
                 
                 return {"status": "success", "event_type": event_type, "result": result}
-            
-            # Handle regular payment checkout (legacy)
-            elif session.get("payment_status") == "paid":
-                guarantee_id = metadata.get('guarantee_id')
-                
-                if guarantee_id:
-                    PaymentService.update_guarantee_status(
-                        guarantee_id,
-                        "setup_complete",
-                        {"stripe_session_id": session.get("id")}
-                    )
         
         # Handle payment_intent.succeeded (penalty capture)
         elif event_type == "payment_intent.succeeded":
