@@ -27,7 +27,7 @@ Application SaaS NLYT : plateforme de rendez-vous avec engagement financier. Obj
 ├── backend/
 │   ├── adapters/          # ICS generator, Calendar adapters
 │   ├── models/            # Pydantic schemas (schemas.py)
-│   ├── routers/           # API routes (appointments, invitations, webhooks, user_settings)
+│   ├── routers/           # API routes (appointments, invitations, webhooks, user_settings, participants)
 │   ├── services/          # Business logic (stripe_guarantee_service, contract_service, email_service)
 │   ├── server.py          # FastAPI entry point
 │   └── .env
@@ -43,13 +43,13 @@ Application SaaS NLYT : plateforme de rendez-vous avec engagement financier. Obj
 ## Key DB Schema
 - `users`: user_id, email, appointment_defaults
 - `appointments`: appointment_id, policy_snapshot_id, start_datetime, duration_minutes, status
-- `participants`: participant_id, status (invited/accepted/accepted_pending_guarantee/accepted_guaranteed/declined/cancelled_by_participant), guarantee_id, guaranteed_at
+- `participants`: participant_id, status, guarantee_id, guaranteed_at, stripe_customer_id, stripe_payment_method_id
 - `payment_guarantees`: guarantee_id, stripe_session_id, status (pending/completed/captured/released)
 - `policy_snapshots`: snapshot_id, is_immutable
 
 ## Participant Status Flow
 ```
-invited → accepted (no penalty) 
+invited → accepted (no penalty)
 invited → accepted_pending_guarantee → accepted_guaranteed (with Stripe)
 accepted/accepted_guaranteed → cancelled_by_participant
 accepted_guaranteed → guarantee_released (organizer cancels appointment)
@@ -69,11 +69,11 @@ accepted_guaranteed → guarantee_released (organizer cancels appointment)
 11. ✅ Participant cancellation with deadline enforcement
 12. ✅ ICS calendar export
 13. ✅ Event reminders (APScheduler)
-14. ✅ **Participant status + counters fix post-Stripe completion** (March 2026)
-    - Fixed InvitationPage getStatusBadge for accepted_guaranteed/accepted_pending_guarantee
-    - Fixed backend invitation endpoint to return guaranteed_at and guarantee_id
-    - Fixed can_cancel logic for guaranteed participants
-    - All counters (Dashboard + AppointmentDetail) correctly counting guaranteed participants
+14. ✅ **P0 FIX: Participant status + counters post-Stripe** (March 20, 2026)
+    - Root cause: InvitationPage getStatusBadge() didn't handle accepted_guaranteed/accepted_pending_guarantee
+    - Fixed frontend: getStatusBadge with ShieldCheck/CreditCard icons, other_participants badges
+    - Fixed backend: invitation endpoint returns guaranteed_at/guarantee_id, can_cancel for guaranteed
+    - Tested: 9/9 automated tests + 11 visual verifications all passed
 
 ## Prioritized Backlog
 
@@ -88,3 +88,8 @@ accepted_guaranteed → guarantee_released (organizer cancels appointment)
 
 ### P3
 - Organizer analytics dashboard
+
+## Test Credentials
+- testuser_audit@nlyt.app / TestPassword123!
+- Key appointment: 222f28ec-cc2d-4734-b330-bd08b2dcdb20 (Test Statut Stripe, 3 statuts mixtes)
+- Key invitation token: df4600be-e050-4c9c-a8fe-250950227052 (accepted_guaranteed, real Stripe)
