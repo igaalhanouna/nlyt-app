@@ -61,6 +61,14 @@ Application SaaS NLYT - Système de rendez-vous avec engagement financier.
   - Compatible Google Calendar, Outlook, Apple Calendar
   - **Lien ICS dans email d'invitation** ✅
   - **Email de confirmation après acceptation avec bouton calendrier** ✅
+- **Stripe Financial Guarantee** (20 Mars 2026)
+  - Checkout Session en mode "setup" (pas de charge immédiate)
+  - États participant: invited → accepted_pending_guarantee → accepted_guaranteed
+  - Stockage customer_id et payment_method_id pour capture future
+  - Webhook checkout.session.completed pour confirmation
+  - Mode dev avec simulation automatique
+  - Dashboard affiche statuts de garantie (En attente, Garantie en cours, Garanti)
+  - Libération garantie si organisateur annule (pas de charge)
 
 ### ⚠️ Partial/Pending
 - Stripe payment integration (routes exist, not connected)
