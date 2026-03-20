@@ -1,69 +1,90 @@
 # NLYT - Product Requirements Document
 
 ## Original Problem Statement
-Application SaaS de rendez-vous avec engagement financier anti no-show. Objectif : zéro friction, automatisation maximale, logique d'engagement claire.
+Application SaaS NLYT : plateforme de rendez-vous avec engagement financier. Objectif : zéro friction, automatisation maximale, logique d'engagement claire.
+
+## User Personas
+- **Organisateur** : Crée des rendez-vous avec pénalités financières, gère les participants
+- **Participant** : Reçoit des invitations, accepte/refuse, fournit une garantie Stripe
+
+## Core Requirements
+1. Profil avec paramètres par défaut (pénalité, délai, distribution)
+2. Wizard de création de rendez-vous avec snapshot immutable
+3. Invitations par email avec lien public
+4. Garantie financière via Stripe (SetupIntent/Checkout)
+5. Dashboard organisateur avec onglets À venir / Passés
+6. Page détail rendez-vous avec participants et statuts
+
+## Tech Stack
+- Frontend: React.js, TailwindCSS, Shadcn UI
+- Backend: FastAPI, Python, APScheduler
+- Database: MongoDB
+- Integrations: Resend (Emails), Stripe (Payments - SetupIntents & Webhooks)
 
 ## Architecture
-- **Frontend**: React.js + TailwindCSS + Shadcn UI + React Router
-- **Backend**: FastAPI + Python + APScheduler
-- **Database**: MongoDB
-- **Integrations**: Resend (emails), Stripe (paiements - MOCKED), API BAN (adresses FR)
+```
+/app/
+├── backend/
+│   ├── adapters/          # ICS generator, Calendar adapters
+│   ├── models/            # Pydantic schemas (schemas.py)
+│   ├── routers/           # API routes (appointments, invitations, webhooks, user_settings)
+│   ├── services/          # Business logic (stripe_guarantee_service, contract_service, email_service)
+│   ├── server.py          # FastAPI entry point
+│   └── .env
+├── frontend/
+│   ├── src/
+│   │   ├── components/    # UI components (AddressAutocomplete, Shadcn)
+│   │   ├── pages/         # dashboard, appointments, invitations, settings
+│   │   ├── services/      # Axios API calls
+│   │   └── App.js
+│   └── .env
+```
 
-## Core Business Rules
-- **Platform commission**: 20% — system constant, NEVER user-editable. Server-side enforcement.
-- **Distribution constraint**: participant% + charity% = 80% (100 - platform%). Total always 100%.
-- **Valid currencies**: eur, usd, gbp, chf
-- **Minimum penalty**: 1€
-- **Snapshot immutability**: once created, policy_snapshot is immutable
+## Key DB Schema
+- `users`: user_id, email, appointment_defaults
+- `appointments`: appointment_id, policy_snapshot_id, start_datetime, duration_minutes, status
+- `participants`: participant_id, status (invited/accepted/accepted_pending_guarantee/accepted_guaranteed/declined/cancelled_by_participant), guarantee_id, guaranteed_at
+- `payment_guarantees`: guarantee_id, stripe_session_id, status (pending/completed/captured/released)
+- `policy_snapshots`: snapshot_id, is_immutable
 
-## Core Features Implemented
+## Participant Status Flow
+```
+invited → accepted (no penalty) 
+invited → accepted_pending_guarantee → accepted_guaranteed (with Stripe)
+accepted/accepted_guaranteed → cancelled_by_participant
+accepted_guaranteed → guarantee_released (organizer cancels appointment)
+```
 
-### Phase 1 - Foundation (DONE)
-- [x] Auth system (JWT)
-- [x] Workspace management
-- [x] Appointment CRUD with server-side validation + PATCH whitelist
-- [x] Participant management
-- [x] Email notifications via Resend
-- [x] Policy snapshot (immutable contract)
+## What's Been Implemented (Completed)
+1. ✅ Auth system (JWT, email verification, password reset)
+2. ✅ Workspace management (create, switch, membership)
+3. ✅ Profile defaults management
+4. ✅ Appointment creation wizard with immutable policy snapshots
+5. ✅ Participant invitations via email (Resend)
+6. ✅ Invitation acceptance/decline (public pages)
+7. ✅ Stripe integration (real TEST mode) - Checkout Sessions, SetupIntents, Webhooks
+8. ✅ Dashboard with Upcoming/Past tabs
+9. ✅ Appointment detail page with participant statuses and charity info
+10. ✅ Penalty distribution validation (Participant + Charity + Platform = 100%)
+11. ✅ Participant cancellation with deadline enforcement
+12. ✅ ICS calendar export
+13. ✅ Event reminders (APScheduler)
+14. ✅ **Participant status + counters fix post-Stripe completion** (March 2026)
+    - Fixed InvitationPage getStatusBadge for accepted_guaranteed/accepted_pending_guarantee
+    - Fixed backend invitation endpoint to return guaranteed_at and guarantee_id
+    - Fixed can_cancel logic for guaranteed participants
+    - All counters (Dashboard + AppointmentDetail) correctly counting guaranteed participants
 
-### Phase 1.5 - Calendar & Address (DONE)
-- [x] ICS generation + Add to Calendar buttons
-- [x] French address autocomplete (API BAN)
+## Prioritized Backlog
 
-### Phase 1.7 - Financial Guarantee (DONE - MOCKED)
-- [x] Stripe Checkout Session (setup mode)
-- [x] Webhook handler (idempotent, signature-enforced, status-checked)
-- [x] Guarantee release on participant cancel and organizer cancel
-- [x] Dev mode for capture/release
-- [x] cancel_participation handles accepted_guaranteed status
+### P1
+- Clean up dead Stripe code: payments.py, payment_service.py, AcceptInvitation.js
+- Google Calendar OAuth Integration (Phase 2)
+- Outlook/Microsoft 365 OAuth Integration (Phase 2)
 
-### Phase 1.9 - Profile Defaults (DONE)
-- [x] Profile as source of truth for defaults
-- [x] Platform commission = system value
-- [x] Distribution always = 100%
+### P2
+- No-show detection and automated penalty capture (cron/scheduler)
+- Stripe Connect: Automated fund splits (participant, charity, platform)
 
-### Phase 2.0 - Security Audit (DONE - 2026-03-20)
-- [x] PATCH whitelist, platform override, currency validation
-- [x] Webhook: signature mandatory in prod, idempotence, appointment status check
-- [x] Guarantee lifecycle: release on cancel (participant + organizer)
-- [x] parse_datetime handles all ISO formats
-
-### Phase 2.1 - UX (DONE - 2026-03-20)
-- [x] Dashboard: tabs "À venir" / "Passés" with end_time logic
-- [x] Badge "En cours" for ongoing appointments
-- [x] Charity association visible on appointment detail page
-
-## Pending / Blocked
-- **P0**: Real Stripe keys (STRIPE_API_KEY + STRIPE_WEBHOOK_SECRET)
-
-## Upcoming Tasks
-- **P1**: Google Calendar / Outlook OAuth (Phase 2 calendar)
-- **P1**: Cleanup dead code (payments.py, payment_service.py, AcceptInvitation.js)
-- **P2**: No-show detection + automated penalty capture
-- **P2**: Stripe Connect for automated splits
-
-## Test Reports
-- iteration_1-5: Foundation features
-- iteration_6: Profile → Defaults → Wizard E2E
-- iteration_7: Audit complet platform/security
-- Stripe audit: 4/4 functional tests PASS (idempotence, cancel+release, org cancel release)
+### P3
+- Organizer analytics dashboard
