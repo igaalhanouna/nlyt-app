@@ -21,6 +21,9 @@ DB_NAME = os.environ.get('DB_NAME')
 client = MongoClient(MONGO_URL)
 db = client[DB_NAME]
 
+# System constant — must match appointments.py
+PLATFORM_COMMISSION_PERCENT = float(os.environ.get('PLATFORM_COMMISSION_PERCENT', '20'))
+
 
 class AppointmentDefaults(BaseModel):
     """Default settings for appointment creation"""
@@ -108,15 +111,15 @@ async def update_user_settings(
                     detail="Association caritative non valide. Veuillez choisir parmi la liste des associations validées."
                 )
         
-        # Validate distribution percentages
+        # Validate distribution percentages against system platform commission
         participant_pct = defaults.get("default_participant_percent", 70.0)
         charity_pct = defaults.get("default_charity_percent", 0.0)
-        platform_pct = 100 - participant_pct - charity_pct
+        max_distributable = 100 - PLATFORM_COMMISSION_PERCENT
         
-        if platform_pct < 0 or platform_pct > 100:
+        if participant_pct + charity_pct > max_distributable:
             raise HTTPException(
                 status_code=400,
-                detail="La répartition des pourcentages est invalide. La somme participant + charity ne peut pas dépasser 100%."
+                detail=f"La somme participant ({participant_pct}%) + charité ({charity_pct}%) dépasse le maximum distribuable ({max_distributable}%). La commission plateforme est fixée à {PLATFORM_COMMISSION_PERCENT}%."
             )
         
         # Merge with existing defaults
@@ -177,5 +180,6 @@ async def get_appointment_defaults(user: dict = Depends(get_current_user)):
         "default_participant_percent": defaults.get("default_participant_percent", 70.0),
         "default_charity_percent": defaults.get("default_charity_percent", 0.0),
         "default_charity_association_id": defaults.get("default_charity_association_id"),
+        "platform_commission_percent": PLATFORM_COMMISSION_PERCENT,
         "has_custom_defaults": bool(defaults)
     }

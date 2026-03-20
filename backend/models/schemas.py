@@ -126,14 +126,15 @@ class AppointmentCreate(BaseModel):
     location_place_id: Optional[str] = None
     meeting_provider: Optional[str] = None
     start_datetime: str
-    duration_minutes: int
-    tolerated_delay_minutes: int = 0
-    cancellation_deadline_hours: int = 24
-    penalty_amount: float
+    duration_minutes: int = Field(ge=1)
+    tolerated_delay_minutes: int = Field(default=0, ge=0, le=120)
+    cancellation_deadline_hours: int = Field(default=24, ge=1, le=720)
+    penalty_amount: float = Field(ge=1, description="Montant minimum 1€")
     penalty_currency: str = "eur"
-    affected_compensation_percent: float = 70.0
-    platform_commission_percent: float = 30.0
-    charity_percent: float = 0.0
+    affected_compensation_percent: float = Field(default=70.0, ge=0, le=100)
+    platform_commission_percent: Optional[float] = None  # Ignored — set server-side
+    charity_percent: float = Field(default=0.0, ge=0, le=100)
+    charity_association_id: Optional[str] = None
     policy_template_id: Optional[str] = None
     participants: Optional[List[ParticipantInput]] = []
     event_reminders: Optional[EventRemindersConfig] = None

@@ -27,9 +27,8 @@ export default function AppointmentWizard() {
   const [creatingWorkspace, setCreatingWorkspace] = useState(false);
   const [charityAssociations, setCharityAssociations] = useState([]);
   
-  // Freemium status - TODO: Get from user context when subscription system is implemented
-  const isFreemium = true;
-  const FREEMIUM_PLATFORM_COMMISSION = 20;
+  // Platform commission comes from server — not user-editable
+  const [systemPlatformCommission, setSystemPlatformCommission] = useState(20);
   
   const [participants, setParticipants] = useState([
     { first_name: '', last_name: '', email: '', role: 'participant' }
@@ -49,8 +48,8 @@ export default function AppointmentWizard() {
     cancellation_deadline_hours: 24,
     penalty_amount: 50,
     penalty_currency: 'eur',
-    affected_compensation_percent: isFreemium ? 80 : 70,
-    platform_commission_percent: isFreemium ? FREEMIUM_PLATFORM_COMMISSION : 30,
+    affected_compensation_percent: 80,
+    platform_commission_percent: 20,
     charity_percent: 0,
     charity_association_id: ''
   });
@@ -67,23 +66,15 @@ export default function AppointmentWizard() {
         if (defaultsResponse.ok) {
           const defaults = await defaultsResponse.json();
           
-          // Pre-fill form with user defaults, respecting freemium constraints
-          const profileParticipant = defaults.default_participant_percent ?? (isFreemium ? 80 : 70);
-          const profileCharity = defaults.default_charity_percent ?? 0;
+          // Platform commission is a SYSTEM value from the server
+          const serverPlatformPct = defaults.platform_commission_percent ?? 20;
+          setSystemPlatformCommission(serverPlatformPct);
           
-          let participantPct, charityPct, platformPct;
-          
-          if (isFreemium) {
-            // Freemium: platform locked at 20%, adjust charity to ensure total = 100%
-            platformPct = FREEMIUM_PLATFORM_COMMISSION;
-            const maxForOthers = 100 - FREEMIUM_PLATFORM_COMMISSION;
-            participantPct = Math.min(profileParticipant, maxForOthers);
-            charityPct = Math.max(0, maxForOthers - participantPct);
-          } else {
-            participantPct = profileParticipant;
-            charityPct = profileCharity;
-            platformPct = 100 - participantPct - charityPct;
-          }
+          // Pre-fill form with user defaults, respecting platform constraint
+          const profileParticipant = defaults.default_participant_percent ?? 80;
+          const maxForOthers = 100 - serverPlatformPct;
+          const participantPct = Math.min(profileParticipant, maxForOthers);
+          const charityPct = Math.max(0, maxForOthers - participantPct);
           
           setFormData(prev => ({
             ...prev,
@@ -94,7 +85,7 @@ export default function AppointmentWizard() {
             affected_compensation_percent: participantPct,
             charity_percent: charityPct,
             charity_association_id: defaults.default_charity_association_id || '',
-            platform_commission_percent: platformPct
+            platform_commission_percent: serverPlatformPct
           }));
         }
         
@@ -545,32 +536,24 @@ export default function AppointmentWizard() {
   const renderStep4 = () => {
     const handleCompensationChange = (value) => {
       const newValue = parseFloat(value) || 0;
-      if (isFreemium) {
-        // Freemium: auto-adjust charity to maintain 100% total
-        const remaining = 100 - FREEMIUM_PLATFORM_COMMISSION - newValue;
-        setFormData({
-          ...formData,
-          affected_compensation_percent: newValue,
-          charity_percent: Math.max(0, remaining)
-        });
-      } else {
-        setFormData({ ...formData, affected_compensation_percent: newValue });
-      }
+      // Auto-adjust charity to maintain 100% total
+      const remaining = 100 - systemPlatformCommission - newValue;
+      setFormData({
+        ...formData,
+        affected_compensation_percent: newValue,
+        charity_percent: Math.max(0, remaining)
+      });
     };
 
     const handleCharityChange = (value) => {
       const newValue = parseFloat(value) || 0;
-      if (isFreemium) {
-        // Freemium: auto-adjust compensation to maintain 100% total
-        const remaining = 100 - FREEMIUM_PLATFORM_COMMISSION - newValue;
-        setFormData({
-          ...formData,
-          charity_percent: newValue,
-          affected_compensation_percent: Math.max(0, remaining)
-        });
-      } else {
-        setFormData({ ...formData, charity_percent: newValue });
-      }
+      // Auto-adjust compensation to maintain 100% total
+      const remaining = 100 - systemPlatformCommission - newValue;
+      setFormData({
+        ...formData,
+        charity_percent: newValue,
+        affected_compensation_percent: Math.max(0, remaining)
+      });
     };
 
     return (
@@ -581,18 +564,15 @@ export default function AppointmentWizard() {
           </p>
         </div>
 
-        {isFreemium && (
-          <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-3">
-            <Lock className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
-            <div>
-              <p className="text-sm font-medium text-amber-900">Compte Freemium</p>
-              <p className="text-sm text-amber-800 mt-1">
-                La commission plateforme est fixée à {FREEMIUM_PLATFORM_COMMISSION}% pour les comptes gratuits. 
-                Passez à un plan premium pour personnaliser ce taux.
-              </p>
-            </div>
+        <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg flex items-start gap-3">
+          <Lock className="w-5 h-5 text-slate-500 mt-0.5 flex-shrink-0" />
+          <div>
+            <p className="text-sm font-medium text-slate-700">Commission plateforme NLYT</p>
+            <p className="text-sm text-slate-600 mt-1">
+              La commission plateforme est fixée à {systemPlatformCommission}%. Ce taux est une donnée système non modifiable.
+            </p>
           </div>
-        )}
+        </div>
 
         <div>
           <Label htmlFor="affected_compensation_percent">Compensation participants affectés (%) *</Label>
@@ -603,7 +583,7 @@ export default function AppointmentWizard() {
             value={formData.affected_compensation_percent}
             onChange={(e) => handleCompensationChange(e.target.value)}
             min="0"
-            max={isFreemium ? 100 - FREEMIUM_PLATFORM_COMMISSION : 100}
+            max={100 - systemPlatformCommission}
             className="mt-1"
           />
           <p className="text-sm text-slate-500 mt-1">
@@ -614,24 +594,19 @@ export default function AppointmentWizard() {
         <div>
           <div className="flex items-center gap-2">
             <Label htmlFor="platform_commission_percent">Commission plateforme (%) *</Label>
-            {isFreemium && <Lock className="w-4 h-4 text-slate-400" />}
+            <Lock className="w-4 h-4 text-slate-400" />
           </div>
           <Input
             id="platform_commission_percent"
             type="number"
             data-testid="platform-percent-input"
             value={formData.platform_commission_percent}
-            onChange={(e) => !isFreemium && setFormData({ ...formData, platform_commission_percent: parseFloat(e.target.value) })}
-            min="0"
-            max="100"
-            disabled={isFreemium}
-            className={`mt-1 ${isFreemium ? 'bg-slate-100 cursor-not-allowed' : ''}`}
+            disabled={true}
+            className="mt-1 bg-slate-100 cursor-not-allowed"
           />
-          {isFreemium && (
-            <p className="text-sm text-amber-600 mt-1">
-              Fixé à {FREEMIUM_PLATFORM_COMMISSION}% en mode Freemium
-            </p>
-          )}
+          <p className="text-sm text-slate-500 mt-1">
+            Donnée système — fixée à {systemPlatformCommission}%
+          </p>
         </div>
 
         <div>
@@ -643,7 +618,7 @@ export default function AppointmentWizard() {
             value={formData.charity_percent}
             onChange={(e) => handleCharityChange(e.target.value)}
             min="0"
-            max={isFreemium ? 100 - FREEMIUM_PLATFORM_COMMISSION : 100}
+            max={100 - systemPlatformCommission}
             className="mt-1"
           />
           <p className="text-sm text-slate-500 mt-1">Optionnel - Reversé à une association partenaire</p>
@@ -777,7 +752,7 @@ export default function AppointmentWizard() {
                   <span className="text-slate-600">Commission plateforme:</span>
                   <span className="font-medium text-slate-900 flex items-center gap-1">
                     {formData.platform_commission_percent}%
-                    {isFreemium && <Lock className="w-3 h-3 text-slate-400" />}
+                    <Lock className="w-3 h-3 text-slate-400" />
                   </span>
                 </div>
                 {formData.charity_percent > 0 && (

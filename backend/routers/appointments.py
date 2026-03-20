@@ -9,6 +9,10 @@ from middleware.auth_middleware import get_current_user
 from utils.date_utils import now_utc
 from services.contract_service import ContractService
 
+# System constant — platform commission is NOT user-editable
+PLATFORM_COMMISSION_PERCENT = float(os.environ.get('PLATFORM_COMMISSION_PERCENT', '20'))
+VALID_CURRENCIES = {"eur", "usd", "gbp", "chf"}
+
 router = APIRouter()
 
 MONGO_URL = os.environ.get('MONGO_URL')
@@ -34,6 +38,34 @@ async def create_appointment(appointment: AppointmentCreate, request: Request):
     
     if not membership:
         raise HTTPException(status_code=403, detail="Accès refusé au workspace")
+    
+    # --- Server-side validations ---
+    # Currency validation
+    if appointment.penalty_currency.lower() not in VALID_CURRENCIES:
+        raise HTTPException(status_code=400, detail=f"Devise invalide. Devises acceptées : {', '.join(VALID_CURRENCIES)}")
+    
+    # Platform commission is a SYSTEM value — override any client-sent value
+    platform_pct = PLATFORM_COMMISSION_PERCENT
+    
+    # Validate distribution: participant + charity must not exceed (100 - platform)
+    max_distributable = 100 - platform_pct
+    if appointment.affected_compensation_percent + appointment.charity_percent > max_distributable:
+        raise HTTPException(
+            status_code=400,
+            detail=f"La somme compensation ({appointment.affected_compensation_percent}%) + charité ({appointment.charity_percent}%) dépasse le maximum distribuable ({max_distributable}%). La commission plateforme est fixée à {platform_pct}%."
+        )
+    
+    # Validate charity association if charity > 0
+    if appointment.charity_percent > 0 and appointment.charity_association_id:
+        from routers.charity_associations import is_valid_association
+        if not is_valid_association(appointment.charity_association_id):
+            raise HTTPException(status_code=400, detail="Association caritative non valide")
+    
+    # Resolve charity association name for snapshot
+    charity_association_name = None
+    if appointment.charity_association_id:
+        from routers.charity_associations import get_association_name
+        charity_association_name = get_association_name(appointment.charity_association_id)
     
     appointment_id = str(uuid.uuid4())
     
@@ -69,10 +101,12 @@ async def create_appointment(appointment: AppointmentCreate, request: Request):
         "tolerated_delay_minutes": appointment.tolerated_delay_minutes,
         "cancellation_deadline_hours": appointment.cancellation_deadline_hours,
         "penalty_amount": appointment.penalty_amount,
-        "penalty_currency": appointment.penalty_currency,
+        "penalty_currency": appointment.penalty_currency.lower(),
         "affected_compensation_percent": appointment.affected_compensation_percent,
-        "platform_commission_percent": appointment.platform_commission_percent,
+        "platform_commission_percent": platform_pct,  # SYSTEM value — never from client
         "charity_percent": appointment.charity_percent,
+        "charity_association_id": appointment.charity_association_id,
+        "charity_association_name": charity_association_name,
         "policy_template_id": appointment.policy_template_id,
         "policy_snapshot_id": None,
         "event_reminders": event_reminders_config,
@@ -230,11 +264,28 @@ async def update_appointment(appointment_id: str, update_data: dict, request: Re
     if has_acceptances:
         raise HTTPException(status_code=400, detail="Impossible de modifier un rendez-vous déjà accepté")
     
-    update_data['updated_at'] = now_utc().isoformat()
+    # Whitelist: only these fields can be updated
+    ALLOWED_FIELDS = {
+        "title", "appointment_type", "location", "location_latitude",
+        "location_longitude", "location_place_id", "meeting_provider",
+        "start_datetime", "duration_minutes", "tolerated_delay_minutes",
+        "cancellation_deadline_hours", "penalty_amount", "penalty_currency",
+        "affected_compensation_percent", "charity_percent",
+        "charity_association_id", "event_reminders"
+    }
+    
+    safe_data = {k: v for k, v in update_data.items() if k in ALLOWED_FIELDS}
+    
+    if not safe_data:
+        raise HTTPException(status_code=400, detail="Aucun champ modifiable fourni")
+    
+    # platform_commission_percent is NEVER user-editable
+    safe_data.pop("platform_commission_percent", None)
+    safe_data['updated_at'] = now_utc().isoformat()
     
     db.appointments.update_one(
         {"appointment_id": appointment_id},
-        {"$set": update_data}
+        {"$set": safe_data}
     )
     
     return {"message": "Rendez-vous mis à jour"}

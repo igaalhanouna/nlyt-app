@@ -16,6 +16,7 @@ export default function Profile() {
   const [saving, setSaving] = useState(false);
   const [associations, setAssociations] = useState([]);
   const [hasChanges, setHasChanges] = useState(false);
+  const [systemPlatformPercent, setSystemPlatformPercent] = useState(20);
   
   // Profile data
   const [profileData, setProfileData] = useState({
@@ -62,6 +63,17 @@ export default function Profile() {
           default_charity_percent: defaults.default_charity_percent ?? 0,
           default_charity_association_id: defaults.default_charity_association_id || ''
         });
+      }
+      
+      // Fetch system platform commission
+      const defaultsResponse = await fetch(`${API_URL}/api/user-settings/me/appointment-defaults`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (defaultsResponse.ok) {
+        const defaultsData = await defaultsResponse.json();
+        if (defaultsData.platform_commission_percent !== undefined) {
+          setSystemPlatformPercent(defaultsData.platform_commission_percent);
+        }
       }
     } catch (error) {
       console.error('Error fetching settings:', error);
@@ -128,9 +140,11 @@ export default function Profile() {
     }
   };
 
-  // Calculate platform percent
-  const platformPercent = 100 - profileData.default_participant_percent - profileData.default_charity_percent;
-  const isDistributionValid = platformPercent >= 0 && platformPercent <= 100;
+  // Platform percent is a SYSTEM value — not computed from user inputs
+  const platformPercent = systemPlatformPercent;
+  const maxDistributable = 100 - platformPercent;
+  const userSum = profileData.default_participant_percent + profileData.default_charity_percent;
+  const isDistributionValid = userSum <= maxDistributable;
 
   if (loading) {
     return (
@@ -332,11 +346,11 @@ export default function Profile() {
               
               <div>
                 <Label>Part plateforme NLYT (%)</Label>
-                <div className={`mt-1 px-3 py-2 border rounded-md bg-slate-50 ${!isDistributionValid ? 'border-red-300 bg-red-50' : 'border-slate-200'}`}>
-                  <span className={`font-medium ${!isDistributionValid ? 'text-red-600' : 'text-slate-700'}`}>
-                    {platformPercent.toFixed(0)}%
+                <div className="mt-1 px-3 py-2 border rounded-md bg-slate-50 border-slate-200">
+                  <span className="font-medium text-slate-700">
+                    {platformPercent}%
                   </span>
-                  <span className="text-xs text-slate-400 ml-2">(calculé automatiquement)</span>
+                  <span className="text-xs text-slate-400 ml-2">(donnée système — non modifiable)</span>
                 </div>
               </div>
             </div>
@@ -344,7 +358,7 @@ export default function Profile() {
             {!isDistributionValid && (
               <div className="mt-4 flex items-center gap-2 text-red-600 text-sm">
                 <AlertCircle className="w-4 h-4" />
-                La somme des pourcentages ne peut pas dépasser 100%
+                La somme participant + charité ne peut pas dépasser {maxDistributable}% (commission plateforme fixée à {platformPercent}%)
               </div>
             )}
 

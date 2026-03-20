@@ -41,7 +41,9 @@ class ContractService:
                 "payout_split": {
                     "affected_compensation_percent": appointment_data['affected_compensation_percent'],
                     "platform_commission_percent": appointment_data['platform_commission_percent'],
-                    "charity_percent": appointment_data.get('charity_percent', 0.0)
+                    "charity_percent": appointment_data.get('charity_percent', 0.0),
+                    "charity_association_id": appointment_data.get('charity_association_id'),
+                    "charity_association_name": appointment_data.get('charity_association_name')
                 },
                 "organizer": {
                     "name": f"{organizer_data['first_name']} {organizer_data['last_name']}",

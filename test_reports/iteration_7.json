@@ -1,0 +1,55 @@
+{
+  "summary": "Frontend-only testing of Profile → Wizard → Appointment flow. All 12 test cases passed. Platform commission (20%) is correctly displayed as READ-ONLY with Lock icon and 'donnée système' messaging on both Profile and Wizard pages. Wizard correctly prefills values from profile defaults and auto-adjusts charity to fill 100% without writing back to profile.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": [
+    "1. Login with test credentials (testuser_audit@nlyt.app) - SUCCESS",
+    "2. Navigate to Profile page (/settings/profile) - SUCCESS",
+    "3. Platform commission displayed as READ-ONLY with 20% and 'donnée système — non modifiable' message - SUCCESS",
+    "4. Set profile values: cancellation=36h, tolerance=10min, penalty=99€, participant=55%, charity=15% - SUCCESS",
+    "5. Validation error appears when participant+charity exceeds 80% (100-20% platform) - SUCCESS",
+    "6. Save profile and verify success toast - SUCCESS",
+    "7. Navigate to wizard (/appointments/create) - SUCCESS",
+    "8. Fill Step 1: Jean Dupont, jean.test@example.com - SUCCESS",
+    "9. Fill Step 2: title='Audit Final', type=physical, location, date=2026-05-15T10:00, duration=60 - SUCCESS",
+    "10. Step 3 prefilled from profile: delay=10, cancellation=36, penalty=99 - SUCCESS",
+    "11. Step 4: platform DISABLED showing 20% with Lock icon and 'Donnée système — fixée à 20%' text, participant=55%, charity=25% (auto-adjusted) - SUCCESS",
+    "12. Profile values UNCHANGED after wizard navigation (55/15 not 55/25) - SUCCESS"
+  ],
+  "test_report_links": [
+    "/app/test_reports/iteration_7.json"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "N/A (frontend only testing as requested)",
+    "frontend": "100% (12/12 tests passed)"
+  },
+  "test_credentials": {
+    "email": "testuser_audit@nlyt.app",
+    "password": "TestPassword123!"
+  },
+  "seed_data_creation": "None - used existing test user with profile defaults already set",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Platform commission feature fully working. Profile page shows 20% as read-only with 'donnée système — non modifiable'. Wizard Step 4 shows platform as disabled input with Lock icon and 'Donnée système — fixée à 20%' text. Wizard auto-adjusts charity to fill 100% (profile 55+15=70, wizard shows 55+25=80 to fill remaining after 20% platform) but does NOT write back to profile. All validations working correctly.",
+  "mocked_apis": {
+    "Stripe": "Stripe integration is mocked (dev mode with sk_test_emergent key)"
+  },
+  "key_verifications": {
+    "platform_commission_readonly_profile": "20% displayed with 'donnée système — non modifiable' text",
+    "platform_commission_readonly_wizard": "20% in disabled input with Lock icon and 'Donnée système — fixée à 20%' text",
+    "percentage_capping_validation": "Error shown when participant+charity > 80%",
+    "wizard_prefill_from_profile": "Step 3 and Step 4 correctly prefilled from profile defaults",
+    "wizard_auto_adjust_charity": "Charity auto-adjusted from 15% to 25% to fill 100% (55+20+25=100)",
+    "profile_unchanged_after_wizard": "Profile still shows 55/15 after wizard navigation (not 55/25)"
+  }
+}
