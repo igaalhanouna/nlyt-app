@@ -504,7 +504,6 @@ export default function InvitationPage() {
                     className="inline-flex items-center gap-2 px-6 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition-colors font-medium"
                     data-testid="download-ics-btn"
                   >
-                  >
                     <Download className="w-4 h-4" />
                     Ajouter au calendrier
                   </a>

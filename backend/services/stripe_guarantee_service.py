@@ -218,7 +218,6 @@ class StripeGuaranteeService:
         
         guarantee_id = metadata.get("guarantee_id")
         participant_id = metadata.get("participant_id")
-        invitation_token = metadata.get("invitation_token")
         
         if not guarantee_id:
             return {"success": False, "error": "No guarantee_id in metadata"}
@@ -339,6 +338,9 @@ class StripeGuaranteeService:
         if not guarantee:
             return {"success": False, "error": "Guarantee not found"}
         
+        if guarantee.get("status") in ("released", "captured"):
+            return {"success": False, "error": f"Guarantee already {guarantee['status']}"}
+        
         db.payment_guarantees.update_one(
             {"guarantee_id": guarantee_id},
             {"$set": {
@@ -347,6 +349,12 @@ class StripeGuaranteeService:
                 "released_at": datetime.now(timezone.utc).isoformat(),
                 "updated_at": datetime.now(timezone.utc).isoformat()
             }}
+        )
+        
+        # Update participant status
+        db.participants.update_one(
+            {"guarantee_id": guarantee_id},
+            {"$set": {"status": "guarantee_released"}}
         )
         
         return {"success": True, "message": "Guarantee released"}
@@ -367,6 +375,20 @@ class StripeGuaranteeService:
         
         if guarantee.get("status") != "completed":
             return {"success": False, "error": "Guarantee not in completed state"}
+        
+        # Dev mode: simulate capture
+        if not STRIPE_API_KEY or STRIPE_API_KEY == 'sk_test_emergent':
+            db.payment_guarantees.update_one(
+                {"guarantee_id": guarantee_id},
+                {"$set": {
+                    "status": "captured",
+                    "capture_reason": reason,
+                    "stripe_payment_intent_id": f"pi_dev_{guarantee_id[:8]}",
+                    "captured_at": datetime.now(timezone.utc).isoformat(),
+                    "updated_at": datetime.now(timezone.utc).isoformat()
+                }}
+            )
+            return {"success": True, "message": "Guarantee captured (dev mode)", "dev_mode": True}
         
         try:
             # Create PaymentIntent using the stored payment method

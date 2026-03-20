@@ -328,6 +328,23 @@ async def cancel_appointment(appointment_id: str, request: Request):
     organizer = db.users.find_one({"user_id": user['user_id']}, {"_id": 0})
     organizer_name = f"{organizer.get('first_name', '')} {organizer.get('last_name', '')}".strip() or "L'organisateur"
     
+    # Release all active guarantees for this appointment
+    guaranteed_participants = list(db.participants.find(
+        {"appointment_id": appointment_id, "status": "accepted_guaranteed"},
+        {"_id": 0, "guarantee_id": 1}
+    ))
+    for gp in guaranteed_participants:
+        if gp.get('guarantee_id'):
+            try:
+                from services.stripe_guarantee_service import StripeGuaranteeService
+                StripeGuaranteeService.release_guarantee(
+                    gp['guarantee_id'],
+                    "appointment_cancelled_by_organizer"
+                )
+            except Exception as e:
+                import logging
+                logging.error(f"Failed to release guarantee {gp['guarantee_id']}: {e}")
+    
     # Notify all participants
     participants = list(db.participants.find({"appointment_id": appointment_id}, {"_id": 0}))
     notifications_sent = 0

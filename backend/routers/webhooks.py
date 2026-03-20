@@ -25,31 +25,37 @@ db = client[DB_NAME]
 async def stripe_webhook(request: Request):
     """
     Handle Stripe webhook events.
-    
-    Key events:
-    - checkout.session.completed (mode=setup): Payment method collected for guarantee
-    - payment_intent.succeeded: Penalty captured (no-show)
     """
     body = await request.body()
     signature = request.headers.get("Stripe-Signature")
     
     try:
-        # Verify webhook signature if secret is configured
+        # CRITICAL: Always verify webhook signature in production
         if STRIPE_WEBHOOK_SECRET:
             event = stripe.Webhook.construct_event(
                 body, signature, STRIPE_WEBHOOK_SECRET
             )
+        elif STRIPE_API_KEY and STRIPE_API_KEY != 'sk_test_emergent':
+            # Real Stripe key but no webhook secret = misconfiguration
+            raise HTTPException(status_code=500, detail="STRIPE_WEBHOOK_SECRET is required in production")
         else:
-            # Parse event without verification (dev mode)
+            # Dev mode only
             event = json.loads(body)
         
         event_type = event.get("type", event.get("event_type", "unknown"))
         event_id = event.get("id", "unknown")
         event_data = event.get("data", {}).get("object", event.get("data", {}))
         
+        # Idempotence guard: reject duplicate events
+        if event_id != "unknown":
+            existing = db.stripe_events.find_one({"event_id": event_id})
+            if existing:
+                print(f"[WEBHOOK] Duplicate event {event_id} — skipping")
+                return {"status": "duplicate", "event_id": event_id}
+        
         print(f"[WEBHOOK] Received event: {event_type}")
         
-        # Log all events
+        # Log event (with unique event_id as guard)
         db.stripe_events.insert_one({
             "event_id": event_id,
             "event_type": event_type,
@@ -65,6 +71,17 @@ async def stripe_webhook(request: Request):
             
             # Check if this is a guarantee setup session
             if session_mode == "setup" and metadata.get("type") == "nlyt_guarantee":
+                # Verify appointment is still active before confirming guarantee
+                apt_id = metadata.get("appointment_id")
+                if apt_id:
+                    apt = db.appointments.find_one({"appointment_id": apt_id}, {"_id": 0, "status": 1})
+                    if apt and apt.get("status") in ("cancelled", "deleted"):
+                        print(f"[WEBHOOK] Appointment {apt_id} is {apt['status']} — releasing guarantee")
+                        g_id = metadata.get("guarantee_id")
+                        if g_id:
+                            StripeGuaranteeService.release_guarantee(g_id, f"appointment_{apt['status']}")
+                        return {"status": "skipped", "reason": f"appointment_{apt['status']}"}
+                
                 result = StripeGuaranteeService.handle_checkout_completed(session)
                 
                 if result.get("success"):

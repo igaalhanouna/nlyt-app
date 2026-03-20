@@ -25,12 +25,17 @@ class InvitationResponse(BaseModel):
 
 
 def parse_datetime(dt_str: str) -> datetime:
-    """Parse datetime string to datetime object"""
+    """Parse datetime string to timezone-aware datetime object.
+    Handles: '2026-03-20T14:00', '2026-03-20T14:00:00', '2026-03-20T14:00:00Z', '2026-03-20T14:00:00+01:00'
+    """
+    if not dt_str:
+        return None
     try:
         if '+' in dt_str or 'Z' in dt_str:
             return datetime.fromisoformat(dt_str.replace('Z', '+00:00'))
-        return datetime.strptime(dt_str, "%Y-%m-%dT%H:%M").replace(tzinfo=timezone.utc)
-    except:
+        # Naive datetime — treat as UTC
+        return datetime.fromisoformat(dt_str).replace(tzinfo=timezone.utc)
+    except Exception:
         return None
 
 
@@ -397,9 +402,9 @@ async def cancel_participation(token: str):
     if not participant:
         raise HTTPException(status_code=404, detail="Invitation non trouvée ou expirée")
     
-    # Check if participant has accepted
+    # Check if participant has accepted (with or without guarantee)
     current_status = participant.get('status', 'invited')
-    if current_status != 'accepted':
+    if current_status not in ('accepted', 'accepted_guaranteed'):
         raise HTTPException(
             status_code=400, 
             detail="Seule une invitation acceptée peut être annulée"
@@ -452,6 +457,17 @@ async def cancel_participation(token: str):
         {"invitation_token": token},
         {"$set": update_data}
     )
+    
+    # Release guarantee if participant had one
+    if current_status == 'accepted_guaranteed' and participant.get('guarantee_id'):
+        try:
+            from services.stripe_guarantee_service import StripeGuaranteeService
+            StripeGuaranteeService.release_guarantee(
+                participant['guarantee_id'],
+                "cancelled_by_participant"
+            )
+        except Exception as e:
+            print(f"[CANCEL] Failed to release guarantee: {e}")
     
     # Get updated participant
     updated_participant = db.participants.find_one(
