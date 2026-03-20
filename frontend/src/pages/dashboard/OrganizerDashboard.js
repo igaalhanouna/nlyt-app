@@ -5,7 +5,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { appointmentAPI } from '../../services/api';
 import { Button } from '../../components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/tabs';
-import { CalendarPlus, LogOut, Settings, Calendar, Users, MapPin, Video, Trash2, Check, X, Clock, Building2, ChevronDown, Plus, Ban, ShieldCheck, CreditCard, History } from 'lucide-react';
+import { CalendarPlus, LogOut, Settings, Calendar, Users, MapPin, Video, Trash2, Check, X, Clock, Building2, ChevronDown, Plus, Ban, ShieldCheck, CreditCard, History, Play } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function OrganizerDashboard() {
@@ -92,29 +92,52 @@ export default function OrganizerDashboard() {
     }
   };
 
-  const getAppointmentStatusBadge = (appointment, isPast) => {
+  // Compute end time: start + duration. Handles naive ISO strings (no TZ suffix)
+  // parsed as local time by the browser, which matches the user's input context.
+  const getEndTime = (appointment) => {
+    const start = new Date(appointment.start_datetime);
+    return new Date(start.getTime() + (appointment.duration_minutes || 0) * 60000);
+  };
+
+  const getAppointmentTemporalState = (appointment) => {
+    const now = new Date();
+    const start = new Date(appointment.start_datetime);
+    const end = getEndTime(appointment);
+    if (now < start) return 'upcoming';
+    if (now >= start && now < end) return 'ongoing';
+    return 'past';
+  };
+
+  const getAppointmentStatusBadge = (appointment) => {
     if (appointment.status === 'cancelled') {
       return { label: 'Annulé', className: 'bg-red-100 text-red-800' };
     }
     if (appointment.status === 'draft') {
       return { label: 'Brouillon', className: 'bg-slate-100 text-slate-800' };
     }
-    if (isPast) {
+    const temporal = getAppointmentTemporalState(appointment);
+    if (temporal === 'ongoing') {
+      return { label: 'En cours', className: 'bg-blue-100 text-blue-800' };
+    }
+    if (temporal === 'past') {
       return { label: 'Terminé', className: 'bg-slate-100 text-slate-600' };
     }
     return { label: 'Actif', className: 'bg-emerald-100 text-emerald-800' };
   };
 
   const renderAppointmentCard = (appointment, isPast = false) => {
-    const badge = getAppointmentStatusBadge(appointment, isPast);
+    const badge = getAppointmentStatusBadge(appointment);
+    const isOngoing = getAppointmentTemporalState(appointment) === 'ongoing';
 
     return (
       <div
         key={appointment.appointment_id}
         className={`relative p-4 border rounded-lg transition-all ${
-          isPast
-            ? 'border-slate-150 bg-slate-50/50 hover:border-slate-300'
-            : 'border-slate-200 hover:border-slate-300 hover:shadow-sm'
+          isOngoing
+            ? 'border-blue-300 bg-blue-50/30 ring-1 ring-blue-200'
+            : isPast
+              ? 'border-slate-150 bg-slate-50/50 hover:border-slate-300'
+              : 'border-slate-200 hover:border-slate-300 hover:shadow-sm'
         }`}
         data-testid={`appointment-card-${appointment.appointment_id}`}
       >
@@ -124,7 +147,8 @@ export default function OrganizerDashboard() {
         >
           <div className="flex items-start justify-between pr-10">
             <div className="flex-1">
-              <h4 className={`font-semibold mb-1 ${isPast ? 'text-slate-600' : 'text-slate-900'}`}>
+              <h4 className={`font-semibold mb-1 ${isPast && !isOngoing ? 'text-slate-600' : 'text-slate-900'}`}>
+                {isOngoing && <Play className="w-4 h-4 inline mr-1.5 text-blue-600" />}
                 {appointment.title}
               </h4>
               <p className="text-sm text-slate-600 mb-2">
@@ -384,11 +408,19 @@ export default function OrganizerDashboard() {
             </div>
           ) : (() => {
             const now = new Date();
+            // "À venir" = not yet ended (upcoming + ongoing)
+            // "Passés" = ended (end_time < now)
             const upcoming = appointments
-              .filter(a => new Date(a.start_datetime) >= now)
+              .filter(a => {
+                const end = new Date(new Date(a.start_datetime).getTime() + (a.duration_minutes || 0) * 60000);
+                return end >= now;
+              })
               .sort((a, b) => new Date(a.start_datetime) - new Date(b.start_datetime));
             const past = appointments
-              .filter(a => new Date(a.start_datetime) < now)
+              .filter(a => {
+                const end = new Date(new Date(a.start_datetime).getTime() + (a.duration_minutes || 0) * 60000);
+                return end < now;
+              })
               .sort((a, b) => new Date(b.start_datetime) - new Date(a.start_datetime));
 
             return (
