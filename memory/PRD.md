@@ -27,7 +27,7 @@ Application SaaS NLYT : plateforme de rendez-vous avec engagement financier. Obj
 ├── backend/
 │   ├── adapters/          # ICS generator, Calendar adapters
 │   ├── models/            # Pydantic schemas (schemas.py)
-│   ├── routers/           # API routes (appointments, invitations, webhooks, user_settings, participants, contracts, calendar_routes, disputes, admin, debug)
+│   ├── routers/           # API routes
 │   ├── services/          # Business logic (stripe_guarantee_service, contract_service, email_service)
 │   ├── server.py          # FastAPI entry point
 │   └── .env
@@ -39,13 +39,6 @@ Application SaaS NLYT : plateforme de rendez-vous avec engagement financier. Obj
 │   │   └── App.js
 │   └── .env
 ```
-
-## Key DB Schema
-- `users`: user_id, email, appointment_defaults
-- `appointments`: appointment_id, policy_snapshot_id, start_datetime, duration_minutes, status
-- `participants`: participant_id, status, guarantee_id, guaranteed_at, stripe_customer_id, stripe_payment_method_id
-- `payment_guarantees`: guarantee_id, stripe_session_id, status (pending/completed/captured/released)
-- `policy_snapshots`: snapshot_id, is_immutable
 
 ## Participant Status Flow
 ```
@@ -71,9 +64,11 @@ accepted_guaranteed → guarantee_released (organizer cancels appointment)
 13. ✅ Event reminders (APScheduler)
 14. ✅ P0 FIX: Participant status + counters post-Stripe (March 20, 2026)
 15. ✅ P1: Stripe dead code cleanup (March 20, 2026)
-    - Deleted: payments.py, payment_service.py, AcceptInvitation.js
-    - Cleaned: webhooks.py, server.py, __init__.py, App.js, api.js
-    - Removed: contractAPI, paymentAPI, legacy webhook handler, /accept-invitation route
+16. ✅ BUG FIX: Resend invitation button connected (March 20, 2026)
+    - Added invitationAPI.resend() to api.js
+    - Connected onClick handler in ParticipantManagement.js
+    - Fixed getStatusBadge to handle accepted_guaranteed/accepted_pending_guarantee
+    - Added loading spinner during resend
 
 ## Prioritized Backlog
 

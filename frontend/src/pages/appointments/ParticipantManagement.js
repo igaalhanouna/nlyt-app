@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { appointmentAPI, participantAPI } from '../../services/api';
+import { appointmentAPI, participantAPI, invitationAPI } from '../../services/api';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../../components/ui/dialog';
-import { ArrowLeft, UserPlus, Mail, Trash2, RefreshCw, CheckCircle, Clock, XCircle } from 'lucide-react';
+import { ArrowLeft, UserPlus, Mail, Trash2, RefreshCw, CheckCircle, Clock, XCircle, ShieldCheck, CreditCard } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function ParticipantManagement() {
@@ -59,12 +59,28 @@ export default function ParticipantManagement() {
     }
   };
 
+  const [resendingToken, setResendingToken] = useState(null);
+
+  const handleResendInvitation = async (token) => {
+    setResendingToken(token);
+    try {
+      await invitationAPI.resend(token);
+      toast.success('Invitation renvoyée avec succès');
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Erreur lors du renvoi de l'invitation");
+    } finally {
+      setResendingToken(null);
+    }
+  };
+
   const getStatusBadge = (status) => {
     const statusConfig = {
       invited: { label: 'Invité', icon: Clock, className: 'bg-blue-100 text-blue-800' },
       accepted: { label: 'Accepté', icon: CheckCircle, className: 'bg-emerald-100 text-emerald-800' },
+      accepted_guaranteed: { label: 'Garanti', icon: ShieldCheck, className: 'bg-emerald-100 text-emerald-800' },
+      accepted_pending_guarantee: { label: 'Garantie en cours', icon: CreditCard, className: 'bg-amber-100 text-amber-800' },
       declined: { label: 'Refusé', icon: XCircle, className: 'bg-rose-100 text-rose-800' },
-      pending: { label: 'En attente', icon: Clock, className: 'bg-amber-100 text-amber-800' }
+      cancelled_by_participant: { label: 'Annulé', icon: XCircle, className: 'bg-orange-100 text-orange-800' },
     };
 
     const config = statusConfig[status] || statusConfig.invited;
@@ -234,8 +250,10 @@ export default function ParticipantManagement() {
                           variant="ghost"
                           title="Renvoyer l'invitation"
                           data-testid={`resend-btn-${participant.participant_id}`}
+                          disabled={resendingToken === participant.invitation_token}
+                          onClick={() => handleResendInvitation(participant.invitation_token)}
                         >
-                          <RefreshCw className="w-4 h-4" />
+                          <RefreshCw className={`w-4 h-4 ${resendingToken === participant.invitation_token ? 'animate-spin' : ''}`} />
                         </Button>
                       )}
                       {participant.status !== 'accepted' && (

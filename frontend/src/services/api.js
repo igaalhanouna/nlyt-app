@@ -64,6 +64,10 @@ export const participantAPI = {
   get: (id) => api.get(`/api/participants/${id}`),
 };
 
+export const invitationAPI = {
+  resend: (token) => api.post(`/api/invitations/${token}/resend`),
+};
+
 export const calendarAPI = {
   connectGoogle: () => api.get('/api/calendar/connect/google'),
   connectOutlook: () => api.get('/api/calendar/connect/outlook'),
