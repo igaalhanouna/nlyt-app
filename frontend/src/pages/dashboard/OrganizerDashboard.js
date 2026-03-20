@@ -4,7 +4,8 @@ import { useWorkspace } from '../../contexts/WorkspaceContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { appointmentAPI } from '../../services/api';
 import { Button } from '../../components/ui/button';
-import { CalendarPlus, LogOut, Settings, Calendar, Users, MapPin, Video, Trash2, Check, X, Clock, Building2, ChevronDown, Plus, Ban, ShieldCheck, CreditCard } from 'lucide-react';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/tabs';
+import { CalendarPlus, LogOut, Settings, Calendar, Users, MapPin, Video, Trash2, Check, X, Clock, Building2, ChevronDown, Plus, Ban, ShieldCheck, CreditCard, History } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function OrganizerDashboard() {
@@ -72,6 +73,138 @@ export default function OrganizerDashboard() {
   const handleCreateWorkspace = () => {
     setWorkspaceDropdownOpen(false);
     navigate('/workspace/create');
+  };
+
+  const getStatusInfo = (s) => {
+    switch(s) {
+      case 'accepted_guaranteed':
+        return { label: 'Garanti', icon: ShieldCheck, className: 'bg-green-100 text-green-800' };
+      case 'accepted_pending_guarantee':
+        return { label: 'Garantie en cours', icon: CreditCard, className: 'bg-amber-100 text-amber-800' };
+      case 'accepted':
+        return { label: 'Accepté', icon: Check, className: 'bg-green-100 text-green-800' };
+      case 'declined':
+        return { label: 'Refusé', icon: X, className: 'bg-red-100 text-red-800' };
+      case 'cancelled_by_participant':
+        return { label: 'Annulé', icon: Ban, className: 'bg-orange-100 text-orange-800' };
+      default:
+        return { label: 'En attente', icon: Clock, className: 'bg-slate-100 text-slate-800' };
+    }
+  };
+
+  const getAppointmentStatusBadge = (appointment, isPast) => {
+    if (appointment.status === 'cancelled') {
+      return { label: 'Annulé', className: 'bg-red-100 text-red-800' };
+    }
+    if (appointment.status === 'draft') {
+      return { label: 'Brouillon', className: 'bg-slate-100 text-slate-800' };
+    }
+    if (isPast) {
+      return { label: 'Terminé', className: 'bg-slate-100 text-slate-600' };
+    }
+    return { label: 'Actif', className: 'bg-emerald-100 text-emerald-800' };
+  };
+
+  const renderAppointmentCard = (appointment, isPast = false) => {
+    const badge = getAppointmentStatusBadge(appointment, isPast);
+
+    return (
+      <div
+        key={appointment.appointment_id}
+        className={`relative p-4 border rounded-lg transition-all ${
+          isPast
+            ? 'border-slate-150 bg-slate-50/50 hover:border-slate-300'
+            : 'border-slate-200 hover:border-slate-300 hover:shadow-sm'
+        }`}
+        data-testid={`appointment-card-${appointment.appointment_id}`}
+      >
+        <Link
+          to={`/appointments/${appointment.appointment_id}`}
+          className="block"
+        >
+          <div className="flex items-start justify-between pr-10">
+            <div className="flex-1">
+              <h4 className={`font-semibold mb-1 ${isPast ? 'text-slate-600' : 'text-slate-900'}`}>
+                {appointment.title}
+              </h4>
+              <p className="text-sm text-slate-600 mb-2">
+                {new Date(appointment.start_datetime).toLocaleString('fr-FR', {
+                  weekday: 'long',
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                })}
+              </p>
+              
+              <div className="flex flex-wrap items-center gap-3 text-sm text-slate-500">
+                <span className="flex items-center gap-1">
+                  {appointment.appointment_type === 'physical' ? (
+                    <><MapPin className="w-4 h-4" /> {appointment.location}</>
+                  ) : (
+                    <><Video className="w-4 h-4" /> {appointment.meeting_provider}</>
+                  )}
+                </span>
+                <span>• {appointment.duration_minutes} min</span>
+              </div>
+
+              {appointment.participants && appointment.participants.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-slate-100">
+                  <div className="flex items-center gap-2 text-sm text-slate-600 mb-2">
+                    <Users className="w-4 h-4" />
+                    <span className="font-medium">{appointment.participants.length} participant{appointment.participants.length > 1 ? 's' : ''}</span>
+                    {appointment.participants_status_summary && (
+                      <span className="text-xs text-slate-500">
+                        ({appointment.participants_status_summary.accepted || 0} accepté{(appointment.participants_status_summary.accepted || 0) > 1 ? 's' : ''},
+                        {' '}{appointment.participants_status_summary.invited || 0} en attente)
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {appointment.participants.slice(0, 5).map((p, idx) => {
+                      const name = p.first_name && p.last_name 
+                        ? `${p.first_name} ${p.last_name}`
+                        : p.name || p.email.split('@')[0];
+                      const statusInfo = getStatusInfo(p.status || 'invited');
+                      const StatusIcon = statusInfo.icon;
+                      return (
+                        <span 
+                          key={idx}
+                          className={`inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full ${statusInfo.className}`}
+                          title={`${name} - ${statusInfo.label}`}
+                        >
+                          <StatusIcon className="w-3 h-3" />
+                          {name}
+                        </span>
+                      );
+                    })}
+                    {appointment.participants.length > 5 && (
+                      <span className="inline-flex items-center px-2 py-1 bg-slate-200 text-slate-600 text-xs rounded-full">
+                        +{appointment.participants.length - 5} autres
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            <span className={`ml-4 px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${badge.className}`}>
+              {badge.label}
+            </span>
+          </div>
+        </Link>
+        
+        <button
+          onClick={(e) => handleDeleteClick(e, appointment)}
+          className="absolute top-4 right-4 p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+          title="Supprimer le rendez-vous"
+          data-testid={`delete-appointment-${appointment.appointment_id}`}
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
+      </div>
+    );
   };
 
   return (
@@ -249,132 +382,69 @@ export default function OrganizerDashboard() {
                 <Button variant="outline">Créer votre premier rendez-vous</Button>
               </Link>
             </div>
-          ) : (
-            <div className="space-y-4">
-              {appointments.map((appointment) => (
-                <div
-                  key={appointment.appointment_id}
-                  className="relative p-4 border border-slate-200 rounded-lg hover:border-slate-300 hover:shadow-sm transition-all"
-                  data-testid={`appointment-card-${appointment.appointment_id}`}
-                >
-                  <Link
-                    to={`/appointments/${appointment.appointment_id}`}
-                    className="block"
-                  >
-                    <div className="flex items-start justify-between pr-10">
-                      <div className="flex-1">
-                        <h4 className="font-semibold text-slate-900 mb-1">{appointment.title}</h4>
-                        <p className="text-sm text-slate-600 mb-2">
-                          {new Date(appointment.start_datetime).toLocaleString('fr-FR', {
-                            weekday: 'long',
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
-                        </p>
-                        
-                        <div className="flex flex-wrap items-center gap-3 text-sm text-slate-500">
-                          <span className="flex items-center gap-1">
-                            {appointment.appointment_type === 'physical' ? (
-                              <><MapPin className="w-4 h-4" /> {appointment.location}</>
-                            ) : (
-                              <><Video className="w-4 h-4" /> {appointment.meeting_provider}</>
-                            )}
-                          </span>
-                          <span>• {appointment.duration_minutes} min</span>
-                        </div>
+          ) : (() => {
+            const now = new Date();
+            const upcoming = appointments
+              .filter(a => new Date(a.start_datetime) >= now)
+              .sort((a, b) => new Date(a.start_datetime) - new Date(b.start_datetime));
+            const past = appointments
+              .filter(a => new Date(a.start_datetime) < now)
+              .sort((a, b) => new Date(b.start_datetime) - new Date(a.start_datetime));
 
-                        {/* Participants with status */}
-                        {appointment.participants && appointment.participants.length > 0 && (
-                          <div className="mt-3 pt-3 border-t border-slate-100">
-                            <div className="flex items-center gap-2 text-sm text-slate-600 mb-2">
-                              <Users className="w-4 h-4" />
-                              <span className="font-medium">{appointment.participants.length} participant{appointment.participants.length > 1 ? 's' : ''}</span>
-                              {/* Status summary */}
-                              {appointment.participants_status_summary && (
-                                <span className="text-xs text-slate-500">
-                                  ({appointment.participants_status_summary.accepted || 0} accepté{(appointment.participants_status_summary.accepted || 0) > 1 ? 's' : ''}, 
-                                  {' '}{appointment.participants_status_summary.invited || 0} en attente)
-                                </span>
-                              )}
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                              {appointment.participants.slice(0, 5).map((p, idx) => {
-                                const name = p.first_name && p.last_name 
-                                  ? `${p.first_name} ${p.last_name}`
-                                  : p.name || p.email.split('@')[0];
-                                const status = p.status || 'invited';
-                                
-                                // Determine status label and style
-                                const getStatusInfo = (s) => {
-                                  switch(s) {
-                                    case 'accepted_guaranteed':
-                                      return { label: 'Garanti', icon: ShieldCheck, className: 'bg-green-100 text-green-800' };
-                                    case 'accepted_pending_guarantee':
-                                      return { label: 'Garantie en cours', icon: CreditCard, className: 'bg-amber-100 text-amber-800' };
-                                    case 'accepted':
-                                      return { label: 'Accepté', icon: Check, className: 'bg-green-100 text-green-800' };
-                                    case 'declined':
-                                      return { label: 'Refusé', icon: X, className: 'bg-red-100 text-red-800' };
-                                    case 'cancelled_by_participant':
-                                      return { label: 'Annulé', icon: Ban, className: 'bg-orange-100 text-orange-800' };
-                                    default:
-                                      return { label: 'En attente', icon: Clock, className: 'bg-slate-100 text-slate-800' };
-                                  }
-                                };
-                                
-                                const statusInfo = getStatusInfo(status);
-                                const StatusIcon = statusInfo.icon;
-                                
-                                return (
-                                  <span 
-                                    key={idx}
-                                    className={`inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full ${statusInfo.className}`}
-                                    title={`${name} - ${statusInfo.label}`}
-                                  >
-                                    <StatusIcon className="w-3 h-3" />
-                                    {name}
-                                  </span>
-                                );
-                              })}
-                              {appointment.participants.length > 5 && (
-                                <span className="inline-flex items-center px-2 py-1 bg-slate-200 text-slate-600 text-xs rounded-full">
-                                  +{appointment.participants.length - 5} autres
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                      
-                      <span className={`ml-4 px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
-                        appointment.status === 'active' ? 'bg-emerald-100 text-emerald-800' :
-                        appointment.status === 'cancelled' ? 'bg-red-100 text-red-800' :
-                        appointment.status === 'draft' ? 'bg-slate-100 text-slate-800' :
-                        'bg-slate-100 text-slate-600'
-                      }`}>
-                        {appointment.status === 'active' ? 'Actif' : 
-                         appointment.status === 'cancelled' ? 'Annulé' :
-                         appointment.status === 'draft' ? 'Brouillon' : appointment.status}
+            return (
+              <Tabs defaultValue="upcoming">
+                <TabsList className="mb-6">
+                  <TabsTrigger value="upcoming" data-testid="tab-upcoming">
+                    <Calendar className="w-4 h-4 mr-2" />
+                    À venir
+                    {upcoming.length > 0 && (
+                      <span className="ml-2 px-2 py-0.5 text-xs font-semibold bg-slate-900 text-white rounded-full">
+                        {upcoming.length}
                       </span>
+                    )}
+                  </TabsTrigger>
+                  <TabsTrigger value="past" data-testid="tab-past">
+                    <History className="w-4 h-4 mr-2" />
+                    Passés
+                    {past.length > 0 && (
+                      <span className="ml-2 px-2 py-0.5 text-xs font-semibold bg-slate-200 text-slate-600 rounded-full">
+                        {past.length}
+                      </span>
+                    )}
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="upcoming">
+                  {upcoming.length === 0 ? (
+                    <div className="text-center py-12">
+                      <Calendar className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                      <p className="text-slate-500">Aucun rendez-vous à venir</p>
+                      <Link to="/appointments/create" className="mt-3 inline-block">
+                        <Button variant="outline" size="sm">Planifier un rendez-vous</Button>
+                      </Link>
                     </div>
-                  </Link>
-                  
-                  {/* Delete Button - positioned absolutely */}
-                  <button
-                    onClick={(e) => handleDeleteClick(e, appointment)}
-                    className="absolute top-4 right-4 p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                    title="Supprimer le rendez-vous"
-                    data-testid={`delete-appointment-${appointment.appointment_id}`}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
+                  ) : (
+                    <div className="space-y-4">
+                      {upcoming.map((appointment) => renderAppointmentCard(appointment))}
+                    </div>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="past">
+                  {past.length === 0 ? (
+                    <div className="text-center py-12">
+                      <History className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                      <p className="text-slate-500">Aucun rendez-vous passé</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {past.map((appointment) => renderAppointmentCard(appointment, true))}
+                    </div>
+                  )}
+                </TabsContent>
+              </Tabs>
+            );
+          })()}
         </div>
       </div>
     </div>
