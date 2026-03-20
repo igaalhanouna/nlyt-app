@@ -67,18 +67,34 @@ export default function AppointmentWizard() {
         if (defaultsResponse.ok) {
           const defaults = await defaultsResponse.json();
           
-          // Pre-fill form with user defaults
+          // Pre-fill form with user defaults, respecting freemium constraints
+          const profileParticipant = defaults.default_participant_percent ?? (isFreemium ? 80 : 70);
+          const profileCharity = defaults.default_charity_percent ?? 0;
+          
+          let participantPct, charityPct, platformPct;
+          
+          if (isFreemium) {
+            // Freemium: platform locked at 20%, adjust charity to ensure total = 100%
+            platformPct = FREEMIUM_PLATFORM_COMMISSION;
+            const maxForOthers = 100 - FREEMIUM_PLATFORM_COMMISSION;
+            participantPct = Math.min(profileParticipant, maxForOthers);
+            charityPct = Math.max(0, maxForOthers - participantPct);
+          } else {
+            participantPct = profileParticipant;
+            charityPct = profileCharity;
+            platformPct = 100 - participantPct - charityPct;
+          }
+          
           setFormData(prev => ({
             ...prev,
             cancellation_deadline_hours: defaults.default_cancellation_hours ?? 24,
             tolerated_delay_minutes: defaults.default_late_tolerance_minutes ?? 15,
             penalty_amount: defaults.default_penalty_amount ?? 50,
             penalty_currency: defaults.default_penalty_currency ?? 'eur',
-            affected_compensation_percent: defaults.default_participant_percent ?? (isFreemium ? 80 : 70),
-            charity_percent: defaults.default_charity_percent ?? 0,
+            affected_compensation_percent: participantPct,
+            charity_percent: charityPct,
             charity_association_id: defaults.default_charity_association_id || '',
-            // Platform commission is calculated
-            platform_commission_percent: 100 - (defaults.default_participant_percent ?? 70) - (defaults.default_charity_percent ?? 0)
+            platform_commission_percent: platformPct
           }));
         }
         

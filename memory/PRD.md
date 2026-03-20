@@ -1,108 +1,96 @@
 # NLYT - Product Requirements Document
 
 ## Original Problem Statement
-Application SaaS NLYT - Système de rendez-vous avec engagement financier.
-- Principes : zéro friction, automatisation maximale, workspace invisible, engagement clair et équitable
+Application SaaS de rendez-vous avec engagement financier. Objectif : zéro friction, automatisation maximale, logique d'engagement claire.
 
 ## Architecture
-- **Frontend**: React.js with Tailwind CSS, shadcn/ui components
-- **Backend**: FastAPI (Python)
+- **Frontend**: React.js + TailwindCSS + Shadcn UI + React Router
+- **Backend**: FastAPI + Python + APScheduler
 - **Database**: MongoDB
-- **Email**: Resend API
-- **Scheduler**: APScheduler for reminders
+- **Integrations**: Resend (emails), Stripe (paiements - MOCKED), API BAN (adresses FR)
 
-## User Personas
-1. **Organizer**: Creates appointments, invites participants, manages engagement rules
-2. **Participant**: Receives invitations, accepts/declines, can cancel before deadline
-3. **Admin/Reviewer**: Reviews disputes, manages platform
+## Core Features Implemented
 
-## Core Requirements (Static)
-- Authentication with email verification
-- Auto-workspace creation on signup
-- Appointment creation with penalty rules
-- Invitation system with secure tokens
-- Accept/Decline/Cancel flows
-- Cancellation deadline enforcement
-- Email notifications (invitation, cancellation, reminders)
-- Dual reminder system (deadline + event)
+### Phase 1 - Foundation (DONE)
+- [x] Auth system (JWT, register, login, verification)
+- [x] Workspace management (auto-creation, multi-workspace)
+- [x] Appointment CRUD (create wizard, list, detail, cancel, delete)
+- [x] Participant management (invite, accept, decline, cancel)
+- [x] Email notifications (invitation, confirmation, cancellation via Resend)
+- [x] Policy snapshot (immutable contract at appointment creation)
 
-## What's Been Implemented (17 Mars 2026)
+### Phase 1.5 - Calendar & Address (DONE)
+- [x] ICS file generation and export
+- [x] "Add to Calendar" buttons (Google, Outlook, Apple)
+- [x] ICS links in invitation/confirmation emails
+- [x] French address autocomplete (API BAN)
 
-### ✅ Completed Features
-- Full authentication flow (signup, login, verify, reset password)
-- Auto-workspace creation
-- Appointment creation wizard with participants
-- Invitation token system
-- Public invitation page with full details
-- Accept/Decline invitation
-- Cancel participation by participant
-- Cancel appointment by organizer
-- Soft delete appointments
-- Organizer dashboard with participant statuses
-- Workspace switcher
-- Deadline reminder service (1h before deadline)
-- Event reminder service (10min/1h/1day before RDV)
-- Email notifications via Resend
-- **ICS file generation** (17 Mars 2026)
-  - Endpoint: GET /api/calendar/export/ics/{appointment_id}
-  - Description complète avec règles d'engagement
-  - Compatible Google Calendar, Outlook, Apple Calendar
-  - Bouton sur page détail RDV et page invitation
-- **Address Autocomplete** (17 Mars 2026)
-  - API BAN (Base Adresse Nationale) - gratuite, sans clé
-  - Suggestions en temps réel avec debounce 300ms
-  - Stockage lat/lng/place_id en base
-  - Intégré au wizard step 2 (type physique)
-- **Calendar MVP** (17 Mars 2026)
-  - Export ICS individuel: GET /api/calendar/export/ics/{id}
-  - Feed ICS subscription: GET /api/calendar/feed/{user_id}.ics
-  - Gestion RDV annulés: STATUS:CANCELLED, titre [ANNULÉ], pas d'alarme
-  - Boutons frontend sur page détail et page invitation
-  - Compatible Google Calendar, Outlook, Apple Calendar
-  - **Lien ICS dans email d'invitation** ✅
-  - **Email de confirmation après acceptation avec bouton calendrier** ✅
-- **Stripe Financial Guarantee** (20 Mars 2026)
-  - Checkout Session en mode "setup" (pas de charge immédiate)
-  - États participant: invited → accepted_pending_guarantee → accepted_guaranteed
-  - Stockage customer_id et payment_method_id pour capture future
-  - Webhook checkout.session.completed pour confirmation
-  - Mode dev avec simulation automatique
-  - Dashboard affiche statuts de garantie (En attente, Garantie en cours, Garanti)
-  - Libération garantie si organisateur annule (pas de charge)
+### Phase 1.7 - Financial Guarantee (DONE - MOCKED)
+- [x] Stripe Checkout Session (Setup mode) - **MOCKED with dummy key `sk_test_emergent`**
+- [x] Webhook handler for `checkout.session.completed`
+- [x] Dev mode auto-success fallback
+- [x] Participant status flow: invited → accepted_pending_guarantee → accepted_guaranteed
 
-### ⚠️ Partial/Pending
-- Stripe payment integration (routes exist, not connected)
-- No-show detection
-- Dispute resolution flow
+### Phase 1.9 - Profile Defaults (DONE - VALIDATED 2026-03-20)
+- [x] Profile page (/settings/profile) as source of truth for appointment defaults
+- [x] Backend API: GET/PUT /api/user-settings/me, GET /api/user-settings/me/appointment-defaults
+- [x] Charity associations management (CRUD + selection)
+- [x] Wizard prefills from profile defaults on mount
+- [x] Freemium mode: platform commission locked at 20%, charity auto-adjusted
+- [x] Snapshot immutability verified: profile changes don't affect existing appointments
+- [x] Three invariants validated:
+  1. Profile modification ≠ existing appointments modification
+  2. Wizard modification ≠ profile modification
+  3. Defaults used only at creation time (copy by value)
 
-## Prioritized Backlog
+### Cleanup (DONE)
+- [x] Hardcoded preview URL audit and removal
+- [x] Canonical URL enforcement via .env variables
+- [x] System audit and frontend JSON parsing bugfix
 
-### P0 - Critical (Before Production)
-- [ ] Configure Resend domain for production emails
-- [ ] Implement Stripe Setup Intent for financial guarantee
-- [ ] No-show detection and penalty capture
+## Pending / Blocked
 
-### P1 - High Priority
-- [ ] Participant dashboard view
-- [ ] Calendar integration (Google/Outlook sync)
-- [ ] Admin review dashboard testing
+### P0: Stripe Real Integration (BLOCKED)
+- Waiting for user to provide real Stripe keys (STRIPE_API_KEY, STRIPE_WEBHOOK_SECRET)
+- Code ready, currently in dev/mock mode
 
-### P2 - Medium Priority
-- [ ] Multi-language support (dates in French)
-- [ ] Timezone-aware reminders
-- [ ] Participant limit per appointment
-- [ ] Rate limiting on public endpoints
+## Upcoming Tasks
 
-### P3 - Low Priority
-- [ ] Analytics dashboard enhancements
-- [ ] Export appointments to CSV
-- [ ] Webhook integrations
+### P1: Calendar Phase 2
+- Google Calendar OAuth integration
+- Outlook / Microsoft 365 OAuth integration
+- `/app/backend/adapters/google_calendar_adapter.py` exists (skeleton)
 
-## Next Tasks
-1. Stripe payment integration
-2. No-show detection workflow
-3. Production email domain setup
+### P2: No-Show Detection
+- Automated penalty capture via cron/scheduler
+- APScheduler already integrated for reminders
 
----
+## Key API Endpoints
+- `POST /api/auth/register` / `POST /api/auth/login`
+- `GET/POST /api/appointments/`
+- `GET /api/user-settings/me/appointment-defaults`
+- `PUT /api/user-settings/me`
+- `GET/POST /api/charity-associations/`
+- `POST /api/invitations/{token}/respond`
+- `POST /api/webhooks/stripe`
+- `GET /api/calendar/export/ics/{appointment_id}`
 
-*Last Updated: 17 Mars 2026*
+## DB Collections
+- `users` (with `appointment_defaults` nested object)
+- `workspaces`, `workspace_memberships`
+- `appointments`, `participants`
+- `policy_snapshots` (immutable)
+- `acceptances`
+- `charity_associations`
+
+## Test Credentials (Preview)
+- Email: testuser_audit@nlyt.app
+- Password: TestPassword123!
+
+## Test Reports
+- iteration_1: ICS MVP
+- iteration_2: Address Autocomplete
+- iteration_3: Calendar MVP
+- iteration_4: Calendar Phase 1 Email links
+- iteration_5: Stripe Mock Flow
+- iteration_6: Profile → Defaults → Wizard E2E validation
