@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { appointmentAPI, participantAPI, calendarAPI } from '../../services/api';
 import { Button } from '../../components/ui/button';
-import { ArrowLeft, Calendar, MapPin, Video, Clock, Users, Ban, Check, X, AlertTriangle, Download } from 'lucide-react';
+import { ArrowLeft, Calendar, MapPin, Video, Clock, Users, Ban, Check, X, AlertTriangle, Download, Heart } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function AppointmentDetail() {
@@ -273,6 +273,20 @@ export default function AppointmentDetail() {
                   </div>
                 )}
               </div>
+
+              {appointment.charity_percent > 0 && appointment.charity_association_id && (
+                <div className="mt-3 p-3 bg-teal-50 border border-teal-200 rounded-lg flex items-start gap-3" data-testid="charity-association-block">
+                  <Heart className="w-5 h-5 text-teal-600 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium text-teal-900">
+                      {appointment.charity_association_name || 'Association sélectionnée'}
+                    </p>
+                    <p className="text-xs text-teal-700 mt-0.5">
+                      {appointment.charity_percent}% de la pénalité reversée
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
