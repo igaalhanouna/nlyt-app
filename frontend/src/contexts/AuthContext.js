@@ -53,8 +53,12 @@ export function AuthProvider({ children }) {
     setUser(null);
   };
 
+  // Get token from localStorage
+  const token = localStorage.getItem('nlyt_token');
+
   const value = {
     user,
+    token,
     loading,
     login,
     register,
