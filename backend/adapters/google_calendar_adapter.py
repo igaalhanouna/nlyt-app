@@ -6,7 +6,7 @@ sys.path.append('/app/backend')
 
 CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID')
 CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET')
-SCOPES = ['https://www.googleapis.com/auth/calendar']
+SCOPES = ['https://www.googleapis.com/auth/calendar', 'email', 'profile']
 
 
 class GoogleCalendarAdapter:
@@ -95,11 +95,31 @@ class GoogleCalendarAdapter:
         return headers
 
     @staticmethod
+    def get_calendar_timezone(access_token: str, refresh_token: str, connection_update_callback=None) -> str:
+        """Get the user's primary Google Calendar timezone."""
+        try:
+            headers = GoogleCalendarAdapter._get_headers(access_token, refresh_token, connection_update_callback)
+            if not headers:
+                return 'UTC'
+            resp = requests.get(
+                'https://www.googleapis.com/calendar/v3/calendars/primary',
+                headers=headers
+            )
+            if resp.status_code == 200:
+                return resp.json().get('timeZone', 'UTC')
+            return 'UTC'
+        except Exception:
+            return 'UTC'
+
+    @staticmethod
     def create_event(access_token: str, refresh_token: str, event_data: dict, connection_update_callback=None) -> Optional[Dict]:
         try:
             headers = GoogleCalendarAdapter._get_headers(access_token, refresh_token, connection_update_callback)
             if not headers:
                 return None
+
+            # Use the user's calendar timezone for naive datetimes
+            calendar_tz = event_data.get('timeZone', 'UTC')
 
             event = {
                 'summary': event_data['title'],
@@ -107,11 +127,11 @@ class GoogleCalendarAdapter:
                 'location': event_data.get('location', ''),
                 'start': {
                     'dateTime': event_data['start_datetime'],
-                    'timeZone': 'UTC'
+                    'timeZone': calendar_tz
                 },
                 'end': {
                     'dateTime': event_data['end_datetime'],
-                    'timeZone': 'UTC'
+                    'timeZone': calendar_tz
                 }
             }
 
@@ -131,6 +151,45 @@ class GoogleCalendarAdapter:
                 return None
         except Exception as e:
             print(f"[GOOGLE] Error creating event: {e}")
+            return None
+
+    @staticmethod
+    def update_event(access_token: str, refresh_token: str, event_id: str, event_data: dict, connection_update_callback=None) -> Optional[Dict]:
+        """Update an existing Google Calendar event."""
+        try:
+            headers = GoogleCalendarAdapter._get_headers(access_token, refresh_token, connection_update_callback)
+            if not headers:
+                return None
+
+            calendar_tz = event_data.get('timeZone', 'UTC')
+
+            event = {
+                'summary': event_data['title'],
+                'description': event_data.get('description', ''),
+                'location': event_data.get('location', ''),
+                'start': {
+                    'dateTime': event_data['start_datetime'],
+                    'timeZone': calendar_tz
+                },
+                'end': {
+                    'dateTime': event_data['end_datetime'],
+                    'timeZone': calendar_tz
+                }
+            }
+
+            resp = requests.put(
+                f'https://www.googleapis.com/calendar/v3/calendars/primary/events/{event_id}',
+                headers=headers,
+                json=event
+            )
+            if resp.status_code in (200,):
+                result = resp.json()
+                return {"event_id": result['id'], "html_link": result.get('htmlLink')}
+            else:
+                print(f"[GOOGLE] Update event error {resp.status_code}: {resp.text}")
+                return None
+        except Exception as e:
+            print(f"[GOOGLE] Error updating event: {e}")
             return None
 
     @staticmethod

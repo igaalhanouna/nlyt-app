@@ -120,10 +120,11 @@ export default function Integrations() {
                   <CheckCircle className="w-5 h-5 text-emerald-600 flex-shrink-0" />
                   <div>
                     <p className="text-sm font-medium text-slate-900" data-testid="google-connected-email">
-                      {googleConnection.google_email}
+                      {googleConnection.google_email || 'Compte Google connecté'}
                     </p>
                     <p className="text-xs text-slate-500">
                       Connecté le {new Date(googleConnection.connected_at).toLocaleDateString('fr-FR')}
+                      {!googleConnection.google_email && ' — Reconnectez pour afficher l\'email'}
                     </p>
                   </div>
                 </div>

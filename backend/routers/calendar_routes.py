@@ -194,6 +194,13 @@ async def sync_appointment_to_calendar(appointment_id: str, request: Request):
             "html_link": existing_sync.get('html_link')
         }
 
+    # Token refresh callback
+    def on_token_refresh(new_token):
+        db.calendar_connections.update_one(
+            {"connection_id": connection['connection_id']},
+            {"$set": {"access_token": new_token, "updated_at": now_utc().isoformat()}}
+        )
+
     # Build event data
     start_dt = datetime.fromisoformat(appointment['start_datetime'].replace('Z', '+00:00'))
     end_dt = start_dt + timedelta(minutes=appointment.get('duration_minutes', 60))
@@ -210,20 +217,21 @@ async def sync_appointment_to_calendar(appointment_id: str, request: Request):
         f"Pénalité : {appointment.get('penalty_amount', 0)} {appointment.get('penalty_currency', 'EUR').upper()}",
     ]
 
+    # Get the user's Google Calendar timezone (not hardcoded UTC)
+    calendar_tz = GoogleCalendarAdapter.get_calendar_timezone(
+        connection['access_token'],
+        connection.get('refresh_token'),
+        connection_update_callback=on_token_refresh
+    )
+
     event_data = {
         "title": f"[NLYT] {appointment['title']}",
         "description": "\n".join(description_lines),
         "location": location,
-        "start_datetime": start_dt.isoformat(),
-        "end_datetime": end_dt.isoformat()
+        "start_datetime": start_dt.strftime('%Y-%m-%dT%H:%M:%S'),
+        "end_datetime": end_dt.strftime('%Y-%m-%dT%H:%M:%S'),
+        "timeZone": calendar_tz
     }
-
-    # Token refresh callback
-    def on_token_refresh(new_token):
-        db.calendar_connections.update_one(
-            {"connection_id": connection['connection_id']},
-            {"$set": {"access_token": new_token, "updated_at": now_utc().isoformat()}}
-        )
 
     result = GoogleCalendarAdapter.create_event(
         connection['access_token'],
@@ -280,6 +288,51 @@ async def get_sync_status(appointment_id: str, request: Request):
         "external_event_id": sync_log.get('external_event_id') if sync_log else None,
         "html_link": sync_log.get('html_link') if sync_log else None
     }
+
+
+
+@router.delete("/sync/appointment/{appointment_id}")
+async def unsync_appointment_from_calendar(appointment_id: str, request: Request):
+    """
+    Delete the Google Calendar event when a RDV is cancelled.
+    Called internally or by the organizer.
+    """
+    user = await get_current_user(request)
+
+    connection = db.calendar_connections.find_one(
+        {"user_id": user['user_id'], "provider": "google", "status": "connected"}
+    )
+    if not connection:
+        return {"success": False, "reason": "no_connection"}
+
+    sync_log = db.calendar_sync_logs.find_one({
+        "appointment_id": appointment_id,
+        "connection_id": connection['connection_id'],
+        "sync_status": "synced"
+    })
+    if not sync_log:
+        return {"success": False, "reason": "not_synced"}
+
+    def on_token_refresh(new_token):
+        db.calendar_connections.update_one(
+            {"connection_id": connection['connection_id']},
+            {"$set": {"access_token": new_token, "updated_at": now_utc().isoformat()}}
+        )
+
+    deleted = GoogleCalendarAdapter.delete_event(
+        connection['access_token'],
+        connection.get('refresh_token'),
+        sync_log['external_event_id'],
+        connection_update_callback=on_token_refresh
+    )
+
+    if deleted:
+        db.calendar_sync_logs.update_one(
+            {"log_id": sync_log['log_id']},
+            {"$set": {"sync_status": "deleted", "deleted_at": now_utc().isoformat()}}
+        )
+
+    return {"success": deleted}
 
 
 # ── ICS Export (unchanged, public) ──────────────────────────

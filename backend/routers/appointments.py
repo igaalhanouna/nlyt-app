@@ -374,6 +374,33 @@ async def cancel_appointment(appointment_id: str, request: Request):
             import logging
             logging.error(f"Failed to send cancellation notification to {participant.get('email')}: {e}")
     
+    # Delete Google Calendar event if synced (best-effort)
+    try:
+        from adapters.google_calendar_adapter import GoogleCalendarAdapter
+        connection = db.calendar_connections.find_one(
+            {"user_id": user['user_id'], "provider": "google", "status": "connected"}
+        )
+        if connection:
+            sync_log = db.calendar_sync_logs.find_one({
+                "appointment_id": appointment_id,
+                "connection_id": connection['connection_id'],
+                "sync_status": "synced"
+            })
+            if sync_log and sync_log.get('external_event_id'):
+                deleted = GoogleCalendarAdapter.delete_event(
+                    connection['access_token'],
+                    connection.get('refresh_token'),
+                    sync_log['external_event_id']
+                )
+                if deleted:
+                    db.calendar_sync_logs.update_one(
+                        {"log_id": sync_log['log_id']},
+                        {"$set": {"sync_status": "deleted", "deleted_at": now}}
+                    )
+    except Exception as e:
+        import logging
+        logging.error(f"Failed to delete Google Calendar event: {e}")
+
     return {
         "success": True,
         "message": "Rendez-vous annulé avec succès",

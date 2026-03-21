@@ -73,6 +73,7 @@ export const calendarAPI = {
   disconnectGoogle: () => api.delete('/api/calendar/connections/google'),
   listConnections: () => api.get('/api/calendar/connections'),
   syncAppointment: (appointment_id) => api.post(`/api/calendar/sync/appointment/${appointment_id}`),
+  unsyncAppointment: (appointment_id) => api.delete(`/api/calendar/sync/appointment/${appointment_id}`),
   getSyncStatus: (appointment_id) => api.get(`/api/calendar/sync/status/${appointment_id}`),
   exportICS: (appointment_id) =>
     `${API_BASE_URL}/api/calendar/export/ics/${appointment_id}`,
