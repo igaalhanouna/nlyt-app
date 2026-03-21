@@ -10,6 +10,66 @@ AUTHORITY = 'https://login.microsoftonline.com/common/oauth2/v2.0'
 GRAPH_API = 'https://graph.microsoft.com/v1.0'
 SCOPES = ['Calendars.ReadWrite', 'User.Read', 'MailboxSettings.Read', 'offline_access']
 
+# IANA → Windows timezone mapping (Microsoft Graph requires Windows IDs for personal accounts)
+IANA_TO_WINDOWS_TZ = {
+    'Europe/Paris': 'Romance Standard Time',
+    'Europe/Brussels': 'Romance Standard Time',
+    'Europe/Madrid': 'Romance Standard Time',
+    'Europe/Amsterdam': 'W. Europe Standard Time',
+    'Europe/Berlin': 'W. Europe Standard Time',
+    'Europe/Rome': 'W. Europe Standard Time',
+    'Europe/Zurich': 'W. Europe Standard Time',
+    'Europe/Vienna': 'W. Europe Standard Time',
+    'Europe/Stockholm': 'W. Europe Standard Time',
+    'Europe/Oslo': 'W. Europe Standard Time',
+    'Europe/Copenhagen': 'Romance Standard Time',
+    'Europe/London': 'GMT Standard Time',
+    'Europe/Dublin': 'GMT Standard Time',
+    'Europe/Lisbon': 'GMT Standard Time',
+    'Europe/Athens': 'GTB Standard Time',
+    'Europe/Bucharest': 'GTB Standard Time',
+    'Europe/Helsinki': 'FLE Standard Time',
+    'Europe/Warsaw': 'Central European Standard Time',
+    'Europe/Prague': 'Central European Standard Time',
+    'Europe/Budapest': 'Central European Standard Time',
+    'Europe/Moscow': 'Russian Standard Time',
+    'Europe/Istanbul': 'Turkey Standard Time',
+    'America/New_York': 'Eastern Standard Time',
+    'America/Chicago': 'Central Standard Time',
+    'America/Denver': 'Mountain Standard Time',
+    'America/Los_Angeles': 'Pacific Standard Time',
+    'America/Toronto': 'Eastern Standard Time',
+    'America/Vancouver': 'Pacific Standard Time',
+    'America/Montreal': 'Eastern Standard Time',
+    'America/Sao_Paulo': 'E. South America Standard Time',
+    'America/Argentina/Buenos_Aires': 'Argentina Standard Time',
+    'America/Mexico_City': 'Central Standard Time (Mexico)',
+    'Asia/Tokyo': 'Tokyo Standard Time',
+    'Asia/Shanghai': 'China Standard Time',
+    'Asia/Hong_Kong': 'China Standard Time',
+    'Asia/Singapore': 'Singapore Standard Time',
+    'Asia/Kolkata': 'India Standard Time',
+    'Asia/Dubai': 'Arabian Standard Time',
+    'Asia/Seoul': 'Korea Standard Time',
+    'Asia/Bangkok': 'SE Asia Standard Time',
+    'Asia/Taipei': 'Taipei Standard Time',
+    'Australia/Sydney': 'AUS Eastern Standard Time',
+    'Australia/Melbourne': 'AUS Eastern Standard Time',
+    'Australia/Perth': 'W. Australia Standard Time',
+    'Pacific/Auckland': 'New Zealand Standard Time',
+    'Africa/Johannesburg': 'South Africa Standard Time',
+    'Africa/Cairo': 'Egypt Standard Time',
+    'Africa/Casablanca': 'Morocco Standard Time',
+    'UTC': 'UTC',
+}
+
+
+def to_windows_timezone(iana_tz: str) -> str:
+    """Convert IANA timezone to Windows timezone ID for Microsoft Graph API."""
+    if not iana_tz:
+        return 'UTC'
+    return IANA_TO_WINDOWS_TZ.get(iana_tz, iana_tz)
+
 
 class OutlookCalendarAdapter:
 
@@ -115,7 +175,7 @@ class OutlookCalendarAdapter:
             if not headers:
                 return None
 
-            calendar_tz = event_data.get('timeZone', 'UTC')
+            calendar_tz = to_windows_timezone(event_data.get('timeZone', 'UTC'))
 
             event = {
                 'subject': event_data['title'],
@@ -156,7 +216,7 @@ class OutlookCalendarAdapter:
             if not headers:
                 return None
 
-            calendar_tz = event_data.get('timeZone', 'UTC')
+            calendar_tz = to_windows_timezone(event_data.get('timeZone', 'UTC'))
             event = {
                 'subject': event_data['title'],
                 'body': {'contentType': 'text', 'content': event_data.get('description', '')},
