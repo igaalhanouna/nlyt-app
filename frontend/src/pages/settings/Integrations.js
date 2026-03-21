@@ -124,7 +124,6 @@ export default function Integrations() {
                     </p>
                     <p className="text-xs text-slate-500">
                       Connecté le {new Date(googleConnection.connected_at).toLocaleDateString('fr-FR')}
-                      {!googleConnection.google_email && ' — Reconnectez pour afficher l\'email'}
                     </p>
                   </div>
                 </div>
@@ -143,6 +142,41 @@ export default function Integrations() {
                   )}
                   Déconnecter
                 </Button>
+              </div>
+            </div>
+          ) : googleConnection && googleConnection.status === 'expired' ? (
+            <div className="border-t border-slate-200 bg-amber-50 px-6 py-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <XCircle className="w-5 h-5 text-amber-600 flex-shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium text-slate-900">Session expirée</p>
+                    <p className="text-xs text-slate-500">
+                      {googleConnection.google_email || 'Reconnectez pour restaurer la synchronisation'}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    onClick={handleConnectGoogle}
+                    disabled={connecting}
+                    data-testid="reconnect-google-btn"
+                  >
+                    {connecting ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <ExternalLink className="w-4 h-4 mr-1" />}
+                    Reconnecter
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleDisconnectGoogle}
+                    disabled={disconnecting}
+                    className="text-red-600 border-red-200 hover:bg-red-50"
+                    data-testid="disconnect-google-expired-btn"
+                  >
+                    <Unlink className="w-4 h-4" />
+                  </Button>
+                </div>
               </div>
             </div>
           ) : (

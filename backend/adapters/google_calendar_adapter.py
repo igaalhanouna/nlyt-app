@@ -80,7 +80,9 @@ class GoogleCalendarAdapter:
 
     @staticmethod
     def _get_headers(access_token: str, refresh_token: str, connection_update_callback=None) -> Optional[dict]:
-        """Get valid auth headers refreshing token if needed."""
+        """Get valid auth headers refreshing token if needed.
+        Returns None if both token and refresh fail (caller should mark connection expired).
+        """
         headers = {'Authorization': f'Bearer {access_token}', 'Content-Type': 'application/json'}
         # Test current token
         test = requests.get('https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=1', headers=headers)
@@ -91,7 +93,13 @@ class GoogleCalendarAdapter:
                     connection_update_callback(new_token)
                 headers['Authorization'] = f'Bearer {new_token}'
             else:
+                # Refresh failed → token is dead
+                if connection_update_callback:
+                    connection_update_callback(None)
                 return None
+        elif test.status_code == 401:
+            # No refresh token at all
+            return None
         return headers
 
     @staticmethod

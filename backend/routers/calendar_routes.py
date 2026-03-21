@@ -176,9 +176,13 @@ async def sync_appointment_to_calendar(appointment_id: str, request: Request):
         raise HTTPException(status_code=404, detail="Rendez-vous introuvable")
 
     connection = db.calendar_connections.find_one(
-        {"user_id": user['user_id'], "provider": "google", "status": "connected"}
+        {"user_id": user['user_id'], "provider": "google"}
     )
     if not connection:
+        raise HTTPException(status_code=400, detail="Google Calendar non connecté")
+    if connection.get('status') == 'expired':
+        raise HTTPException(status_code=401, detail="Session Google expirée. Veuillez reconnecter Google Calendar dans Paramètres > Intégrations.")
+    if connection.get('status') != 'connected':
         raise HTTPException(status_code=400, detail="Google Calendar non connecté")
 
     # Check if already synced
@@ -194,12 +198,19 @@ async def sync_appointment_to_calendar(appointment_id: str, request: Request):
             "html_link": existing_sync.get('html_link')
         }
 
-    # Token refresh callback
+    # Token refresh callback (handles expiration)
     def on_token_refresh(new_token):
-        db.calendar_connections.update_one(
-            {"connection_id": connection['connection_id']},
-            {"$set": {"access_token": new_token, "updated_at": now_utc().isoformat()}}
-        )
+        if new_token:
+            db.calendar_connections.update_one(
+                {"connection_id": connection['connection_id']},
+                {"$set": {"access_token": new_token, "updated_at": now_utc().isoformat()}}
+            )
+        else:
+            # Token refresh failed — mark connection as expired
+            db.calendar_connections.update_one(
+                {"connection_id": connection['connection_id']},
+                {"$set": {"status": "expired", "updated_at": now_utc().isoformat()}}
+            )
 
     # Build event data
     start_dt = datetime.fromisoformat(appointment['start_datetime'].replace('Z', '+00:00'))
@@ -255,6 +266,10 @@ async def sync_appointment_to_calendar(appointment_id: str, request: Request):
     db.calendar_sync_logs.insert_one(sync_log)
 
     if not result:
+        # Check if connection was marked expired during the attempt
+        refreshed_conn = db.calendar_connections.find_one({"connection_id": connection['connection_id']}, {"_id": 0, "status": 1})
+        if refreshed_conn and refreshed_conn.get('status') == 'expired':
+            raise HTTPException(status_code=401, detail="Session Google expirée. Veuillez reconnecter Google Calendar dans Paramètres > Intégrations.")
         raise HTTPException(status_code=502, detail="Échec de la synchronisation avec Google Calendar")
 
     return {
