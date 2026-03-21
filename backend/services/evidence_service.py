@@ -21,6 +21,7 @@ import logging
 import math
 import requests
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 from pymongo import MongoClient
 from utils.date_utils import now_utc
 
@@ -35,6 +36,7 @@ QR_SECRET = os.environ.get('JWT_SECRET', 'nlyt_default_secret')
 QR_ROTATION_SECONDS = 60
 QR_TOLERANCE_WINDOWS = 2
 DEFAULT_GPS_RADIUS_METERS = 200
+DEFAULT_TIMEZONE = 'Europe/Paris'
 
 # --- Temporal windows ---
 CHECKIN_WINDOW_BEFORE_HOURS = 2    # Valid check-in starts 2h before RDV
@@ -132,16 +134,34 @@ def resolve_appointment_coordinates(appointment: dict) -> tuple:
 # TEMPORAL CONSISTENCY
 # ============================================================
 
+def _parse_appointment_start(appointment: dict) -> datetime:
+    """
+    Parse appointment start_datetime, handling naive datetimes by applying
+    the correct timezone (stored or default Europe/Paris).
+    Returns timezone-aware UTC datetime.
+    """
+    start_str = appointment.get('start_datetime', '')
+    tz_name = appointment.get('timezone', DEFAULT_TIMEZONE)
+
+    start_dt = datetime.fromisoformat(start_str.replace('Z', '+00:00'))
+
+    if start_dt.tzinfo is None:
+        # Naive datetime: interpret as local time in the appointment's timezone
+        local_tz = ZoneInfo(tz_name)
+        start_dt = start_dt.replace(tzinfo=local_tz)
+
+    # Convert to UTC for consistent comparison
+    return start_dt.astimezone(timezone.utc)
+
+
 def assess_temporal_consistency(evidence_ts: datetime, appointment: dict) -> dict:
     """
     Assess if evidence timestamp is within a reasonable window of the RDV.
+    Handles timezone correctly: naive appointment dates are treated as local time.
     Returns: {consistency: "valid"|"too_early"|"too_late", hours_offset: float, detail: str}
     """
-    start_str = appointment.get('start_datetime', '')
     try:
-        start_dt = datetime.fromisoformat(start_str.replace('Z', '+00:00'))
-        if start_dt.tzinfo is None:
-            start_dt = start_dt.replace(tzinfo=timezone.utc)
+        start_utc = _parse_appointment_start(appointment)
     except (ValueError, TypeError):
         return {"consistency": "unknown", "hours_offset": None, "detail": "Impossible de parser la date du RDV"}
 
@@ -149,13 +169,13 @@ def assess_temporal_consistency(evidence_ts: datetime, appointment: dict) -> dic
         evidence_ts = evidence_ts.replace(tzinfo=timezone.utc)
 
     duration = appointment.get('duration_minutes', 60)
-    end_dt = start_dt + timedelta(minutes=duration)
+    end_utc = start_utc + timedelta(minutes=duration)
 
-    window_start = start_dt - timedelta(hours=CHECKIN_WINDOW_BEFORE_HOURS)
-    window_end = end_dt + timedelta(hours=CHECKIN_WINDOW_AFTER_HOURS)
+    window_start = start_utc - timedelta(hours=CHECKIN_WINDOW_BEFORE_HOURS)
+    window_end = end_utc + timedelta(hours=CHECKIN_WINDOW_AFTER_HOURS)
 
-    hours_before_start = (start_dt - evidence_ts).total_seconds() / 3600
-    hours_after_end = (evidence_ts - end_dt).total_seconds() / 3600
+    hours_before_start = (start_utc - evidence_ts).total_seconds() / 3600
+    hours_after_end = (evidence_ts - end_utc).total_seconds() / 3600
 
     if evidence_ts < window_start:
         return {
@@ -170,15 +190,15 @@ def assess_temporal_consistency(evidence_ts: datetime, appointment: dict) -> dic
             "detail": f"{round(hours_after_end, 1)}h après la fin du RDV"
         }
     else:
-        if evidence_ts <= start_dt:
+        if evidence_ts <= start_utc:
             return {
                 "consistency": "valid",
                 "hours_offset": round(-hours_before_start, 1),
                 "detail": f"Arrivé {round(hours_before_start * 60)}min avant le RDV"
             }
-        elif evidence_ts <= end_dt:
+        elif evidence_ts <= end_utc:
             tolerated = appointment.get('tolerated_delay_minutes', 0)
-            late_by = (evidence_ts - start_dt).total_seconds() / 60
+            late_by = (evidence_ts - start_utc).total_seconds() / 60
             if late_by <= tolerated:
                 return {
                     "consistency": "valid",
@@ -706,13 +726,10 @@ def aggregate_evidence(appointment_id: str, participant_id: str, appointment: di
     # Determine timing
     timing = None
     if earliest_timestamp:
-        start_str = appointment.get('start_datetime', '')
         try:
-            start_dt = datetime.fromisoformat(start_str.replace('Z', '+00:00'))
-            if start_dt.tzinfo is None:
-                start_dt = start_dt.replace(tzinfo=timezone.utc)
+            start_utc = _parse_appointment_start(appointment)
             tolerated_delay = appointment.get('tolerated_delay_minutes', 0)
-            deadline = start_dt + timedelta(minutes=tolerated_delay)
+            deadline = start_utc + timedelta(minutes=tolerated_delay)
             timing = "on_time" if earliest_timestamp <= deadline else "late"
         except (ValueError, TypeError):
             pass

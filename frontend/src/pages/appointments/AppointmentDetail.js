@@ -285,8 +285,10 @@ export default function AppointmentDetail() {
   const formatEvidenceDate = (ts) => {
     try {
       const d = new Date(ts);
-      return d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
-        + ' à ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const dateStr = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: tz });
+      const timeStr = d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: tz });
+      return dateStr + ' à ' + timeStr;
     } catch { return ts; }
   };
 

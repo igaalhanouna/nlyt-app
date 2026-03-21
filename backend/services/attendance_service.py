@@ -68,14 +68,12 @@ def evaluate_participant(participant: dict, appointment: dict) -> dict:
     # --- CANCELLED cases ---
     if status == 'cancelled_by_participant':
         cancelled_at_str = participant.get('cancelled_at')
-        start_dt_str = appointment.get('start_datetime', '')
         deadline_hours = appointment.get('cancellation_deadline_hours', 24)
 
         try:
-            start_dt = datetime.fromisoformat(start_dt_str.replace('Z', '+00:00'))
-            if start_dt.tzinfo is None:
-                start_dt = start_dt.replace(tzinfo=timezone.utc)
-            deadline_dt = start_dt - timedelta(hours=deadline_hours)
+            from services.evidence_service import _parse_appointment_start
+            start_utc = _parse_appointment_start(appointment)
+            deadline_dt = start_utc - timedelta(hours=deadline_hours)
 
             if cancelled_at_str:
                 cancelled_at = datetime.fromisoformat(cancelled_at_str.replace('Z', '+00:00'))

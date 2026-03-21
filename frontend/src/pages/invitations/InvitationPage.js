@@ -373,7 +373,8 @@ export default function InvitationPage() {
                 {checkinStatus.earliest_checkin && (
                   <p className="text-xs text-emerald-600">
                     {new Date(checkinStatus.earliest_checkin).toLocaleString('fr-FR', {
-                      hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short'
+                      hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short',
+                      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
                     })}
                   </p>
                 )}
