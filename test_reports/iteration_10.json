@@ -1,0 +1,74 @@
+{
+  "summary": "Tested Auto-Sync Calendar V1 feature. All backend APIs (13/13 tests) and frontend UI components working correctly. Auto-sync settings endpoints, sync_source field in sync logs, Zap icon for auto-synced appointments, and provider selector on Integrations page all verified.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": [
+    "1. GET /api/calendar/auto-sync/settings - Returns auto_sync_enabled + auto_sync_provider (PASSED)",
+    "2. PUT /api/calendar/auto-sync/settings - Enable with valid connected provider (PASSED)",
+    "3. PUT /api/calendar/auto-sync/settings - Disable auto-sync (PASSED)",
+    "4. PUT /api/calendar/auto-sync/settings - Refuse enabled=true without provider (400) (PASSED)",
+    "5. PUT /api/calendar/auto-sync/settings - Refuse invalid provider (400) (PASSED)",
+    "6. PUT /api/calendar/auto-sync/settings - Refuse if provider not connected (400) (PASSED)",
+    "7. GET /api/calendar/sync/status/{id} - Returns sync_source in response (PASSED)",
+    "8. POST /api/appointments/ - Auto-sync triggered on creation when enabled (PASSED)",
+    "9. No auto-sync when auto_sync_enabled=false (PASSED)",
+    "10. Manual sync still works (no regression) (PASSED)",
+    "11. Health endpoint working (PASSED)",
+    "12. Login working (PASSED)",
+    "13. Calendar connections endpoint working (PASSED)",
+    "14. UI: Integrations page - Auto-sync section visible when provider connected (PASSED)",
+    "15. UI: Integrations page - Google Calendar + Outlook Calendar buttons for provider selection (PASSED)",
+    "16. UI: Integrations page - Active provider shows violet styling + Zap icon (PASSED)",
+    "17. UI: Integrations page - Désactiver button visible when auto-sync active (PASSED)",
+    "18. UI: Integrations page - Auto-sync section HIDDEN when no providers connected (PASSED)",
+    "19. UI: AppointmentDetail - Outlook Calendar with Zap icon for auto-synced appointment (PASSED)",
+    "20. UI: AppointmentDetail - Google Calendar manual sync button available (PASSED)",
+    "21. UI: AppointmentDetail - ICS download button visible (PASSED)"
+  ],
+  "test_report_links": [
+    "/app/backend/tests/test_auto_sync.py",
+    "/app/test_reports/pytest/pytest_auto_sync.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_auto_sync.py"
+  ],
+  "success_rate": {
+    "backend": "100% (13/13 pytest tests passed)",
+    "frontend": "100% (All UI tests passed via Playwright)"
+  },
+  "test_credentials": {
+    "user_with_connections": {
+      "email": "testuser_audit@nlyt.app",
+      "password": "Test1234!",
+      "workspace_id": "7e219321-18fd-4643-9be6-e4f1de88a2a8"
+    },
+    "user_without_connections": {
+      "email": "outlook_test@nlyt.app",
+      "password": "Test1234!"
+    }
+  },
+  "seed_data_creation": "Auto-synced appointment 'Test Auto-Sync Outlook' (ID: f11d54c8-af9b-4df8-ad2e-cc831aa3ae25) verified with sync_source='auto' for Outlook",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Auto-sync feature fully tested. User testuser_audit@nlyt.app has both Google (igaal.hanouna@gmail.com) and Outlook (igaal@hotmail.com) connected. Auto-sync is currently enabled for Outlook. Appointment f11d54c8-af9b-4df8-ad2e-cc831aa3ae25 shows Zap icon for Outlook (auto-synced). Manual sync creates sync_source='manual'. The perform_auto_sync function is called synchronously after appointment creation.",
+  "verified_features": {
+    "auto_sync_settings_api": "GET and PUT endpoints working with proper validation",
+    "sync_source_field": "sync_source='auto' for auto-synced, 'manual' for manual sync",
+    "idempotence": "Auto-sync checks for existing sync before creating new one",
+    "ui_integrations_page": "Auto-sync section with provider selector, violet active styling, Zap icon",
+    "ui_appointment_detail": "Zap icon for auto-synced, Check icon for manual sync",
+    "no_regression": "Manual sync, connect/disconnect Google and Outlook all working"
+  },
+  "mocked_apis": {
+    "note": "No APIs are mocked. Real Outlook calendar events are created via Microsoft Graph API."
+  }
+}

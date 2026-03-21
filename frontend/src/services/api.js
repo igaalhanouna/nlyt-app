@@ -77,6 +77,8 @@ export const calendarAPI = {
   syncAppointment: (appointment_id, provider = 'google') => api.post(`/api/calendar/sync/appointment/${appointment_id}?provider=${provider}`),
   unsyncAppointment: (appointment_id) => api.delete(`/api/calendar/sync/appointment/${appointment_id}`),
   getSyncStatus: (appointment_id) => api.get(`/api/calendar/sync/status/${appointment_id}`),
+  getAutoSyncSettings: () => api.get('/api/calendar/auto-sync/settings'),
+  updateAutoSyncSettings: (data) => api.put('/api/calendar/auto-sync/settings', data),
   exportICS: (appointment_id) =>
     `${API_BASE_URL}/api/calendar/export/ics/${appointment_id}`,
 };

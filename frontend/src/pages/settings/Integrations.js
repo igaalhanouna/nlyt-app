@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { calendarAPI } from '../../services/api';
 import { Button } from '../../components/ui/button';
-import { ArrowLeft, Calendar, CheckCircle, XCircle, Loader2, ExternalLink, Unlink } from 'lucide-react';
+import { ArrowLeft, Calendar, CheckCircle, XCircle, Loader2, ExternalLink, Unlink, Zap, ZapOff } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function Integrations() {
@@ -13,21 +13,24 @@ export default function Integrations() {
   const [connectingGoogle, setConnectingGoogle] = useState(false);
   const [connectingOutlook, setConnectingOutlook] = useState(false);
   const [disconnecting, setDisconnecting] = useState(null);
+  const [autoSyncEnabled, setAutoSyncEnabled] = useState(false);
+  const [autoSyncProvider, setAutoSyncProvider] = useState(null);
+  const [savingAutoSync, setSavingAutoSync] = useState(false);
 
-  useEffect(() => { loadConnections(); }, []);
+  useEffect(() => { loadAll(); }, []);
 
   useEffect(() => {
     const googleResult = searchParams.get('google');
     const outlookResult = searchParams.get('outlook');
     if (googleResult === 'connected') {
       toast.success('Google Calendar connecté avec succès');
-      loadConnections();
+      loadAll();
     } else if (googleResult === 'error') {
       toast.error(`Échec Google Calendar (${searchParams.get('reason') || 'erreur'})`);
     }
     if (outlookResult === 'connected') {
       toast.success('Outlook Calendar connecté avec succès');
-      loadConnections();
+      loadAll();
     } else if (outlookResult === 'error') {
       toast.error(`Échec Outlook Calendar (${searchParams.get('reason') || 'erreur'})`);
     }
@@ -37,16 +40,38 @@ export default function Integrations() {
     }
   }, [searchParams, setSearchParams]);
 
-  const loadConnections = async () => {
+  const loadAll = async () => {
     try {
-      const response = await calendarAPI.listConnections();
-      const connections = response.data.connections || [];
+      const [connRes, syncRes] = await Promise.all([
+        calendarAPI.listConnections(),
+        calendarAPI.getAutoSyncSettings()
+      ]);
+      const connections = connRes.data.connections || [];
       setGoogleConnection(connections.find(c => c.provider === 'google') || null);
       setOutlookConnection(connections.find(c => c.provider === 'outlook') || null);
+      setAutoSyncEnabled(syncRes.data.auto_sync_enabled || false);
+      setAutoSyncProvider(syncRes.data.auto_sync_provider || null);
     } catch (error) {
-      console.error('Error loading connections:', error);
+      console.error('Error loading:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSaveAutoSync = async (enabled, provider) => {
+    setSavingAutoSync(true);
+    try {
+      await calendarAPI.updateAutoSyncSettings({
+        auto_sync_enabled: enabled,
+        auto_sync_provider: provider
+      });
+      setAutoSyncEnabled(enabled);
+      setAutoSyncProvider(enabled ? provider : null);
+      toast.success(enabled ? 'Auto-sync activé' : 'Auto-sync désactivé');
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Erreur lors de la sauvegarde');
+    } finally {
+      setSavingAutoSync(false);
     }
   };
 
@@ -190,6 +215,96 @@ export default function Integrations() {
           {renderProviderCard('google', googleConnection, connectingGoogle)}
           {renderProviderCard('outlook', outlookConnection, connectingOutlook)}
         </div>
+
+        {/* Auto-Sync Section */}
+        {(googleConnection?.status === 'connected' || outlookConnection?.status === 'connected') && (
+          <div className="mt-8 bg-white rounded-lg border border-slate-200 overflow-hidden" data-testid="auto-sync-section">
+            <div className="p-6">
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 rounded-lg bg-violet-50 flex items-center justify-center flex-shrink-0">
+                  <Zap className="w-6 h-6 text-violet-600" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-slate-900 mb-1">Auto-sync calendrier</h3>
+                  <p className="text-sm text-slate-600">
+                    Synchroniser automatiquement chaque nouveau rendez-vous vers votre calendrier connecté.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="border-t border-slate-200 px-6 py-4 space-y-4">
+              {/* Provider selector */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Calendrier préféré pour l'auto-sync
+                </label>
+                <div className="flex gap-3">
+                  {googleConnection?.status === 'connected' && (
+                    <button
+                      onClick={() => !savingAutoSync && handleSaveAutoSync(true, 'google')}
+                      disabled={savingAutoSync}
+                      className={`flex items-center gap-2 px-4 py-2.5 rounded-lg border text-sm font-medium transition-all ${
+                        autoSyncEnabled && autoSyncProvider === 'google'
+                          ? 'border-violet-300 bg-violet-50 text-violet-800 ring-2 ring-violet-200'
+                          : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'
+                      }`}
+                      data-testid="auto-sync-google-btn"
+                    >
+                      <Calendar className="w-4 h-4" />
+                      Google Calendar
+                      {autoSyncEnabled && autoSyncProvider === 'google' && <Zap className="w-3.5 h-3.5 text-violet-600" />}
+                    </button>
+                  )}
+                  {outlookConnection?.status === 'connected' && (
+                    <button
+                      onClick={() => !savingAutoSync && handleSaveAutoSync(true, 'outlook')}
+                      disabled={savingAutoSync}
+                      className={`flex items-center gap-2 px-4 py-2.5 rounded-lg border text-sm font-medium transition-all ${
+                        autoSyncEnabled && autoSyncProvider === 'outlook'
+                          ? 'border-violet-300 bg-violet-50 text-violet-800 ring-2 ring-violet-200'
+                          : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'
+                      }`}
+                      data-testid="auto-sync-outlook-btn"
+                    >
+                      <Calendar className="w-4 h-4" />
+                      Outlook Calendar
+                      {autoSyncEnabled && autoSyncProvider === 'outlook' && <Zap className="w-3.5 h-3.5 text-violet-600" />}
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Status + disable */}
+              {autoSyncEnabled && (
+                <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                  <div className="flex items-center gap-2">
+                    <Zap className="w-4 h-4 text-violet-600" />
+                    <span className="text-sm text-slate-700">
+                      Auto-sync actif vers <strong>{autoSyncProvider === 'google' ? 'Google Calendar' : 'Outlook Calendar'}</strong>
+                    </span>
+                  </div>
+                  <Button
+                    variant="outline" size="sm"
+                    onClick={() => handleSaveAutoSync(false, null)}
+                    disabled={savingAutoSync}
+                    className="text-slate-600"
+                    data-testid="disable-auto-sync-btn"
+                  >
+                    {savingAutoSync ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <ZapOff className="w-4 h-4 mr-1" />}
+                    Désactiver
+                  </Button>
+                </div>
+              )}
+
+              {!autoSyncEnabled && (
+                <p className="text-xs text-slate-500 pt-1">
+                  Cliquez sur un calendrier ci-dessus pour activer l'auto-sync. Chaque nouveau rendez-vous sera automatiquement ajouté à ce calendrier.
+                </p>
+              )}
+            </div>
+          </div>
+        )}
 
         <div className="mt-8 p-4 bg-amber-50 border border-amber-200 rounded-lg">
           <p className="text-sm text-amber-800">

@@ -180,6 +180,14 @@ async def create_appointment(appointment: AppointmentCreate, request: Request):
         {"$set": {"policy_snapshot_id": snapshot['snapshot_id'], "status": "active"}}
     )
     
+    # Auto-sync to calendar if enabled (non-blocking)
+    try:
+        from routers.calendar_routes import perform_auto_sync
+        appointment_doc["status"] = "active"
+        perform_auto_sync(user['user_id'], appointment_id, appointment_doc)
+    except Exception as e:
+        print(f"[AUTO-SYNC] Error during auto-sync: {e}")
+    
     return {
         "appointment_id": appointment_id,
         "policy_snapshot_id": snapshot['snapshot_id'],

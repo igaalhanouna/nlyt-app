@@ -319,6 +319,130 @@ async def disconnect_outlook_calendar(request: Request):
 
 
 
+# ── Auto-Sync Settings ──────────────────────────────────────
+
+@router.get("/auto-sync/settings")
+async def get_auto_sync_settings(request: Request):
+    """Get the user's auto-sync preferences."""
+    user = await get_current_user(request)
+    settings = db.users.find_one(
+        {"user_id": user['user_id']},
+        {"_id": 0, "auto_sync_enabled": 1, "auto_sync_provider": 1}
+    )
+    return {
+        "auto_sync_enabled": settings.get("auto_sync_enabled", False) if settings else False,
+        "auto_sync_provider": settings.get("auto_sync_provider", None) if settings else None
+    }
+
+
+@router.put("/auto-sync/settings")
+async def update_auto_sync_settings(request: Request):
+    """Update the user's auto-sync preferences."""
+    user = await get_current_user(request)
+    body = await request.json()
+
+    enabled = body.get("auto_sync_enabled", False)
+    provider = body.get("auto_sync_provider", None)
+
+    if enabled and not provider:
+        raise HTTPException(status_code=400, detail="Veuillez choisir un provider pour l'auto-sync.")
+
+    if enabled and provider not in ("google", "outlook"):
+        raise HTTPException(status_code=400, detail="Provider invalide. Choisissez 'google' ou 'outlook'.")
+
+    if enabled:
+        connection = db.calendar_connections.find_one(
+            {"user_id": user['user_id'], "provider": provider, "status": "connected"},
+            {"_id": 0, "connection_id": 1}
+        )
+        if not connection:
+            label = "Google Calendar" if provider == "google" else "Outlook Calendar"
+            raise HTTPException(status_code=400, detail=f"{label} n'est pas connecté. Connectez-le d'abord.")
+
+    db.users.update_one(
+        {"user_id": user['user_id']},
+        {"$set": {
+            "auto_sync_enabled": enabled,
+            "auto_sync_provider": provider if enabled else None,
+            "updated_at": now_utc().isoformat()
+        }}
+    )
+
+    return {
+        "success": True,
+        "auto_sync_enabled": enabled,
+        "auto_sync_provider": provider if enabled else None
+    }
+
+
+def perform_auto_sync(user_id: str, appointment_id: str, appointment_doc: dict):
+    """
+    Internal function: auto-sync an appointment to the user's preferred calendar.
+    Called from appointments.py after an appointment becomes active.
+    Non-blocking: logs errors but never raises.
+    """
+    try:
+        user_settings = db.users.find_one(
+            {"user_id": user_id},
+            {"_id": 0, "auto_sync_enabled": 1, "auto_sync_provider": 1}
+        )
+        if not user_settings or not user_settings.get("auto_sync_enabled"):
+            return
+        provider = user_settings.get("auto_sync_provider")
+        if not provider:
+            return
+
+        connection = db.calendar_connections.find_one(
+            {"user_id": user_id, "provider": provider, "status": "connected"}
+        )
+        if not connection:
+            print(f"[AUTO-SYNC] No active {provider} connection for user {user_id}")
+            return
+
+        # Idempotency check
+        existing = db.calendar_sync_logs.find_one({
+            "appointment_id": appointment_id,
+            "connection_id": connection['connection_id'],
+            "sync_status": "synced"
+        })
+        if existing:
+            return
+
+        adapter = _get_adapter(provider)
+        on_refresh = _make_token_refresh_callback(connection['connection_id'])
+
+        calendar_tz = adapter.get_calendar_timezone(
+            connection['access_token'], connection.get('refresh_token'),
+            connection_update_callback=on_refresh
+        )
+        event_data = _build_event_data(appointment_doc, calendar_tz)
+        result = adapter.create_event(
+            connection['access_token'], connection.get('refresh_token'),
+            event_data, connection_update_callback=on_refresh
+        )
+
+        sync_status = "synced" if result else "failed"
+        sync_log = {
+            "log_id": str(uuid.uuid4()),
+            "appointment_id": appointment_id,
+            "connection_id": connection['connection_id'],
+            "provider": provider,
+            "external_event_id": result.get('event_id') if result else None,
+            "html_link": result.get('html_link') if result else None,
+            "sync_status": sync_status,
+            "sync_source": "auto",
+            "synced_at": now_utc().isoformat()
+        }
+        db.calendar_sync_logs.insert_one(sync_log)
+
+        if result:
+            print(f"[AUTO-SYNC] Appointment {appointment_id} synced to {provider}")
+        else:
+            print(f"[AUTO-SYNC] Failed to sync appointment {appointment_id} to {provider}")
+    except Exception as e:
+        print(f"[AUTO-SYNC] Error for appointment {appointment_id}: {e}")
+
+
 # ── Sync appointment to calendar (multi-provider) ──────────
 
 @router.post("/sync/appointment/{appointment_id}")
@@ -382,6 +506,7 @@ async def sync_appointment_to_calendar(appointment_id: str, request: Request, pr
         "external_event_id": result.get('event_id') if result else None,
         "html_link": result.get('html_link') if result else None,
         "sync_status": sync_status,
+        "sync_source": "manual",
         "synced_at": now_utc().isoformat()
     }
     db.calendar_sync_logs.insert_one(sync_log)
@@ -425,6 +550,7 @@ async def get_sync_status(appointment_id: str, request: Request):
             result[provider]["synced"] = True
             result[provider]["external_event_id"] = sync_log.get('external_event_id')
             result[provider]["html_link"] = sync_log.get('html_link')
+            result[provider]["sync_source"] = sync_log.get('sync_source', 'manual')
 
     return result
 

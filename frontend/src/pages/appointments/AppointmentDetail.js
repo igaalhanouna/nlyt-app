@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { appointmentAPI, participantAPI, calendarAPI, invitationAPI } from '../../services/api';
 import { Button } from '../../components/ui/button';
-import { ArrowLeft, Calendar, MapPin, Video, Clock, Users, Ban, Check, X, AlertTriangle, Download, Heart, ShieldCheck, CreditCard, RefreshCw, Loader2 } from 'lucide-react';
+import { ArrowLeft, Calendar, MapPin, Video, Clock, Users, Ban, Check, X, AlertTriangle, Download, Heart, ShieldCheck, CreditCard, RefreshCw, Loader2, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function AppointmentDetail() {
@@ -193,7 +193,7 @@ export default function AppointmentDetail() {
             {/* Google Calendar sync button */}
             {syncStatus?.google?.synced ? (
               <Button variant="outline" className="text-emerald-700 border-emerald-300" disabled data-testid="google-synced-btn">
-                <Check className="w-4 h-4 mr-2" />
+                {syncStatus.google.sync_source === 'auto' ? <Zap className="w-4 h-4 mr-2" /> : <Check className="w-4 h-4 mr-2" />}
                 Google Calendar
               </Button>
             ) : syncStatus?.google?.has_connection && !isCancelled ? (
@@ -211,7 +211,7 @@ export default function AppointmentDetail() {
             {/* Outlook Calendar sync button */}
             {syncStatus?.outlook?.synced ? (
               <Button variant="outline" className="text-emerald-700 border-emerald-300" disabled data-testid="outlook-synced-btn">
-                <Check className="w-4 h-4 mr-2" />
+                {syncStatus.outlook.sync_source === 'auto' ? <Zap className="w-4 h-4 mr-2" /> : <Check className="w-4 h-4 mr-2" />}
                 Outlook Calendar
               </Button>
             ) : syncStatus?.outlook?.has_connection && !isCancelled ? (
