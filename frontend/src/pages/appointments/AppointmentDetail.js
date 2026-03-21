@@ -262,13 +262,46 @@ export default function AppointmentDetail() {
 
   const getStrengthBadge = (strength) => {
     const badges = {
-      strong: { bg: 'bg-emerald-50', text: 'text-emerald-700', label: 'Preuve forte' },
-      medium: { bg: 'bg-amber-50', text: 'text-amber-700', label: 'Preuve moyenne' },
-      weak: { bg: 'bg-red-50', text: 'text-red-700', label: 'Preuve faible' },
-      none: { bg: 'bg-slate-50', text: 'text-slate-500', label: 'Aucune preuve' },
+      strong: { bg: 'bg-emerald-50 border-emerald-200', text: 'text-emerald-700', label: 'Preuve forte' },
+      medium: { bg: 'bg-amber-50 border-amber-200', text: 'text-amber-700', label: 'Preuve moyenne' },
+      weak: { bg: 'bg-red-50 border-red-200', text: 'text-red-700', label: 'Preuve faible' },
+      none: { bg: 'bg-slate-50 border-slate-200', text: 'text-slate-500', label: 'Aucune preuve' },
     };
     const b = badges[strength] || badges.none;
-    return <span className={`text-xs px-2 py-0.5 rounded-full ${b.bg} ${b.text}`}>{b.label}</span>;
+    return <span className={`text-xs px-2.5 py-1 rounded-full border ${b.bg} ${b.text} font-medium`}>{b.label}</span>;
+  };
+
+  const getTimingBadge = (timing) => {
+    if (!timing) return null;
+    if (timing === 'on_time') return <span className="text-xs px-2.5 py-1 rounded-full border bg-emerald-50 border-emerald-200 text-emerald-700 font-medium">À l'heure</span>;
+    return <span className="text-xs px-2.5 py-1 rounded-full border bg-amber-50 border-amber-200 text-amber-700 font-medium">En retard</span>;
+  };
+
+  const formatSourceLabel = (source) => {
+    const labels = { manual_checkin: 'Check-in manuel', qr: 'QR code', gps: 'GPS', system: 'Système' };
+    return labels[source] || source;
+  };
+
+  const formatEvidenceDate = (ts) => {
+    try {
+      const d = new Date(ts);
+      return d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+        + ' à ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    } catch { return ts; }
+  };
+
+  const getSourceIcon = (source) => {
+    if (source === 'manual_checkin') return <MapPinCheck className="w-4 h-4 text-emerald-600" />;
+    if (source === 'qr') return <QrCode className="w-4 h-4 text-blue-600" />;
+    if (source === 'gps') return <MapPin className="w-4 h-4 text-purple-600" />;
+    return <ScanLine className="w-4 h-4 text-slate-500" />;
+  };
+
+  const getSourceColor = (source) => {
+    if (source === 'manual_checkin') return 'border-l-emerald-500';
+    if (source === 'qr') return 'border-l-blue-500';
+    if (source === 'gps') return 'border-l-purple-500';
+    return 'border-l-slate-300';
   };
 
   // Status badge helper
@@ -600,44 +633,98 @@ export default function AppointmentDetail() {
         {/* Live Evidence / Check-in Dashboard */}
         {!isCancelled && evidenceData?.participants?.length > 0 && (
           <div className="bg-white rounded-lg border border-slate-200 p-6 mt-6" data-testid="evidence-dashboard">
-            <div className="flex items-center gap-2 mb-4">
+            <div className="flex items-center gap-2 mb-5">
               <ScanLine className="w-5 h-5 text-slate-700" />
               <h2 className="text-lg font-semibold text-slate-900">Check-ins & Preuves</h2>
-              <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full ml-auto">
-                {evidenceData.total_evidence} signal{evidenceData.total_evidence > 1 ? 'x' : ''}
-              </span>
             </div>
-            <div className="space-y-2">
-              {evidenceData.participants.map((p) => (
-                <div key={p.participant_id} className="flex items-center justify-between p-3 border border-slate-100 rounded-lg bg-slate-50/50">
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-slate-800 text-sm truncate">{p.participant_name || p.participant_email}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      {p.evidence.map((e) => (
-                        <span key={e.evidence_id} className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${
-                          e.source === 'qr' ? 'bg-blue-50 text-blue-700' :
-                          e.source === 'manual_checkin' ? 'bg-emerald-50 text-emerald-700' :
-                          e.source === 'gps' ? 'bg-purple-50 text-purple-700' :
-                          'bg-slate-100 text-slate-600'
-                        }`}>
-                          {e.source === 'qr' && <QrCode className="w-3 h-3" />}
-                          {e.source === 'manual_checkin' && <MapPinCheck className="w-3 h-3" />}
-                          {e.source === 'gps' && <MapPin className="w-3 h-3" />}
-                          {new Date(e.source_timestamp).toLocaleString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                      ))}
+
+            <div className="space-y-5">
+              {evidenceData.participants.map((p) => {
+                const sources = [...new Set(p.evidence.map(e => formatSourceLabel(e.source)))];
+                return (
+                <div key={p.participant_id} className="border border-slate-200 rounded-xl overflow-hidden" data-testid={`evidence-participant-${p.participant_id}`}>
+                  {/* Participant header */}
+                  <div className="px-5 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                    <div>
+                      <p className="font-semibold text-slate-900">{p.participant_name || p.participant_email}</p>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        {p.evidence.length} preuve{p.evidence.length > 1 ? 's' : ''} — Source{sources.length > 1 ? 's' : ''} : {sources.join(' + ')}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {getStrengthBadge(p.aggregation?.strength)}
+                      {getTimingBadge(p.aggregation?.timing)}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 ml-3">
-                    {getStrengthBadge(p.aggregation?.strength)}
-                    {p.aggregation?.timing && (
-                      <span className={`text-xs font-medium ${p.aggregation.timing === 'on_time' ? 'text-emerald-600' : 'text-amber-600'}`}>
-                        {p.aggregation.timing === 'on_time' ? 'À l\'heure' : 'En retard'}
-                      </span>
-                    )}
+
+                  {/* Evidence timeline */}
+                  <div className="px-5 py-3">
+                    <div className="space-y-3">
+                      {p.evidence
+                        .sort((a, b) => new Date(a.source_timestamp) - new Date(b.source_timestamp))
+                        .map((e, idx) => {
+                        const facts = e.derived_facts || {};
+                        const hasGPS = facts.latitude != null && facts.longitude != null;
+
+                        return (
+                          <div key={e.evidence_id} className={`pl-4 border-l-[3px] ${getSourceColor(e.source)}`} data-testid={`evidence-item-${e.evidence_id}`}>
+                            {/* Source + timestamp */}
+                            <div className="flex items-start gap-2">
+                              {getSourceIcon(e.source)}
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-slate-800">
+                                  {formatSourceLabel(e.source)}
+                                </p>
+                                <p className="text-sm text-slate-600 mt-0.5" data-testid={`evidence-date-${e.evidence_id}`}>
+                                  {e.source === 'manual_checkin' ? 'Arrivé le ' : 'Enregistré le '}
+                                  {formatEvidenceDate(e.source_timestamp)}
+                                </p>
+
+                                {/* GPS coordinates */}
+                                {hasGPS && (
+                                  <div className="mt-1.5 flex items-center gap-3 flex-wrap">
+                                    <span className="text-xs text-slate-500">
+                                      Position : {facts.latitude.toFixed(4)}, {facts.longitude.toFixed(4)}
+                                    </span>
+                                    {facts.distance_meters != null && (
+                                      <span className={`text-xs font-medium ${facts.gps_within_radius ? 'text-emerald-600' : 'text-amber-600'}`}>
+                                        {facts.gps_within_radius ? 'Dans le périmètre' : 'Hors périmètre'} ({Math.round(facts.distance_meters)}m{facts.gps_radius_meters ? ` / ${facts.gps_radius_meters}m` : ''})
+                                      </span>
+                                    )}
+                                    {facts.gps_no_reference && (
+                                      <span className="text-xs text-slate-400">Pas d'adresse de référence</span>
+                                    )}
+                                    <a
+                                      href={`https://www.google.com/maps?q=${facts.latitude},${facts.longitude}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-xs text-blue-600 hover:text-blue-800 hover:underline"
+                                      data-testid={`gps-map-link-${e.evidence_id}`}
+                                    >
+                                      Voir sur la carte
+                                    </a>
+                                  </div>
+                                )}
+
+                                {/* QR details */}
+                                {e.source === 'qr' && facts.qr_valid && (
+                                  <p className="text-xs text-blue-600 mt-1">QR valide (fenêtre #{facts.qr_window})</p>
+                                )}
+
+                                {/* Confidence */}
+                                <p className="text-xs text-slate-400 mt-1">
+                                  Confiance : {e.confidence_score === 'high' ? 'haute' : e.confidence_score === 'medium' ? 'moyenne' : 'faible'}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
