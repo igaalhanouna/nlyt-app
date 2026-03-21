@@ -7,7 +7,7 @@ import os
 
 load_dotenv()
 
-from routers import auth, workspaces, appointments, participants, contracts, calendar_routes, disputes, admin, webhooks, debug, invitations, user_settings, charity_associations
+from routers import auth, workspaces, appointments, participants, contracts, calendar_routes, disputes, admin, webhooks, debug, invitations, user_settings, charity_associations, attendance_routes
 from scheduler import start_scheduler, stop_scheduler
 
 
@@ -45,6 +45,7 @@ app.include_router(debug.router, prefix="/api/debug", tags=["Debug"])
 app.include_router(invitations.router, prefix="/api/invitations", tags=["Invitations"])
 app.include_router(user_settings.router, prefix="/api/user-settings", tags=["User Settings"])
 app.include_router(charity_associations.router, prefix="/api/charity-associations", tags=["Charity Associations"])
+app.include_router(attendance_routes.router, prefix="/api/attendance", tags=["Attendance"])
 
 @app.get("/api/health")
 async def health_check():

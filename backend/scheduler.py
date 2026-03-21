@@ -36,6 +36,15 @@ async def event_reminder_job():
         logger.error(f"[SCHEDULER] Event reminder job failed: {str(e)}")
 
 
+async def attendance_evaluation_job():
+    """Job to evaluate attendance for ended appointments"""
+    try:
+        from services.attendance_service import run_attendance_evaluation_job
+        run_attendance_evaluation_job()
+    except Exception as e:
+        logger.error(f"[SCHEDULER] Attendance evaluation job failed: {str(e)}")
+
+
 def start_scheduler():
     """Start the background scheduler"""
     # Job 1: Cancellation deadline reminders (every 5 minutes)
@@ -56,10 +65,20 @@ def start_scheduler():
         replace_existing=True
     )
     
+    # Job 3: Attendance evaluation (every 10 minutes)
+    scheduler.add_job(
+        attendance_evaluation_job,
+        trigger=IntervalTrigger(minutes=10),
+        id='attendance_evaluation_job',
+        name='Evaluate attendance for ended appointments',
+        replace_existing=True
+    )
+
     scheduler.start()
-    logger.info("[SCHEDULER] ✅ Background scheduler started")
+    logger.info("[SCHEDULER] Background scheduler started")
     logger.info("[SCHEDULER]    - Cancellation deadline reminders: every 5 minutes")
     logger.info("[SCHEDULER]    - Event reminders (10min/1h/1day): every 2 minutes")
+    logger.info("[SCHEDULER]    - Attendance evaluation: every 10 minutes")
 
 
 def stop_scheduler():

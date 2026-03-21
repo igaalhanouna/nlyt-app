@@ -93,6 +93,13 @@ export const calendarAPI = {
     `${API_BASE_URL}/api/calendar/export/ics/${appointment_id}`,
 };
 
+export const attendanceAPI = {
+  evaluate: (appointment_id) => api.post(`/api/attendance/evaluate/${appointment_id}`),
+  get: (appointment_id) => api.get(`/api/attendance/${appointment_id}`),
+  reclassify: (record_id, data) => api.put(`/api/attendance/reclassify/${record_id}`, data),
+  pendingReviews: () => api.get('/api/attendance/pending-reviews/list'),
+};
+
 export const disputeAPI = {
   create: (data) => api.post('/api/disputes/', data),
   list: (appointment_id) => api.get('/api/disputes/', { params: { appointment_id } }),

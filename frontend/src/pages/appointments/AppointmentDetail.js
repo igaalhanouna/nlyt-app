@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { appointmentAPI, participantAPI, calendarAPI, invitationAPI } from '../../services/api';
+import { appointmentAPI, participantAPI, calendarAPI, invitationAPI, attendanceAPI } from '../../services/api';
 import { Button } from '../../components/ui/button';
-import { ArrowLeft, Calendar, MapPin, Video, Clock, Users, Ban, Check, X, AlertTriangle, Download, Heart, ShieldCheck, CreditCard, RefreshCw, Loader2, Zap } from 'lucide-react';
+import { ArrowLeft, Calendar, MapPin, Video, Clock, Users, Ban, Check, X, AlertTriangle, Download, Heart, ShieldCheck, CreditCard, RefreshCw, Loader2, Zap, ClipboardCheck, Eye, UserX, UserCheck, HelpCircle, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function AppointmentDetail() {
@@ -16,6 +16,10 @@ export default function AppointmentDetail() {
   const [resendingToken, setResendingToken] = useState(null);
   const [syncStatus, setSyncStatus] = useState({ google: { synced: false, has_connection: false }, outlook: { synced: false, has_connection: false } });
   const [syncingProvider, setSyncingProvider] = useState(null);
+  const [attendance, setAttendance] = useState(null);
+  const [evaluating, setEvaluating] = useState(false);
+  const [reclassifying, setReclassifying] = useState(null);
+  const [reclassifyDropdown, setReclassifyDropdown] = useState(null);
 
   useEffect(() => {
     loadData();
@@ -33,6 +37,11 @@ export default function AppointmentDetail() {
       // Check calendar sync status for all providers (non-blocking)
       calendarAPI.getSyncStatus(id)
         .then(res => setSyncStatus(res.data))
+        .catch(() => {});
+
+      // Load attendance data (non-blocking)
+      attendanceAPI.get(id)
+        .then(res => setAttendance(res.data))
         .catch(() => {});
     } catch (error) {
       toast.error('Erreur lors du chargement');
@@ -92,6 +101,39 @@ export default function AppointmentDetail() {
     }
   };
 
+  const handleEvaluateAttendance = async () => {
+    setEvaluating(true);
+    try {
+      const res = await attendanceAPI.evaluate(id);
+      if (res.data.skipped) {
+        toast.info(res.data.reason);
+      } else {
+        toast.success(`Évaluation terminée : ${res.data.records_created} participant(s) évalué(s)`);
+      }
+      const attRes = await attendanceAPI.get(id);
+      setAttendance(attRes.data);
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Erreur lors de l'évaluation");
+    } finally {
+      setEvaluating(false);
+    }
+  };
+
+  const handleReclassify = async (recordId, newOutcome) => {
+    setReclassifying(recordId);
+    try {
+      await attendanceAPI.reclassify(recordId, { new_outcome: newOutcome });
+      toast.success('Statut mis à jour');
+      setReclassifyDropdown(null);
+      const attRes = await attendanceAPI.get(id);
+      setAttendance(attRes.data);
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Erreur lors de la reclassification');
+    } finally {
+      setReclassifying(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -121,6 +163,53 @@ export default function AppointmentDetail() {
     window.open(icsUrl, '_blank');
     toast.success('Téléchargement du fichier calendrier...');
   };
+
+  // Attendance outcome badge
+  const getOutcomeBadge = (outcome, decisionBasis) => {
+    const badges = {
+      on_time: { bg: 'bg-emerald-100', text: 'text-emerald-800', icon: <UserCheck className="w-3 h-3" />, label: 'Présent' },
+      late: { bg: 'bg-amber-100', text: 'text-amber-800', icon: <Clock className="w-3 h-3" />, label: 'En retard' },
+      no_show: { bg: 'bg-red-100', text: 'text-red-800', icon: <UserX className="w-3 h-3" />, label: decisionBasis === 'cancelled_late' ? 'Annulation tardive' : 'Absent' },
+      manual_review: { bg: 'bg-yellow-100', text: 'text-yellow-800', icon: <Eye className="w-3 h-3" />, label: 'À vérifier' },
+      waived: { bg: 'bg-slate-100', text: 'text-slate-600', icon: <HelpCircle className="w-3 h-3" />, label: 'Dispensé' },
+    };
+    const b = badges[outcome] || badges.manual_review;
+    return (
+      <span className={`inline-flex items-center gap-1 px-2 py-1 ${b.bg} ${b.text} rounded-full text-xs font-medium`}>
+        {b.icon} {b.label}
+      </span>
+    );
+  };
+
+  const getDecisionLabel = (basis) => {
+    const labels = {
+      declined: 'A décliné l\'invitation',
+      guarantee_released: 'Garantie libérée',
+      no_response: 'N\'a jamais répondu',
+      cancelled_in_time: 'Annulé dans les délais',
+      cancelled_late: 'Annulé hors délai',
+      cancellation_date_parse_error: 'Date d\'annulation non lisible',
+      accepted_no_guarantee: 'Accepté sans garantie',
+      pending_guarantee: 'Garantie en attente',
+      no_proof_of_attendance: 'Pas de preuve de présence',
+    };
+    return labels[basis] || basis;
+  };
+
+  // Check if appointment has ended (for showing evaluate button)
+  const isAppointmentEnded = () => {
+    if (!appointment?.start_datetime) return false;
+    const start = new Date(appointment.start_datetime);
+    const end = new Date(start.getTime() + (appointment.duration_minutes || 60) * 60000);
+    return new Date() > end;
+  };
+
+  const reclassifyOptions = [
+    { value: 'on_time', label: 'Présent', color: 'text-emerald-700' },
+    { value: 'late', label: 'En retard', color: 'text-amber-700' },
+    { value: 'no_show', label: 'Absent', color: 'text-red-700' },
+    { value: 'waived', label: 'Dispensé', color: 'text-slate-600' },
+  ];
 
   // Status badge helper
   const getParticipantStatusBadge = (status) => {
@@ -444,6 +533,112 @@ export default function AppointmentDetail() {
               <p className="text-sm text-slate-500 text-center mt-3">
                 Et {participants.length - 5} autre(s) participant(s)
               </p>
+            )}
+          </div>
+        )}
+
+        {/* Attendance Section */}
+        {!isCancelled && isAppointmentEnded() && (
+          <div className="bg-white rounded-lg border border-slate-200 p-6 mt-6" data-testid="attendance-section">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <ClipboardCheck className="w-5 h-5 text-slate-700" />
+                <h2 className="text-lg font-semibold text-slate-900">Détection de présence</h2>
+              </div>
+              {!attendance?.evaluated && (
+                <Button
+                  onClick={handleEvaluateAttendance}
+                  disabled={evaluating}
+                  size="sm"
+                  data-testid="evaluate-attendance-btn"
+                >
+                  {evaluating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <ClipboardCheck className="w-4 h-4 mr-2" />}
+                  Évaluer la présence
+                </Button>
+              )}
+            </div>
+
+            {attendance?.evaluated ? (
+              <>
+                {/* Summary cards */}
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-5">
+                  {[
+                    { key: 'on_time', label: 'Présents', color: 'emerald' },
+                    { key: 'late', label: 'En retard', color: 'amber' },
+                    { key: 'no_show', label: 'Absents', color: 'red' },
+                    { key: 'manual_review', label: 'À vérifier', color: 'yellow' },
+                    { key: 'waived', label: 'Dispensés', color: 'slate' },
+                  ].map(({ key, label, color }) => (
+                    <div key={key} className={`text-center p-3 rounded-lg bg-${color}-50 border border-${color}-200`} data-testid={`attendance-summary-${key}`}>
+                      <p className={`text-xl font-bold text-${color}-800`}>{attendance.summary?.[key] || 0}</p>
+                      <p className={`text-xs text-${color}-600`}>{label}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Individual records */}
+                <div className="space-y-2">
+                  {attendance.records?.map((record) => (
+                    <div
+                      key={record.record_id}
+                      className="flex items-center justify-between p-3 border border-slate-200 rounded-lg"
+                      data-testid={`attendance-record-${record.record_id}`}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-slate-900 truncate">{record.participant_name || record.participant_email}</p>
+                        <p className="text-xs text-slate-500">{getDecisionLabel(record.decision_basis)}</p>
+                        {record.notes && <p className="text-xs text-slate-400 mt-0.5 italic">{record.notes}</p>}
+                      </div>
+                      <div className="flex items-center gap-2 ml-3 flex-shrink-0">
+                        {getOutcomeBadge(record.outcome, record.decision_basis)}
+
+                        {/* Reclassify dropdown */}
+                        <div className="relative">
+                          <button
+                            onClick={() => setReclassifyDropdown(reclassifyDropdown === record.record_id ? null : record.record_id)}
+                            className="p-1.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                            title="Reclassifier"
+                            data-testid={`reclassify-btn-${record.record_id}`}
+                            disabled={reclassifying === record.record_id}
+                          >
+                            {reclassifying === record.record_id ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <ChevronDown className="w-4 h-4" />
+                            )}
+                          </button>
+                          {reclassifyDropdown === record.record_id && (
+                            <div className="absolute right-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg z-20 py-1 min-w-[150px]">
+                              {reclassifyOptions
+                                .filter(o => o.value !== record.outcome)
+                                .map(option => (
+                                  <button
+                                    key={option.value}
+                                    onClick={() => handleReclassify(record.record_id, option.value)}
+                                    className={`w-full text-left px-3 py-2 text-sm hover:bg-slate-50 ${option.color}`}
+                                    data-testid={`reclassify-option-${option.value}`}
+                                  >
+                                    {option.label}
+                                  </button>
+                                ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <p className="text-xs text-slate-400 mt-3">
+                  Évalué le {new Date(attendance.evaluated_at).toLocaleString('fr-FR')} — Décisions automatiques, modifiables par l'organisateur
+                </p>
+              </>
+            ) : (
+              <div className="text-center py-6 text-slate-500">
+                <ClipboardCheck className="w-8 h-8 mx-auto mb-2 text-slate-300" />
+                <p className="text-sm">L'évaluation de présence n'a pas encore été effectuée.</p>
+                <p className="text-xs text-slate-400 mt-1">Cliquez sur "Évaluer la présence" ou attendez l'évaluation automatique (toutes les 10 min après fin du RDV + 30 min).</p>
+              </div>
             )}
           </div>
         )}
