@@ -1,131 +1,138 @@
 <analysis>**original_problem_statement**: 
-Tu reprends le développement de mon application SaaS NLYT (application de rendez-vous avec engagement financier). Objectif : zéro friction, automatisation maximale, logique d’engagement claire.
-Tasks required:
-1. Fix the post-Stripe UI bug where participants remain Invited and counters don't update.
-2. Clean up dead Stripe code now that the new flow is live.
-3. Fix the Resend Invitation button which is currently inactive.
-4. Implement Google Calendar OAuth Integration (Phase 2).
-5. Implement Outlook / Microsoft 365 OAuth Integration using the same architecture as Google.
+Tu reprends le développement de mon application SaaS NLYT. Le socle produit est maintenant solide (Garantie Stripe, Google/Outlook Calendar en auto-sync/auto-update, Invitations, etc.). 
+L'objectif actuel est de construire le moteur de détection de présence (DÉTECTION NO-SHOW / LATE / ON-TIME / MANUAL REVIEW).
+Règles strictes :
+- Détection conservatrice. Pas de capture Stripe automatique agressive pour l'instant.
+- En cas d'ambiguïté : toujours .
+- Statuts attendus : , , , , .
+- Si  (jamais répondu) → .
+- Distinguer annulation hors délai () d'un no-show pur.
 
-**User's preferred language**: French (INSTRUCT NEXT AGENT: You MUST respond to the user in French).
+**User's preferred language**: French (INSTRUCT NEXT AGENT: You MUST automatically detect the user's primary language from their messages inside the <trajectory> tag and respond in French only).
 
-**what currently exists?**: 
-A functional React + FastAPI + MongoDB SaaS for booking appointments with financial guarantees via Stripe. The Stripe flow is fully operational. The UI properly displays Garanti and Garantie en cours statuses. Google Calendar OAuth is fully implemented, allowing users to connect their account and sync NLYT appointments to Google Calendar (with timezone support and automatic deletion upon NLYT appointment cancellation). The codebase has been cleaned of legacy Stripe code. The foundation for Outlook Calendar integration has just been written but requires completion and testing.
+**what currently exists?** 
+A fully functional appointment booking SaaS with financial guarantees (Stripe). It features complete OAuth integrations for both Google and Outlook calendars (including auto-sync and auto-update upon modification), automated email notifications (fully translated to French), workspace management, and participant invitations. 
 
 **Last working item**:
-- **Last item agent was working**: Implementing Outlook / Microsoft 365 Calendar OAuth integration. The agent created the , refactored  to handle multi-provider sync/unsync, and updated  to show the Outlook connection UI. 
-- **Status**: IN PROGRESS
-- **Agent Testing Done**: N (The code was written, but the session ended before verifying the server, testing the OAuth flow, or updating the appointment details UI).
-- **Which testing method agent to use?**: Both. Backend curl/manual testing for the Microsoft OAuth flow (once credentials are provided), Frontend screenshots to verify the Integrations page and Appointment Detail page, followed by  once the feature is complete.
-- **User Testing Done**: N
+    - Last item agent was working: Implementing the V1 of the post-appointment Attendance/No-Show detection engine ().
+    - Status: IN PROGRESS
+    - Agent Testing Done: N (Agent just created the  file before the session ended).
+    - Which testing method agent to use? Both (Backend testing agent for the APScheduler cron logic and classification rules; manual UI/Screenshot testing for the Reviewer dashboard/Appointment badges).
+    - User Testing Done: N
 
 **All Pending/In progress Issue list**: 
-  Issue 1: Complete Outlook/Microsoft 365 OAuth Integration (P0)
-     - Attempted fixes: Backend routes and  are created. Frontend  is updated. 
+  Issue 1: Implement Post-Appointment Attendance Engine (P0)
+     - Attempted fixes: Created . No actual logic written yet.
      - Next debug checklist: 
-       1. Ask user for  and .
-       2. Add the Sync with Outlook button to  (currently only Google and ICS buttons exist).
-       3. Test the full OAuth flow and event creation.
-     - Why fix this issue and what will be achieved with the fix? Completes Phase 2 of the calendar integrations requested by the user.
+        1. Write the classification logic in  respecting user's strict rules (->,  tracking, fallback to ).
+        2. Create  for API access and manual trigger.
+        3. Wire an APScheduler job (every 10 mins) to process appointments that have ended (end_time + 30 mins grace window).
+        4. Update  to display attendance badges.
+     - Why fix this issue and what will be achieved with the fix? This is the core requirement requested by the user to prepare the system for financial penalty captures later.
      - Status: IN PROGRESS
      - Is recurring issue? N
      - Should Test frontend/backend/both after fix? Both
-     - Blocked on other issue: Blocked on user providing Microsoft Azure AD credentials.
+     - Blocked on other issue: None.
 
 **In progress Task List**: 
-  Task 1: Outlook Calendar Sync UI in Appointment Details (P0)
-     - Where to resume: Modify  to display an Outlook sync button (similar to the newly added Google Calendar button) if the user has an active Outlook connection.
-     - What will be achieved with this? Allows users to actually trigger the Outlook sync they just connected.
+  Task 1: Attendance Engine UI (P0)
+     - Where to resume: After backend engine is built, modify the UI to show the outcome.
+     - What will be achieved with this? Organizer can see who was on time, late, no-show, or needs manual review.
      - Status: NOT STARTED
      - Should Test frontend/backend/both after fix? Frontend
-     - Blocked on something: Needs the Outlook integration flow to be fully tested first.
+     - Blocked on something: Needs backend logic and models first.
 
-**Upcoming and Future Tasks**:
-    P2: Auto-sync events to connected calendars on creation/modification (currently it's a manual one-shot sync per appointment).
-    P2: No-show detection + automated penalty capture (cron job/scheduler logic).
-    P2: Stripe Connect Implementation (Automated fund splits between participant, charity, and platform).
-    P3: Organizer analytics dashboard.
+**Upcoming and Future Tasks**
+    - P2: Stripe Connect Implementation (Automated fund splits between participant, charity, and platform). *Note: User explicitly said do NOT touch this yet until No-show detection is perfect.*
+    - P2: Auto-update calendrier V2 (Retry automatique en cas d'échec + notification).
+    - P3: Dashboard analytics organisateur.
 
-**Completed work in this session**:
-  - Participant Status UI/Counters post-Stripe completion bug fix (DONE)
-  - Stripe dead code cleanup (, , ) (DONE)
-  - Resend Invitation button logic wired to backend and added to Appointment Details UI (DONE)
-  - Google Calendar OAuth Integration (OAuth flow, token storage, dynamic timezone handling, auto-delete on cancellation) (DONE)
+**Completed work in this session**
+- Outlook / Microsoft 365 OAuth Integration (DONE)
+- Multi-provider Calendar Auto-Sync V1 (Triggers on appointment creation) (DONE)
+- Calendar Auto-Update V1 (Updates events when calendar fields change, handles  status) (DONE)
+- Login Error UI bug fix (Axios 401 interceptor was reloading page) (DONE)
+- Outlook Timezone bug fix (Mapped IANA timezones to Windows Timezones for personal Microsoft accounts + browser timezone fallback) (DONE)
+- Added charity percentage and name to the Invitation UI (DONE)
+- Localized all email/notification dates to French via a new  (DONE)
 
-**Earlier issues found/mentioned but not fixed**:
-  - None.
+**Earlier issues found/mentioned but not fixed**
+None.
 
-**Known issue recurrence from previous fork**:
-  - Issue recurrence in previous fork: N/A
+**Known issue recurrence from previous fork**
+  - Issue recurrence in previous fork: None.
   - Recurrence count: 0
   - Status: N/A
 
-**Code Architecture**:
+**Code Architecture**
 
 
-**Key Technical Concepts**:
+**Key Technical Concepts**
 Frontend: React.js, TailwindCSS, Shadcn UI
 Backend: FastAPI, Python, APScheduler 
 Database: MongoDB
-Integrations: Stripe, Resend (Emails), Google Calendar API, Microsoft Graph API.
+Integrations: Stripe (Checkout/Setup Intents), Resend (Emails), Google Calendar, Microsoft Graph API.
 
-**key DB schema**:
-  - : {appointment_id, connection_id, external_event_id, html_link, provider}
-  - : {user_id, provider, access_token, refresh_token, google_email/outlook_email, status}
+**key DB schema**
+  - : {participant_id, appointment_id, status, guarantee_status, invitation_token}
+  - : {appointment_id, connection_id, external_event_id, sync_status, sync_source}
+  - : {user_id, provider, access_token, refresh_token, calendar_timezone}
 
-**changes in tech stack**:
-  - Added  utilizing Microsoft Graph API.
+**changes in tech stack**
+  - Introduced  for global French date formatting.
 
-**All files of reference**:
-  -  (Created: Microsoft Graph API logic).
-  -  (Updated: Multi-provider OAuth and Sync logic).
-  -  (Updated: Deletes both Google and Outlook events on cancellation).
-  -  (Updated: Added Outlook connection UI).
-  -  (Updated in previous tasks: Status badges, Google Sync button, Resend button).
+**All files of reference** 
+  -  (Just created, to house the no-show logic)
+  -  (Created for datetime locale formatting)
+  -  (Updated with Windows timezone mapping)
+  -  (Updated logic for displaying auth errors)
+  -  (Heavily modified for auto-sync and auto-update)
 
-**Areas that need refactoring**:
-  - Currently, Calendar sync is a manual button click per appointment. P2 roadmap includes making this an automatic sync upon appointment creation/modification.
+**Areas that need refactoring**: 
+  -  is getting large (~800 lines). Might need splitting in future forks if more calendar logic is added.
 
-**key api endpoints**:
-  -  (google or outlook)
+**key api endpoints**
+  -  (Passes  query param)
+  -  (Returns nested provider sync statuses)
+  - *Expected new endpoint:* 
+
+**Critical Info for New Agent** 
+1. **ATTENDANCE ENGINE STRICT RULES:** The user has provided EXPLICIT rules for the new attendance feature. Do NOT trigger auto-capture of Stripe funds. Be conservative.  goes to .  must be explicitly tracked as the decision basis. Ambiguous cases must go to . Read message #605 carefully.
+2. **Microsoft Graph API quirk:** Personal Microsoft accounts do NOT accept IANA timezones (e.g., ). They require Windows timezones (e.g., ). The agent implemented a mapper in the outlook adapter. Leave it intact.
+3. **Stripe Dev Mode Bypass:** The backend contains a bypass in  that auto-confirms guarantees if  is missing or set to . Ensure actual test keys are present if interacting with Stripe logic.
+
+**documents and test reports created in this job** 
   - 
-  -  (Auto-detects provider based on user's active connections)
-
-**Critical Info for New Agent**:
-1. **Multi-Provider Sync**:  was refactored to handle both Google and Outlook dynamically based on the active  document for the user. 
-2. **Microsoft Credentials needed**: You must ask the user to create and provide  and  via  before you can test the Outlook flow. Give them the exact Redirect URIs they need to configure in Azure AD (similar to how it was done for Google).
-3. **Environment URLs**: The backend derives the OAuth redirect URI dynamically using  from the  file. Do not hardcode URLs.
-
-**documents and test reports created in this job**:
+  - 
   - 
   - 
 
-**Last 10 User Messages and any pending HUMAN messages**:
-1. (User) Prompted to fix redirect_uri_mismatch for Google.
-2. (User) Confirmed Google OAuth connection worked.
-3. (User) Requested full functional audit of Google Calendar sync (creation, timezone, duplication, cancellation, UI).
-4. (User) Asked how to verify if sync works (UI question).
-5. (User) Reported sync failure error.
-6. (User) Confirmed Google sync works perfectly after agent fixed missing Calendar scope.
-7. (User) **Pending Task Request**: Requested Outlook / Microsoft 365 Calendar integration using the exact same architecture as Google, reusing adapters and routes without duplication.
+**Last 10 User Messages and any pending HUMAN messages** 
+1. (User) Reported bug: Production invitation bypasses Stripe.
+2. (User) Clarified Stripe test key is used in prod. Also noted dates on invitation UI are in English.
+3. (User) Asked to fix all notification/email dates to French system-wide.
+4. (User) Asked for a precise development summary before sleeping.
+5. (User) **Pending Task Request**: Kickstarted the No-Show Detection feature. Provided extensive business rules, emphasizing conservative classification, no automatic Stripe capture yet, and routing ambiguous cases to .
+6. (User) Validated the agent's proposed plan but added two strict overrides: 1)  status must NOT be classified as  (use ), and 2) Late cancellations must be tracked explicitly as  rather than a pure no-show.
 
-**Project Health Check**:
-Healthy. No broken routes. 
+**Project Health Check:**
+Healthy.
 
-**3rd Party Integrations**:
+**3rd Party Integrations**
   • Resend (Emails) — requires User API Key
   • Stripe (Payments) — requires User API Key
-  • Google Calendar API — requires User API Key (Configured)
-  • Microsoft Graph API — requires User API Key (Pending)
+  • Google Calendar API — requires User API Key
+  • Microsoft Graph API — requires User API Key
 
-**Testing status**:
-  - Testing agent used after significant changes: YES (For Stripe UI fixes)
+**Testing status**
+  - Testing agent used after significant changes: YES (Iterations 9, 10, 11 used extensively)
   - Troubleshoot agent used after agent stuck in loop: NO
   - Test files created: None manually.
   - Known regressions: None.
 
-**Credentials to test flow**:
-  - NLYT User: 
+**Credentials to test flow:**
+  - Standard Test User: 
+  - Password: 
 
-**What agent forgot to execute**:
-The agent refactored the backend for Outlook and updated the Integrations settings page, but completely forgot to update  to actually display the Sync with Outlook button next to the Google and ICS buttons. Furthermore, the agent did not ask the user for the necessary Microsoft Client ID/Secret to test the implementation.</analysis>
+**What agent forgot to execute**
+The agent just created the  file but did not write any logic before the session ended. The next agent must pick this up exactly from here.</analysis>
