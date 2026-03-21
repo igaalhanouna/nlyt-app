@@ -361,70 +361,172 @@ export default function InvitationPage() {
   // Check-in section (shared between accepted states)
   const renderCheckinSection = () => {
     const isCheckedIn = checkinStatus?.checked_in;
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+    // Compute check-in window
+    const startStr = appointment.start_datetime;
+    const startDate = new Date(startStr.includes('+') || startStr.includes('Z') ? startStr : startStr + 'Z');
+    // Adjust for local: if naive datetime, treat as Europe/Paris-ish (add offset manually not needed, browser handles display)
+    const durationMin = appointment.duration_minutes || 60;
+    const toleratedDelay = appointment.tolerated_delay_minutes || engagement_rules?.tolerated_delay_minutes || 0;
+    const WINDOW_BEFORE_MIN = 30;
+
+    const windowOpen = new Date(startDate.getTime() - WINDOW_BEFORE_MIN * 60000);
+    const windowClose = new Date(startDate.getTime() + (durationMin + toleratedDelay) * 60000);
+    const now = new Date();
+
+    const isBefore = now < windowOpen;
+    const isDuring = now >= windowOpen && now <= windowClose;
+    const isAfter = now > windowClose;
+
+    // Format countdown
+    const formatCountdown = () => {
+      const diff = windowOpen - now;
+      const days = Math.floor(diff / 86400000);
+      const hours = Math.floor((diff % 86400000) / 3600000);
+      const mins = Math.floor((diff % 3600000) / 60000);
+      if (days > 0) return `${days}j ${hours}h`;
+      if (hours > 0) return `${hours}h ${mins}min`;
+      return `${mins} min`;
+    };
+
+    const formatTime = (d) => d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: tz });
+    const formatDate = (d) => d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', timeZone: tz });
 
     return (
-      <div className="mt-6 pt-4 border-t border-slate-200" data-testid="checkin-section">
-        {isCheckedIn ? (
-          <div className="text-center">
-            <div className="inline-flex items-center gap-2 px-5 py-3 bg-emerald-50 border border-emerald-200 rounded-xl">
-              <Check className="w-5 h-5 text-emerald-600" />
-              <div className="text-left">
-                <p className="font-medium text-emerald-800 text-sm">Check-in effectué</p>
-                {checkinStatus.earliest_checkin && (
-                  <p className="text-xs text-emerald-600">
-                    {new Date(checkinStatus.earliest_checkin).toLocaleString('fr-FR', {
-                      hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short',
-                      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
-                    })}
-                  </p>
+      <div className="bg-white rounded-2xl border-2 border-slate-200 overflow-hidden mt-6" data-testid="checkin-section">
+        {/* Header band */}
+        <div className={`px-5 py-3 text-center font-semibold text-sm ${
+          isCheckedIn ? 'bg-emerald-600 text-white' :
+          isDuring ? 'bg-blue-600 text-white' :
+          isBefore ? 'bg-slate-100 text-slate-600' :
+          'bg-slate-100 text-slate-500'
+        }`}>
+          {isCheckedIn ? 'Présence confirmée' :
+           isDuring ? 'Confirmer votre présence' :
+           isBefore ? 'Check-in bientôt disponible' :
+           'Fenêtre de check-in terminée'}
+        </div>
+
+        <div className="p-5">
+          {/* STATE: Already checked in */}
+          {isCheckedIn && (
+            <div className="text-center" data-testid="checkin-done">
+              <div className="w-14 h-14 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <Check className="w-7 h-7 text-emerald-600" />
+              </div>
+              <p className="font-semibold text-emerald-800 text-base">Présence enregistrée</p>
+              {checkinStatus.earliest_checkin && (
+                <p className="text-sm text-emerald-600 mt-1">
+                  le {new Date(checkinStatus.earliest_checkin).toLocaleDateString('fr-FR', {
+                    weekday: 'long', day: 'numeric', month: 'long', timeZone: tz
+                  })} à {new Date(checkinStatus.earliest_checkin).toLocaleTimeString('fr-FR', {
+                    hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: tz
+                  })}
+                </p>
+              )}
+              <div className="flex items-center justify-center gap-4 mt-3">
+                {checkinStatus.has_manual_checkin && (
+                  <span className="inline-flex items-center gap-1.5 text-xs bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-full font-medium">
+                    <MapPinCheck className="w-3.5 h-3.5" /> Arrivée confirmée
+                  </span>
+                )}
+                {checkinStatus.has_qr_checkin && (
+                  <span className="inline-flex items-center gap-1.5 text-xs bg-blue-50 text-blue-700 px-3 py-1.5 rounded-full font-medium">
+                    <QrCode className="w-3.5 h-3.5" /> QR validé
+                  </span>
+                )}
+                {checkinStatus.has_gps && (
+                  <span className="inline-flex items-center gap-1.5 text-xs bg-purple-50 text-purple-700 px-3 py-1.5 rounded-full font-medium">
+                    <MapPin className="w-3.5 h-3.5" /> Position GPS
+                  </span>
                 )}
               </div>
             </div>
-            <div className="flex items-center justify-center gap-3 mt-2 text-xs text-slate-400">
-              {checkinStatus.has_manual_checkin && <span>Arrivée confirmée</span>}
-              {checkinStatus.has_qr_checkin && <span>QR validé</span>}
-              {checkinStatus.has_gps && <span>GPS enregistré</span>}
+          )}
+
+          {/* STATE: Before window */}
+          {!isCheckedIn && isBefore && (
+            <div className="text-center" data-testid="checkin-before">
+              <div className="w-14 h-14 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <Clock className="w-7 h-7 text-slate-400" />
+              </div>
+              <p className="font-medium text-slate-700 text-sm">
+                Le check-in ouvrira dans <span className="font-bold text-slate-900">{formatCountdown()}</span>
+              </p>
+              <p className="text-xs text-slate-500 mt-2">
+                Disponible à partir du {formatDate(windowOpen)} à {formatTime(windowOpen)}, soit 30 min avant le rendez-vous
+              </p>
+              <div className="flex items-center justify-center gap-3 mt-4 opacity-50">
+                <button disabled className="flex items-center gap-2 px-4 py-2.5 bg-slate-200 text-slate-400 rounded-xl text-sm font-medium cursor-not-allowed">
+                  <MapPinCheck className="w-4 h-4" /> Je suis arrivé
+                </button>
+                <button disabled className="flex items-center gap-2 px-4 py-2.5 bg-slate-200 text-slate-400 rounded-xl text-sm font-medium cursor-not-allowed">
+                  <ScanLine className="w-4 h-4" /> Scanner un QR
+                </button>
+              </div>
             </div>
-          </div>
-        ) : (
-          <div>
-            <p className="text-sm text-slate-600 text-center mb-4 font-medium">
-              Confirmez votre présence
-            </p>
-            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+          )}
+
+          {/* STATE: During window — ACTIVE */}
+          {!isCheckedIn && isDuring && (
+            <div data-testid="checkin-active">
+              <div className="text-center mb-5">
+                <p className="text-sm text-slate-600">
+                  Fenêtre ouverte jusqu'à <span className="font-semibold">{formatTime(windowClose)}</span>
+                </p>
+              </div>
+
+              {/* Primary action */}
               <button
                 onClick={handleManualCheckin}
                 disabled={checkingIn}
-                className="flex items-center justify-center gap-2 px-5 py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-colors font-medium disabled:opacity-50"
+                className="w-full flex items-center justify-center gap-3 px-5 py-4 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 active:scale-[0.98] transition-all font-semibold text-base disabled:opacity-50 mb-3"
                 data-testid="manual-checkin-btn"
               >
-                {checkingIn ? <Loader2 className="w-4 h-4 animate-spin" /> : <MapPinCheck className="w-4 h-4" />}
+                {checkingIn ? <Loader2 className="w-5 h-5 animate-spin" /> : <MapPinCheck className="w-5 h-5" />}
                 Je suis arrivé
               </button>
 
-              <button
-                onClick={() => setShowQRScanner(true)}
-                className="flex items-center justify-center gap-2 px-5 py-3 border-2 border-slate-300 text-slate-700 rounded-xl hover:bg-slate-50 transition-colors font-medium"
-                data-testid="scan-qr-btn"
-              >
-                <ScanLine className="w-4 h-4" />
-                Scanner un QR
-              </button>
+              {/* Secondary actions */}
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => setShowQRScanner(true)}
+                  className="flex items-center justify-center gap-2 px-4 py-3 border-2 border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 hover:border-slate-300 active:scale-[0.98] transition-all font-medium text-sm"
+                  data-testid="scan-qr-btn"
+                >
+                  <ScanLine className="w-4 h-4" />
+                  Scanner un QR
+                </button>
+                <button
+                  onClick={handleShowQR}
+                  className="flex items-center justify-center gap-2 px-4 py-3 border-2 border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 hover:border-slate-300 active:scale-[0.98] transition-all font-medium text-sm"
+                  data-testid="show-qr-btn"
+                >
+                  <QrCode className="w-4 h-4" />
+                  Afficher mon QR
+                </button>
+              </div>
 
-              <button
-                onClick={handleShowQR}
-                className="flex items-center justify-center gap-2 px-5 py-3 border-2 border-slate-300 text-slate-700 rounded-xl hover:bg-slate-50 transition-colors font-medium"
-                data-testid="show-qr-btn"
-              >
-                <QrCode className="w-4 h-4" />
-                Afficher mon QR
-              </button>
+              <p className="text-xs text-slate-400 text-center mt-4">
+                La position GPS sera capturée automatiquement si autorisée par votre navigateur.
+              </p>
             </div>
-            <p className="text-xs text-slate-400 text-center mt-3">
-              Plusieurs modes de vérification disponibles pour confirmer votre présence.
-            </p>
-          </div>
-        )}
+          )}
+
+          {/* STATE: After window (not checked in) */}
+          {!isCheckedIn && isAfter && (
+            <div className="text-center" data-testid="checkin-closed">
+              <div className="w-14 h-14 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-3">
+                <AlertTriangle className="w-7 h-7 text-red-400" />
+              </div>
+              <p className="font-medium text-slate-700 text-sm">La fenêtre de check-in est fermée</p>
+              <p className="text-xs text-slate-500 mt-1">
+                Elle était ouverte de {formatTime(windowOpen)} à {formatTime(windowClose)}
+              </p>
+            </div>
+          )}
+        </div>
       </div>
     );
   };
@@ -626,9 +728,6 @@ export default function InvitationPage() {
                     Ajouter au calendrier
                   </a>
                 </div>
-
-                {/* Check-in Section */}
-                {renderCheckinSection()}
                 
                 {/* Cancel button if deadline not passed */}
                 {engagement_rules.can_cancel && !engagement_rules.cancellation_deadline_passed && (
@@ -697,9 +796,6 @@ export default function InvitationPage() {
                     Téléchargez le fichier .ics pour l'ajouter à votre calendrier
                   </p>
                 </div>
-
-                {/* Check-in Section */}
-                {renderCheckinSection()}
                 
                 {/* Cancel button if deadline not passed */}
                 {engagement_rules.can_cancel && !engagement_rules.cancellation_deadline_passed && (
@@ -810,6 +906,11 @@ export default function InvitationPage() {
             )}
           </div>
         </div>
+        )}
+
+        {/* CHECK-IN SECTION — Standalone prominent card */}
+        {['accepted', 'accepted_guaranteed', 'accepted_pending_guarantee'].includes(responseStatus) && (
+          renderCheckinSection()
         )}
 
         {/* Footer */}

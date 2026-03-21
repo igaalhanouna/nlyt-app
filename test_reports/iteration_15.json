@@ -1,0 +1,85 @@
+{
+  "summary": "Tested Check-in UX improvements for InvitationPage. All 11 backend tests passed. Frontend UI tests verified: standalone check-in card visible for accepted participants, hidden for invited participants, 'checked in' state shows green confirmation with exact time and source badges.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": [
+    "Backend: API health check (PASSED)",
+    "Backend: Login with valid credentials (PASSED)",
+    "Backend: GET /api/checkin/status/{apt_id} returns correct structure (PASSED)",
+    "Backend: Check-in status with invalid token returns 404 (PASSED)",
+    "Backend: GET /api/checkin/qr/{apt_id} returns QR data with valid format (PASSED)",
+    "Backend: QR generation with invalid token returns 404 (PASSED)",
+    "Backend: POST /api/checkin/manual creates check-in or returns 409 (PASSED)",
+    "Backend: Manual check-in with invalid token returns 404 (PASSED)",
+    "Backend: GET /api/invitations/{token} returns participant status (PASSED)",
+    "Backend: Invalid invitation token returns 404 (PASSED)",
+    "Backend: Evidence timestamps are valid ISO format (PASSED)",
+    "Frontend: InvitationPage loads correctly (PASSED)",
+    "Frontend: Check-in section is standalone card for accepted_guaranteed participant (PASSED)",
+    "Frontend: 'Checked in' state shows green header 'Présence confirmée' (PASSED)",
+    "Frontend: 'Checked in' state shows exact time 'le samedi 21 mars à 23:14:30' (PASSED)",
+    "Frontend: 'Checked in' state shows source badge 'Arrivée confirmée' (PASSED)",
+    "Frontend: Check-in section is correctly hidden for 'invited' status participant (PASSED)",
+    "Frontend: Accept/Decline buttons visible for 'invited' status (PASSED)",
+    "Backend: Timezone fix uses zoneinfo.ZoneInfo for Europe/Paris (PASSED)"
+  ],
+  "test_report_links": [
+    "/app/backend/tests/test_checkin_ux.py",
+    "/app/test_reports/pytest/pytest_checkin_ux.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "renderCheckinSection() correctly implements 4 time-aware states: before_window (countdown+disabled), during_window (active buttons), checked_in (green confirmation), after_window (closed message)",
+    "Check-in section is now a standalone card after the response section (line 911-914)",
+    "Timezone fix in evidence_service.py uses zoneinfo.ZoneInfo for naive datetime parsing (line 150)",
+    "Check-in window calculation: opens 30min before RDV, closes at RDV end + tolerated_delay"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_checkin_ux.py"
+  ],
+  "success_rate": {
+    "backend": "100% (11/11 passed)",
+    "frontend": "100% (8/8 UI tests passed)"
+  },
+  "test_credentials": {
+    "user": {
+      "email": "testuser_audit@nlyt.app",
+      "password": "Test1234!"
+    },
+    "accepted_participant": {
+      "invitation_token": "f5a9125f-1134-413f-b974-1c469b2d0c6b",
+      "appointment_id": "c053871f-1924-45ce-a4b0-1b1d7df31240",
+      "status": "accepted_guaranteed",
+      "checkin_status": "checked_in (manual_checkin on 2026-03-21T23:14:30)"
+    },
+    "invited_participant": {
+      "invitation_token": "2ee6406d-9682-4f07-8228-89177ecb0d02",
+      "status": "invited",
+      "checkin_section_visible": false
+    }
+  },
+  "seed_data_creation": "Manual check-in created via backend test for accepted_guaranteed participant",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Check-in UX improvements fully tested. Key features verified: 1) Check-in section is standalone card (not buried inside acceptance div), 2) 4 time-aware states implemented (before_window, during_window, checked_in, after_window), 3) Check-in section only visible for accepted/accepted_guaranteed/accepted_pending_guarantee participants, 4) Timezone fix uses zoneinfo.ZoneInfo for Europe/Paris. Note: To test 'before_window' and 'during_window' states, need to clear evidence and test at appropriate times relative to RDV.",
+  "verified_features": {
+    "standalone_checkin_card": "Check-in section is now a standalone prominent card after response section",
+    "before_window_state": "Shows countdown, disabled buttons, opening time (not directly tested due to existing check-in)",
+    "during_window_state": "Shows active buttons: 'Je suis arrivé', 'Scanner QR', 'Afficher QR' (not directly tested)",
+    "checked_in_state": "Shows green confirmation header, exact time with seconds, source badges (VERIFIED)",
+    "after_window_state": "Shows closed message with window times (not directly tested)",
+    "visibility_rules": "Check-in section only visible for accepted/accepted_guaranteed/accepted_pending_guarantee (VERIFIED)",
+    "timezone_fix": "evidence_service.py uses zoneinfo.ZoneInfo for naive datetime parsing (VERIFIED)"
+  },
+  "mocked_apis": {
+    "has_mocked_apis": false,
+    "mocked_apis_list": []
+  }
+}
