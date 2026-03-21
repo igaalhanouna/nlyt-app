@@ -1,7 +1,7 @@
 # NLYT - Product Requirements Document
 
 ## Problem Statement
-SaaS application for booking appointments with financial guarantees (engagement financier). Zero friction, maximum automation, clear engagement logic.
+SaaS application for booking appointments with financial guarantees. Zero friction, maximum automation, clear engagement logic.
 
 ## Tech Stack
 - **Frontend**: React.js, TailwindCSS, Shadcn UI
@@ -14,26 +14,35 @@ SaaS application for booking appointments with financial guarantees (engagement 
 /app/
   backend/
     adapters/
-      google_calendar_adapter.py    # Google Calendar OAuth + CRUD
-      outlook_calendar_adapter.py   # Outlook/M365 Calendar OAuth + CRUD + IANA→Windows TZ mapping
-      ics_generator.py              # ICS file generation
+      google_calendar_adapter.py
+      outlook_calendar_adapter.py
+      ics_generator.py
     routers/
-      calendar_routes.py            # Multi-provider sync + auto-sync + auto-update + timezone resolution
-      appointments.py               # Appointment CRUD + auto-sync + auto-update triggers
-      attendance_routes.py          # Attendance evaluation + reclassification API
-      auth.py, invitations.py, participants.py, etc.
+      attendance_routes.py          # Attendance evaluation + reclassification + re-evaluate
+      checkin_routes.py             # Check-in (manual, QR, GPS) + evidence API
+      calendar_routes.py
+      appointments.py
+      invitations.py
+      webhooks.py
     services/
-      attendance_service.py         # No-show detection engine V1
-      auth_service.py, email_service.py, stripe_guarantee_service.py, etc.
+      attendance_service.py         # No-show detection V2 (with evidence)
+      evidence_service.py           # Evidence CRUD, QR tokens, GPS, aggregation
+      stripe_guarantee_service.py
+      email_service.py
     utils/
-      date_utils.py                 # French date formatting + now_utc()
+      date_utils.py
   frontend/
     src/
+      components/
+        QRCheckin.js                # QR scanner (camera + manual fallback)
+        ui/                         # Shadcn components
       pages/
-        settings/Integrations.js    # Google + Outlook + Auto-sync UI
-        appointments/AppointmentDetail.js  # Multi-provider sync + Attendance UI
-        auth/SignIn.js              # Login with persistent error message
-      services/api.js               # All API clients including attendanceAPI
+        appointments/
+          AppointmentDetail.js      # Evidence dashboard + attendance + re-evaluate
+        invitations/
+          InvitationPage.js         # Check-in section (3 modes)
+        auth/SignIn.js
+      services/api.js
 ```
 
 ## Completed Features
@@ -44,61 +53,62 @@ SaaS application for booking appointments with financial guarantees (engagement 
 ### Phase 1 - Stripe Flow (DONE)
 - Post-Stripe UI fix, dead code cleanup, resend invitation
 
-### Phase 2 - Calendar Integrations (DONE — User Validated)
-- Google Calendar OAuth + Outlook/M365 OAuth
-- ICS export
-- Auto-Sync V1 (toggle + preferred provider, triggers at appointment creation)
-- Auto-Update V1 (calendar fields change → update all synced providers, out_of_sync on failure)
-- **Timezone fix**: Browser TZ sent on connect, stored in connection, IANA→Windows mapping for Outlook personal accounts
-- Login error message fix (401 interceptor excluded auth routes)
+### Phase 2 - Calendar Integrations (DONE)
+- Google Calendar + Outlook/M365 OAuth
+- Auto-Sync V1, Auto-Update V1
+- Timezone fix (IANA to Windows mapping for Outlook)
 
 ### Phase 3 - Attendance Engine V1 (DONE — 2026-03-21)
-- **Post-appointment no-show detection engine**
-- Conservative classification: no auto on_time/late, system prepares decision but doesn't decide in doubt
-- Classification rules:
-  - `invited` (never responded) → `waived` (decision_basis: no_response)
-  - `declined` → `waived` (decision_basis: declined)
-  - `guarantee_released` → `waived` (decision_basis: guarantee_released)
-  - `cancelled_by_participant` in time → `waived` (decision_basis: cancelled_in_time)
-  - `cancelled_by_participant` late → `no_show` (decision_basis: cancelled_late) ← clearly distinct from pure no-show
-  - `accepted` / `accepted_pending_guarantee` / `accepted_guaranteed` → `manual_review`
-- `auto_capture_enabled = false` (no Stripe penalty capture in V1)
-- APScheduler job: every 10 min, evaluates appointments ended > 30 min ago
-- Idempotent evaluation (skips already-evaluated appointments)
-- Manual reclassification by organizer (on_time, late, no_show, waived)
-- Stores: previous_outcome, decision_basis, reviewer_id, notes
-- **API Endpoints:**
-  - `POST /api/attendance/evaluate/{appointment_id}` — manual trigger
-  - `GET /api/attendance/{appointment_id}` — get results
-  - `PUT /api/attendance/reclassify/{record_id}` — reclassify
-  - `GET /api/attendance/pending-reviews/list` — pending reviews
-- **UI:** Attendance section in AppointmentDetail (summary cards + individual records + reclassify dropdown)
-- **Testing:** 24/24 tests passed (backend + frontend, iteration_12)
+- Conservative classification: invited->waived, cancelled_late->no_show, accepted->manual_review
+- APScheduler job every 10 min, grace window 30 min
+- Manual reclassification by organizer
 
-### Timezone Architecture
-- Frontend sends `Intl.DateTimeFormat().resolvedOptions().timeZone` on connect
-- Stored as `calendar_timezone` in connection document
-- `_resolve_timezone()`: API detection first, fallback to stored browser TZ
-- Outlook adapter: `to_windows_timezone()` maps IANA → Windows TZ IDs
-- Google adapter: uses Google Settings API (works natively with IANA)
+### Phase 4 - Evidence-Based Attendance V2 (DONE — 2026-03-21)
+- **Evidence data model** (`evidence_items` collection)
+- **Symmetric check-in**: "Je suis arrivé" button (timestamp + device + optional GPS)
+- **QR Code system**: Dynamic, system-owned, rotating every 60s, HMAC-signed
+  - Any participant can display QR, any can scan it
+  - Camera scan via html5-qrcode + manual code fallback
+- **GPS check-in**: One-shot, configurable radius (default 200m), consent-based
+- **Evidence aggregation**: strong (2+ signals), medium (1 signal), weak (isolated), none
+- **Extended decision engine**:
+  - Strong evidence on_time → auto on_time
+  - Strong evidence late → auto late
+  - Medium evidence → classified but review_required=true
+  - No/weak evidence → manual_review (conservative)
+- **Re-evaluation**: Organizer can re-evaluate with fresh evidence (preserves manual reclassifications)
+- **API Endpoints**:
+  - `POST /api/checkin/manual` — manual check-in
+  - `GET /api/checkin/qr/{apt_id}` — generate QR code (base64 + token)
+  - `POST /api/checkin/qr/verify` — verify scanned QR
+  - `POST /api/checkin/gps` — GPS evidence
+  - `GET /api/checkin/status/{apt_id}` — check-in status
+  - `GET /api/checkin/evidence/{apt_id}` — organizer evidence view
+  - `POST /api/attendance/reevaluate/{apt_id}` — re-evaluate with evidence
+- **UI**:
+  - InvitationPage: 3 check-in modes (manual, scan QR, display QR)
+  - AppointmentDetail: Check-ins & Preuves dashboard + evidence indicators on attendance records
+  - QR display modal with auto-refresh
+  - QR scanner modal (camera + manual fallback)
+  - Re-évaluer button
+- **Testing**: 30/30 tests passed (iteration_13)
 
-## Key DB Collections/Fields
-- `calendar_connections.calendar_timezone`: IANA timezone from browser
-- `calendar_sync_logs.sync_status`: "synced" | "out_of_sync" | "failed" | "deleted"
-- `attendance_records`: {record_id, appointment_id, participant_id, participant_email, participant_name, outcome, decision_basis, confidence, review_required, decided_by, decided_at, notes, auto_capture_enabled, previous_outcome, previous_decision_basis}
-- `appointments.attendance_evaluated`: boolean
-- `appointments.attendance_summary`: {waived, no_show, manual_review, on_time, late}
+## Key DB Collections
+- `evidence_items`: {evidence_id, appointment_id, participant_id, source, source_timestamp, confidence_score, derived_facts, raw_payload_reference, created_by, created_at}
+- `attendance_records`: {record_id, appointment_id, participant_id, outcome, decision_basis, confidence, review_required, evidence_summary, decided_by, notes, previous_outcome, auto_capture_enabled}
+- `appointments.attendance_evaluated`, `appointments.attendance_summary`
+- `calendar_connections`, `calendar_sync_logs`
 
-## Calendar Fields (trigger auto-update)
-`CALENDAR_FIELDS = {"title", "start_datetime", "duration_minutes", "location", "meeting_provider", "description"}`
-
-## Azure AD Configuration
-- App Registration: nlyt-outlook
-- Client ID: 3336efa7-e695-492c-b07e-b7ffc9b8921a
-- Redirect URIs: preview + app.nlyt.io
-- Permissions: Calendars.ReadWrite, User.Read, MailboxSettings.Read (admin consented)
+## Philosophy
+1. No proof → no automatic penalty
+2. System observes signals, doesn't assume
+3. Organizer is not more reliable than participant
+4. Any ambiguity → manual_review
+5. V1 simple > complex unstable system
 
 ## Backlog
-- P2: Stripe Connect (fund splits between participant, charity, platform) — User explicitly said NOT to touch until no-show detection is perfect
-- P2: Auto-update calendrier V2 (Retry automatique en cas d'échec + notification)
-- P3: Dashboard analytics organisateur
+- P2: Stripe Connect (fund splits) — User explicitly said NOT to touch until detection is perfect
+- P2: Auto-update calendar V2 (retry + notification)
+- P3: Organizer analytics dashboard
+- P3: Video-based attendance proof
+- P3: Dispute resolution system improvements
