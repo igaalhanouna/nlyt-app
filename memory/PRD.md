@@ -52,19 +52,19 @@ SaaS application for booking appointments with financial guarantees (engagement 
 - Dead Stripe code cleanup
 - Resend Invitation button functional
 
-### Phase 2 - Calendar Integrations (DONE)
-- **Google Calendar OAuth**: connect, disconnect, sync, unsync, auto-delete on cancellation, timezone support
+### Phase 2 - Calendar Integrations (DONE - User Validated)
+- **Google Calendar OAuth**: connect, disconnect, sync, unsync, auto-delete on cancellation, timezone support — USER VALIDATED ✅
 - **Outlook / Microsoft 365 Calendar**: 
-  - Backend: Full adapter (OAuth, token exchange, refresh, create/update/delete events, timezone)
-  - Backend: Routes (connect, callback, disconnect, sync, unsync, status)
-  - Frontend: Integrations page with Outlook card (connect/disconnect/expired states)
-  - Frontend: AppointmentDetail with multi-provider sync buttons
-  - Frontend: api.js with all Outlook methods
-  - BLOCKED: Waiting for user's MICROSOFT_CLIENT_ID + MICROSOFT_CLIENT_SECRET
+  - OAuth flow (connect, callback, disconnect) — USER VALIDATED ✅
+  - Sync appointment to Outlook Calendar — USER VALIDATED ✅
+  - Token refresh, idempotency (no duplicates), event_id storage
+  - Auto-delete on appointment cancellation
+  - Multi-provider sync status API
+  - Frontend: Integrations page + AppointmentDetail sync buttons
 - **ICS Export**: Per-appointment + subscription feed
 
 ## Key DB Collections
-- `calendar_connections`: {user_id, provider, access_token, refresh_token, google_email/outlook_email, status}
+- `calendar_connections`: {user_id, provider, access_token, refresh_token, google_email/outlook_email, status, connection_id}
 - `calendar_sync_logs`: {appointment_id, connection_id, external_event_id, html_link, provider, sync_status}
 - `oauth_states`: CSRF protection for OAuth flows
 
@@ -77,21 +77,17 @@ SaaS application for booking appointments with financial guarantees (engagement 
 - `DELETE /api/calendar/sync/appointment/{id}` - Unsync from all calendars
 - `GET /api/calendar/sync/status/{id}` - Multi-provider sync status
 
-## Pending / Backlog
-- P0: User provides MICROSOFT_CLIENT_ID + MICROSOFT_CLIENT_SECRET to complete Outlook testing
-- P2: Auto-sync on appointment creation/modification
-- P2: No-show detection + automated penalty capture
-- P2: Stripe Connect (fund splits)
-- P3: Organizer analytics dashboard
-
-## Environment Variables Required
-### Existing (configured)
+## Environment Variables
+### Configured ✅
 - MONGO_URL, DB_NAME, JWT_SECRET
 - FRONTEND_URL, CORS_ORIGINS
 - RESEND_API_KEY, SENDER_EMAIL
 - STRIPE_API_KEY, STRIPE_WEBHOOK_SECRET
 - GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
+- MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET, MICROSOFT_TENANT_ID
 
-### Needed (Outlook)
-- MICROSOFT_CLIENT_ID
-- MICROSOFT_CLIENT_SECRET
+## Backlog
+- P2: Auto-sync on appointment creation/modification
+- P2: No-show detection + automated penalty capture
+- P2: Stripe Connect (fund splits)
+- P3: Organizer analytics dashboard
