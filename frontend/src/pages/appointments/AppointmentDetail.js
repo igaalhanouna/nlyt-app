@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { appointmentAPI, participantAPI, calendarAPI, invitationAPI, attendanceAPI, checkinAPI } from '../../services/api';
 import { Button } from '../../components/ui/button';
-import { ArrowLeft, Calendar, MapPin, Video, Clock, Users, Ban, Check, X, AlertTriangle, Download, Heart, ShieldCheck, CreditCard, RefreshCw, Loader2, Zap, ClipboardCheck, Eye, UserX, UserCheck, HelpCircle, ChevronDown, ScanLine, QrCode, MapPinCheck } from 'lucide-react';
+import { ArrowLeft, Calendar, MapPin, Video, Clock, Users, Ban, Check, X, AlertTriangle, Download, Heart, ShieldCheck, CreditCard, RefreshCw, Loader2, Zap, ClipboardCheck, Eye, UserX, UserCheck, HelpCircle, ChevronDown, ScanLine, QrCode, MapPinCheck, ExternalLink, Timer, Navigation } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function AppointmentDetail() {
@@ -644,16 +644,28 @@ export default function AppointmentDetail() {
                 return (
                 <div key={p.participant_id} className="border border-slate-200 rounded-xl overflow-hidden" data-testid={`evidence-participant-${p.participant_id}`}>
                   {/* Participant header */}
-                  <div className="px-5 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                  <div className="px-5 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between flex-wrap gap-2">
                     <div>
                       <p className="font-semibold text-slate-900">{p.participant_name || p.participant_email}</p>
                       <p className="text-xs text-slate-500 mt-0.5">
                         {p.evidence.length} preuve{p.evidence.length > 1 ? 's' : ''} — Source{sources.length > 1 ? 's' : ''} : {sources.join(' + ')}
                       </p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       {getStrengthBadge(p.aggregation?.strength)}
                       {getTimingBadge(p.aggregation?.timing)}
+                      {p.aggregation?.temporal_flag && p.aggregation.temporal_flag !== 'valid' && p.aggregation.temporal_flag !== 'valid_late' && (
+                        <span className="text-xs px-2.5 py-1 rounded-full border bg-orange-50 border-orange-200 text-orange-700 font-medium flex items-center gap-1">
+                          <Timer className="w-3 h-3" />
+                          {p.aggregation.temporal_flag === 'too_early' ? 'Hors fenêtre (trop tôt)' : 'Hors fenêtre (trop tard)'}
+                        </span>
+                      )}
+                      {p.aggregation?.geographic_flag && (p.aggregation.geographic_flag === 'far' || p.aggregation.geographic_flag === 'incoherent') && (
+                        <span className="text-xs px-2.5 py-1 rounded-full border bg-red-50 border-red-200 text-red-700 font-medium flex items-center gap-1">
+                          <Navigation className="w-3 h-3" />
+                          {p.aggregation.geographic_flag === 'incoherent' ? 'Lieu incohérent' : 'Lieu suspect'}
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -668,39 +680,81 @@ export default function AppointmentDetail() {
 
                         return (
                           <div key={e.evidence_id} className={`pl-4 border-l-[3px] ${getSourceColor(e.source)}`} data-testid={`evidence-item-${e.evidence_id}`}>
-                            {/* Source + timestamp */}
                             <div className="flex items-start gap-2">
                               {getSourceIcon(e.source)}
                               <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-slate-800">
-                                  {formatSourceLabel(e.source)}
-                                </p>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <p className="text-sm font-medium text-slate-800">
+                                    {formatSourceLabel(e.source)}
+                                  </p>
+                                  <span className={`text-xs px-1.5 py-0.5 rounded ${
+                                    e.confidence_score === 'high' ? 'bg-emerald-100 text-emerald-700' :
+                                    e.confidence_score === 'medium' ? 'bg-amber-100 text-amber-700' :
+                                    'bg-red-100 text-red-700'
+                                  }`}>
+                                    {e.confidence_score === 'high' ? 'Confiance haute' : e.confidence_score === 'medium' ? 'Confiance moyenne' : 'Confiance faible'}
+                                  </span>
+                                </div>
+
                                 <p className="text-sm text-slate-600 mt-0.5" data-testid={`evidence-date-${e.evidence_id}`}>
                                   {e.source === 'manual_checkin' ? 'Arrivé le ' : 'Enregistré le '}
                                   {formatEvidenceDate(e.source_timestamp)}
                                 </p>
 
-                                {/* GPS coordinates */}
+                                {/* Temporal consistency */}
+                                {facts.temporal_detail && (
+                                  <p className={`text-xs mt-1 flex items-center gap-1 ${
+                                    facts.temporal_consistency === 'valid' ? 'text-emerald-600' :
+                                    facts.temporal_consistency === 'valid_late' ? 'text-amber-600' :
+                                    'text-red-600'
+                                  }`}>
+                                    <Timer className="w-3 h-3" />
+                                    {facts.temporal_detail}
+                                  </p>
+                                )}
+
+                                {/* GPS: address + coordinates + distance */}
                                 {hasGPS && (
-                                  <div className="mt-1.5 flex items-center gap-3 flex-wrap">
-                                    <span className="text-xs text-slate-500">
-                                      Position : {facts.latitude.toFixed(4)}, {facts.longitude.toFixed(4)}
-                                    </span>
-                                    {facts.distance_meters != null && (
-                                      <span className={`text-xs font-medium ${facts.gps_within_radius ? 'text-emerald-600' : 'text-amber-600'}`}>
-                                        {facts.gps_within_radius ? 'Dans le périmètre' : 'Hors périmètre'} ({Math.round(facts.distance_meters)}m{facts.gps_radius_meters ? ` / ${facts.gps_radius_meters}m` : ''})
-                                      </span>
+                                  <div className="mt-2 space-y-1">
+                                    {facts.address_label && (
+                                      <p className="text-xs text-slate-700">
+                                        Adresse estimée : <span className="font-medium">{facts.address_label.split(',').slice(0, 3).join(', ')}</span>
+                                      </p>
                                     )}
-                                    {facts.gps_no_reference && (
-                                      <span className="text-xs text-slate-400">Pas d'adresse de référence</span>
+                                    <p className="text-xs text-slate-500">
+                                      Coordonnées : {facts.latitude.toFixed(4)}, {facts.longitude.toFixed(4)}
+                                    </p>
+
+                                    {/* Distance from RDV */}
+                                    {facts.distance_km != null && (
+                                      <p className={`text-xs font-medium flex items-center gap-1 ${
+                                        facts.geographic_consistency === 'close' ? 'text-emerald-600' :
+                                        facts.geographic_consistency === 'nearby' ? 'text-emerald-600' :
+                                        facts.geographic_consistency === 'far' ? 'text-amber-600' :
+                                        facts.geographic_consistency === 'incoherent' ? 'text-red-600' :
+                                        'text-slate-500'
+                                      }`} data-testid={`evidence-distance-${e.evidence_id}`}>
+                                        <Navigation className="w-3 h-3" />
+                                        Distance du lieu du RDV : {facts.distance_km < 1 ? `${Math.round(facts.distance_meters)}m` : `${facts.distance_km} km`}
+                                        {facts.geographic_consistency === 'close' && ' — sur place'}
+                                        {facts.geographic_consistency === 'nearby' && ' — à proximité'}
+                                        {facts.geographic_consistency === 'far' && ' — suspect'}
+                                        {facts.geographic_consistency === 'incoherent' && ' — incohérent'}
+                                      </p>
                                     )}
+
+                                    {facts.gps_no_reference && !facts.distance_km && (
+                                      <p className="text-xs text-slate-400">Pas de coordonnées de référence pour le RDV</p>
+                                    )}
+
                                     <a
                                       href={`https://www.google.com/maps?q=${facts.latitude},${facts.longitude}`}
                                       target="_blank"
                                       rel="noopener noreferrer"
-                                      className="text-xs text-blue-600 hover:text-blue-800 hover:underline"
+                                      className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 hover:underline"
                                       data-testid={`gps-map-link-${e.evidence_id}`}
                                     >
+                                      <ExternalLink className="w-3 h-3" />
                                       Voir sur la carte
                                     </a>
                                   </div>
@@ -708,13 +762,11 @@ export default function AppointmentDetail() {
 
                                 {/* QR details */}
                                 {e.source === 'qr' && facts.qr_valid && (
-                                  <p className="text-xs text-blue-600 mt-1">QR valide (fenêtre #{facts.qr_window})</p>
+                                  <p className="text-xs text-blue-600 mt-1 flex items-center gap-1">
+                                    <QrCode className="w-3 h-3" />
+                                    QR valide (fenêtre #{facts.qr_window})
+                                  </p>
                                 )}
-
-                                {/* Confidence */}
-                                <p className="text-xs text-slate-400 mt-1">
-                                  Confiance : {e.confidence_score === 'high' ? 'haute' : e.confidence_score === 'medium' ? 'moyenne' : 'faible'}
-                                </p>
                               </div>
                             </div>
                           </div>

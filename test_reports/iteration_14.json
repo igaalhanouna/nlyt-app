@@ -1,0 +1,109 @@
+{
+  "summary": "Tested Smart Evidence Scoring V2 - Temporal + Geographic Consistency. All 20 backend tests passed (1 skipped - no QR evidence). All 16 frontend UI tests passed. The smart scoring correctly identifies: temporal consistency (too_early/too_late/valid), geographic consistency (close/nearby/far/incoherent), and combines them for smart confidence scoring. Forward geocoding caches appointment coordinates, reverse geocoding provides address_label for check-in GPS.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": [
+    "Backend: Forward geocoding - appointment has geocoded coordinates (PASSED)",
+    "Backend: Forward geocoding - original address preserved (PASSED)",
+    "Backend: Reverse geocoding - evidence has address_label (PASSED)",
+    "Backend: Temporal consistency - too_early detected for 69h early check-in (PASSED)",
+    "Backend: Temporal consistency - temporal_flag in aggregation (PASSED)",
+    "Backend: Geographic consistency - incoherent detected for 689km distance (PASSED)",
+    "Backend: Geographic consistency - distance_km and distance_meters calculated (PASSED)",
+    "Backend: Geographic consistency - geographic_flag in aggregation (PASSED)",
+    "Backend: Smart confidence - low confidence for too_early + incoherent (PASSED)",
+    "Backend: Smart confidence - weak strength for bad consistency (PASSED)",
+    "Backend: Evidence enriched data - all fields present (PASSED)",
+    "Backend: Aggregation - all flags present (PASSED)",
+    "Backend: Geographic thresholds documented (PASSED)",
+    "Backend: gps_within_radius flag set correctly (PASSED)",
+    "Backend: Temporal thresholds documented (PASSED)",
+    "Backend: Signals include geographic status (PASSED)",
+    "Backend: Check-in status returns smart fields (PASSED)",
+    "Backend: QR check-in includes temporal consistency (SKIPPED - no QR evidence)",
+    "Backend: GPS check-in includes all smart fields (PASSED)",
+    "Backend: Strength degraded by temporal too_early (PASSED)",
+    "Backend: Strength degraded by geographic incoherent (PASSED)",
+    "Frontend: Evidence dashboard visible (PASSED)",
+    "Frontend: Check-ins & Preuves section visible (PASSED)",
+    "Frontend: 'Preuve faible' badge visible (PASSED)",
+    "Frontend: 'Hors fenêtre' temporal badge visible (PASSED)",
+    "Frontend: 'Lieu incohérent' geographic badge visible (PASSED)",
+    "Frontend: 'Confiance faible' confidence badge visible (PASSED)",
+    "Frontend: Temporal detail 'avant le début du RDV' visible (PASSED)",
+    "Frontend: Address label (reverse geocoding) visible (PASSED)",
+    "Frontend: Coordinates display visible (PASSED)",
+    "Frontend: Distance display visible (PASSED)",
+    "Frontend: GPS map link visible (PASSED)",
+    "Frontend: Participant evidence section visible (PASSED)",
+    "Frontend: Evidence item visible (PASSED)",
+    "Frontend: 'Check-in manuel' source label visible (PASSED)",
+    "Frontend: Paris in address (reverse geocoding) visible (PASSED)",
+    "Frontend: 689 km distance visible (PASSED)"
+  ],
+  "test_report_links": [
+    "/app/backend/tests/test_smart_scoring_v2.py",
+    "/app/test_reports/pytest/pytest_smart_scoring_v2.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_smart_scoring_v2.py"
+  ],
+  "success_rate": {
+    "backend": "100% (20/21 passed, 1 skipped)",
+    "frontend": "100% (16/16 UI tests passed)"
+  },
+  "test_credentials": {
+    "user": {
+      "email": "testuser_audit@nlyt.app",
+      "password": "Test1234!"
+    },
+    "test_appointment": {
+      "appointment_id": "c053871f-1924-45ce-a4b0-1b1d7df31240",
+      "title": "test stripe",
+      "location": "43 Boulevard d'Oxford 06400 Cannes",
+      "location_latitude": 43.565097,
+      "location_longitude": 7.029133,
+      "location_geocoded": true
+    },
+    "existing_evidence": {
+      "participant_id": "d10dd899-f80f-4d15-8b3c-90ff66e3296a",
+      "participant_name": "Igaal Hanouna",
+      "evidence_type": "manual_checkin",
+      "gps_coordinates": "48.8566, 2.3522 (Paris)",
+      "temporal_consistency": "too_early (69.5h before RDV)",
+      "geographic_consistency": "incoherent (689.4km from RDV)",
+      "confidence_score": "low",
+      "aggregation_strength": "weak"
+    }
+  },
+  "seed_data_creation": "Used existing test appointment c053871f with geocoded Cannes location and existing evidence showing Paris GPS (689km away, 69h early) correctly scored as 'low' confidence with 'weak' strength.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Smart Evidence Scoring V2 fully tested. Key features: 1) Temporal window: valid = RDV_start - 2h to RDV_end + 1h, outside = too_early/too_late. 2) Geographic thresholds: close (<500m), nearby (<5km), far (<50km), incoherent (>50km). 3) Smart confidence: combines source type + temporal + geographic. 4) Forward geocoding via Nominatim caches coordinates in appointment doc (location_latitude, location_longitude, location_geocoded=true). 5) Reverse geocoding adds address_label to derived_facts. 6) Aggregation strength degraded by worst temporal/geographic flags. Frontend displays: 'Hors fenêtre (trop tôt)', 'Lieu incohérent', 'Preuve faible', 'Confiance faible', address_label, distance_km with consistency label, map link.",
+  "verified_features": {
+    "temporal_consistency": "assess_temporal_consistency() returns valid/too_early/too_late/valid_late with hours_offset and detail",
+    "geographic_consistency": "assess_geographic_consistency() returns close/nearby/far/incoherent with distance_meters/distance_km",
+    "smart_confidence": "compute_smart_confidence() combines source + temporal + geographic for high/medium/low",
+    "forward_geocoding": "geocode_address() via Nominatim, cached in appointment.location_latitude/longitude",
+    "reverse_geocoding": "reverse_geocode() adds address_label to derived_facts",
+    "aggregation_flags": "aggregate_evidence() includes temporal_flag and geographic_flag",
+    "strength_degradation": "Strength degraded to weak for incoherent or days-early check-ins",
+    "ui_temporal_badge": "'Hors fenêtre (trop tôt)' or '(trop tard)' badge",
+    "ui_geographic_badge": "'Lieu incohérent' or 'Lieu suspect' badge",
+    "ui_address_label": "Adresse estimée: {reverse_geocoded_address}",
+    "ui_distance_display": "Distance du lieu du RDV: {distance_km} km — {consistency_label}",
+    "ui_map_link": "Voir sur la carte link to Google Maps"
+  },
+  "mocked_apis": {
+    "note": "No APIs are mocked. Using real Nominatim (OpenStreetMap) for geocoding with rate limits (1 req/sec). Geocoded coordinates are cached in appointment doc."
+  }
+}
