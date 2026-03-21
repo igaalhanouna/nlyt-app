@@ -80,6 +80,22 @@ def _build_event_data(appointment, calendar_tz):
 CALENDAR_FIELDS = {"title", "start_datetime", "duration_minutes", "location", "meeting_provider", "description"}
 
 
+def _resolve_timezone(adapter, connection):
+    """Get the calendar timezone: try API first, fallback to stored browser timezone."""
+    on_refresh = _make_token_refresh_callback(connection['connection_id'])
+    api_tz = adapter.get_calendar_timezone(
+        connection['access_token'], connection.get('refresh_token'),
+        connection_update_callback=on_refresh
+    )
+    if api_tz and api_tz != 'UTC':
+        return api_tz
+    # Fallback to timezone stored at connection time (from browser)
+    stored_tz = connection.get('calendar_timezone')
+    if stored_tz and stored_tz != 'UTC':
+        return stored_tz
+    return api_tz or 'UTC'
+
+
 def _make_token_refresh_callback(connection_id):
     """Create a token refresh callback that updates or expires the connection."""
     def on_token_refresh(new_token):
@@ -99,7 +115,7 @@ def _make_token_refresh_callback(connection_id):
 # ── Google OAuth ────────────────────────────────────────────
 
 @router.get("/connect/google")
-async def connect_google_calendar(request: Request):
+async def connect_google_calendar(request: Request, timezone: str = None):
     """
     Initiate Google Calendar OAuth flow.
     Returns the authorization URL the frontend should redirect the user to.
@@ -110,7 +126,7 @@ async def connect_google_calendar(request: Request):
         raise HTTPException(status_code=500, detail="Google Calendar n'est pas configuré (GOOGLE_CLIENT_ID manquant)")
 
     # Encode user_id in state so the callback can link the connection
-    state_payload = json.dumps({"user_id": user['user_id'], "nonce": str(uuid.uuid4())})
+    state_payload = json.dumps({"user_id": user['user_id'], "nonce": str(uuid.uuid4()), "timezone": timezone or "UTC"})
     import base64
     state = base64.urlsafe_b64encode(state_payload.encode()).decode()
 
@@ -148,6 +164,7 @@ async def google_oauth_callback(code: str, state: str = None, error: str = None)
     try:
         state_payload = json.loads(base64.urlsafe_b64decode(state.encode()))
         user_id = state_payload.get("user_id")
+        user_timezone = state_payload.get("timezone", "UTC")
     except Exception:
         return RedirectResponse(url=f"{FRONTEND_URL}/settings/integrations?google=error&reason=invalid_state")
 
@@ -181,6 +198,7 @@ async def google_oauth_callback(code: str, state: str = None, error: str = None)
             "google_name": tokens.get('user_name', ''),
             "access_token": tokens['access_token'],
             "refresh_token": tokens['refresh_token'],
+            "calendar_timezone": user_timezone,
             "status": "connected",
             "connected_at": now_utc().isoformat(),
             "updated_at": now_utc().isoformat()
@@ -233,7 +251,7 @@ async def disconnect_google_calendar(request: Request):
 # ── Outlook / Microsoft 365 OAuth ───────────────────────────
 
 @router.get("/connect/outlook")
-async def connect_outlook_calendar(request: Request):
+async def connect_outlook_calendar(request: Request, timezone: str = None):
     """Initiate Outlook OAuth flow."""
     user = await get_current_user(request)
 
@@ -241,7 +259,8 @@ async def connect_outlook_calendar(request: Request):
         raise HTTPException(status_code=500, detail="Outlook Calendar n'est pas configuré (MICROSOFT_CLIENT_ID manquant)")
 
     import base64
-    state_payload = json.dumps({"user_id": user['user_id'], "nonce": str(uuid.uuid4())})
+    state_payload = json.dumps({"user_id": user['user_id'], "nonce": str(uuid.uuid4()), "timezone": timezone or "UTC"})
+    state = base64.urlsafe_b64encode(state_payload.encode()).decode()
     state = base64.urlsafe_b64encode(state_payload.encode()).decode()
 
     redirect_uri = _get_outlook_redirect_uri()
@@ -270,6 +289,7 @@ async def outlook_oauth_callback(code: str = None, state: str = None, error: str
     try:
         state_payload = json.loads(base64.urlsafe_b64decode(state.encode()))
         user_id = state_payload.get("user_id")
+        user_timezone = state_payload.get("timezone", "UTC")
     except Exception:
         return RedirectResponse(url=f"{FRONTEND_URL}/settings/integrations?outlook=error&reason=invalid_state")
 
@@ -290,6 +310,12 @@ async def outlook_oauth_callback(code: str = None, state: str = None, error: str
 
     connection_id = str(uuid.uuid4())
 
+    # Try to get timezone from mailboxSettings first, fallback to browser timezone
+    detected_tz = OutlookCalendarAdapter.get_calendar_timezone(
+        tokens['access_token'], tokens['refresh_token']
+    )
+    calendar_timezone = detected_tz if detected_tz != 'UTC' else user_timezone
+
     db.calendar_connections.update_one(
         {"user_id": user_id, "provider": "outlook"},
         {"$set": {
@@ -300,6 +326,7 @@ async def outlook_oauth_callback(code: str = None, state: str = None, error: str
             "outlook_name": tokens.get('user_name', ''),
             "access_token": tokens['access_token'],
             "refresh_token": tokens['refresh_token'],
+            "calendar_timezone": calendar_timezone,
             "status": "connected",
             "connected_at": now_utc().isoformat(),
             "updated_at": now_utc().isoformat()
@@ -422,10 +449,7 @@ def perform_auto_sync(user_id: str, appointment_id: str, appointment_doc: dict):
         adapter = _get_adapter(provider)
         on_refresh = _make_token_refresh_callback(connection['connection_id'])
 
-        calendar_tz = adapter.get_calendar_timezone(
-            connection['access_token'], connection.get('refresh_token'),
-            connection_update_callback=on_refresh
-        )
+        calendar_tz = _resolve_timezone(adapter, connection)
         event_data = _build_event_data(appointment_doc, calendar_tz)
         result = adapter.create_event(
             connection['access_token'], connection.get('refresh_token'),
@@ -503,10 +527,7 @@ def perform_auto_update(user_id: str, appointment_id: str, updated_appointment: 
                 adapter = _get_adapter(provider)
                 on_refresh = _make_token_refresh_callback(connection_id)
 
-                calendar_tz = adapter.get_calendar_timezone(
-                    connection['access_token'], connection.get('refresh_token'),
-                    connection_update_callback=on_refresh
-                )
+                calendar_tz = _resolve_timezone(adapter, connection)
                 event_data = _build_event_data(updated_appointment, calendar_tz)
 
                 result = adapter.update_event(
@@ -598,10 +619,7 @@ async def sync_appointment_to_calendar(appointment_id: str, request: Request, pr
     adapter = _get_adapter(provider)
     on_refresh = _make_token_refresh_callback(connection['connection_id'])
 
-    calendar_tz = adapter.get_calendar_timezone(
-        connection['access_token'], connection.get('refresh_token'),
-        connection_update_callback=on_refresh
-    )
+    calendar_tz = _resolve_timezone(adapter, connection)
 
     event_data = _build_event_data(appointment, calendar_tz)
 

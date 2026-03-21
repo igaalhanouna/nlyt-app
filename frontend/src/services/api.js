@@ -73,9 +73,15 @@ export const invitationAPI = {
 };
 
 export const calendarAPI = {
-  connectGoogle: () => api.get('/api/calendar/connect/google'),
+  connectGoogle: () => {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    return api.get(`/api/calendar/connect/google?timezone=${encodeURIComponent(tz)}`);
+  },
   disconnectGoogle: () => api.delete('/api/calendar/connections/google'),
-  connectOutlook: () => api.get('/api/calendar/connect/outlook'),
+  connectOutlook: () => {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    return api.get(`/api/calendar/connect/outlook?timezone=${encodeURIComponent(tz)}`);
+  },
   disconnectOutlook: () => api.delete('/api/calendar/connections/outlook'),
   listConnections: () => api.get('/api/calendar/connections'),
   syncAppointment: (appointment_id, provider = 'google') => api.post(`/api/calendar/sync/appointment/${appointment_id}?provider=${provider}`),
