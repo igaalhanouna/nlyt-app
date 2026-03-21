@@ -279,7 +279,7 @@ async def update_appointment(appointment_id: str, update_data: dict, request: Re
     
     # Whitelist: only these fields can be updated
     ALLOWED_FIELDS = {
-        "title", "appointment_type", "location", "location_latitude",
+        "title", "description", "appointment_type", "location", "location_latitude",
         "location_longitude", "location_place_id", "meeting_provider",
         "start_datetime", "duration_minutes", "tolerated_delay_minutes",
         "cancellation_deadline_hours", "penalty_amount", "penalty_currency",
@@ -300,6 +300,15 @@ async def update_appointment(appointment_id: str, update_data: dict, request: Re
         {"appointment_id": appointment_id},
         {"$set": safe_data}
     )
+    
+    # Auto-update calendar events if calendar-visible fields changed (non-blocking)
+    try:
+        from routers.calendar_routes import has_calendar_fields_changed, perform_auto_update
+        if has_calendar_fields_changed(appointment, safe_data):
+            updated_doc = {**appointment, **safe_data}
+            perform_auto_update(user['user_id'], appointment_id, updated_doc)
+    except Exception as e:
+        print(f"[AUTO-UPDATE] Error during auto-update: {e}")
     
     return {"message": "Rendez-vous mis à jour"}
 

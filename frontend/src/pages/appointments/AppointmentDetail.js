@@ -48,7 +48,7 @@ export default function AppointmentDetail() {
       const response = await calendarAPI.syncAppointment(id, provider);
       setSyncStatus(prev => ({
         ...prev,
-        [provider]: { synced: true, has_connection: true, html_link: response.data.html_link, external_event_id: response.data.external_event_id }
+        [provider]: { synced: true, out_of_sync: false, has_connection: true, html_link: response.data.html_link, external_event_id: response.data.external_event_id, sync_source: 'manual' }
       }));
       toast.success(`Rendez-vous synchronisé avec ${label}`);
     } catch (error) {
@@ -196,6 +196,18 @@ export default function AppointmentDetail() {
                 {syncStatus.google.sync_source === 'auto' ? <Zap className="w-4 h-4 mr-2" /> : <Check className="w-4 h-4 mr-2" />}
                 Google Calendar
               </Button>
+            ) : syncStatus?.google?.out_of_sync ? (
+              <Button
+                variant="outline"
+                className="text-amber-700 border-amber-300"
+                onClick={() => handleSyncCalendar('google')}
+                disabled={syncingProvider !== null}
+                data-testid="google-out-of-sync-btn"
+                title={syncStatus.google.sync_error_reason || 'Non synchronisé'}
+              >
+                {syncingProvider === 'google' ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <AlertTriangle className="w-4 h-4 mr-2" />}
+                Google Calendar
+              </Button>
             ) : syncStatus?.google?.has_connection && !isCancelled ? (
               <Button
                 variant="outline"
@@ -212,6 +224,18 @@ export default function AppointmentDetail() {
             {syncStatus?.outlook?.synced ? (
               <Button variant="outline" className="text-emerald-700 border-emerald-300" disabled data-testid="outlook-synced-btn">
                 {syncStatus.outlook.sync_source === 'auto' ? <Zap className="w-4 h-4 mr-2" /> : <Check className="w-4 h-4 mr-2" />}
+                Outlook Calendar
+              </Button>
+            ) : syncStatus?.outlook?.out_of_sync ? (
+              <Button
+                variant="outline"
+                className="text-amber-700 border-amber-300"
+                onClick={() => handleSyncCalendar('outlook')}
+                disabled={syncingProvider !== null}
+                data-testid="outlook-out-of-sync-btn"
+                title={syncStatus.outlook.sync_error_reason || 'Non synchronisé'}
+              >
+                {syncingProvider === 'outlook' ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <AlertTriangle className="w-4 h-4 mr-2" />}
                 Outlook Calendar
               </Button>
             ) : syncStatus?.outlook?.has_connection && !isCancelled ? (

@@ -1,0 +1,84 @@
+{
+  "summary": "Tested Auto-Update Calendar V1 feature. All 20 backend tests passed (100%). Frontend UI tests verified: login error message, synced state (green Check), out_of_sync state (amber AlertTriangle), re-sync functionality, and Integrations page auto-sync section.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": [
+    "1. PATCH with title (calendar field) triggers auto-update - returns 200 immediately (PASSED)",
+    "2. PATCH with description (calendar field) triggers auto-update (PASSED)",
+    "3. PATCH with duration_minutes (calendar field) triggers auto-update (PASSED)",
+    "4. PATCH with location (calendar field) triggers auto-update (PASSED)",
+    "5. PATCH with penalty_amount (non-calendar field) does NOT trigger auto-update (PASSED)",
+    "6. PATCH with cancellation_deadline_hours (non-calendar field) does NOT trigger auto-update (PASSED)",
+    "7. PATCH with tolerated_delay_minutes (non-calendar field) does NOT trigger auto-update (PASSED)",
+    "8. GET /api/calendar/sync/status/{id} returns synced state correctly (PASSED)",
+    "9. GET /api/calendar/sync/status/{id} returns external_event_id (PASSED)",
+    "10. GET /api/calendar/sync/status/{id} returns sync_source field (PASSED)",
+    "11. Manual sync on already synced returns already_synced (idempotent) (PASSED)",
+    "12. Auto-update does not block save - response time < 5s (PASSED)",
+    "13. Login with wrong password returns 401 with error detail (PASSED)",
+    "14. Login with non-existent user returns 401 (PASSED)",
+    "15. Login with correct credentials returns access_token (PASSED)",
+    "16. GET /api/calendar/connections returns connected providers (PASSED)",
+    "17. GET /api/calendar/auto-sync/settings returns current settings (PASSED)",
+    "18. PUT /api/calendar/auto-sync/settings validates input (PASSED)",
+    "19. Manual sync endpoint exists and works (PASSED)",
+    "20. Unsync endpoint exists (PASSED)",
+    "21. UI: Login error message visible with red styling (PASSED)",
+    "22. UI: Appointment detail - synced state shows green Check button (PASSED)",
+    "23. UI: Appointment detail - out_of_sync state shows amber AlertTriangle button (PASSED)",
+    "24. UI: Appointment detail - out_of_sync button title shows error reason (PASSED)",
+    "25. UI: Re-sync from out_of_sync state works (UPDATE not CREATE) (PASSED)",
+    "26. UI: Integrations page - Auto-sync section visible with provider selector (PASSED)",
+    "27. UI: Integrations page - Google and Outlook connections visible (PASSED)"
+  ],
+  "test_report_links": [
+    "/app/backend/tests/test_auto_update.py",
+    "/app/test_reports/pytest/pytest_auto_update.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_auto_update.py"
+  ],
+  "success_rate": {
+    "backend": "100% (20/20 pytest tests passed)",
+    "frontend": "100% (All UI tests passed via Playwright)"
+  },
+  "test_credentials": {
+    "user_with_connections": {
+      "email": "testuser_audit@nlyt.app",
+      "password": "Test1234!",
+      "workspace_id": "7e219321-18fd-4643-9be6-e4f1de88a2a8"
+    },
+    "user_without_connections": {
+      "email": "outlook_test@nlyt.app",
+      "password": "Test1234!"
+    }
+  },
+  "seed_data_creation": "Appointment f11d54c8-af9b-4df8-ad2e-cc831aa3ae25 was used for testing. Title was modified during tests. Sync status was manipulated to test out_of_sync UI.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Auto-update calendar feature fully tested. CALENDAR_FIELDS constant includes: title, start_datetime, duration_minutes, location, meeting_provider, description. Non-calendar fields (penalty_amount, cancellation_deadline_hours, tolerated_delay_minutes) do NOT trigger auto-update. Sync status endpoint returns out_of_sync=true with sync_error_reason when applicable. Manual sync on out_of_sync events does UPDATE (not CREATE). Login error message now visible with data-testid='login-error-message'. 401 interceptor fixed to exclude auth routes.",
+  "verified_features": {
+    "auto_update_on_calendar_fields": "PATCH with title/description/duration/location/meeting_provider triggers perform_auto_update()",
+    "no_update_on_non_calendar_fields": "PATCH with penalty_amount/cancellation_deadline_hours does NOT trigger auto-update",
+    "sync_status_out_of_sync": "Returns out_of_sync=true and sync_error_reason when applicable",
+    "manual_resync_does_update": "POST /api/calendar/sync/appointment/{id} on out_of_sync event does UPDATE not CREATE",
+    "idempotence": "Manual sync on already synced returns already_synced",
+    "non_blocking_save": "Auto-update does not block appointment save (response < 5s)",
+    "login_error_message": "Visible with red styling when password incorrect",
+    "ui_synced_state": "Green Check button for synced appointments",
+    "ui_out_of_sync_state": "Amber AlertTriangle button with error reason in title",
+    "integrations_auto_sync": "Provider selector with Google/Outlook options, Désactiver button"
+  },
+  "mocked_apis": {
+    "note": "No APIs are mocked. Real Outlook calendar events are created/updated via Microsoft Graph API."
+  }
+}

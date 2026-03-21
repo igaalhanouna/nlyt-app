@@ -54,10 +54,17 @@ def _build_event_data(appointment, calendar_tz):
     description_lines = [
         "Rendez-vous organisé via NLYT.",
         "",
+    ]
+
+    if appointment.get('description'):
+        description_lines.append(appointment['description'])
+        description_lines.append("")
+
+    description_lines.extend([
         f"Délai d'annulation : {appointment.get('cancellation_deadline_hours', 24)}h",
         f"Retard toléré : {appointment.get('tolerated_delay_minutes', 0)} min",
         f"Pénalité : {appointment.get('penalty_amount', 0)} {appointment.get('penalty_currency', 'EUR').upper()}",
-    ]
+    ])
 
     return {
         "title": f"[NLYT] {appointment['title']}",
@@ -67,6 +74,10 @@ def _build_event_data(appointment, calendar_tz):
         "end_datetime": end_dt.strftime('%Y-%m-%dT%H:%M:%S'),
         "timeZone": calendar_tz
     }
+
+
+# Calendar fields that trigger auto-update when changed
+CALENDAR_FIELDS = {"title", "start_datetime", "duration_minutes", "location", "meeting_provider", "description"}
 
 
 def _make_token_refresh_callback(connection_id):
@@ -443,6 +454,101 @@ def perform_auto_sync(user_id: str, appointment_id: str, appointment_doc: dict):
         print(f"[AUTO-SYNC] Error for appointment {appointment_id}: {e}")
 
 
+def has_calendar_fields_changed(old_doc: dict, update_data: dict) -> bool:
+    """Check if any calendar-visible field has changed."""
+    for field in CALENDAR_FIELDS:
+        if field in update_data and str(update_data[field]) != str(old_doc.get(field, '')):
+            return True
+    return False
+
+
+def perform_auto_update(user_id: str, appointment_id: str, updated_appointment: dict):
+    """
+    Update calendar events for all providers already synced for this appointment.
+    Non-blocking: logs errors but never raises. Sets out_of_sync on failure.
+    """
+    try:
+        sync_logs = list(db.calendar_sync_logs.find({
+            "appointment_id": appointment_id,
+            "sync_status": "synced"
+        }))
+
+        if not sync_logs:
+            return
+
+        for sync_log in sync_logs:
+            provider = sync_log.get('provider')
+            external_event_id = sync_log.get('external_event_id')
+            connection_id = sync_log.get('connection_id')
+
+            if not external_event_id or not connection_id:
+                continue
+
+            connection = db.calendar_connections.find_one(
+                {"connection_id": connection_id, "status": "connected"}
+            )
+            if not connection:
+                db.calendar_sync_logs.update_one(
+                    {"log_id": sync_log['log_id']},
+                    {"$set": {
+                        "sync_status": "out_of_sync",
+                        "sync_error_reason": "Connexion calendrier déconnectée ou expirée",
+                        "updated_at": now_utc().isoformat()
+                    }}
+                )
+                print(f"[AUTO-UPDATE] Connection {connection_id} not active for {provider}")
+                continue
+
+            try:
+                adapter = _get_adapter(provider)
+                on_refresh = _make_token_refresh_callback(connection_id)
+
+                calendar_tz = adapter.get_calendar_timezone(
+                    connection['access_token'], connection.get('refresh_token'),
+                    connection_update_callback=on_refresh
+                )
+                event_data = _build_event_data(updated_appointment, calendar_tz)
+
+                result = adapter.update_event(
+                    connection['access_token'], connection.get('refresh_token'),
+                    external_event_id, event_data,
+                    connection_update_callback=on_refresh
+                )
+
+                if result:
+                    db.calendar_sync_logs.update_one(
+                        {"log_id": sync_log['log_id']},
+                        {"$set": {
+                            "sync_status": "synced",
+                            "sync_error_reason": None,
+                            "updated_at": now_utc().isoformat()
+                        }}
+                    )
+                    print(f"[AUTO-UPDATE] Appointment {appointment_id} updated on {provider}")
+                else:
+                    db.calendar_sync_logs.update_one(
+                        {"log_id": sync_log['log_id']},
+                        {"$set": {
+                            "sync_status": "out_of_sync",
+                            "sync_error_reason": f"Échec de la mise à jour sur {provider}",
+                            "updated_at": now_utc().isoformat()
+                        }}
+                    )
+                    print(f"[AUTO-UPDATE] Failed to update on {provider} for {appointment_id}")
+            except Exception as e:
+                db.calendar_sync_logs.update_one(
+                    {"log_id": sync_log['log_id']},
+                    {"$set": {
+                        "sync_status": "out_of_sync",
+                        "sync_error_reason": str(e)[:200],
+                        "updated_at": now_utc().isoformat()
+                    }}
+                )
+                print(f"[AUTO-UPDATE] Error updating {provider} for {appointment_id}: {e}")
+    except Exception as e:
+        print(f"[AUTO-UPDATE] Fatal error for appointment {appointment_id}: {e}")
+
+
 # ── Sync appointment to calendar (multi-provider) ──────────
 
 @router.post("/sync/appointment/{appointment_id}")
@@ -469,7 +575,7 @@ async def sync_appointment_to_calendar(appointment_id: str, request: Request, pr
     if connection.get('status') != 'connected':
         raise HTTPException(status_code=400, detail=f"{provider_label} non connecté")
 
-    # Idempotency check
+    # Idempotency check - already synced
     existing_sync = db.calendar_sync_logs.find_one({
         "appointment_id": appointment_id,
         "connection_id": connection['connection_id'],
@@ -482,6 +588,13 @@ async def sync_appointment_to_calendar(appointment_id: str, request: Request, pr
             "html_link": existing_sync.get('html_link')
         }
 
+    # Check for out_of_sync event — update instead of creating new
+    out_of_sync_log = db.calendar_sync_logs.find_one({
+        "appointment_id": appointment_id,
+        "connection_id": connection['connection_id'],
+        "sync_status": "out_of_sync"
+    })
+
     adapter = _get_adapter(provider)
     on_refresh = _make_token_refresh_callback(connection['connection_id'])
 
@@ -491,6 +604,29 @@ async def sync_appointment_to_calendar(appointment_id: str, request: Request, pr
     )
 
     event_data = _build_event_data(appointment, calendar_tz)
+
+    if out_of_sync_log and out_of_sync_log.get('external_event_id'):
+        # Re-sync: update the existing calendar event
+        result = adapter.update_event(
+            connection['access_token'], connection.get('refresh_token'),
+            out_of_sync_log['external_event_id'], event_data,
+            connection_update_callback=on_refresh
+        )
+        if result:
+            db.calendar_sync_logs.update_one(
+                {"log_id": out_of_sync_log['log_id']},
+                {"$set": {
+                    "sync_status": "synced",
+                    "sync_error_reason": None,
+                    "synced_at": now_utc().isoformat()
+                }}
+            )
+            return {
+                "sync_status": "synced",
+                "external_event_id": out_of_sync_log['external_event_id'],
+                "html_link": out_of_sync_log.get('html_link')
+            }
+        # If update fails, fall through to create a new event
 
     result = adapter.create_event(
         connection['access_token'], connection.get('refresh_token'),
@@ -543,14 +679,19 @@ async def get_sync_status(appointment_id: str, request: Request):
         result[provider]["has_connection"] = conn.get('status') == 'connected'
 
         sync_log = db.calendar_sync_logs.find_one(
-            {"appointment_id": appointment_id, "connection_id": conn['connection_id'], "sync_status": "synced"},
-            {"_id": 0}
+            {"appointment_id": appointment_id, "connection_id": conn['connection_id'],
+             "sync_status": {"$in": ["synced", "out_of_sync"]}},
+            {"_id": 0},
+            sort=[("synced_at", -1)]
         )
         if sync_log:
-            result[provider]["synced"] = True
+            result[provider]["synced"] = sync_log.get('sync_status') == 'synced'
+            result[provider]["out_of_sync"] = sync_log.get('sync_status') == 'out_of_sync'
             result[provider]["external_event_id"] = sync_log.get('external_event_id')
             result[provider]["html_link"] = sync_log.get('html_link')
             result[provider]["sync_source"] = sync_log.get('sync_source', 'manual')
+            if sync_log.get('sync_error_reason'):
+                result[provider]["sync_error_reason"] = sync_log['sync_error_reason']
 
     return result
 
