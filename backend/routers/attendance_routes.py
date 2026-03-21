@@ -12,6 +12,7 @@ sys.path.append('/app/backend')
 from middleware.auth_middleware import get_current_user
 from services.attendance_service import (
     evaluate_appointment,
+    reevaluate_appointment,
     reclassify_participant,
     run_attendance_evaluation_job
 )
@@ -47,6 +48,27 @@ async def trigger_evaluate(appointment_id: str, request: Request):
         )
 
     result = evaluate_appointment(appointment_id)
+    return result
+
+
+@router.post("/reevaluate/{appointment_id}")
+async def trigger_reevaluate(appointment_id: str, request: Request):
+    """Re-evaluate attendance with fresh evidence. Preserves manual reclassifications."""
+    user = await get_current_user(request)
+
+    appointment = db.appointments.find_one(
+        {"appointment_id": appointment_id}, {"_id": 0}
+    )
+    if not appointment:
+        raise HTTPException(status_code=404, detail="Rendez-vous introuvable")
+
+    if appointment.get('organizer_id') != user['user_id']:
+        raise HTTPException(
+            status_code=403,
+            detail="Seul l'organisateur peut déclencher la re-évaluation"
+        )
+
+    result = reevaluate_appointment(appointment_id)
     return result
 
 

@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { Calendar, MapPin, Clock, Users, AlertTriangle, Check, X, Loader2, Ban, Download, CreditCard, ShieldCheck } from 'lucide-react';
+import { Calendar, MapPin, Clock, Users, AlertTriangle, Check, X, Loader2, Ban, Download, CreditCard, ShieldCheck, MapPinCheck, QrCode, ScanLine } from 'lucide-react';
+import QRCheckin from '../../components/QRCheckin';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL || '';
 
@@ -15,6 +16,12 @@ export default function InvitationPage() {
   const [error, setError] = useState(null);
   const [responseStatus, setResponseStatus] = useState(null);
   const [guaranteeMessage, setGuaranteeMessage] = useState(null);
+  const [checkinStatus, setCheckinStatus] = useState(null);
+  const [checkingIn, setCheckingIn] = useState(false);
+  const [showQRScanner, setShowQRScanner] = useState(false);
+  const [showQRDisplay, setShowQRDisplay] = useState(false);
+  const [qrData, setQrData] = useState(null);
+  const [qrRefreshInterval, setQrRefreshInterval] = useState(null);
 
   useEffect(() => {
     // Check for Stripe redirect params
@@ -145,6 +152,94 @@ export default function InvitationPage() {
     }
   };
 
+  // --- Check-in functions ---
+  const loadCheckinStatus = useCallback(async () => {
+    if (!invitation?.appointment?.appointment_id) return;
+    try {
+      const res = await fetch(`${API_URL}/api/checkin/status/${invitation.appointment.appointment_id}?invitation_token=${token}`);
+      if (res.ok) {
+        const data = await res.json();
+        setCheckinStatus(data);
+      }
+    } catch (e) { /* silent */ }
+  }, [invitation?.appointment?.appointment_id, token]);
+
+  useEffect(() => {
+    if (invitation && ['accepted', 'accepted_guaranteed', 'accepted_pending_guarantee'].includes(invitation.participant?.status)) {
+      loadCheckinStatus();
+    }
+  }, [invitation, loadCheckinStatus]);
+
+  const handleManualCheckin = async () => {
+    setCheckingIn(true);
+    try {
+      const payload = { invitation_token: token, device_info: navigator.userAgent };
+
+      // Ask for GPS if available
+      if (navigator.geolocation) {
+        try {
+          const pos = await new Promise((resolve, reject) =>
+            navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000, enableHighAccuracy: true })
+          );
+          payload.latitude = pos.coords.latitude;
+          payload.longitude = pos.coords.longitude;
+          payload.gps_consent = true;
+        } catch (e) { /* GPS not available, continue without */ }
+      }
+
+      const res = await fetch(`${API_URL}/api/checkin/manual`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        if (res.status === 409) {
+          // Already checked in
+        } else {
+          alert(data.detail || 'Erreur');
+        }
+      }
+      loadCheckinStatus();
+    } catch (e) {
+      alert('Erreur réseau');
+    } finally {
+      setCheckingIn(false);
+    }
+  };
+
+  const handleShowQR = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/checkin/qr/${invitation.appointment.appointment_id}?invitation_token=${token}`);
+      if (res.ok) {
+        const data = await res.json();
+        setQrData(data);
+        setShowQRDisplay(true);
+        // Auto-refresh QR
+        const interval = setInterval(async () => {
+          try {
+            const r = await fetch(`${API_URL}/api/checkin/qr/${invitation.appointment.appointment_id}?invitation_token=${token}`);
+            if (r.ok) setQrData(await r.json());
+          } catch (e) { /* ignore */ }
+        }, (data.rotation_seconds || 60) * 1000);
+        setQrRefreshInterval(interval);
+      }
+    } catch (e) { /* ignore */ }
+  };
+
+  const handleCloseQR = () => {
+    setShowQRDisplay(false);
+    if (qrRefreshInterval) {
+      clearInterval(qrRefreshInterval);
+      setQrRefreshInterval(null);
+    }
+  };
+
+  const handleQRScanSuccess = () => {
+    setShowQRScanner(false);
+    loadCheckinStatus();
+  };
+
   const handleCancelParticipation = async () => {
     try {
       setCancelling(true);
@@ -262,6 +357,76 @@ export default function InvitationPage() {
   const isAppointmentCancelled = appointment.status === 'cancelled';
   const isAppointmentDeleted = appointment.status === 'deleted';
   const isAppointmentUnavailable = isAppointmentCancelled || isAppointmentDeleted;
+
+  // Check-in section (shared between accepted states)
+  const renderCheckinSection = () => {
+    const isCheckedIn = checkinStatus?.checked_in;
+
+    return (
+      <div className="mt-6 pt-4 border-t border-slate-200" data-testid="checkin-section">
+        {isCheckedIn ? (
+          <div className="text-center">
+            <div className="inline-flex items-center gap-2 px-5 py-3 bg-emerald-50 border border-emerald-200 rounded-xl">
+              <Check className="w-5 h-5 text-emerald-600" />
+              <div className="text-left">
+                <p className="font-medium text-emerald-800 text-sm">Check-in effectué</p>
+                {checkinStatus.earliest_checkin && (
+                  <p className="text-xs text-emerald-600">
+                    {new Date(checkinStatus.earliest_checkin).toLocaleString('fr-FR', {
+                      hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short'
+                    })}
+                  </p>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center justify-center gap-3 mt-2 text-xs text-slate-400">
+              {checkinStatus.has_manual_checkin && <span>Arrivée confirmée</span>}
+              {checkinStatus.has_qr_checkin && <span>QR validé</span>}
+              {checkinStatus.has_gps && <span>GPS enregistré</span>}
+            </div>
+          </div>
+        ) : (
+          <div>
+            <p className="text-sm text-slate-600 text-center mb-4 font-medium">
+              Confirmez votre présence
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <button
+                onClick={handleManualCheckin}
+                disabled={checkingIn}
+                className="flex items-center justify-center gap-2 px-5 py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-colors font-medium disabled:opacity-50"
+                data-testid="manual-checkin-btn"
+              >
+                {checkingIn ? <Loader2 className="w-4 h-4 animate-spin" /> : <MapPinCheck className="w-4 h-4" />}
+                Je suis arrivé
+              </button>
+
+              <button
+                onClick={() => setShowQRScanner(true)}
+                className="flex items-center justify-center gap-2 px-5 py-3 border-2 border-slate-300 text-slate-700 rounded-xl hover:bg-slate-50 transition-colors font-medium"
+                data-testid="scan-qr-btn"
+              >
+                <ScanLine className="w-4 h-4" />
+                Scanner un QR
+              </button>
+
+              <button
+                onClick={handleShowQR}
+                className="flex items-center justify-center gap-2 px-5 py-3 border-2 border-slate-300 text-slate-700 rounded-xl hover:bg-slate-50 transition-colors font-medium"
+                data-testid="show-qr-btn"
+              >
+                <QrCode className="w-4 h-4" />
+                Afficher mon QR
+              </button>
+            </div>
+            <p className="text-xs text-slate-400 text-center mt-3">
+              Plusieurs modes de vérification disponibles pour confirmer votre présence.
+            </p>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 py-8 px-4" data-testid="invitation-page">
@@ -460,6 +625,9 @@ export default function InvitationPage() {
                     Ajouter au calendrier
                   </a>
                 </div>
+
+                {/* Check-in Section */}
+                {renderCheckinSection()}
                 
                 {/* Cancel button if deadline not passed */}
                 {engagement_rules.can_cancel && !engagement_rules.cancellation_deadline_passed && (
@@ -528,6 +696,9 @@ export default function InvitationPage() {
                     Téléchargez le fichier .ics pour l'ajouter à votre calendrier
                   </p>
                 </div>
+
+                {/* Check-in Section */}
+                {renderCheckinSection()}
                 
                 {/* Cancel button if deadline not passed */}
                 {engagement_rules.can_cancel && !engagement_rules.cancellation_deadline_passed && (
@@ -646,6 +817,44 @@ export default function InvitationPage() {
           <p className="mt-2">© 2026 NLYT. Tous droits réservés.</p>
         </div>
       </div>
+
+      {/* QR Scanner Modal */}
+      {showQRScanner && (
+        <QRCheckin
+          appointmentId={appointment.appointment_id}
+          invitationToken={token}
+          onSuccess={handleQRScanSuccess}
+          onClose={() => setShowQRScanner(false)}
+        />
+      )}
+
+      {/* QR Display Modal */}
+      {showQRDisplay && qrData && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" data-testid="qr-display-modal">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+              <h3 className="text-lg font-semibold text-slate-800">Votre QR code</h3>
+              <button onClick={handleCloseQR} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400" data-testid="qr-display-close">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 text-center">
+              <div className="bg-white p-3 rounded-xl border border-slate-200 inline-block mb-4">
+                <img src={`data:image/png;base64,${qrData.qr_image_base64}`} alt="QR Code" className="w-52 h-52" data-testid="qr-display-image" />
+              </div>
+              <p className="text-xs text-slate-500 mb-2">
+                Montrez ce QR à un autre participant pour qu'il le scanne
+              </p>
+              <p className="text-xs font-mono bg-slate-50 px-3 py-2 rounded-lg text-slate-600 break-all select-all" data-testid="qr-display-token">
+                {qrData.qr_token}
+              </p>
+              <p className="text-xs text-slate-400 mt-3">
+                Renouvellement automatique toutes les {qrData.rotation_seconds}s
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

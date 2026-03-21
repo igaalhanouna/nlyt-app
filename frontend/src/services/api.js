@@ -95,9 +95,19 @@ export const calendarAPI = {
 
 export const attendanceAPI = {
   evaluate: (appointment_id) => api.post(`/api/attendance/evaluate/${appointment_id}`),
+  reevaluate: (appointment_id) => api.post(`/api/attendance/reevaluate/${appointment_id}`),
   get: (appointment_id) => api.get(`/api/attendance/${appointment_id}`),
   reclassify: (record_id, data) => api.put(`/api/attendance/reclassify/${record_id}`, data),
   pendingReviews: () => api.get('/api/attendance/pending-reviews/list'),
+};
+
+export const checkinAPI = {
+  manual: (data) => api.post('/api/checkin/manual', data),
+  verifyQR: (data) => api.post('/api/checkin/qr/verify', data),
+  gps: (data) => api.post('/api/checkin/gps', data),
+  getQR: (appointment_id, invitation_token) => api.get(`/api/checkin/qr/${appointment_id}?invitation_token=${invitation_token}`),
+  getStatus: (appointment_id, invitation_token) => api.get(`/api/checkin/status/${appointment_id}?invitation_token=${invitation_token}`),
+  getEvidence: (appointment_id) => api.get(`/api/checkin/evidence/${appointment_id}`),
 };
 
 export const disputeAPI = {

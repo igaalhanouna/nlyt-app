@@ -112,18 +112,73 @@ def evaluate_participant(participant: dict, appointment: dict) -> dict:
                 "review_required": True
             }
 
-    # --- ACCEPTED cases (no proof of attendance in V1) ---
+    # --- ACCEPTED cases: check evidence before defaulting to manual_review ---
     if status in ('accepted', 'accepted_pending_guarantee', 'accepted_guaranteed'):
+        # Look for evidence-based decision
+        from services.evidence_service import aggregate_evidence
+        aggregation = aggregate_evidence(
+            participant.get('appointment_id', appointment.get('appointment_id', '')),
+            participant.get('participant_id', ''),
+            appointment
+        )
+        strength = aggregation.get('strength', 'none')
+        timing = aggregation.get('timing')
+
+        if strength == 'strong' and timing == 'on_time':
+            return {
+                "outcome": "on_time",
+                "decision_basis": "strong_evidence_on_time",
+                "confidence": "high",
+                "review_required": False,
+                "evidence_summary": aggregation
+            }
+
+        if strength == 'strong' and timing == 'late':
+            return {
+                "outcome": "late",
+                "decision_basis": "strong_evidence_late",
+                "confidence": "high",
+                "review_required": False,
+                "evidence_summary": aggregation
+            }
+
+        if strength == 'medium' and timing == 'on_time':
+            return {
+                "outcome": "on_time",
+                "decision_basis": "medium_evidence_on_time",
+                "confidence": "medium",
+                "review_required": True,
+                "evidence_summary": aggregation
+            }
+
+        if strength == 'medium' and timing == 'late':
+            return {
+                "outcome": "late",
+                "decision_basis": "medium_evidence_late",
+                "confidence": "medium",
+                "review_required": True,
+                "evidence_summary": aggregation
+            }
+
+        # Weak or no evidence: manual_review
         basis = {
             'accepted': 'accepted_no_guarantee',
             'accepted_pending_guarantee': 'pending_guarantee',
             'accepted_guaranteed': 'no_proof_of_attendance'
         }
+        if strength == 'weak':
+            basis_val = "weak_evidence"
+        elif strength == 'none':
+            basis_val = basis.get(status, 'unknown')
+        else:
+            basis_val = basis.get(status, 'unknown')
+
         return {
             "outcome": "manual_review",
-            "decision_basis": basis.get(status, 'unknown'),
+            "decision_basis": basis_val,
             "confidence": "low",
-            "review_required": True
+            "review_required": True,
+            "evidence_summary": aggregation if aggregation.get('evidence_count', 0) > 0 else None
         }
 
     # --- Fallback ---
@@ -213,6 +268,36 @@ def evaluate_appointment(appointment_id: str) -> dict:
 
     logger.info(f"[ATTENDANCE] Evaluated {appointment_id}: {summary}")
     return {"evaluated": True, "records_created": len(records), "summary": summary}
+
+
+def reevaluate_appointment(appointment_id: str) -> dict:
+    """
+    Re-evaluate all participants with fresh evidence.
+    Deletes existing auto-classified records and re-runs evaluation.
+    Preserves manually reclassified records.
+    """
+    appointment = db.appointments.find_one(
+        {"appointment_id": appointment_id}, {"_id": 0}
+    )
+    if not appointment:
+        return {"error": "Rendez-vous introuvable"}
+
+    # Delete only system-decided records (preserve manual reclassifications)
+    db.attendance_records.delete_many({
+        "appointment_id": appointment_id,
+        "decided_by": "system"
+    })
+
+    # Reset evaluation flag
+    db.appointments.update_one(
+        {"appointment_id": appointment_id},
+        {"$set": {"attendance_evaluated": False}}
+    )
+
+    # Re-run evaluation
+    result = evaluate_appointment(appointment_id)
+    logger.info(f"[ATTENDANCE] Re-evaluated {appointment_id}: {result}")
+    return result
 
 
 def run_attendance_evaluation_job():
