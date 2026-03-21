@@ -374,20 +374,25 @@ async def cancel_appointment(appointment_id: str, request: Request):
             import logging
             logging.error(f"Failed to send cancellation notification to {participant.get('email')}: {e}")
     
-    # Delete Google Calendar event if synced (best-effort)
+    # Delete calendar events across all connected providers (best-effort)
     try:
         from adapters.google_calendar_adapter import GoogleCalendarAdapter
-        connection = db.calendar_connections.find_one(
-            {"user_id": user['user_id'], "provider": "google", "status": "connected"}
-        )
-        if connection:
+        from adapters.outlook_calendar_adapter import OutlookCalendarAdapter
+        adapters = {"google": GoogleCalendarAdapter, "outlook": OutlookCalendarAdapter}
+
+        for provider, adapter in adapters.items():
+            connection = db.calendar_connections.find_one(
+                {"user_id": user['user_id'], "provider": provider, "status": "connected"}
+            )
+            if not connection:
+                continue
             sync_log = db.calendar_sync_logs.find_one({
                 "appointment_id": appointment_id,
                 "connection_id": connection['connection_id'],
                 "sync_status": "synced"
             })
             if sync_log and sync_log.get('external_event_id'):
-                deleted = GoogleCalendarAdapter.delete_event(
+                deleted = adapter.delete_event(
                     connection['access_token'],
                     connection.get('refresh_token'),
                     sync_log['external_event_id']
@@ -399,7 +404,7 @@ async def cancel_appointment(appointment_id: str, request: Request):
                     )
     except Exception as e:
         import logging
-        logging.error(f"Failed to delete Google Calendar event: {e}")
+        logging.error(f"Failed to delete calendar events: {e}")
 
     return {
         "success": True,

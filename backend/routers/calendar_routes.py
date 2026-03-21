@@ -8,6 +8,7 @@ import sys
 sys.path.append('/app/backend')
 from middleware.auth_middleware import get_current_user
 from adapters.google_calendar_adapter import GoogleCalendarAdapter
+from adapters.outlook_calendar_adapter import OutlookCalendarAdapter
 from adapters.ics_generator import ICSGenerator
 from utils.date_utils import now_utc
 from datetime import datetime, timedelta
@@ -23,8 +24,65 @@ db = client[DB_NAME]
 
 
 def _get_redirect_uri():
-    """Stable OAuth callback URI derived from FRONTEND_URL."""
+    """Google OAuth callback URI."""
     return f"{FRONTEND_URL}/api/calendar/oauth/google/callback"
+
+
+def _get_outlook_redirect_uri():
+    """Outlook OAuth callback URI."""
+    return f"{FRONTEND_URL}/api/calendar/oauth/outlook/callback"
+
+
+def _get_adapter(provider: str):
+    """Return the right adapter for a provider."""
+    if provider == 'google':
+        return GoogleCalendarAdapter
+    elif provider == 'outlook':
+        return OutlookCalendarAdapter
+    return None
+
+
+def _build_event_data(appointment, calendar_tz):
+    """Build event data dict from an appointment (shared between providers)."""
+    start_dt = datetime.fromisoformat(appointment['start_datetime'].replace('Z', '+00:00'))
+    end_dt = start_dt + timedelta(minutes=appointment.get('duration_minutes', 60))
+
+    location = appointment.get('location', '')
+    if not location and appointment.get('meeting_provider'):
+        location = f"Visio - {appointment.get('meeting_provider')}"
+
+    description_lines = [
+        "Rendez-vous organisé via NLYT.",
+        "",
+        f"Délai d'annulation : {appointment.get('cancellation_deadline_hours', 24)}h",
+        f"Retard toléré : {appointment.get('tolerated_delay_minutes', 0)} min",
+        f"Pénalité : {appointment.get('penalty_amount', 0)} {appointment.get('penalty_currency', 'EUR').upper()}",
+    ]
+
+    return {
+        "title": f"[NLYT] {appointment['title']}",
+        "description": "\n".join(description_lines),
+        "location": location,
+        "start_datetime": start_dt.strftime('%Y-%m-%dT%H:%M:%S'),
+        "end_datetime": end_dt.strftime('%Y-%m-%dT%H:%M:%S'),
+        "timeZone": calendar_tz
+    }
+
+
+def _make_token_refresh_callback(connection_id):
+    """Create a token refresh callback that updates or expires the connection."""
+    def on_token_refresh(new_token):
+        if new_token:
+            db.calendar_connections.update_one(
+                {"connection_id": connection_id},
+                {"$set": {"access_token": new_token, "updated_at": now_utc().isoformat()}}
+            )
+        else:
+            db.calendar_connections.update_one(
+                {"connection_id": connection_id},
+                {"$set": {"status": "expired", "updated_at": now_utc().isoformat()}}
+            )
+    return on_token_refresh
 
 
 # ── Google OAuth ────────────────────────────────────────────
@@ -161,13 +219,113 @@ async def disconnect_google_calendar(request: Request):
     return {"success": True, "message": "Google Calendar déconnecté"}
 
 
-# ── Sync appointment to Google Calendar ─────────────────────
+# ── Outlook / Microsoft 365 OAuth ───────────────────────────
+
+@router.get("/connect/outlook")
+async def connect_outlook_calendar(request: Request):
+    """Initiate Outlook OAuth flow."""
+    user = await get_current_user(request)
+
+    if not os.environ.get('MICROSOFT_CLIENT_ID'):
+        raise HTTPException(status_code=500, detail="Outlook Calendar n'est pas configuré (MICROSOFT_CLIENT_ID manquant)")
+
+    import base64
+    state_payload = json.dumps({"user_id": user['user_id'], "nonce": str(uuid.uuid4())})
+    state = base64.urlsafe_b64encode(state_payload.encode()).decode()
+
+    redirect_uri = _get_outlook_redirect_uri()
+    auth_url, _ = OutlookCalendarAdapter.get_authorization_url(redirect_uri, state=state)
+
+    db.oauth_states.update_one(
+        {"user_id": user['user_id'], "provider": "outlook"},
+        {"$set": {"state": state, "created_at": now_utc().isoformat()}},
+        upsert=True
+    )
+
+    return {"authorization_url": auth_url}
+
+
+@router.get("/oauth/outlook/callback")
+async def outlook_oauth_callback(code: str = None, state: str = None, error: str = None, error_description: str = None):
+    """Outlook OAuth callback."""
+    if error:
+        reason = error_description or error
+        return RedirectResponse(url=f"{FRONTEND_URL}/settings/integrations?outlook=error&reason={reason}")
+
+    if not state or not code:
+        return RedirectResponse(url=f"{FRONTEND_URL}/settings/integrations?outlook=error&reason=missing_params")
+
+    import base64
+    try:
+        state_payload = json.loads(base64.urlsafe_b64decode(state.encode()))
+        user_id = state_payload.get("user_id")
+    except Exception:
+        return RedirectResponse(url=f"{FRONTEND_URL}/settings/integrations?outlook=error&reason=invalid_state")
+
+    if not user_id:
+        return RedirectResponse(url=f"{FRONTEND_URL}/settings/integrations?outlook=error&reason=no_user")
+
+    stored = db.oauth_states.find_one({"user_id": user_id, "provider": "outlook", "state": state})
+    if not stored:
+        return RedirectResponse(url=f"{FRONTEND_URL}/settings/integrations?outlook=error&reason=state_mismatch")
+
+    db.oauth_states.delete_one({"_id": stored["_id"]})
+
+    redirect_uri = _get_outlook_redirect_uri()
+    tokens = OutlookCalendarAdapter.exchange_code_for_tokens(code, redirect_uri)
+
+    if not tokens:
+        return RedirectResponse(url=f"{FRONTEND_URL}/settings/integrations?outlook=error&reason=token_exchange_failed")
+
+    connection_id = str(uuid.uuid4())
+
+    db.calendar_connections.update_one(
+        {"user_id": user_id, "provider": "outlook"},
+        {"$set": {
+            "connection_id": connection_id,
+            "user_id": user_id,
+            "provider": "outlook",
+            "outlook_email": tokens['user_email'],
+            "outlook_name": tokens.get('user_name', ''),
+            "access_token": tokens['access_token'],
+            "refresh_token": tokens['refresh_token'],
+            "status": "connected",
+            "connected_at": now_utc().isoformat(),
+            "updated_at": now_utc().isoformat()
+        }},
+        upsert=True
+    )
+
+    return RedirectResponse(url=f"{FRONTEND_URL}/settings/integrations?outlook=connected")
+
+
+@router.delete("/connections/outlook")
+async def disconnect_outlook_calendar(request: Request):
+    """Disconnect Outlook Calendar."""
+    user = await get_current_user(request)
+
+    connection = db.calendar_connections.find_one(
+        {"user_id": user['user_id'], "provider": "outlook"},
+        {"_id": 0}
+    )
+
+    if not connection:
+        raise HTTPException(status_code=404, detail="Aucune connexion Outlook Calendar trouvée")
+
+    db.calendar_connections.delete_one({"user_id": user['user_id'], "provider": "outlook"})
+    db.calendar_sync_logs.delete_many({"connection_id": connection.get('connection_id')})
+
+    return {"success": True, "message": "Outlook Calendar déconnecté"}
+
+
+
+# ── Sync appointment to calendar (multi-provider) ──────────
 
 @router.post("/sync/appointment/{appointment_id}")
-async def sync_appointment_to_calendar(appointment_id: str, request: Request):
+async def sync_appointment_to_calendar(appointment_id: str, request: Request, provider: str = "google"):
     """
-    Sync an appointment to the organizer's connected Google Calendar.
-    Creates a Google Calendar event with NLYT engagement rules in the description.
+    Sync an appointment to the organizer's connected calendar.
+    Provider: 'google' or 'outlook' (query param).
     """
     user = await get_current_user(request)
 
@@ -175,17 +333,19 @@ async def sync_appointment_to_calendar(appointment_id: str, request: Request):
     if not appointment:
         raise HTTPException(status_code=404, detail="Rendez-vous introuvable")
 
+    provider_label = "Google Calendar" if provider == "google" else "Outlook Calendar"
+
     connection = db.calendar_connections.find_one(
-        {"user_id": user['user_id'], "provider": "google"}
+        {"user_id": user['user_id'], "provider": provider}
     )
     if not connection:
-        raise HTTPException(status_code=400, detail="Google Calendar non connecté")
+        raise HTTPException(status_code=400, detail=f"{provider_label} non connecté")
     if connection.get('status') == 'expired':
-        raise HTTPException(status_code=401, detail="Session Google expirée. Veuillez reconnecter Google Calendar dans Paramètres > Intégrations.")
+        raise HTTPException(status_code=401, detail=f"Session {provider_label} expirée. Reconnectez dans Paramètres > Intégrations.")
     if connection.get('status') != 'connected':
-        raise HTTPException(status_code=400, detail="Google Calendar non connecté")
+        raise HTTPException(status_code=400, detail=f"{provider_label} non connecté")
 
-    # Check if already synced
+    # Idempotency check
     existing_sync = db.calendar_sync_logs.find_one({
         "appointment_id": appointment_id,
         "connection_id": connection['connection_id'],
@@ -198,66 +358,27 @@ async def sync_appointment_to_calendar(appointment_id: str, request: Request):
             "html_link": existing_sync.get('html_link')
         }
 
-    # Token refresh callback (handles expiration)
-    def on_token_refresh(new_token):
-        if new_token:
-            db.calendar_connections.update_one(
-                {"connection_id": connection['connection_id']},
-                {"$set": {"access_token": new_token, "updated_at": now_utc().isoformat()}}
-            )
-        else:
-            # Token refresh failed — mark connection as expired
-            db.calendar_connections.update_one(
-                {"connection_id": connection['connection_id']},
-                {"$set": {"status": "expired", "updated_at": now_utc().isoformat()}}
-            )
+    adapter = _get_adapter(provider)
+    on_refresh = _make_token_refresh_callback(connection['connection_id'])
 
-    # Build event data
-    start_dt = datetime.fromisoformat(appointment['start_datetime'].replace('Z', '+00:00'))
-    end_dt = start_dt + timedelta(minutes=appointment.get('duration_minutes', 60))
-
-    location = appointment.get('location', '')
-    if not location and appointment.get('meeting_provider'):
-        location = f"Visio - {appointment.get('meeting_provider')}"
-
-    description_lines = [
-        f"Rendez-vous organisé via NLYT.",
-        "",
-        f"Délai d'annulation : {appointment.get('cancellation_deadline_hours', 24)}h",
-        f"Retard toléré : {appointment.get('tolerated_delay_minutes', 0)} min",
-        f"Pénalité : {appointment.get('penalty_amount', 0)} {appointment.get('penalty_currency', 'EUR').upper()}",
-    ]
-
-    # Get the user's Google Calendar timezone (not hardcoded UTC)
-    calendar_tz = GoogleCalendarAdapter.get_calendar_timezone(
-        connection['access_token'],
-        connection.get('refresh_token'),
-        connection_update_callback=on_token_refresh
+    calendar_tz = adapter.get_calendar_timezone(
+        connection['access_token'], connection.get('refresh_token'),
+        connection_update_callback=on_refresh
     )
 
-    event_data = {
-        "title": f"[NLYT] {appointment['title']}",
-        "description": "\n".join(description_lines),
-        "location": location,
-        "start_datetime": start_dt.strftime('%Y-%m-%dT%H:%M:%S'),
-        "end_datetime": end_dt.strftime('%Y-%m-%dT%H:%M:%S'),
-        "timeZone": calendar_tz
-    }
+    event_data = _build_event_data(appointment, calendar_tz)
 
-    result = GoogleCalendarAdapter.create_event(
-        connection['access_token'],
-        connection.get('refresh_token'),
-        event_data,
-        connection_update_callback=on_token_refresh
+    result = adapter.create_event(
+        connection['access_token'], connection.get('refresh_token'),
+        event_data, connection_update_callback=on_refresh
     )
 
     sync_status = "synced" if result else "failed"
-
     sync_log = {
         "log_id": str(uuid.uuid4()),
         "appointment_id": appointment_id,
         "connection_id": connection['connection_id'],
-        "provider": "google",
+        "provider": provider,
         "external_event_id": result.get('event_id') if result else None,
         "html_link": result.get('html_link') if result else None,
         "sync_status": sync_status,
@@ -266,11 +387,10 @@ async def sync_appointment_to_calendar(appointment_id: str, request: Request):
     db.calendar_sync_logs.insert_one(sync_log)
 
     if not result:
-        # Check if connection was marked expired during the attempt
-        refreshed_conn = db.calendar_connections.find_one({"connection_id": connection['connection_id']}, {"_id": 0, "status": 1})
-        if refreshed_conn and refreshed_conn.get('status') == 'expired':
-            raise HTTPException(status_code=401, detail="Session Google expirée. Veuillez reconnecter Google Calendar dans Paramètres > Intégrations.")
-        raise HTTPException(status_code=502, detail="Échec de la synchronisation avec Google Calendar")
+        refreshed = db.calendar_connections.find_one({"connection_id": connection['connection_id']}, {"_id": 0, "status": 1})
+        if refreshed and refreshed.get('status') == 'expired':
+            raise HTTPException(status_code=401, detail=f"Session {provider_label} expirée. Reconnectez dans Paramètres > Intégrations.")
+        raise HTTPException(status_code=502, detail=f"Échec de la synchronisation avec {provider_label}")
 
     return {
         "sync_status": sync_status,
@@ -281,73 +401,71 @@ async def sync_appointment_to_calendar(appointment_id: str, request: Request):
 
 @router.get("/sync/status/{appointment_id}")
 async def get_sync_status(appointment_id: str, request: Request):
-    """Check if an appointment has been synced to Google Calendar."""
+    """Check sync status for all connected providers."""
     user = await get_current_user(request)
 
-    connection = db.calendar_connections.find_one(
-        {"user_id": user['user_id'], "provider": "google"},
-        {"_id": 0, "connection_id": 1}
-    )
+    connections = list(db.calendar_connections.find(
+        {"user_id": user['user_id']},
+        {"_id": 0, "connection_id": 1, "provider": 1, "status": 1}
+    ))
 
-    if not connection:
-        return {"synced": False, "has_connection": False}
+    result = {"google": {"synced": False, "has_connection": False}, "outlook": {"synced": False, "has_connection": False}}
 
-    sync_log = db.calendar_sync_logs.find_one(
-        {"appointment_id": appointment_id, "connection_id": connection['connection_id'], "sync_status": "synced"},
-        {"_id": 0}
-    )
+    for conn in connections:
+        provider = conn['provider']
+        if provider not in result:
+            continue
+        result[provider]["has_connection"] = conn.get('status') == 'connected'
 
-    return {
-        "synced": sync_log is not None,
-        "has_connection": True,
-        "external_event_id": sync_log.get('external_event_id') if sync_log else None,
-        "html_link": sync_log.get('html_link') if sync_log else None
-    }
+        sync_log = db.calendar_sync_logs.find_one(
+            {"appointment_id": appointment_id, "connection_id": conn['connection_id'], "sync_status": "synced"},
+            {"_id": 0}
+        )
+        if sync_log:
+            result[provider]["synced"] = True
+            result[provider]["external_event_id"] = sync_log.get('external_event_id')
+            result[provider]["html_link"] = sync_log.get('html_link')
 
+    return result
 
 
 @router.delete("/sync/appointment/{appointment_id}")
 async def unsync_appointment_from_calendar(appointment_id: str, request: Request):
-    """
-    Delete the Google Calendar event when a RDV is cancelled.
-    Called internally or by the organizer.
-    """
+    """Delete calendar events for this appointment across all connected providers."""
     user = await get_current_user(request)
+    results = {}
 
-    connection = db.calendar_connections.find_one(
-        {"user_id": user['user_id'], "provider": "google", "status": "connected"}
-    )
-    if not connection:
-        return {"success": False, "reason": "no_connection"}
+    for provider in ['google', 'outlook']:
+        connection = db.calendar_connections.find_one(
+            {"user_id": user['user_id'], "provider": provider, "status": "connected"}
+        )
+        if not connection:
+            continue
 
-    sync_log = db.calendar_sync_logs.find_one({
-        "appointment_id": appointment_id,
-        "connection_id": connection['connection_id'],
-        "sync_status": "synced"
-    })
-    if not sync_log:
-        return {"success": False, "reason": "not_synced"}
+        sync_log = db.calendar_sync_logs.find_one({
+            "appointment_id": appointment_id,
+            "connection_id": connection['connection_id'],
+            "sync_status": "synced"
+        })
+        if not sync_log:
+            continue
 
-    def on_token_refresh(new_token):
-        db.calendar_connections.update_one(
-            {"connection_id": connection['connection_id']},
-            {"$set": {"access_token": new_token, "updated_at": now_utc().isoformat()}}
+        adapter = _get_adapter(provider)
+        on_refresh = _make_token_refresh_callback(connection['connection_id'])
+
+        deleted = adapter.delete_event(
+            connection['access_token'], connection.get('refresh_token'),
+            sync_log['external_event_id'], connection_update_callback=on_refresh
         )
 
-    deleted = GoogleCalendarAdapter.delete_event(
-        connection['access_token'],
-        connection.get('refresh_token'),
-        sync_log['external_event_id'],
-        connection_update_callback=on_token_refresh
-    )
+        if deleted:
+            db.calendar_sync_logs.update_one(
+                {"log_id": sync_log['log_id']},
+                {"$set": {"sync_status": "deleted", "deleted_at": now_utc().isoformat()}}
+            )
+        results[provider] = deleted
 
-    if deleted:
-        db.calendar_sync_logs.update_one(
-            {"log_id": sync_log['log_id']},
-            {"$set": {"sync_status": "deleted", "deleted_at": now_utc().isoformat()}}
-        )
-
-    return {"success": deleted}
+    return {"success": True, "deleted": results}
 
 
 # ── ICS Export (unchanged, public) ──────────────────────────

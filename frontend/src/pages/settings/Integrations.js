@@ -8,27 +8,31 @@ import { toast } from 'sonner';
 export default function Integrations() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [googleConnection, setGoogleConnection] = useState(null);
+  const [outlookConnection, setOutlookConnection] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [connecting, setConnecting] = useState(false);
-  const [disconnecting, setDisconnecting] = useState(false);
+  const [connectingGoogle, setConnectingGoogle] = useState(false);
+  const [connectingOutlook, setConnectingOutlook] = useState(false);
+  const [disconnecting, setDisconnecting] = useState(null);
 
-  useEffect(() => {
-    loadConnections();
-  }, []);
+  useEffect(() => { loadConnections(); }, []);
 
-  // Handle OAuth redirect result
   useEffect(() => {
     const googleResult = searchParams.get('google');
+    const outlookResult = searchParams.get('outlook');
     if (googleResult === 'connected') {
       toast.success('Google Calendar connecté avec succès');
-      searchParams.delete('google');
-      setSearchParams(searchParams, { replace: true });
       loadConnections();
     } else if (googleResult === 'error') {
-      const reason = searchParams.get('reason') || 'unknown';
-      toast.error(`Échec de la connexion Google Calendar (${reason})`);
-      searchParams.delete('google');
-      searchParams.delete('reason');
+      toast.error(`Échec Google Calendar (${searchParams.get('reason') || 'erreur'})`);
+    }
+    if (outlookResult === 'connected') {
+      toast.success('Outlook Calendar connecté avec succès');
+      loadConnections();
+    } else if (outlookResult === 'error') {
+      toast.error(`Échec Outlook Calendar (${searchParams.get('reason') || 'erreur'})`);
+    }
+    if (googleResult || outlookResult) {
+      searchParams.delete('google'); searchParams.delete('outlook'); searchParams.delete('reason');
       setSearchParams(searchParams, { replace: true });
     }
   }, [searchParams, setSearchParams]);
@@ -37,8 +41,8 @@ export default function Integrations() {
     try {
       const response = await calendarAPI.listConnections();
       const connections = response.data.connections || [];
-      const google = connections.find(c => c.provider === 'google');
-      setGoogleConnection(google || null);
+      setGoogleConnection(connections.find(c => c.provider === 'google') || null);
+      setOutlookConnection(connections.find(c => c.provider === 'outlook') || null);
     } catch (error) {
       console.error('Error loading connections:', error);
     } finally {
@@ -46,32 +50,117 @@ export default function Integrations() {
     }
   };
 
-  const handleConnectGoogle = async () => {
+  const handleConnect = async (provider) => {
+    const setConnecting = provider === 'google' ? setConnectingGoogle : setConnectingOutlook;
     setConnecting(true);
     try {
-      const response = await calendarAPI.connectGoogle();
-      const authUrl = response.data.authorization_url;
-      if (authUrl) {
-        window.location.href = authUrl;
+      const fn = provider === 'google' ? calendarAPI.connectGoogle : calendarAPI.connectOutlook;
+      const response = await fn();
+      if (response.data.authorization_url) {
+        window.location.href = response.data.authorization_url;
       }
     } catch (error) {
-      const detail = error.response?.data?.detail || "Erreur lors de la connexion";
-      toast.error(detail);
+      toast.error(error.response?.data?.detail || 'Erreur lors de la connexion');
       setConnecting(false);
     }
   };
 
-  const handleDisconnectGoogle = async () => {
-    setDisconnecting(true);
+  const handleDisconnect = async (provider) => {
+    setDisconnecting(provider);
     try {
-      await calendarAPI.disconnectGoogle();
-      toast.success('Google Calendar déconnecté');
-      setGoogleConnection(null);
+      const fn = provider === 'google' ? calendarAPI.disconnectGoogle : calendarAPI.disconnectOutlook;
+      await fn();
+      toast.success(`${provider === 'google' ? 'Google' : 'Outlook'} Calendar déconnecté`);
+      if (provider === 'google') setGoogleConnection(null);
+      else setOutlookConnection(null);
     } catch (error) {
-      toast.error("Erreur lors de la déconnexion");
+      toast.error('Erreur lors de la déconnexion');
     } finally {
-      setDisconnecting(false);
+      setDisconnecting(null);
     }
+  };
+
+  const renderProviderCard = (provider, connection, connectingState) => {
+    const isGoogle = provider === 'google';
+    const label = isGoogle ? 'Google Calendar' : 'Outlook / Microsoft 365';
+    const email = isGoogle ? connection?.google_email : connection?.outlook_email;
+    const accentColor = isGoogle ? 'blue' : 'sky';
+    const testId = isGoogle ? 'google-calendar-card' : 'outlook-calendar-card';
+
+    return (
+      <div className="bg-white rounded-lg border border-slate-200 overflow-hidden" data-testid={testId} key={provider}>
+        <div className="p-6">
+          <div className="flex items-start gap-4">
+            <div className={`w-12 h-12 rounded-lg bg-${accentColor}-50 flex items-center justify-center flex-shrink-0`}>
+              <Calendar className={`w-6 h-6 text-${accentColor}-600`} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="text-lg font-semibold text-slate-900 mb-1">{label}</h3>
+              <p className="text-sm text-slate-600">
+                Synchronisez vos rendez-vous NLYT avec {isGoogle ? 'votre agenda Google' : 'votre calendrier Outlook'}.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {connection && connection.status === 'connected' ? (
+          <div className="border-t border-slate-200 bg-slate-50 px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <CheckCircle className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-slate-900" data-testid={`${provider}-connected-email`}>
+                    {email || 'Compte connecté'}
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    Connecté le {new Date(connection.connected_at).toLocaleDateString('fr-FR')}
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant="outline" size="sm"
+                onClick={() => handleDisconnect(provider)}
+                disabled={disconnecting === provider}
+                className="text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
+                data-testid={`disconnect-${provider}-btn`}
+              >
+                {disconnecting === provider ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Unlink className="w-4 h-4 mr-1" />}
+                Déconnecter
+              </Button>
+            </div>
+          </div>
+        ) : connection && connection.status === 'expired' ? (
+          <div className="border-t border-slate-200 bg-amber-50 px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <XCircle className="w-5 h-5 text-amber-600 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-slate-900">Session expirée</p>
+                  <p className="text-xs text-slate-500">{email || 'Reconnectez pour restaurer la synchronisation'}</p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button size="sm" onClick={() => handleConnect(provider)} disabled={connectingState} data-testid={`reconnect-${provider}-btn`}>
+                  {connectingState ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <ExternalLink className="w-4 h-4 mr-1" />}
+                  Reconnecter
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => handleDisconnect(provider)} disabled={disconnecting === provider}
+                  className="text-red-600 border-red-200 hover:bg-red-50">
+                  <Unlink className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="border-t border-slate-200 px-6 py-4">
+            <Button onClick={() => handleConnect(provider)} disabled={connectingState} className="w-full sm:w-auto" data-testid={`connect-${provider}-btn`}>
+              {connectingState ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <ExternalLink className="w-4 h-4 mr-2" />}
+              Connecter {label}
+            </Button>
+          </div>
+        )}
+      </div>
+    );
   };
 
   if (loading) {
@@ -97,128 +186,11 @@ export default function Integrations() {
           Connectez vos services externes pour synchroniser vos rendez-vous.
         </p>
 
-        {/* Google Calendar */}
-        <div className="bg-white rounded-lg border border-slate-200 overflow-hidden" data-testid="google-calendar-card">
-          <div className="p-6">
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
-                <Calendar className="w-6 h-6 text-blue-600" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="text-lg font-semibold text-slate-900 mb-1">Google Calendar</h3>
-                <p className="text-sm text-slate-600">
-                  Synchronisez automatiquement vos rendez-vous NLYT avec votre agenda Google.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {googleConnection && googleConnection.status === 'connected' ? (
-            <div className="border-t border-slate-200 bg-slate-50 px-6 py-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <CheckCircle className="w-5 h-5 text-emerald-600 flex-shrink-0" />
-                  <div>
-                    <p className="text-sm font-medium text-slate-900" data-testid="google-connected-email">
-                      {googleConnection.google_email || 'Compte Google connecté'}
-                    </p>
-                    <p className="text-xs text-slate-500">
-                      Connecté le {new Date(googleConnection.connected_at).toLocaleDateString('fr-FR')}
-                    </p>
-                  </div>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleDisconnectGoogle}
-                  disabled={disconnecting}
-                  className="text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
-                  data-testid="disconnect-google-btn"
-                >
-                  {disconnecting ? (
-                    <Loader2 className="w-4 h-4 animate-spin mr-1" />
-                  ) : (
-                    <Unlink className="w-4 h-4 mr-1" />
-                  )}
-                  Déconnecter
-                </Button>
-              </div>
-            </div>
-          ) : googleConnection && googleConnection.status === 'expired' ? (
-            <div className="border-t border-slate-200 bg-amber-50 px-6 py-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <XCircle className="w-5 h-5 text-amber-600 flex-shrink-0" />
-                  <div>
-                    <p className="text-sm font-medium text-slate-900">Session expirée</p>
-                    <p className="text-xs text-slate-500">
-                      {googleConnection.google_email || 'Reconnectez pour restaurer la synchronisation'}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    onClick={handleConnectGoogle}
-                    disabled={connecting}
-                    data-testid="reconnect-google-btn"
-                  >
-                    {connecting ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <ExternalLink className="w-4 h-4 mr-1" />}
-                    Reconnecter
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleDisconnectGoogle}
-                    disabled={disconnecting}
-                    className="text-red-600 border-red-200 hover:bg-red-50"
-                    data-testid="disconnect-google-expired-btn"
-                  >
-                    <Unlink className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="border-t border-slate-200 px-6 py-4">
-              <Button
-                onClick={handleConnectGoogle}
-                disabled={connecting}
-                className="w-full sm:w-auto"
-                data-testid="connect-google-btn"
-              >
-                {connecting ? (
-                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                ) : (
-                  <ExternalLink className="w-4 h-4 mr-2" />
-                )}
-                Connecter Google Calendar
-              </Button>
-            </div>
-          )}
+        <div className="space-y-4">
+          {renderProviderCard('google', googleConnection, connectingGoogle)}
+          {renderProviderCard('outlook', outlookConnection, connectingOutlook)}
         </div>
 
-        {/* Outlook — coming soon */}
-        <div className="bg-white rounded-lg border border-slate-200 overflow-hidden mt-4 opacity-60" data-testid="outlook-card">
-          <div className="p-6">
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-lg bg-sky-50 flex items-center justify-center flex-shrink-0">
-                <Calendar className="w-6 h-6 text-sky-600" />
-              </div>
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1">
-                  <h3 className="text-lg font-semibold text-slate-900">Outlook / Microsoft 365</h3>
-                  <span className="text-xs px-2 py-0.5 bg-slate-100 text-slate-500 rounded-full">Bientôt</span>
-                </div>
-                <p className="text-sm text-slate-600">
-                  Synchronisez avec votre calendrier Outlook ou Microsoft 365.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* ICS info */}
         <div className="mt-8 p-4 bg-amber-50 border border-amber-200 rounded-lg">
           <p className="text-sm text-amber-800">
             <strong>Alternative :</strong> Vous pouvez aussi exporter chaque rendez-vous en fichier ICS

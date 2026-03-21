@@ -71,8 +71,10 @@ export const invitationAPI = {
 export const calendarAPI = {
   connectGoogle: () => api.get('/api/calendar/connect/google'),
   disconnectGoogle: () => api.delete('/api/calendar/connections/google'),
+  connectOutlook: () => api.get('/api/calendar/connect/outlook'),
+  disconnectOutlook: () => api.delete('/api/calendar/connections/outlook'),
   listConnections: () => api.get('/api/calendar/connections'),
-  syncAppointment: (appointment_id) => api.post(`/api/calendar/sync/appointment/${appointment_id}`),
+  syncAppointment: (appointment_id, provider = 'google') => api.post(`/api/calendar/sync/appointment/${appointment_id}?provider=${provider}`),
   unsyncAppointment: (appointment_id) => api.delete(`/api/calendar/sync/appointment/${appointment_id}`),
   getSyncStatus: (appointment_id) => api.get(`/api/calendar/sync/status/${appointment_id}`),
   exportICS: (appointment_id) =>
