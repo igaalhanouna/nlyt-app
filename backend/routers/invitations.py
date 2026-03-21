@@ -152,7 +152,9 @@ async def get_invitation_details(token: str):
             "penalty_amount": appointment.get('penalty_amount', 0),
             "penalty_currency": appointment.get('penalty_currency', 'EUR').upper(),
             "affected_compensation_percent": appointment.get('affected_compensation_percent', 70),
-            "platform_commission_percent": appointment.get('platform_commission_percent', 30)
+            "platform_commission_percent": appointment.get('platform_commission_percent', 30),
+            "charity_percent": appointment.get('charity_percent', 0),
+            "charity_association_name": appointment.get('charity_association_name', None)
         },
         "other_participants": [
             {

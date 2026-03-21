@@ -402,6 +402,9 @@ export default function InvitationPage() {
                   </li>
                   <li>
                     <strong>Répartition :</strong> {engagement_rules.affected_compensation_percent}% aux participants affectés, {engagement_rules.platform_commission_percent}% commission plateforme
+                    {engagement_rules.charity_percent > 0 && (
+                      <>, {engagement_rules.charity_percent}% {engagement_rules.charity_association_name ? `pour ${engagement_rules.charity_association_name}` : 'pour une association'}</>
+                    )}
                   </li>
                 </ul>
               </div>
