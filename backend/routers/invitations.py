@@ -89,22 +89,29 @@ async def get_invitation_details(token: str):
         {"_id": 0, "first_name": 1, "last_name": 1, "status": 1}
     ))
     
-    # Parse date for display
+    # Parse date for display (in French)
     start_dt = parse_datetime(appointment.get('start_datetime', ''))
     formatted_date = None
     if start_dt:
-        formatted_date = start_dt.strftime("%A %d %B %Y à %H:%M")
-    
+        FRENCH_DAYS = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche']
+        FRENCH_MONTHS = ['', 'janvier', 'février', 'mars', 'avril', 'mai', 'juin',
+                         'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre']
+        day_name = FRENCH_DAYS[start_dt.weekday()]
+        month_name = FRENCH_MONTHS[start_dt.month]
+        formatted_date = f"{day_name.capitalize()} {start_dt.day} {month_name} {start_dt.year} à {start_dt.strftime('%H:%M')}"
+
     # Calculate cancellation deadline
     cancellation_deadline = None
     cancellation_deadline_dt = None
     can_cancel = False
     deadline_passed = False
-    
+
     if start_dt and appointment.get('cancellation_deadline_hours'):
         from datetime import timedelta
         cancellation_deadline_dt = start_dt - timedelta(hours=appointment['cancellation_deadline_hours'])
-        cancellation_deadline = cancellation_deadline_dt.strftime("%A %d %B %Y à %H:%M")
+        dl_day = FRENCH_DAYS[cancellation_deadline_dt.weekday()]
+        dl_month = FRENCH_MONTHS[cancellation_deadline_dt.month]
+        cancellation_deadline = f"{dl_day.capitalize()} {cancellation_deadline_dt.day} {dl_month} {cancellation_deadline_dt.year} à {cancellation_deadline_dt.strftime('%H:%M')}"
         
         # Check if participant can still cancel (deadline not passed)
         now = datetime.now(timezone.utc)
