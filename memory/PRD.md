@@ -7,7 +7,7 @@ SaaS application for booking appointments with financial guarantees. Zero fricti
 - **Frontend**: React.js, TailwindCSS, Shadcn UI
 - **Backend**: FastAPI, Python, APScheduler
 - **Database**: MongoDB
-- **Integrations**: Stripe, Resend (Emails), Google Calendar API, Microsoft Graph API (Outlook)
+- **Integrations**: Stripe, Resend (Emails), Google Calendar API, Microsoft Graph API (Outlook), Nominatim/OpenStreetMap (geocoding)
 
 ## Core Architecture
 ```
@@ -20,13 +20,10 @@ SaaS application for booking appointments with financial guarantees. Zero fricti
     routers/
       attendance_routes.py          # Attendance evaluation + reclassification + re-evaluate
       checkin_routes.py             # Check-in (manual, QR, GPS) + evidence API
-      calendar_routes.py
-      appointments.py
-      invitations.py
-      webhooks.py
+      calendar_routes.py, appointments.py, invitations.py, webhooks.py
     services/
       attendance_service.py         # No-show detection V2 (with evidence)
-      evidence_service.py           # Evidence CRUD, QR tokens, GPS, aggregation
+      evidence_service.py           # Smart evidence scoring V2 (temporal + geographic + geocoding)
       stripe_guarantee_service.py
       email_service.py
     utils/
@@ -35,69 +32,64 @@ SaaS application for booking appointments with financial guarantees. Zero fricti
     src/
       components/
         QRCheckin.js                # QR scanner (camera + manual fallback)
-        ui/                         # Shadcn components
       pages/
-        appointments/
-          AppointmentDetail.js      # Evidence dashboard + attendance + re-evaluate
-        invitations/
-          InvitationPage.js         # Check-in section (3 modes)
-        auth/SignIn.js
+        appointments/AppointmentDetail.js   # Evidence dashboard + attendance
+        invitations/InvitationPage.js       # Check-in section (3 modes)
       services/api.js
 ```
 
 ## Completed Features
 
-### Phase 0 - Core (DONE)
-- User auth, workspaces, appointment wizard, participants, Stripe guarantee, disputes, admin, reminders
-
-### Phase 1 - Stripe Flow (DONE)
-- Post-Stripe UI fix, dead code cleanup, resend invitation
-
-### Phase 2 - Calendar Integrations (DONE)
-- Google Calendar + Outlook/M365 OAuth
-- Auto-Sync V1, Auto-Update V1
-- Timezone fix (IANA to Windows mapping for Outlook)
+### Phase 0-2 - Core + Stripe + Calendar (DONE)
+- User auth, workspaces, appointment wizard, participants, Stripe guarantee, disputes
+- Google Calendar + Outlook OAuth, Auto-Sync, Auto-Update
+- Timezone fix (IANA→Windows mapping)
 
 ### Phase 3 - Attendance Engine V1 (DONE — 2026-03-21)
-- Conservative classification: invited->waived, cancelled_late->no_show, accepted->manual_review
-- APScheduler job every 10 min, grace window 30 min
-- Manual reclassification by organizer
+- Conservative classification, APScheduler every 10min, manual reclassification
 
 ### Phase 4 - Evidence-Based Attendance V2 (DONE — 2026-03-21)
-- **Evidence data model** (`evidence_items` collection)
-- **Symmetric check-in**: "Je suis arrivé" button (timestamp + device + optional GPS)
-- **QR Code system**: Dynamic, system-owned, rotating every 60s, HMAC-signed
-  - Any participant can display QR, any can scan it
-  - Camera scan via html5-qrcode + manual code fallback
-- **GPS check-in**: One-shot, configurable radius (default 200m), consent-based
-- **Evidence aggregation**: strong (2+ signals), medium (1 signal), weak (isolated), none
-- **Extended decision engine**:
-  - Strong evidence on_time → auto on_time
-  - Strong evidence late → auto late
-  - Medium evidence → classified but review_required=true
-  - No/weak evidence → manual_review (conservative)
-- **Re-evaluation**: Organizer can re-evaluate with fresh evidence (preserves manual reclassifications)
-- **API Endpoints**:
-  - `POST /api/checkin/manual` — manual check-in
-  - `GET /api/checkin/qr/{apt_id}` — generate QR code (base64 + token)
-  - `POST /api/checkin/qr/verify` — verify scanned QR
-  - `POST /api/checkin/gps` — GPS evidence
-  - `GET /api/checkin/status/{apt_id}` — check-in status
-  - `GET /api/checkin/evidence/{apt_id}` — organizer evidence view
-  - `POST /api/attendance/reevaluate/{apt_id}` — re-evaluate with evidence
-- **UI**:
-  - InvitationPage: 3 check-in modes (manual, scan QR, display QR)
-  - AppointmentDetail: Check-ins & Preuves dashboard + evidence indicators on attendance records
-  - QR display modal with auto-refresh
-  - QR scanner modal (camera + manual fallback)
-  - Re-évaluer button
-- **Testing**: 30/30 tests passed (iteration_13)
+- Symmetric check-in, QR code system (neutral, rotating 60s, HMAC-signed), GPS one-shot
+- Camera QR scan (html5-qrcode) + manual code fallback
+- Evidence aggregation, extended decision engine, re-evaluation
+
+### Phase 5 - Smart Evidence Scoring V2 (DONE — 2026-03-21)
+**Temporal consistency:**
+- Window: RDV_start - 2h to RDV_end + 1h
+- Before window → `too_early` (degrades confidence severely; >24h = always weak)
+- After window → `too_late` (degrades confidence)
+- In window → `valid` or `valid_late`
+
+**Geographic consistency:**
+- close (<500m) → boosts confidence
+- nearby (<5km) → acceptable
+- far (<50km) → suspicious, degrades
+- incoherent (>50km) → catastrophic, always weak
+
+**Smart confidence formula:**
+- Base score from source type (QR=3, checkin=2, GPS=1)
+- Temporal modifiers: +1 valid, -1/-2/-3 for early/late
+- Geographic modifiers: +2 close, +1 nearby, -1 far, -3 incoherent
+- Result: high (≥4), medium (≥2), low (<2)
+
+**Geocoding:**
+- Forward: Appointment text address → lat/lon (Nominatim, cached in DB)
+- Reverse: Check-in GPS → human-readable address (address_label in derived_facts)
+
+**UI enrichments:**
+- Temporal badge: "Hors fenêtre (trop tôt/tard)"
+- Geographic badge: "Lieu incohérent" / "Lieu suspect"
+- Address estimée from reverse geocoding
+- Distance du lieu du RDV in km with consistency label
+- "Voir sur la carte" (Google Maps link)
+- Confidence badge per evidence item
+
+**Testing:** 36/37 tests passed (iteration_14), 1 skipped (no QR evidence)
 
 ## Key DB Collections
-- `evidence_items`: {evidence_id, appointment_id, participant_id, source, source_timestamp, confidence_score, derived_facts, raw_payload_reference, created_by, created_at}
-- `attendance_records`: {record_id, appointment_id, participant_id, outcome, decision_basis, confidence, review_required, evidence_summary, decided_by, notes, previous_outcome, auto_capture_enabled}
-- `appointments.attendance_evaluated`, `appointments.attendance_summary`
-- `calendar_connections`, `calendar_sync_logs`
+- `evidence_items`: {evidence_id, appointment_id, participant_id, source, source_timestamp, confidence_score, derived_facts (temporal_consistency, geographic_consistency, distance_km, address_label, ...), created_by}
+- `attendance_records`: outcome, decision_basis, evidence_summary, decided_by
+- `appointments`: location_latitude, location_longitude, location_geocoded, location_display_name (auto-filled by geocoding)
 
 ## Philosophy
 1. No proof → no automatic penalty
@@ -107,8 +99,8 @@ SaaS application for booking appointments with financial guarantees. Zero fricti
 5. V1 simple > complex unstable system
 
 ## Backlog
-- P2: Stripe Connect (fund splits) — User explicitly said NOT to touch until detection is perfect
+- P2: Stripe Connect (fund splits) — NOT to touch until detection is perfect
 - P2: Auto-update calendar V2 (retry + notification)
 - P3: Organizer analytics dashboard
 - P3: Video-based attendance proof
-- P3: Dispute resolution system improvements
+- P3: Dispute resolution improvements
