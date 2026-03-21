@@ -14,8 +14,8 @@ export default function AppointmentDetail() {
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [resendingToken, setResendingToken] = useState(null);
-  const [syncStatus, setSyncStatus] = useState(null);
-  const [syncing, setSyncing] = useState(false);
+  const [syncStatus, setSyncStatus] = useState({ google: { synced: false, has_connection: false }, outlook: { synced: false, has_connection: false } });
+  const [syncingProvider, setSyncingProvider] = useState(null);
 
   useEffect(() => {
     loadData();
@@ -30,10 +30,10 @@ export default function AppointmentDetail() {
       setAppointment(appointmentRes.data);
       setParticipants(participantsRes.data.participants || []);
 
-      // Check Google Calendar sync status (non-blocking)
+      // Check calendar sync status for all providers (non-blocking)
       calendarAPI.getSyncStatus(id)
         .then(res => setSyncStatus(res.data))
-        .catch(() => setSyncStatus(null));
+        .catch(() => {});
     } catch (error) {
       toast.error('Erreur lors du chargement');
     } finally {
@@ -41,21 +41,27 @@ export default function AppointmentDetail() {
     }
   };
 
-  const handleSyncGoogleCalendar = async () => {
-    setSyncing(true);
+  const handleSyncCalendar = async (provider) => {
+    setSyncingProvider(provider);
+    const label = provider === 'google' ? 'Google Calendar' : 'Outlook Calendar';
     try {
-      const response = await calendarAPI.syncAppointment(id);
-      setSyncStatus({ synced: true, html_link: response.data.html_link });
-      toast.success('Rendez-vous synchronisé avec Google Calendar');
+      const response = await calendarAPI.syncAppointment(id, provider);
+      setSyncStatus(prev => ({
+        ...prev,
+        [provider]: { synced: true, has_connection: true, html_link: response.data.html_link, external_event_id: response.data.external_event_id }
+      }));
+      toast.success(`Rendez-vous synchronisé avec ${label}`);
     } catch (error) {
       const detail = error.response?.data?.detail;
-      if (detail === 'Google Calendar non connecté') {
-        toast.error('Google Calendar non connecté. Allez dans Paramètres > Intégrations.');
+      if (detail?.includes('non connecté')) {
+        toast.error(`${label} non connecté. Allez dans Paramètres > Intégrations.`);
+      } else if (error.response?.status === 401) {
+        toast.error(`Session ${label} expirée. Reconnectez dans Paramètres > Intégrations.`);
       } else {
-        toast.error(detail || 'Erreur lors de la synchronisation');
+        toast.error(detail || `Erreur lors de la synchronisation avec ${label}`);
       }
     } finally {
-      setSyncing(false);
+      setSyncingProvider(null);
     }
   };
 
@@ -185,20 +191,38 @@ export default function AppointmentDetail() {
             </Button>
 
             {/* Google Calendar sync button */}
-            {syncStatus?.synced ? (
+            {syncStatus?.google?.synced ? (
               <Button variant="outline" className="text-emerald-700 border-emerald-300" disabled data-testid="google-synced-btn">
                 <Check className="w-4 h-4 mr-2" />
                 Google Calendar
               </Button>
-            ) : syncStatus?.has_connection && !isCancelled ? (
+            ) : syncStatus?.google?.has_connection && !isCancelled ? (
               <Button
                 variant="outline"
-                onClick={handleSyncGoogleCalendar}
-                disabled={syncing}
+                onClick={() => handleSyncCalendar('google')}
+                disabled={syncingProvider !== null}
                 data-testid="sync-google-btn"
               >
-                {syncing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Calendar className="w-4 h-4 mr-2" />}
+                {syncingProvider === 'google' ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Calendar className="w-4 h-4 mr-2" />}
                 Google Calendar
+              </Button>
+            ) : null}
+
+            {/* Outlook Calendar sync button */}
+            {syncStatus?.outlook?.synced ? (
+              <Button variant="outline" className="text-emerald-700 border-emerald-300" disabled data-testid="outlook-synced-btn">
+                <Check className="w-4 h-4 mr-2" />
+                Outlook Calendar
+              </Button>
+            ) : syncStatus?.outlook?.has_connection && !isCancelled ? (
+              <Button
+                variant="outline"
+                onClick={() => handleSyncCalendar('outlook')}
+                disabled={syncingProvider !== null}
+                data-testid="sync-outlook-btn"
+              >
+                {syncingProvider === 'outlook' ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Calendar className="w-4 h-4 mr-2" />}
+                Outlook Calendar
               </Button>
             ) : null}
             
