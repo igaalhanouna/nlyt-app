@@ -6,7 +6,12 @@ sys.path.append('/app/backend')
 
 CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID')
 CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET')
-SCOPES = ['https://www.googleapis.com/auth/calendar', 'email', 'profile']
+SCOPES = [
+    'https://www.googleapis.com/auth/calendar',
+    'https://www.googleapis.com/auth/userinfo.email',
+    'https://www.googleapis.com/auth/userinfo.profile',
+    'openid'
+]
 
 
 class GoogleCalendarAdapter:
