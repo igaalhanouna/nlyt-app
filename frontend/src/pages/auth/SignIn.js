@@ -16,10 +16,12 @@ export default function SignIn() {
   });
   const [loading, setLoading] = useState(false);
   const [notVerifiedEmail, setNotVerifiedEmail] = useState(null);
+  const [errorMessage, setErrorMessage] = useState(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setErrorMessage(null);
     // Don't reset notVerifiedEmail here - only reset on successful login
 
     try {
@@ -38,8 +40,10 @@ export default function SignIn() {
         setNotVerifiedEmail(formData.email);
         // Don't show toast for not_verified - the yellow banner is enough
       } else {
-        setNotVerifiedEmail(null); // Reset for other errors
-        toast.error(errorData?.detail || errorData?.message || 'Erreur de connexion');
+        setNotVerifiedEmail(null);
+        const msg = (typeof errorData?.detail === 'string' ? errorData.detail : null) || errorData?.message || 'Erreur de connexion';
+        setErrorMessage(msg);
+        toast.error(msg);
       }
     } finally {
       setLoading(false);
@@ -86,6 +90,12 @@ export default function SignIn() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
+            {errorMessage && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2" data-testid="login-error-message">
+                <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
+                <p className="text-sm text-red-800">{errorMessage}</p>
+              </div>
+            )}
             <div>
               <Label htmlFor="email">Email</Label>
               <Input

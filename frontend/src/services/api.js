@@ -26,9 +26,13 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('nlyt_token');
-      localStorage.removeItem('nlyt_user');
-      window.location.href = '/signin';
+      const url = error.config?.url || '';
+      const isAuthRoute = url.includes('/api/auth/login') || url.includes('/api/auth/register');
+      if (!isAuthRoute) {
+        localStorage.removeItem('nlyt_token');
+        localStorage.removeItem('nlyt_user');
+        window.location.href = '/signin';
+      }
     }
     return Promise.reject(error);
   }
