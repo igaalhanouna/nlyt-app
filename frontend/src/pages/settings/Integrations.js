@@ -227,7 +227,7 @@ export default function Integrations() {
                 <div className="flex-1">
                   <h3 className="text-lg font-semibold text-slate-900 mb-1">Auto-sync calendrier</h3>
                   <p className="text-sm text-slate-600">
-                    Synchroniser automatiquement chaque nouveau rendez-vous vers votre calendrier connecté.
+                    Chaque nouveau rendez-vous créé dans NLYT sera automatiquement ajouté à votre calendrier connecté (sens unique : NLYT vers votre calendrier).
                   </p>
                 </div>
               </div>
