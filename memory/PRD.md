@@ -1,52 +1,97 @@
 # NLYT - Product Requirements Document
 
-## Original Problem Statement
-Application SaaS NLYT : plateforme de rendez-vous avec engagement financier. Objectif : zéro friction, automatisation maximale, logique d'engagement claire.
+## Problem Statement
+SaaS application for booking appointments with financial guarantees (engagement financier). Zero friction, maximum automation, clear engagement logic.
 
 ## Tech Stack
-- Frontend: React.js, TailwindCSS, Shadcn UI
-- Backend: FastAPI, Python, APScheduler
-- Database: MongoDB
-- Integrations: Resend (Emails), Stripe (Payments), Google Calendar API (OAuth 2.0)
+- **Frontend**: React.js, TailwindCSS, Shadcn UI
+- **Backend**: FastAPI, Python, APScheduler
+- **Database**: MongoDB
+- **Integrations**: Stripe, Resend (Emails), Google Calendar API, Microsoft Graph API (Outlook)
 
-## What's Been Implemented
-1. ✅ Auth system (JWT)
-2. ✅ Workspace management
-3. ✅ Profile defaults
-4. ✅ Appointment wizard with immutable snapshots
-5. ✅ Participant invitations (Resend) + resend button
-6. ✅ Invitation acceptance/decline
-7. ✅ Stripe integration (real TEST mode)
-8. ✅ Dashboard Upcoming/Past tabs
-9. ✅ Appointment detail with participant statuses + charity
-10. ✅ Penalty distribution (100%)
-11. ✅ Cancellation with deadline
-12. ✅ ICS export
-13. ✅ Reminders (APScheduler)
-14. ✅ P0: Participant status post-Stripe fix
-15. ✅ P1: Stripe dead code cleanup
-16. ✅ P1: Google Calendar OAuth integration (FULLY FUNCTIONAL + TESTED BY USER)
-    - OAuth: connect/disconnect, CSRF state, token refresh, scope validation
-    - Scopes: calendar + email + profile + openid (all granted)
-    - Sync: one-shot idempotent, timezone from user's calendar
-    - Cancel: auto-deletes Google event
-    - UI: connected email, sync button, synced indicator, expired state
-    - User tested: igaal.hanouna@gmail.com connected, event created successfully
+## Core Architecture
+```
+/app/
+  backend/
+    adapters/
+      google_calendar_adapter.py    # Google Calendar OAuth + CRUD
+      outlook_calendar_adapter.py   # Outlook/M365 Calendar OAuth + CRUD
+      ics_generator.py              # ICS file generation
+    routers/
+      calendar_routes.py            # Multi-provider calendar routes
+      appointments.py               # Appointment CRUD + cancellation
+      auth.py, invitations.py, participants.py, etc.
+    services/
+      auth_service.py, email_service.py, stripe_guarantee_service.py, etc.
+    middleware/auth_middleware.py
+    scheduler.py
+    server.py
+  frontend/
+    src/
+      pages/
+        settings/Integrations.js    # Google + Outlook connection UI
+        appointments/AppointmentDetail.js  # Multi-provider sync buttons
+      services/api.js               # All API methods
+```
 
-## Prioritized Backlog
+## Completed Features
 
-### P1
-- Outlook/Microsoft 365 OAuth Integration
+### Phase 0 - Core
+- User auth (register, login, email verification, password reset)
+- Workspaces
+- Appointment creation wizard (multi-step)
+- Participant management with invitation emails
+- Stripe payment guarantee flow
+- Policy templates and contract snapshots
+- Dispute system
+- Admin dashboard
+- Reminders via APScheduler
 
-### P2
-- Auto-sync on RDV modification (update_event ready in adapter)
-- Auto-sync on RDV creation (opt-in)
-- No-show detection + penalty capture (cron)
-- Stripe Connect (fund splits)
+### Phase 1 - Stripe Flow
+- Post-Stripe UI bug fixed (participant status + counters)
+- Dead Stripe code cleanup
+- Resend Invitation button functional
 
-### P3
-- Organizer analytics dashboard
+### Phase 2 - Calendar Integrations (DONE)
+- **Google Calendar OAuth**: connect, disconnect, sync, unsync, auto-delete on cancellation, timezone support
+- **Outlook / Microsoft 365 Calendar**: 
+  - Backend: Full adapter (OAuth, token exchange, refresh, create/update/delete events, timezone)
+  - Backend: Routes (connect, callback, disconnect, sync, unsync, status)
+  - Frontend: Integrations page with Outlook card (connect/disconnect/expired states)
+  - Frontend: AppointmentDetail with multi-provider sync buttons
+  - Frontend: api.js with all Outlook methods
+  - BLOCKED: Waiting for user's MICROSOFT_CLIENT_ID + MICROSOFT_CLIENT_SECRET
+- **ICS Export**: Per-appointment + subscription feed
 
-## Test Credentials
-- testuser_audit@nlyt.app / TestPassword123!
-- Google: igaal.hanouna@gmail.com (connected, scopes validated)
+## Key DB Collections
+- `calendar_connections`: {user_id, provider, access_token, refresh_token, google_email/outlook_email, status}
+- `calendar_sync_logs`: {appointment_id, connection_id, external_event_id, html_link, provider, sync_status}
+- `oauth_states`: CSRF protection for OAuth flows
+
+## API Endpoints - Calendar
+- `GET /api/calendar/connect/{provider}` - Initiate OAuth (google/outlook)
+- `GET /api/calendar/oauth/{provider}/callback` - OAuth callback
+- `GET /api/calendar/connections` - List user's connections
+- `DELETE /api/calendar/connections/{provider}` - Disconnect
+- `POST /api/calendar/sync/appointment/{id}?provider=` - Sync to calendar
+- `DELETE /api/calendar/sync/appointment/{id}` - Unsync from all calendars
+- `GET /api/calendar/sync/status/{id}` - Multi-provider sync status
+
+## Pending / Backlog
+- P0: User provides MICROSOFT_CLIENT_ID + MICROSOFT_CLIENT_SECRET to complete Outlook testing
+- P2: Auto-sync on appointment creation/modification
+- P2: No-show detection + automated penalty capture
+- P2: Stripe Connect (fund splits)
+- P3: Organizer analytics dashboard
+
+## Environment Variables Required
+### Existing (configured)
+- MONGO_URL, DB_NAME, JWT_SECRET
+- FRONTEND_URL, CORS_ORIGINS
+- RESEND_API_KEY, SENDER_EMAIL
+- STRIPE_API_KEY, STRIPE_WEBHOOK_SECRET
+- GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
+
+### Needed (Outlook)
+- MICROSOFT_CLIENT_ID
+- MICROSOFT_CLIENT_SECRET
