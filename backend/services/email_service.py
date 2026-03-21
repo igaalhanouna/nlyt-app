@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from pymongo import MongoClient
 import uuid
 from pathlib import Path
+from utils.date_utils import format_datetime_fr
 
 # Load .env from backend directory
 ROOT_DIR = Path(__file__).parent.parent
@@ -203,7 +204,7 @@ class EmailService:
                 dt = datetime.fromisoformat(appointment_datetime.replace('Z', '+00:00'))
             else:
                 dt = datetime.strptime(appointment_datetime, "%Y-%m-%dT%H:%M")
-            formatted_date = dt.strftime("%A %d %B %Y à %H:%M")
+            formatted_date = format_datetime_fr(dt)
         except:
             formatted_date = appointment_datetime
         
@@ -330,7 +331,7 @@ class EmailService:
                 dt = datetime.fromisoformat(appointment_datetime.replace('Z', '+00:00'))
             else:
                 dt = datetime.strptime(appointment_datetime, "%Y-%m-%dT%H:%M")
-            formatted_date = dt.strftime("%A %d %B %Y à %H:%M")
+            formatted_date = format_datetime_fr(dt)
         except:
             formatted_date = appointment_datetime
         
@@ -446,7 +447,7 @@ class EmailService:
                 dt = datetime.fromisoformat(appointment_datetime.replace('Z', '+00:00'))
             else:
                 dt = datetime.strptime(appointment_datetime, "%Y-%m-%dT%H:%M")
-            formatted_date = dt.strftime("%A %d %B %Y à %H:%M")
+            formatted_date = format_datetime_fr(dt)
         except:
             formatted_date = appointment_datetime
         
@@ -534,7 +535,7 @@ class EmailService:
                 dt = datetime.fromisoformat(appointment_datetime.replace('Z', '+00:00'))
             else:
                 dt = datetime.strptime(appointment_datetime, "%Y-%m-%dT%H:%M")
-            formatted_date = dt.strftime("%A %d %B %Y à %H:%M")
+            formatted_date = format_datetime_fr(dt)
         except:
             formatted_date = appointment_datetime
         
@@ -613,7 +614,7 @@ class EmailService:
                 dt = datetime.fromisoformat(appointment_datetime.replace('Z', '+00:00'))
             else:
                 dt = datetime.strptime(appointment_datetime, "%Y-%m-%dT%H:%M")
-            formatted_date = dt.strftime("%A %d %B %Y à %H:%M")
+            formatted_date = format_datetime_fr(dt)
         except:
             formatted_date = appointment_datetime
         

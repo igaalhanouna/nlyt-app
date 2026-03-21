@@ -13,6 +13,7 @@ from datetime import datetime, timedelta, timezone
 from pymongo import MongoClient
 from pathlib import Path
 from dotenv import load_dotenv
+from utils.date_utils import format_datetime_fr
 
 # Load .env
 ROOT_DIR = Path(__file__).parent.parent
@@ -76,7 +77,7 @@ class EventReminderService:
             # Parse appointment datetime
             start_dt = EventReminderService.parse_datetime(appointment.get('start_datetime', ''))
             if start_dt:
-                date_display = start_dt.strftime("%A %d %B %Y à %H:%M")
+                date_display = format_datetime_fr(start_dt)
             else:
                 date_display = appointment.get('start_datetime', 'Date non disponible')
             
