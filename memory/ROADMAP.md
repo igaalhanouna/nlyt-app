@@ -1,27 +1,34 @@
 # NLYT — Roadmap
 
-## Completed (P0)
+## Completed
 - [x] Physical attendance evidence engine (GPS, QR, check-in)
 - [x] Conservative attendance decision engine
 - [x] Financial guarantees (Stripe Checkout setup mode)
 - [x] Contractual modification workflow
 - [x] Email notifications with timezone handling
 - [x] Express creation button
-- [x] **Video Conference Attendance Evidence MVP** (Zoom, Teams, Meet)
+- [x] Video Conference Attendance Evidence MVP (adapters, ingestion, decision)
+- [x] **Meeting API Integration** (auto-create meetings, fetch attendance, CSV upload)
+- [x] **Google Meet creation** via Calendar API (WORKING)
+
+## P0 — Configuration Pending
+- [ ] Zoom credentials (ZOOM_ACCOUNT_ID, ZOOM_CLIENT_ID, ZOOM_CLIENT_SECRET)
+- [ ] Teams credentials (real MICROSOFT_TENANT_ID, CLIENT_ID, CLIENT_SECRET)
 
 ## P1 — Next Up
-- [ ] Real-time Zoom webhook integration (auto-ingest after meeting ends)
-- [ ] Real-time Teams webhook integration (auto-ingest after meeting ends)
+- [ ] Zoom webhook auto-ingestion (real-time after meeting ends)
+- [ ] Teams webhook auto-ingestion
+- [ ] Meeting link in calendar sync events (Google/Outlook)
 - [ ] Dispute resolution for video appointments
 
 ## P2 — Planned
-- [ ] Stripe Connect (automatic fund distribution: participant, charity, platform)
-- [ ] Calendar auto-update V2 (retry + notification on failure)
+- [ ] Stripe Connect (automatic fund distribution)
+- [ ] Calendar auto-update V2 (retry + notification)
 - [ ] Video recording evidence (short clip as proof)
 
 ## P3 — Backlog
 - [ ] Dashboard analytics for organizers
-- [ ] Google Meet Activity API integration (Workspace Enterprise)
-- [ ] Advanced dispute resolution improvements
-- [ ] Multi-provider support per appointment (mixed physical + video)
+- [ ] Google Meet Activity API (Workspace Enterprise)
+- [ ] Advanced dispute resolution
+- [ ] Multi-provider per appointment (hybrid)
 - [ ] Participant self-service video evidence upload
