@@ -1,54 +1,65 @@
-<analysis>original_problem_statement: L'objectif principal est d'étendre le moteur de détection de présence aux rendez-vous en visioconférence (Zoom, Teams, Google Meet) avec une logique d'évaluation très conservatrice. NLYT doit devenir le point central pour la création de ces réunions via API et ingérer les preuves de présence visio, tout en conservant un fallback d'import manuel. L'UI des intégrations doit refléter clairement ces outils. Actuellement, l'utilisateur a demandé un audit technique factuel et complet de ce qui a été réellement implémenté sur cette nouvelle brique.
+<analysis>original_problem_statement: The user wants to fundamentally change the Stripe guarantee logic for the Organizer. Currently, the Organizer creates the appointment, invitations are sent immediately, and the Organizer provides their guarantee afterwards. The user wants the Organizer to commit financially *before* engaging others. The requested solution is either allowing the Organizer to save a default payment method in settings for automatic future use (Option A - Ideal) or forcing a Stripe redirect before the appointment is actually dispatched (Option B - Fallback).
 
 **User's preferred language**: French (INSTRUCT NEXT AGENT: You MUST respond in French only).
 
 **what currently exists?** 
-Une application SaaS fonctionnelle avec un moteur de preuve physique et un moteur d'évaluation des présences. Un MVP complet pour les preuves vidéo a été intégré : création de meetings (via API Google pour Meet, services préparés pour Zoom/Teams), ingestion de présences via interface d'upload CSV/JSON, intégration des liens dans les emails, UI Timeline dans le détail des RDV, et une page Paramètres > Intégrations refondue séparant explicitement les calendriers (Google/Outlook) des outils visio (Zoom/Teams).
+A functional SaaS MVP for attendance management with financial guarantees. It includes appointment creation, bilateral modifications, Stripe guarantees (SetupIntent) for participants, multi-modal check-ins (GPS, QR, manual), and a decision engine. The video evidence feature is robust (Meet auto-creation, manual CSV/JSON ingestion with  limits). Recently, the Organizer was successfully injected into the appointment as a full participant (with check-in capabilities and engine evaluation). 
 
 **Last working item**:
-    - Last item agent was working: Rédaction de l'audit technique de la fonctionnalité Visio. L'agent était en train d'explorer les fichiers (, , , ) pour collecter les faits concrets avant de formuler la réponse exigée par l'utilisateur (état réel de la création, de l'ingestion, de l'UI, sécurité et limites, plus un tableau récapitulatif par provider).
+    - Last item agent was working: Auditing the Stripe guarantee and appointment creation flow to propose a new architecture. The goal is to require the Organizer to have a validated guarantee (via a saved default payment method or upfront payment) *before* the appointment invitations are actually sent out to participants.
     - Status: IN PROGRESS
-    - Agent Testing Done: N/A (Tâche de documentation / synthèse)
-    - Which testing method agent to use? NA
+    - Agent Testing Done: N/A (Auditing/Planning phase)
+    - Which testing method agent to use? Both (Backend/Frontend testing agent) once implementation begins.
     - User Testing Done: N
 
 **All Pending/In progress Issue list**: 
-  Issue 1: Rédaction de l'audit technique complet Visio (P0)
-     - Attempted fixes: L'agent a lu les fichiers pertinents pour réunir le contexte technique, mais le résumé n'a pas été généré et envoyé à l'utilisateur.
-     - Next debug checklist: Écrire le rapport factuel de l'existant en répondant point par point au dernier message de l'utilisateur (Création meeting, Ingestion présences, Normalisation, Intégration moteur, UI, Fallback, Sécurité). Inclure impérativement la matrice/tableau de synthèse demandée.
-     - Why fix this issue and what will be achieved with the fix? L'utilisateur a besoin d'une vision honnête et technique de l'état actuel de l'intégration Visio pour décider des prochaines étapes de la roadmap.
+  Issue 1: Organizer Stripe Guarantee Upfront Flow (P0)
+     - Attempted fixes: Agent read  and  to understand the current customer/SetupIntent creation flow. No code changes made yet.
+     - Next debug checklist: Provide the structured architectural proposal requested by the user (Analysis of existing, target architecture, files to modify, new business logic/statuses, UX proposal). 
+     - Why fix this issue and what will be achieved with the fix? Enforces product consistency: the organizer must commit financially before imposing the same constraint on participants.
      - Status: IN PROGRESS
      - Is recurring issue? N
-     - Should Test frontend/backend/both after fix? NA
+     - Should Test frontend/backend/both after fix? Both
      - Blocked on other issue: None
 
+  Issue 2: Microsoft Teams Auto-creation Forbidden Error (P1)
+     - Attempted fixes: User successfully ran PowerShell commands to grant the  for Teams.
+     - Next debug checklist: Retest the auto-creation of a Teams meeting. If it still fails with Forbidden, the Microsoft 24-hour propagation is not yet complete. 
+     - Why fix this issue and what will be achieved with the fix? Allows seamless Teams link generation without manual clicking.
+     - Status: TESTING PENDING (Waiting on Microsoft propagation)
+     - Is recurring issue? N
+     - Should Test frontend/backend/both after fix? Backend
+     - Blocked on other issue: Microsoft infrastructure delay.
+
 **In progress Task List**: 
-  Task 1: Rapport technique Visio (Lié à l'Issue 1)
-     - Where to resume: Utiliser le contexte des fichiers lus dans l'historique et rédiger le rapport pour l'utilisateur.
-     - What will be achieved with this? Clarification de la complétude du MVP vidéo.
+  Task 1: Architectural Proposal for Organizer Guarantee
+     - Where to resume: Draft the response outlining how to implement Option A (Saved default payment method in User Settings + modification of  to block email dispatch until guarantee is valid). 
+     - What will be achieved with this? Alignment with the user's specific request for a structured plan before coding.
      - Status: IN PROGRESS
-     - Should Test frontend/backend/both after fix? NA
-     - Blocked on something: None
+     - Should Test frontend/backend/both after fix? NA (Planning phase)
+     - Blocked on something: None.
 
 **Upcoming and Future Tasks**
-    - P1: Guider l'utilisateur pour la configuration des applications Zoom (S2S OAuth) et Azure AD (Teams) afin d'obtenir et de brancher de vraies credentials.
-    - P2: Implémentation des webhooks pour l'ingestion automatisée en temps réel des rapports de présence (Zoom/Teams).
-    - P2: Stripe Connect Implementation (Répartition automatique des fonds). *Bloqué jusqu'à ce que la détection d'absence soit parfaite et l'audit validé.*
-    - P2: Auto-update calendrier V2 (Retry automatique en cas d'échec + notification).
-    - P3: Dashboard analytics organisateur.
+    - P0: Implement the approved architecture for the Organizer upfront guarantee.
+    - P0: Implement Rate limiting and restrict CORS origins (Security pre-launch items identified in the audit).
+    - P1: Stripe Connect integration (Automatic distribution of funds to organizers/charities).
+    - P1: Zoom real API keys configuration (User needs to add them to ).
+    - P1: Implement real-time webhooks for Zoom () and Teams.
+    - P2: Pagination for list endpoints (Appointments, etc.).
+    - P2: Auto-update calendar V2 (Retry automatically on failure).
+    - P3: Dashboard analytics for organizers.
 
 **Completed work in this session**
-- Architecture des adaptateurs vidéo (, , , ) (DONE)
-- Extension des services  et  pour l'évaluation vidéo (DONE)
-- UI : Timeline et badges de présence visio dans  (DONE)
-- Service de création de meetings via API () (DONE)
-- Création effective de Google Meet via l'API Google Calendar (DONE)
-- Inclusion des liens  dans le layout des emails transactionnels (DONE)
-- UI / Fallback : Upload et parsing de fichiers CSV/JSON pour l'import manuel des logs Zoom/Teams (DONE)
-- Refonte UX de la page Intégrations pour séparer la section Calendriers et Visioconférence avec vérification des statuts de connexion (DONE)
+- Complete Technical & Product Audit mapping the app's readiness (DONE)
+- Controlled Video Platform Selector in Wizard (,  enum) (DONE)
+- Manual import security: Added  ( vs ) ceiling manual imports to medium strength (DONE)
+- Fixed Outlook OAuth client ID configuration in  (DONE)
+- UI: Added clickable Join meeting links and Create meeting buttons directly in the Appointment Detail card (DONE)
+- Fixed bug: Pydantic enum validation crashing on physical appointments due to empty string  payload (DONE)
+- Organizer auto-injected as a participant () with full check-in UI and engine evaluation (DONE)
 
 **Earlier issues found/mentioned but not fixed**
-None.
+None explicitly ignored, but technical debt items were listed in the audit (e.g., MongoDB connection pooling, inline HTML email templates).
 
 **Known issue recurrence from previous fork**
   - Issue recurrence in previous fork: None
@@ -60,71 +71,75 @@ None.
 
 **Key Technical Concepts**
 Frontend: React.js, TailwindCSS
-Backend: FastAPI, Python, MongoDB
-Logique produit stricte : Google Meet ou correspondances ambiguës forcent l'état . Zoom/Teams avec  permettent l'auto-décision . NLYT gère maintenant la création centralisée des liens de visio.
+Backend: FastAPI, Python, MongoDB (No  in responses), Pydantic Enums
+Paiement: Stripe Checkout (SetupIntent mode for guarantees)
+Logic: Organizers are now treated as  participants within the same array, evaluated by the same engine.
 
 **key DB schema**
-  - : ajout de , , .
-  - : ajout des structures , .
-  - : nouvelle collection pour tracer les imports (réussites/échecs).
+  - : Now handles  conditionally based on .
+  - : Organizer is now the first entry with  and .
+  - : Will likely need an update to store  and .
 
 **changes in tech stack**
   - None
 
 **All files of reference** 
-  -  
-  -  
-  - 
-  - 
+  -  (Stripe customer logic)
+  -  (Creation flow and invitation dispatch)
+  -  (Frontend creation flow)
+  -  or new settings page for Payment Method.
 
 **Areas that need refactoring**: 
-  - None for now, heavily refactored during the session.
+  - MongoDB connection pooling (12+ separate  instances).
+  - Extract inline HTML templates from .
 
 **key api endpoints**
+  -  (Where the delay of invitation sending needs to happen)
   - 
-  - 
-  - 
-  -  (et Zoom)
 
 **Critical Info for New Agent** 
-- **Audit Requirement**: L'utilisateur demande une réponse textuelle claire et 100% honnête basée sur le code réel. Ne pas vendre la fonctionnalité, mais expliquer techniquement ce qui marche, ce qui est mocké/partiel (ex: création Teams/Zoom codée mais en attente de clés API), les limites du CSV, et les failles de sécurité potentielles.
-- **Règles produit** : Ne pas toucher à Stripe, ne pas modifier les preuves physiques, l'incertitude va TOUJOURS en manual_review.
+- **DO NOT jump straight to coding.** The user explicitly requested a structured proposal for the new Organizer Guarantee flow (Audit, Target Architecture, Files to modify, Logic before/after, UX proposal). Start your turn by formulating and sending this proposal.
+- If testing Teams auto-creation, remember it might throw a  error if Microsoft hasn't finished propagating the Access Policy. This is an infrastructure delay, not a code bug.
 
 **documents and test reports created in this job** 
-  -  
-  -  
-  -  
+  - 
   - 
   - 
   - 
 
 **Last 10 User Messages and any pending HUMAN messages** 
-1. (User) Demande d'intégrations API réelles pour Zoom, Teams, Meet (création de meeting centralisée par NLYT) et amélioration du fallback manuel.
-2. (Agent) Propose un plan après analyse des documentations techniques des APIs.
-3. (User) Valide le plan, exige que l'UI, les emails et les APIs soient branchées, même avec des mocks pour Zoom/Teams en attendant les clés.
-4. (Agent) Implémente le service de création de meeting, le parsing CSV, met à jour le flow des rendez-vous et effectue tous les tests.
-5. (User) Demande de mettre à jour la page Paramètres > Intégrations pour séparer clairement les Calendriers des outils Visioconférence.
-6. (Agent) Refonde la page Intégrations avec les états de connexion réels et passe les tests E2E de la nouvelle interface.
-7. (User) **PENDING HUMAN MESSAGE**: Exige un AUDIT COMPLET ET FACTUEL de l'état réel de l'application concernant les preuves vidéo. L'utilisateur veut connaître ce qui est vraiment fonctionnel vs ce qui est partiel, un état des lieux de la sécurité, et un tableau matriciel synthétique de l'état pour (Zoom, Teams, Meet). L'agent a commencé à lire les fichiers mais n'a pas encore rédigé la réponse.
+1. (User) Asked for exact  for Outlook preview.
+2. (Agent) Identified the URI and found  was a placeholder in .
+3. (User) Provided real Microsoft credentials.
+4. (Agent) Updated  and confirmed.
+5. (User) Asked to display Join meeting link in the appointment card.
+6. (Agent) Implemented UI links for video providers.
+7. (User) Asked for an honest, complete technical audit of the app's readiness.
+8. (Agent) Provided complete audit (identified it as a strong MVP, blocking points: Stripe Connect, Rate limiting, CORS).
+9. (User) Reported a Pydantic bug preventing creation of Physical appointments ().
+10. (Agent) Fixed backend/frontend validators, added tests.
+11. (User) Raised UX issue: Organizer is not a participant and cannot check-in. Asked for complete symmetry.
+12. (Agent) Auto-injected Organizer as a participant, added My check-in UI, tested successfully.
+13. (User) **PENDING HUMAN MESSAGE**: Wants to evolve the Organizer Stripe logic. Organizer must save a default payment method in settings OR pay upfront, *before* invitations are sent out. Demands a structured architectural proposal before implementation.
 
 **Project Health Check:**
-Healthy. Tous les tests (30/30) sont au vert. Aucune régression sur les flux physiques existants.
+Healthy. No regressions. Tests are green.
 
 **3rd Party Integrations** 
+  • Stripe (Payments) — requires User API Key (Test key currently active)
   • Google/Outlook Calendar — requires User API Key (Active)
-  • Microsoft Teams API — requires User API Key (Code ready, mock credentials in .env)
-  • Zoom API — requires User API Key (Code ready, waiting for config)
-  • Stripe (Payments) — requires User API Key
-  • Resend (Emails) — requires User API Key
+  • Microsoft Teams API — requires User API Key (Credentials active, policy propagating)
+  • Zoom API — requires User API Key (Code ready, missing keys in )
+  • Resend (Emails) — requires User API Key (Active)
 
 **Testing status**
   - Testing agent used after significant changes: YES
   - Troubleshoot agent used after agent stuck in loop: NO
-  - Test files created: None
+  - Test files created: 
   - Known regressions: None
 
 **Credentials to test flow:**
   -  / 
 
 **What agent forgot to execute**
-L'agent a rassemblé tout le contexte en lisant les fichiers pour répondre à la demande d'audit technique, mais son exécution s'est terminée avant qu'il ne puisse formuler la réponse et l'envoyer à l'utilisateur. Le nouvel agent DOIT commencer par formuler cette réponse d'audit.</analysis>
+The agent read the files required to understand the Stripe logic but the context limit was reached before it could generate the architectural proposal requested by the user. The next agent MUST start by outputting this structured proposal for the Organizer Guarantee flow.</analysis>
