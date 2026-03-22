@@ -89,6 +89,12 @@ async def create_appointment(appointment: AppointmentCreate, request: Request):
     # Normalize start_datetime to UTC ISO format
     utc_start = normalize_to_utc(appointment.start_datetime)
 
+    # Reject past dates — compare in UTC
+    from utils.date_utils import parse_iso_datetime
+    start_dt = parse_iso_datetime(utc_start)
+    if start_dt and start_dt <= now_utc():
+        raise HTTPException(status_code=400, detail="Impossible de créer un rendez-vous dans le passé")
+
     appointment_doc = {
         "appointment_id": appointment_id,
         "workspace_id": appointment.workspace_id,

@@ -1,0 +1,71 @@
+{
+  "summary": "Bug fix VERIFIED: Past date validation for appointments. Backend correctly rejects past dates with 400 error. Frontend has double validation: min attribute on datetime-local input, inline error message, toast notification, and blocked navigation.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": [
+    "Backend: API health check (PASSED)",
+    "Backend: POST /api/appointments/ with past date (1 day ago) returns 400 with 'Impossible de créer un rendez-vous dans le passé' (PASSED)",
+    "Backend: POST /api/appointments/ with past hour (2 hours ago) returns 400 (PASSED)",
+    "Backend: POST /api/appointments/ with future date (7 days ahead) succeeds with 200/201 (PASSED)",
+    "Backend: POST /api/appointments/ with future hour (3 hours ahead) succeeds (PASSED)",
+    "Backend: POST /api/appointments/ with exact current time returns 400 (edge case - PASSED)",
+    "Frontend: datetime-local input has 'min' attribute set to current datetime (PASSED - value: 2026-03-22T00:46)",
+    "Frontend: Error message 'La date et l'heure du rendez-vous doivent être dans le futur' appears with data-testid='datetime-past-error' (PASSED)",
+    "Frontend: Toast error appears when clicking 'Suivant' with past date (PASSED)",
+    "Frontend: Navigation blocked on Step 2 when past date entered (PASSED)",
+    "Frontend: Navigation to Step 3 allowed when future date entered (PASSED)"
+  ],
+  "test_report_links": [
+    "/app/backend/tests/test_past_date_validation.py",
+    "/app/test_reports/pytest/pytest_past_date_validation.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Backend appointments.py line 92-96: Correctly checks if start_dt <= now_utc() and raises HTTPException 400",
+    "Frontend AppointmentWizard.js line 463-471: Dynamic min attribute computed from new Date()",
+    "Frontend AppointmentWizard.js line 475-479: Inline error message with data-testid='datetime-past-error'",
+    "Frontend AppointmentWizard.js line 208-211: validateStep case 2 checks new Date(formData.start_datetime) <= new Date() and shows toast"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_past_date_validation.py"
+  ],
+  "success_rate": {
+    "backend": "100% (6/6 passed)",
+    "frontend": "100% (5/5 UI tests passed)"
+  },
+  "test_credentials": {
+    "user": {
+      "email": "testuser_audit@nlyt.app",
+      "password": "Test1234!"
+    },
+    "workspace_id": "7e219321-18fd-4643-9be6-e4f1de88a2a8"
+  },
+  "seed_data_creation": "No new seed data created - test appointments created and deleted during tests",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Past date validation bug fix fully verified. Backend uses UTC comparison (start_dt <= now_utc()). Frontend has triple validation: 1) min attribute prevents browser date picker from selecting past dates, 2) inline red error message appears below input when past date detected, 3) validateStep blocks navigation and shows toast. Wizard route is /appointments/create.",
+  "verified_features": {
+    "backend_past_date_rejection": "POST /api/appointments/ with past date returns 400 with French error message",
+    "backend_future_date_acceptance": "POST /api/appointments/ with future date succeeds (200/201)",
+    "frontend_min_attribute": "datetime-local input has min attribute dynamically set to current datetime",
+    "frontend_inline_error": "Red error message with data-testid='datetime-past-error' appears below input",
+    "frontend_toast_error": "Toast notification 'La date et l'heure du rendez-vous doivent être dans le futur' shown",
+    "frontend_navigation_blocked": "Suivant button click does not navigate to Step 3 when past date entered"
+  },
+  "mocked_apis": {
+    "has_mocked_apis": false,
+    "mocked_apis_list": []
+  },
+  "bug_fix_verification": {
+    "original_bug": "Il est possible de créer un rendez-vous dans le passé",
+    "fix_applied": "Double validation: Frontend (min attribute + error message + blocked navigation) AND Backend (400 rejection if start_datetime <= now UTC)",
+    "verification_result": "PASSED - Both frontend and backend correctly prevent past date appointments"
+  }
+}

@@ -204,6 +204,11 @@ export default function AppointmentWizard() {
           toast.error('La date et l\'heure sont requises');
           return false;
         }
+        // Reject past dates — datetime-local values are local time
+        if (new Date(formData.start_datetime) <= new Date()) {
+          toast.error('La date et l\'heure du rendez-vous doivent être dans le futur');
+          return false;
+        }
         if (formData.appointment_type === 'physical' && !formData.location.trim()) {
           toast.error('Le lieu est requis pour un rendez-vous physique');
           return false;
@@ -455,9 +460,23 @@ export default function AppointmentWizard() {
           type="datetime-local"
           data-testid="appointment-datetime-input"
           value={formData.start_datetime}
+          min={(() => {
+            const now = new Date();
+            const y = now.getFullYear();
+            const m = String(now.getMonth() + 1).padStart(2, '0');
+            const d = String(now.getDate()).padStart(2, '0');
+            const h = String(now.getHours()).padStart(2, '0');
+            const mi = String(now.getMinutes()).padStart(2, '0');
+            return `${y}-${m}-${d}T${h}:${mi}`;
+          })()}
           onChange={(e) => setFormData({ ...formData, start_datetime: e.target.value })}
           className="mt-1"
         />
+        {formData.start_datetime && new Date(formData.start_datetime) <= new Date() && (
+          <p className="text-sm text-red-600 mt-1" data-testid="datetime-past-error">
+            La date et l'heure du rendez-vous doivent être dans le futur
+          </p>
+        )}
       </div>
 
       <div>
