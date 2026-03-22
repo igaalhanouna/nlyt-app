@@ -37,7 +37,6 @@ Construire un moteur de détection de présence ultra-conservateur avec collecte
 20. Visibilité produit du flag `requires_revalidation` : bannière UI (InvitationPage), badge "À reconfirmer" (AppointmentDetail), email de notification (Resend), endpoint de reconfirmation Stripe
 
 ## P2 — À venir
-- Stripe re-checkout flow : quand `requires_revalidation: true`, proposer au participant de reconfirmer sa garantie
 - Stripe Connect (répartition automatique des fonds)
 - Auto-update calendrier V2 (retry + notification)
 

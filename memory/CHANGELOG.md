@@ -1,5 +1,19 @@
 # NLYT - Changelog
 
+## 2026-03-22 — E2E Verification: GPS Coordinates Reset on Location Modification
+
+### Résultat: 9/9 tests PASS
+- Paris→Lyon : coordonnées effacées, re-géocodées à 226m de Lyon
+- Check-in près de Lyon : 147m, consistency=`close`
+- Check-in près de Paris (ancien lieu) : 394km, consistency=`incoherent`
+- Aucun cache résiduel incorrect
+
+### Fichier vérifié
+- `/app/backend/services/modification_service.py` (L249-253) — le reset fonctionne parfaitement
+
+---
+
+
 ## 2026-03-22 — Feature: Visibilité produit du flag requires_revalidation
 
 ### Backend
