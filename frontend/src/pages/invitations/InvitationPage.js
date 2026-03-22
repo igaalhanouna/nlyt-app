@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { Calendar, MapPin, Clock, Users, AlertTriangle, Check, X, Loader2, Ban, Download, CreditCard, ShieldCheck, MapPinCheck, QrCode, ScanLine, FileEdit, Send, Pencil } from 'lucide-react';
+import { Calendar, MapPin, Clock, Users, AlertTriangle, Check, X, Loader2, Ban, Download, CreditCard, ShieldCheck, MapPinCheck, QrCode, ScanLine, FileEdit, Send, Pencil, Video } from 'lucide-react';
 import QRCheckin from '../../components/QRCheckin';
 import { formatDateTimeFr, formatTimeFr, formatDateShortFr, formatEvidenceDateFr, formatActionDateFr, parseUTC, utcToLocalInput, localInputToUTC } from '../../utils/dateFormat';
 
@@ -526,8 +526,8 @@ export default function InvitationPage() {
           'bg-slate-100 text-slate-500'
         }`}>
           {isCheckedIn ? 'Présence confirmée' :
-           isDuring ? 'Confirmer votre présence' :
-           isBefore ? 'Check-in bientôt disponible' :
+           isDuring ? (appointment.appointment_type === 'video' ? 'Rejoindre la réunion' : 'Confirmer votre présence') :
+           isBefore ? (appointment.appointment_type === 'video' ? 'Réunion bientôt' : 'Check-in bientôt disponible') :
            'Fenêtre de check-in terminée'}
         </div>
 
@@ -544,10 +544,15 @@ export default function InvitationPage() {
                   le {formatEvidenceDateFr(checkinStatus.earliest_checkin)}
                 </p>
               )}
-              <div className="flex items-center justify-center gap-4 mt-3">
+              <div className="flex items-center justify-center gap-4 mt-3 flex-wrap">
                 {checkinStatus.has_manual_checkin && (
-                  <span className="inline-flex items-center gap-1.5 text-xs bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-full font-medium">
-                    <MapPinCheck className="w-3.5 h-3.5" /> Arrivée confirmée
+                  <span className={`inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full font-medium ${
+                    appointment.appointment_type === 'video'
+                      ? 'bg-amber-50 text-amber-700'
+                      : 'bg-emerald-50 text-emerald-700'
+                  }`}>
+                    <MapPinCheck className="w-3.5 h-3.5" />
+                    {appointment.appointment_type === 'video' ? 'Check-in de secours' : 'Arrivée confirmée'}
                   </span>
                 )}
                 {checkinStatus.has_qr_checkin && (
@@ -561,6 +566,11 @@ export default function InvitationPage() {
                   </span>
                 )}
               </div>
+              {appointment.appointment_type === 'video' && checkinStatus.has_manual_checkin && !checkinStatus.has_video_evidence && (
+                <p className="text-xs text-amber-600 mt-3">
+                  Note : cette preuve manuelle pourra faire l'objet d'une vérification complémentaire.
+                </p>
+              )}
             </div>
           )}
 
@@ -570,20 +580,38 @@ export default function InvitationPage() {
               <div className="w-14 h-14 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3">
                 <Clock className="w-7 h-7 text-slate-400" />
               </div>
-              <p className="font-medium text-slate-700 text-sm">
-                Le check-in ouvrira dans <span className="font-bold text-slate-900">{formatCountdown()}</span>
-              </p>
-              <p className="text-xs text-slate-500 mt-2">
-                Disponible à partir du {formatDate(windowOpen)} à {formatTime(windowOpen)}, soit 30 min avant le rendez-vous
-              </p>
-              <div className="flex items-center justify-center gap-3 mt-4 opacity-50">
-                <button disabled className="flex items-center gap-2 px-4 py-2.5 bg-slate-200 text-slate-400 rounded-xl text-sm font-medium cursor-not-allowed">
-                  <MapPinCheck className="w-4 h-4" /> Je suis arrivé
-                </button>
-                <button disabled className="flex items-center gap-2 px-4 py-2.5 bg-slate-200 text-slate-400 rounded-xl text-sm font-medium cursor-not-allowed">
-                  <ScanLine className="w-4 h-4" /> Scanner un QR
-                </button>
-              </div>
+              {appointment.appointment_type === 'video' ? (
+                <>
+                  <p className="font-medium text-slate-700 text-sm">
+                    La réunion commencera dans <span className="font-bold text-slate-900">{formatCountdown()}</span>
+                  </p>
+                  <p className="text-xs text-slate-500 mt-2">
+                    Votre présence sera vérifiée automatiquement via votre connexion à la réunion.
+                  </p>
+                  {appointment.meeting_join_url && (
+                    <p className="text-xs text-blue-600 mt-2">
+                      Le lien de réunion sera actif 30 min avant le début.
+                    </p>
+                  )}
+                </>
+              ) : (
+                <>
+                  <p className="font-medium text-slate-700 text-sm">
+                    Le check-in ouvrira dans <span className="font-bold text-slate-900">{formatCountdown()}</span>
+                  </p>
+                  <p className="text-xs text-slate-500 mt-2">
+                    Disponible à partir du {formatDate(windowOpen)} à {formatTime(windowOpen)}, soit 30 min avant le rendez-vous
+                  </p>
+                  <div className="flex items-center justify-center gap-3 mt-4 opacity-50">
+                    <button disabled className="flex items-center gap-2 px-4 py-2.5 bg-slate-200 text-slate-400 rounded-xl text-sm font-medium cursor-not-allowed">
+                      <MapPinCheck className="w-4 h-4" /> Je suis arrivé
+                    </button>
+                    <button disabled className="flex items-center gap-2 px-4 py-2.5 bg-slate-200 text-slate-400 rounded-xl text-sm font-medium cursor-not-allowed">
+                      <ScanLine className="w-4 h-4" /> Scanner un QR
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           )}
 
@@ -596,40 +624,100 @@ export default function InvitationPage() {
                 </p>
               </div>
 
-              {/* Primary action */}
-              <button
-                onClick={handleManualCheckin}
-                disabled={checkingIn}
-                className="w-full flex items-center justify-center gap-3 px-5 py-4 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 active:scale-[0.98] transition-all font-semibold text-base disabled:opacity-50 mb-3"
-                data-testid="manual-checkin-btn"
-              >
-                {checkingIn ? <Loader2 className="w-5 h-5 animate-spin" /> : <MapPinCheck className="w-5 h-5" />}
-                Je suis arrivé
-              </button>
+              {/* ─── VIDEO APPOINTMENT: video connection is primary proof ─── */}
+              {appointment.appointment_type === 'video' ? (
+                <div>
+                  {/* Primary: join the meeting */}
+                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4 text-center" data-testid="video-primary-proof">
+                    <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                      <Video className="w-6 h-6 text-blue-600" />
+                    </div>
+                    <p className="text-sm font-semibold text-blue-900 mb-1">
+                      Votre présence est vérifiée automatiquement
+                    </p>
+                    <p className="text-xs text-blue-700 mb-3">
+                      Rejoignez la réunion — votre connexion servira de preuve de présence.
+                    </p>
+                    {appointment.meeting_join_url && (
+                      <a
+                        href={appointment.meeting_join_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 px-5 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 active:scale-[0.98] transition-all font-semibold text-sm"
+                        data-testid="join-meeting-btn"
+                      >
+                        <Video className="w-4 h-4" />
+                        Rejoindre la réunion
+                      </a>
+                    )}
+                    {!appointment.meeting_join_url && appointment.meeting_provider && (
+                      <p className="text-xs text-blue-600 italic">
+                        Le lien de réunion sera disponible prochainement via {appointment.meeting_provider}.
+                      </p>
+                    )}
+                  </div>
 
-              {/* Secondary actions */}
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  onClick={() => setShowQRScanner(true)}
-                  className="flex items-center justify-center gap-2 px-4 py-3 border-2 border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 hover:border-slate-300 active:scale-[0.98] transition-all font-medium text-sm"
-                  data-testid="scan-qr-btn"
-                >
-                  <ScanLine className="w-4 h-4" />
-                  Scanner un QR
-                </button>
-                <button
-                  onClick={handleShowQR}
-                  className="flex items-center justify-center gap-2 px-4 py-3 border-2 border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 hover:border-slate-300 active:scale-[0.98] transition-all font-medium text-sm"
-                  data-testid="show-qr-btn"
-                >
-                  <QrCode className="w-4 h-4" />
-                  Afficher mon QR
-                </button>
-              </div>
+                  {/* Fallback: manual check-in as safety net */}
+                  <details className="group" data-testid="video-fallback-checkin">
+                    <summary className="flex items-center justify-center gap-2 text-xs text-slate-400 cursor-pointer hover:text-slate-600 transition-colors py-2">
+                      <AlertTriangle className="w-3.5 h-3.5" />
+                      <span>Problème de connexion ? Utiliser le check-in de secours</span>
+                    </summary>
+                    <div className="mt-3 border border-amber-200 bg-amber-50 rounded-xl p-4">
+                      <p className="text-xs text-amber-800 mb-3 text-center">
+                        Le check-in manuel est une solution de secours. Il pourra faire l'objet d'une vérification complémentaire.
+                      </p>
+                      <button
+                        onClick={handleManualCheckin}
+                        disabled={checkingIn}
+                        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-amber-600 text-white rounded-xl hover:bg-amber-700 active:scale-[0.98] transition-all font-medium text-sm disabled:opacity-50"
+                        data-testid="manual-checkin-fallback-btn"
+                      >
+                        {checkingIn ? <Loader2 className="w-4 h-4 animate-spin" /> : <MapPinCheck className="w-4 h-4" />}
+                        Check-in de secours
+                      </button>
+                    </div>
+                  </details>
+                </div>
+              ) : (
+                /* ─── PHYSICAL APPOINTMENT: manual/QR/GPS as normal modes ─── */
+                <div>
+                  {/* Primary action */}
+                  <button
+                    onClick={handleManualCheckin}
+                    disabled={checkingIn}
+                    className="w-full flex items-center justify-center gap-3 px-5 py-4 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 active:scale-[0.98] transition-all font-semibold text-base disabled:opacity-50 mb-3"
+                    data-testid="manual-checkin-btn"
+                  >
+                    {checkingIn ? <Loader2 className="w-5 h-5 animate-spin" /> : <MapPinCheck className="w-5 h-5" />}
+                    Je suis arrivé
+                  </button>
 
-              <p className="text-xs text-slate-400 text-center mt-4">
-                La position GPS sera capturée automatiquement si autorisée par votre navigateur.
-              </p>
+                  {/* Secondary actions */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      onClick={() => setShowQRScanner(true)}
+                      className="flex items-center justify-center gap-2 px-4 py-3 border-2 border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 hover:border-slate-300 active:scale-[0.98] transition-all font-medium text-sm"
+                      data-testid="scan-qr-btn"
+                    >
+                      <ScanLine className="w-4 h-4" />
+                      Scanner un QR
+                    </button>
+                    <button
+                      onClick={handleShowQR}
+                      className="flex items-center justify-center gap-2 px-4 py-3 border-2 border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 hover:border-slate-300 active:scale-[0.98] transition-all font-medium text-sm"
+                      data-testid="show-qr-btn"
+                    >
+                      <QrCode className="w-4 h-4" />
+                      Afficher mon QR
+                    </button>
+                  </div>
+
+                  <p className="text-xs text-slate-400 text-center mt-4">
+                    La position GPS sera capturée automatiquement si autorisée par votre navigateur.
+                  </p>
+                </div>
+              )}
             </div>
           )}
 

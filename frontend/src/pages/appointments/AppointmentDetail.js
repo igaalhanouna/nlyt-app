@@ -1270,6 +1270,32 @@ export default function AppointmentDetail() {
                 <Check className="w-5 h-5 text-emerald-600" />
                 <p className="text-sm font-medium text-emerald-700">Check-in enregistré</p>
               </div>
+            ) : appointment.appointment_type === 'video' ? (
+              <div className="space-y-3">
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-sm text-blue-800">
+                    Votre présence sera vérifiée automatiquement via votre connexion à la réunion.
+                  </p>
+                </div>
+                <details className="group">
+                  <summary className="flex items-center gap-2 text-xs text-slate-400 cursor-pointer hover:text-slate-600 transition-colors">
+                    <AlertTriangle className="w-3.5 h-3.5" />
+                    <span>Problème de connexion ? Check-in de secours</span>
+                  </summary>
+                  <div className="mt-2">
+                    <Button
+                      onClick={handleOrganizerCheckin}
+                      disabled={checkingIn}
+                      variant="outline"
+                      className="gap-1.5 border-amber-300 text-amber-700 hover:bg-amber-50"
+                      data-testid="organizer-manual-checkin-btn"
+                    >
+                      {checkingIn ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                      Check-in de secours
+                    </Button>
+                  </div>
+                </details>
+              </div>
             ) : (
               <div className="space-y-3">
                 <p className="text-sm text-slate-600">Confirmez votre présence en tant qu'organisateur.</p>

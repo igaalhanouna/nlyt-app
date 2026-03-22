@@ -142,6 +142,7 @@ async def get_invitation_details(request: Request, token: str):
             "appointment_type": appointment.get('appointment_type', ''),
             "location": appointment.get('location', ''),
             "meeting_provider": appointment.get('meeting_provider', ''),
+            "meeting_join_url": appointment.get('meeting_join_url', ''),
             "start_datetime": utc_start,
             "formatted_date": formatted_date,
             "duration_minutes": appointment.get('duration_minutes', 60),

@@ -711,14 +711,11 @@ def aggregate_evidence(appointment_id: str, participant_id: str, appointment: di
             elif strength == "medium":
                 strength = "strong"
     elif is_video_appointment and not has_video:
-        # Video appointment but no video evidence
-        positive_signals = sum([has_qr, has_gps_close, has_checkin])
-        if positive_signals >= 2:
-            strength = "medium"  # Physical proof at a video meeting is odd, but consider it
-        elif positive_signals == 1:
-            strength = "weak"
-        else:
-            strength = "none"
+        # Video appointment but NO video evidence (no conference connection proof)
+        # Physical evidence alone at a video meeting is a FALLBACK signal only
+        # → cap at "weak" — always requires manual_review
+        # This ensures manual_checkin for video is never equivalent to real connection
+        strength = "weak"
     else:
         # Physical appointment: original logic
         positive_signals = sum([has_qr, has_gps_close, has_checkin])
