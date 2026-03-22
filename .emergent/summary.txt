@@ -1,130 +1,129 @@
-<analysis><problem_statement>
-Tu reprends le développement de mon application SaaS NLYT. L'objectif actuel est de construire le moteur de détection de présence (DÉTECTION NO-SHOW / LATE / ON-TIME / MANUAL REVIEW) et d'y intégrer la collecte de PREUVES PHYSIQUES (Check-in manuel, GPS, QR Code dynamique). 
-Le système doit être ultra-conservateur : aucune pénalité Stripe automatique sans preuve forte.
-Récemment, nous avons repéré un bug critique de Timezone : les pages organisateur et invitation affichent une heure de décalage pour le même RDV. Je veux unifier la gestion des dates : backend en UTC strict, frontend gère l'affichage selon le navigateur.
-</problem_statement>
+<analysis>**original_problem_statement**: 
+L'objectif principal est de construire un moteur de détection de présence ultra-conservateur avec collecte de preuves physiques. Récemment, le développement s'est concentré sur trois axes majeurs : 
+1. Fiabiliser l'affichage des dates/heures (stockage strict en UTC backend, affichage timezone local frontend).
+2. Interdire la création et l'édition de rendez-vous dans le passé.
+3. Transformer la modification de RDV en un véritable flux contractuel (création d'une proposition nécessitant l'acceptation unanime de tous les participants avant application). 
+Le focus actuel est de vérifier que la modification du lieu d'un RDV met bien à jour les coordonnées GPS associées pour le système de preuve.
 
-**User's preferred language**: French (INSTRUCT NEXT AGENT: You MUST automatically detect the user's primary language from their messages inside the <trajectory> tag and INSTRUCT next agent to respond in French only).
+**User's preferred language**: French (INSTRUCT NEXT AGENT: You MUST respond in French only).
 
 **what currently exists?** 
-A fully functional appointment booking SaaS with financial guarantees (Stripe), auto-syncing calendars, a conservative post-appointment attendance evaluation engine (running via APScheduler), and a physical evidence collection system (Symmetric Check-in, GPS capture, Dynamic Neutral QR codes) with smart scoring based on temporal and geographic consistency.
+A fully functional appointment booking SaaS with financial guarantees (Stripe), auto-syncing calendars, a conservative post-appointment attendance evaluation engine, physical evidence collection (GPS, QR, manual), robust UTC timezone handling, and a strict unanimous contractual modification flow for changing appointment details.
 
 **Last working item**:
-    - Last item agent was working: Fixing a critical timezone discrepancy across the application. The agent identified that  was artificially appending 'Z' to naive datetimes (), causing a 1-hour display offset compared to . The session ended before the fix was applied.
-    - Status: IN PROGRESS
+    - Last item agent was working: Fixing a critical bug regarding location modifications. The agent found that when a proposal to change the location () is accepted, the old GPS coordinates (, ) were not being reset. This caused the evidence engine to validate check-ins against the old address. The agent just applied a code fix in  to clear the lat/lon but didn't have time to test it.
+    - Status: IN PROGRESS / TESTING PENDING
     - Agent Testing Done: N
-    - Which testing method agent to use? Both (Frontend testing agent to verify UI display across all pages, manual backend curl to verify API responses).
+    - Which testing method agent to use? manual testing by curl/ python script to simulate a location modification proposal, accept it, and verify that the geocoding triggers and updates the coordinates.
     - User Testing Done: N
 
 **All Pending/In progress Issue list**: 
-  Issue 1: Critical Timezone Display Discrepancy (P0)
-     - Attempted fixes: Agent used  and identified the exact line in  causing the issue but hasn't fixed it yet.
-     - Next debug checklist: 
-        1. Fix  line 368 (and anywhere else) where  is being wrongly appended or where naive strings are parsed incorrectly.
-        2. Audit the backend (e.g., , ) to enforce the user's strict new rule: Backend MUST store and return ALL dates in ISO UTC format. Currently, the backend stores naive local time strings (e.g., ). 
-        3. Audit frontend to ensure it always uses  to display the UTC dates in the user's local time.
-     - Why fix this issue and what will be achieved with the fix? It causes a 1-hour discrepancy between what the organizer sees and what the participant sees, destroying trust in the product.
-     - Status: IN PROGRESS
-     - Is recurring issue? Y (Timezone issues with naive datetimes have occurred twice this session).
-     - Should Test frontend/backend/both after fix? Both
-     - Blocked on other issue: None.
+  Issue 1: GPS Coordinates not updating on Location Modification (P0)
+     - Attempted fixes: Agent used  in  ( method) to set  and  to  when  changes. 
+     - Next debug checklist: Check  in . Test the full modification flow: create an appointment, create a proposal to change its , accept the proposal as all participants, and then verify via  or DB query that the new coordinates are properly geocoded and saved.
+     - Why fix this issue and what will be achieved with the fix? If coordinates aren't updated, the system will incorrectly penalize participants for not being at the old location, breaking the core contract.
+     - Status: TESTING PENDING
+     - Is recurring issue? N
+     - Should Test frontend/backend/both after fix? Backend
+     - Blocked on other issue: None
 
 **In progress Task List**: 
-  None (Focus entirely on Issue 1).
+  None
 
 **Upcoming and Future Tasks**
-    - P2: Stripe Connect Implementation (Automated fund splits between participant, charity, and platform). *Note: User explicitly said do NOT touch this yet until No-show detection is perfect.*
+    - P2: Stripe Hook pour modification majeure (Prepare logic for re-confirmation/re-creation of guarantee if the modification is significant, like a huge date shift or city change).
+    - P2: Stripe Connect Implementation (Automated fund splits between participant, charity, and platform). *Note: Do NOT touch until No-show detection is perfect.*
     - P2: Auto-update calendrier V2 (Retry automatique en cas d'échec + notification).
     - P3: Dashboard analytics organisateur.
+    - P3: Video-based attendance proof.
+    - P3: Dispute resolution improvements.
 
 **Completed work in this session**
-- Attendance Evaluation Engine V1 (Backend rules + APScheduler) (DONE)
-- Physical Evidence System (QR, GPS, Manual check-in endpoints) (DONE)
-- Smart Evidence Scoring V2 (Temporal & Geographic consistency, reverse geocoding via Nominatim) (DONE)
-- Participant Check-in UX (Standalone card with 4 temporal states on Invitation page) (DONE)
+- Timezone Bug Fix: Strict UTC backend storage ( suffix) & frontend localized display via  (DONE)
+- DST (Daylight Saving Time) transitions tested and validated (DONE)
+- Validation preventing creation/modification of past appointments (Backend + Frontend) (DONE)
+- Contractual Appointment Modification Flow ( DB collection, unanimous acceptance logic, UI for both organizer and participant) (DONE)
 
 **Earlier issues found/mentioned but not fixed**
 None.
 
 **Known issue recurrence from previous fork**
-  - Issue recurrence in previous fork: None, but Timezone/Naive datetime issues occurred twice within *this* session.
-  - Recurrence count: 2
-  - Status: IN PROGRESS
+  - Issue recurrence in previous fork: None
+  - Recurrence count: 0
+  - Status: RESOLVED
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
-Frontend: React.js, TailwindCSS, 
-Backend: FastAPI, Python, APScheduler, , ,  (for Nominatim reverse geocoding)
+Frontend: React.js, TailwindCSS
+Backend: FastAPI, Python, APScheduler,  equivalent for UTC parsing
 Database: MongoDB
 
 **key DB schema**
-  - : {evidence_id, appointment_id, participant_id, source, source_timestamp, confidence_score, derived_facts, created_by}
-  - : {attendance_summary, start_datetime (currently stored as naive string, needs UTC refactoring)}
-  - : {status, accepted_at, etc.}
+  - : {..., start_datetime, location, location_latitude, location_longitude}
+  - : {proposal_id, appointment_id, changes, original_values, proposed_by, status (pending/accepted/rejected/expired), responses, organizer_response, expires_at}
 
 **changes in tech stack**
-  - Added  (Python) and  (React) for physical presence verification.
-  - Utilizing OpenStreetMap's Nominatim API (public rate-limited) for reverse geocoding GPS coordinates.
+  - Completely removed backend localized timezone guessing. The application relies strictly on ISO UTC datetimes across the stack.
 
 **All files of reference** 
-  -  (Contains the immediate timezone bug)
-  - 
-  -  (Handles temporal/geographic scoring)
-  -  (Where dates are initially created/stored)
-  - 
+  -  (Core logic for proposal creation and applying changes)
+  -  (Contains  which relies on accurate lat/lon)
+  -  (Organizer UI for proposals)
+  -  (Participant UI for proposals)
 
 **Areas that need refactoring**: 
-  - Backend datetime storage. The application currently stores naive datetime strings based on user input. The user explicitly requested a complete refactor: backend MUST store in UTC and return ISO UTC strings. Frontend handles local conversion.
+  - Stripe Hook for major modifications is currently just a documented requirement but lacks implementation for actually triggering new checkouts upon major location/date changes.
 
 **key api endpoints**
   - 
   - 
   - 
-  - 
 
 **Critical Info for New Agent** 
-1. **TIMEZONE REFACTORING:** The user's last message is a strict directive. The backend MUST NOT guess timezones. Dates must be saved in UTC, sent in UTC (), and the frontend MUST use browser timezones to display them. You will likely need to adjust how appointments are created and how existing naive strings are handled.
-2. **EVIDENCE SCORING:** The system now calculates distance between check-in GPS and appointment location using Haversine, and uses Nominatim for reverse geocoding. It degrades confidence if check-in is too early/late or too far. Leave this logic intact, but ensure datetimes used in calculations are UTC-safe.
-3. **DO NOT TOUCH STRIPE:** The user has reiterated not to trigger aggressive Stripe captures yet.
+- **Timezones**: You MUST adhere to the strict UTC policy. Backend APIs must return . The frontend's  handles localization based on the user's browser. Do NOT use  in backend business logic.
+- **Modifications**: Contractual fields (date, time, duration, location) can NO LONGER be updated directly via standard . They MUST go through the  flow which requires unanimous participant acceptance.
 
 **documents and test reports created in this job** 
-  -  (Updated extensively with Evidence rules)
   - 
   - 
   - 
-  - 
+  -  (Timezone fix)
+  -  (Past date creation fix)
+  -  (Past date modification fix)
+  -  (Modification Proposals Flow)
 
 **Last 10 User Messages and any pending HUMAN messages** 
-1. (User) Requested physical evidence collection (Check-in, GPS, QR code) and a neutral implementation.
-2. (User) Clarified logic: No participant validates another. QR belongs to the system. Fallback manual code required.
-3. (User) Asked to test the V2 evidence engine together on a live link.
-4. (User) Provided screenshot of successful check-in.
-5. (User) Requested Organizer UI upgrade to show exact date, time, GPS coords, distance, and reverse geocoding address for evidence.
-6. (User) Reported logic flaw: A check-in 3 days early in Paris for a meeting in Cannes was rated medium. Requested Smart Scoring (Temporal + Geographic consistency).
-7. (User) Noticed a timezone UTC/Local offset bug on their check-in time (stored as 22:54 UTC, but was 23:54 local).
-8. (User) Complained about Participant UX on InvitationPage. Check-in actions were buried. Requested a prominent 4-state block.
-9. (User) **PENDING HUMAN MESSAGE**: Reported a critical timezone bug. The Organizer page shows 01:04, the Invitation page shows 00:04. Demanded a strict architectural rule: Backend stores/sends UTC ONLY, Frontend converts to local browser timezone ONLY. Agent found the bug but session ended.
+1. (User) Reported a critical timezone bug (1h offset between Organizer and Invitation page). Demanded strict UTC backend + local frontend architecture.
+2. (Agent) Fixed the bug.
+3. (User) Requested tests specifically around the DST transition (March 29, 2026) to ensure no UI offsets.
+4. (Agent) Tested 4 DST scenarios successfully.
+5. (User) Demanded a bug fix to prevent creating appointments in the past (Frontend + Backend validation).
+6. (Agent) Implemented past date prevention for creation.
+7. (User) Demanded the same past-date validation for *modifying* an existing appointment.
+8. (Agent) Implemented validation for modifications.
+9. (User) Requested transformation of the modification flow into a Contractual Flow (proposals, unanimous acceptance, expiration).
+10. (User) **PENDING HUMAN MESSAGE**: Expressed doubts about the Location modification part of the flow. Asked the agent to verify that modifying the location correctly updates the DB, Google Calendar, and *crucially* the GPS coordinates used by the evidence engine. Agent found a caching bug and patched it but needs to test.
 
 **Project Health Check:**
-Broken (Timezone display discrepancies across views).
+Healthy, but the latest code change regarding GPS location reset needs verification.
 
-**3rd Party Integrations**
+**3rd Party Integrations** 
   • Stripe (Payments) — requires User API Key
   • Resend (Emails) — requires User API Key
   • Google/Outlook Calendar — requires User API Key
   • Nominatim (OpenStreetMap) — Public API (rate limited to 1 req/sec)
 
 **Testing status**
-  - Testing agent used after significant changes: YES (Iterations 12, 13, 14, 15)
+  - Testing agent used after significant changes: YES (Iterations 16, 17, 18, 19)
   - Troubleshoot agent used after agent stuck in loop: NO
   - Test files created: None
-  - Known regressions: Naive datetime handling causing 1-hour offsets on frontend.
+  - Known regressions: None currently, GPS logic pending test.
 
 **Credentials to test flow:**
   - Standard Test User: 
   - Password: 
 
 **What agent forgot to execute**
-The agent successfully pinpointed the cause of the UI timezone discrepancy ( line 368 appending 'Z' to a naive string) but the context window ran out before the agent could implement the fix and apply the user's new strict UTC backend / Local frontend architecture rule.</analysis>
+The agent discovered the bug where  and  weren't cleared when  was modified. The agent executed a  to fix it, but the session ended before running any tests to verify if the fix successfully forces a re-geocode. Testing this flow is the immediate priority.</analysis>

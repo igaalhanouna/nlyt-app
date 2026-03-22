@@ -590,27 +590,28 @@ export default function AppointmentDetail() {
 
         <div className="grid md:grid-cols-2 gap-6">
           <div className={`bg-white rounded-lg border p-6 ${isCancelled ? 'border-slate-200 opacity-60' : 'border-slate-200'}`}>
-            <h2 className="text-lg font-semibold text-slate-900 mb-4">Informations générales</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-slate-900">Informations générales</h2>
+              {canEditDatetime() && (
+                <button
+                  onClick={handleOpenProposalForm}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-slate-600 hover:text-blue-700 hover:bg-blue-50 border border-slate-200 hover:border-blue-200 rounded-lg transition-colors"
+                  title="Modifier les informations générales (date, durée, lieu, type)"
+                  data-testid="edit-general-info-btn"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                  Modifier
+                </button>
+              )}
+            </div>
             <div className="space-y-4">
               <div className="flex items-start gap-3">
                 <Calendar className="w-5 h-5 text-slate-500 mt-0.5" />
                 <div className="flex-1">
                   <p className="text-sm font-medium text-slate-700">Date et heure</p>
-                  <div className="flex items-center gap-2">
-                    <p className="text-slate-900" data-testid="appointment-datetime-display">
-                      {formatDateTimeFr(appointment.start_datetime)}
-                    </p>
-                    {canEditDatetime() && (
-                      <button
-                        onClick={handleOpenProposalForm}
-                        className="text-slate-400 hover:text-blue-600 transition-colors"
-                        title="Proposer une modification"
-                        data-testid="edit-datetime-btn"
-                      >
-                        <Pencil className="w-4 h-4" />
-                      </button>
-                    )}
-                  </div>
+                  <p className="text-slate-900" data-testid="appointment-datetime-display">
+                    {formatDateTimeFr(appointment.start_datetime)}
+                  </p>
                   <p className="text-sm text-slate-500 mt-1">Durée : {appointment.duration_minutes} minutes</p>
                 </div>
               </div>
