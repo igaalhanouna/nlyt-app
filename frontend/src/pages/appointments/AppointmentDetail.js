@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { appointmentAPI, participantAPI, calendarAPI, invitationAPI, attendanceAPI, checkinAPI } from '../../services/api';
+import { appointmentAPI, participantAPI, calendarAPI, invitationAPI, attendanceAPI, checkinAPI, modificationAPI } from '../../services/api';
 import { Button } from '../../components/ui/button';
-import { ArrowLeft, Calendar, MapPin, Video, Clock, Users, Ban, Check, X, AlertTriangle, Download, Heart, ShieldCheck, CreditCard, RefreshCw, Loader2, Zap, ClipboardCheck, Eye, UserX, UserCheck, HelpCircle, ChevronDown, ScanLine, QrCode, MapPinCheck, ExternalLink, Timer, Navigation, Pencil, Save } from 'lucide-react';
+import { ArrowLeft, Calendar, MapPin, Video, Clock, Users, Ban, Check, X, AlertTriangle, Download, Heart, ShieldCheck, CreditCard, RefreshCw, Loader2, Zap, ClipboardCheck, Eye, UserX, UserCheck, HelpCircle, ChevronDown, ScanLine, QrCode, MapPinCheck, ExternalLink, Timer, Navigation, Pencil, Save, Send, FileEdit } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDateTimeFr, formatTimeFr, formatEvidenceDateFr, parseUTC, utcToLocalInput, localInputToUTC } from '../../utils/dateFormat';
 import { Input } from '../../components/ui/input';
+import { Label } from '../../components/ui/label';
 
 export default function AppointmentDetail() {
   const { id } = useParams();
@@ -23,9 +24,16 @@ export default function AppointmentDetail() {
   const [reclassifying, setReclassifying] = useState(null);
   const [reclassifyDropdown, setReclassifyDropdown] = useState(null);
   const [evidenceData, setEvidenceData] = useState(null);
-  const [isEditingDatetime, setIsEditingDatetime] = useState(false);
-  const [editDatetimeValue, setEditDatetimeValue] = useState('');
-  const [savingDatetime, setSavingDatetime] = useState(false);
+  const [activeProposal, setActiveProposal] = useState(null);
+  const [proposalHistory, setProposalHistory] = useState([]);
+  const [showProposalForm, setShowProposalForm] = useState(false);
+  const [proposalForm, setProposalForm] = useState({
+    start_datetime: '', duration_minutes: '', location: '',
+    meeting_provider: '', appointment_type: ''
+  });
+  const [submittingProposal, setSubmittingProposal] = useState(false);
+  const [respondingProposal, setRespondingProposal] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -53,6 +61,14 @@ export default function AppointmentDetail() {
       // Load evidence data (non-blocking)
       checkinAPI.getEvidence(id)
         .then(res => setEvidenceData(res.data))
+        .catch(() => {});
+
+      // Load modification proposals (non-blocking)
+      modificationAPI.getActive(id)
+        .then(res => setActiveProposal(res.data?.proposal || null))
+        .catch(() => {});
+      modificationAPI.getForAppointment(id)
+        .then(res => setProposalHistory(res.data?.proposals || []))
         .catch(() => {});
     } catch (error) {
       toast.error('Erreur lors du chargement');
@@ -245,42 +261,74 @@ export default function AppointmentDetail() {
   const canEditDatetime = () => {
     if (!appointment) return false;
     if (appointment.status === 'cancelled') return false;
+    if (activeProposal) return false;
     return !isAppointmentEnded();
   };
 
-  const handleEditDatetime = () => {
-    setEditDatetimeValue(utcToLocalInput(appointment.start_datetime));
-    setIsEditingDatetime(true);
+  const handleOpenProposalForm = () => {
+    setProposalForm({
+      start_datetime: utcToLocalInput(appointment.start_datetime),
+      duration_minutes: String(appointment.duration_minutes || 60),
+      location: appointment.location || '',
+      meeting_provider: appointment.meeting_provider || '',
+      appointment_type: appointment.appointment_type || 'physical'
+    });
+    setShowProposalForm(true);
   };
 
-  const handleCancelEditDatetime = () => {
-    setIsEditingDatetime(false);
-    setEditDatetimeValue('');
-  };
+  const handleSubmitProposal = async () => {
+    const changes = {};
+    const current = appointment;
+    const form = proposalForm;
+    const utcDt = localInputToUTC(form.start_datetime);
+    if (utcDt && utcDt !== current.start_datetime) changes.start_datetime = utcDt;
+    if (form.duration_minutes && Number(form.duration_minutes) !== current.duration_minutes) changes.duration_minutes = Number(form.duration_minutes);
+    if (form.location !== (current.location || '')) changes.location = form.location;
+    if (form.meeting_provider !== (current.meeting_provider || '')) changes.meeting_provider = form.meeting_provider;
+    if (form.appointment_type !== (current.appointment_type || '')) changes.appointment_type = form.appointment_type;
 
-  const isEditDatetimeValid = () => {
-    if (!editDatetimeValue) return false;
-    return new Date(editDatetimeValue) > new Date();
-  };
-
-  const handleSaveDatetime = async () => {
-    if (!isEditDatetimeValid()) {
-      toast.error("La date et l'heure du rendez-vous doivent être dans le futur");
+    if (Object.keys(changes).length === 0) {
+      toast.error('Aucune modification détectée');
       return;
     }
-    setSavingDatetime(true);
+    if (changes.start_datetime && new Date(changes.start_datetime) <= new Date()) {
+      toast.error("La nouvelle date doit être dans le futur");
+      return;
+    }
+
+    setSubmittingProposal(true);
     try {
-      const utcValue = localInputToUTC(editDatetimeValue);
-      await appointmentAPI.update(id, { start_datetime: utcValue });
-      toast.success('Date et heure mises à jour');
-      setIsEditingDatetime(false);
-      setEditDatetimeValue('');
+      await modificationAPI.create({ appointment_id: id, changes });
+      toast.success('Proposition de modification envoyée');
+      setShowProposalForm(false);
       loadData();
     } catch (err) {
-      const msg = err.response?.data?.detail || 'Erreur lors de la mise à jour';
-      toast.error(msg);
+      toast.error(err.response?.data?.detail || 'Erreur lors de la création de la proposition');
     } finally {
-      setSavingDatetime(false);
+      setSubmittingProposal(false);
+    }
+  };
+
+  const handleRespondProposal = async (proposalId, action) => {
+    setRespondingProposal(true);
+    try {
+      await modificationAPI.respond(proposalId, { action });
+      toast.success(action === 'accept' ? 'Modification acceptée' : 'Modification refusée');
+      loadData();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Erreur');
+    } finally {
+      setRespondingProposal(false);
+    }
+  };
+
+  const handleCancelProposal = async (proposalId) => {
+    try {
+      await modificationAPI.cancel(proposalId);
+      toast.success('Proposition annulée');
+      loadData();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Erreur');
     }
   };
 
@@ -548,61 +596,21 @@ export default function AppointmentDetail() {
                 <Calendar className="w-5 h-5 text-slate-500 mt-0.5" />
                 <div className="flex-1">
                   <p className="text-sm font-medium text-slate-700">Date et heure</p>
-                  {isEditingDatetime ? (
-                    <div className="mt-1 space-y-2">
-                      <Input
-                        type="datetime-local"
-                        data-testid="edit-datetime-input"
-                        value={editDatetimeValue}
-                        min={(() => {
-                          const now = new Date();
-                          const y = now.getFullYear();
-                          const m = String(now.getMonth() + 1).padStart(2, '0');
-                          const d = String(now.getDate()).padStart(2, '0');
-                          const h = String(now.getHours()).padStart(2, '0');
-                          const mi = String(now.getMinutes()).padStart(2, '0');
-                          return `${y}-${m}-${d}T${h}:${mi}`;
-                        })()}
-                        onChange={(e) => setEditDatetimeValue(e.target.value)}
-                        className="max-w-xs"
-                      />
-                      {editDatetimeValue && !isEditDatetimeValid() && (
-                        <p className="text-sm text-red-600" data-testid="edit-datetime-past-error">
-                          La date et l'heure du rendez-vous doivent être dans le futur
-                        </p>
-                      )}
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          onClick={handleSaveDatetime}
-                          disabled={!isEditDatetimeValid() || savingDatetime}
-                          data-testid="save-datetime-btn"
-                        >
-                          {savingDatetime ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Save className="w-3 h-3 mr-1" />}
-                          Enregistrer
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={handleCancelEditDatetime} data-testid="cancel-edit-datetime-btn">
-                          Annuler
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <p className="text-slate-900" data-testid="appointment-datetime-display">
-                        {formatDateTimeFr(appointment.start_datetime)}
-                      </p>
-                      {canEditDatetime() && (
-                        <button
-                          onClick={handleEditDatetime}
-                          className="text-slate-400 hover:text-blue-600 transition-colors"
-                          title="Modifier la date"
-                          data-testid="edit-datetime-btn"
-                        >
-                          <Pencil className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
-                  )}
+                  <div className="flex items-center gap-2">
+                    <p className="text-slate-900" data-testid="appointment-datetime-display">
+                      {formatDateTimeFr(appointment.start_datetime)}
+                    </p>
+                    {canEditDatetime() && (
+                      <button
+                        onClick={handleOpenProposalForm}
+                        className="text-slate-400 hover:text-blue-600 transition-colors"
+                        title="Proposer une modification"
+                        data-testid="edit-datetime-btn"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
                   <p className="text-sm text-slate-500 mt-1">Durée : {appointment.duration_minutes} minutes</p>
                 </div>
               </div>
@@ -672,6 +680,205 @@ export default function AppointmentDetail() {
             </div>
           </div>
         </div>
+
+        {/* Proposal Form Modal */}
+        {showProposalForm && (
+          <div className="bg-white rounded-lg border-2 border-blue-300 p-6 mt-6" data-testid="proposal-form">
+            <div className="flex items-center gap-2 mb-4">
+              <FileEdit className="w-5 h-5 text-blue-600" />
+              <h2 className="text-lg font-semibold text-slate-900">Proposer une modification</h2>
+            </div>
+            <p className="text-sm text-slate-500 mb-4">
+              Les participants devront accepter cette modification avant qu'elle ne soit appliquée.
+            </p>
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="prop-datetime">Date et heure</Label>
+                <Input
+                  id="prop-datetime" type="datetime-local" data-testid="proposal-datetime-input"
+                  value={proposalForm.start_datetime}
+                  min={(() => { const n=new Date(); return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}T${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}`; })()}
+                  onChange={(e) => setProposalForm({...proposalForm, start_datetime: e.target.value})}
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="prop-duration">Durée (minutes)</Label>
+                <Input
+                  id="prop-duration" type="number" min="15" step="15" data-testid="proposal-duration-input"
+                  value={proposalForm.duration_minutes}
+                  onChange={(e) => setProposalForm({...proposalForm, duration_minutes: e.target.value})}
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="prop-type">Type</Label>
+                <select
+                  id="prop-type" data-testid="proposal-type-select"
+                  value={proposalForm.appointment_type}
+                  onChange={(e) => setProposalForm({...proposalForm, appointment_type: e.target.value})}
+                  className="mt-1 w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  <option value="physical">En personne</option>
+                  <option value="video">Visioconférence</option>
+                </select>
+              </div>
+              <div>
+                <Label htmlFor="prop-location">{proposalForm.appointment_type === 'video' ? 'Plateforme visio' : 'Lieu'}</Label>
+                <Input
+                  id="prop-location" data-testid="proposal-location-input"
+                  value={proposalForm.appointment_type === 'video' ? proposalForm.meeting_provider : proposalForm.location}
+                  onChange={(e) => {
+                    if (proposalForm.appointment_type === 'video') {
+                      setProposalForm({...proposalForm, meeting_provider: e.target.value});
+                    } else {
+                      setProposalForm({...proposalForm, location: e.target.value});
+                    }
+                  }}
+                  className="mt-1"
+                />
+              </div>
+            </div>
+            {proposalForm.start_datetime && new Date(proposalForm.start_datetime) <= new Date() && (
+              <p className="text-sm text-red-600 mt-2" data-testid="proposal-datetime-past-error">
+                La date et l'heure du rendez-vous doivent être dans le futur
+              </p>
+            )}
+            <div className="flex gap-2 mt-4">
+              <Button onClick={handleSubmitProposal} disabled={submittingProposal} data-testid="submit-proposal-btn">
+                {submittingProposal ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Send className="w-4 h-4 mr-1" />}
+                Envoyer la proposition
+              </Button>
+              <Button variant="outline" onClick={() => setShowProposalForm(false)} data-testid="cancel-proposal-form-btn">
+                Annuler
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Active Proposal Banner */}
+        {activeProposal && activeProposal.status === 'pending' && (
+          <div className="bg-blue-50 border-2 border-blue-300 rounded-lg p-6 mt-6" data-testid="active-proposal-banner">
+            <div className="flex items-center gap-2 mb-3">
+              <FileEdit className="w-5 h-5 text-blue-600" />
+              <h2 className="font-semibold text-blue-900">Modification en cours</h2>
+              <span className="ml-auto text-xs bg-blue-200 text-blue-800 px-2 py-0.5 rounded-full">
+                {activeProposal.proposed_by?.role === 'organizer' ? 'Par vous' : `Par ${activeProposal.proposed_by?.name}`}
+              </span>
+            </div>
+
+            {/* Changes: old vs new */}
+            <div className="grid sm:grid-cols-2 gap-3 mb-4">
+              {Object.entries(activeProposal.changes || {}).map(([field, newVal]) => {
+                const oldVal = activeProposal.original_values?.[field];
+                const labels = { start_datetime: 'Date/Heure', duration_minutes: 'Durée', location: 'Lieu', meeting_provider: 'Visio', appointment_type: 'Type' };
+                const formatVal = (f, v) => {
+                  if (f === 'start_datetime') return formatDateTimeFr(v);
+                  if (f === 'duration_minutes') return `${v} min`;
+                  if (f === 'appointment_type') return v === 'physical' ? 'En personne' : 'Visio';
+                  return v || '—';
+                };
+                return (
+                  <div key={field} className="bg-white rounded p-3 border border-blue-200">
+                    <p className="text-xs font-semibold text-slate-500 mb-1">{labels[field] || field}</p>
+                    <p className="text-sm text-red-600 line-through">{formatVal(field, oldVal)}</p>
+                    <p className="text-sm text-emerald-700 font-semibold">{formatVal(field, newVal)}</p>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Responses tracker */}
+            <div className="mb-4">
+              <p className="text-sm font-medium text-slate-700 mb-2">Réponses</p>
+              {activeProposal.organizer_response?.status === 'pending' && (
+                <div className="flex items-center gap-2 text-sm mb-1">
+                  <Clock className="w-4 h-4 text-amber-500" />
+                  <span className="text-slate-700">Organisateur</span>
+                  <span className="text-amber-600 font-medium">En attente</span>
+                </div>
+              )}
+              {activeProposal.organizer_response?.status === 'auto_accepted' && (
+                <div className="flex items-center gap-2 text-sm mb-1">
+                  <Check className="w-4 h-4 text-emerald-500" />
+                  <span className="text-slate-700">Organisateur</span>
+                  <span className="text-emerald-600 font-medium">Accepté (auteur)</span>
+                </div>
+              )}
+              {(activeProposal.responses || []).map((r) => (
+                <div key={r.participant_id} className="flex items-center gap-2 text-sm mb-1">
+                  {r.status === 'pending' && <Clock className="w-4 h-4 text-amber-500" />}
+                  {r.status === 'accepted' && <Check className="w-4 h-4 text-emerald-500" />}
+                  {r.status === 'rejected' && <X className="w-4 h-4 text-red-500" />}
+                  <span className="text-slate-700">{r.first_name} {r.last_name}</span>
+                  <span className={`font-medium ${r.status === 'pending' ? 'text-amber-600' : r.status === 'accepted' ? 'text-emerald-600' : 'text-red-600'}`}>
+                    {r.status === 'pending' ? 'En attente' : r.status === 'accepted' ? 'Accepté' : 'Refusé'}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            {/* Organizer must respond to participant proposals */}
+            {activeProposal.proposed_by?.role === 'participant' && activeProposal.organizer_response?.status === 'pending' && (
+              <div className="flex gap-2" data-testid="organizer-respond-proposal">
+                <Button size="sm" onClick={() => handleRespondProposal(activeProposal.proposal_id, 'accept')} disabled={respondingProposal} data-testid="accept-proposal-btn">
+                  <Check className="w-4 h-4 mr-1" /> Accepter
+                </Button>
+                <Button size="sm" variant="outline" className="text-red-600 border-red-300 hover:bg-red-50" onClick={() => handleRespondProposal(activeProposal.proposal_id, 'reject')} disabled={respondingProposal} data-testid="reject-proposal-btn">
+                  <X className="w-4 h-4 mr-1" /> Refuser
+                </Button>
+              </div>
+            )}
+
+            {/* Cancel button for proposer */}
+            {activeProposal.proposed_by?.role === 'organizer' && (
+              <Button size="sm" variant="ghost" className="text-slate-500 mt-2" onClick={() => handleCancelProposal(activeProposal.proposal_id)} data-testid="cancel-active-proposal-btn">
+                Annuler cette proposition
+              </Button>
+            )}
+
+            <p className="text-xs text-slate-400 mt-3">
+              Expire le {formatDateTimeFr(activeProposal.expires_at)}
+            </p>
+          </div>
+        )}
+
+        {/* Proposal History */}
+        {proposalHistory.length > 0 && (
+          <div className="mt-4">
+            <button onClick={() => setShowHistory(!showHistory)} className="flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700" data-testid="toggle-proposal-history">
+              <ChevronDown className={`w-4 h-4 transition-transform ${showHistory ? 'rotate-180' : ''}`} />
+              Historique des modifications ({proposalHistory.length})
+            </button>
+            {showHistory && (
+              <div className="mt-2 space-y-2">
+                {proposalHistory.filter(p => p.status !== 'pending').map(p => (
+                  <div key={p.proposal_id} className="bg-white border border-slate-200 rounded p-3 text-sm">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                        p.status === 'accepted' ? 'bg-emerald-100 text-emerald-700' :
+                        p.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                        p.status === 'expired' ? 'bg-slate-100 text-slate-500' :
+                        'bg-amber-100 text-amber-700'
+                      }`}>
+                        {p.status === 'accepted' ? 'Accepté' : p.status === 'rejected' ? 'Refusé' : p.status === 'expired' ? 'Expiré' : 'Annulé'}
+                      </span>
+                      <span className="text-slate-500">par {p.proposed_by?.name || p.proposed_by?.role}</span>
+                      <span className="text-slate-400 ml-auto text-xs">{formatDateTimeFr(p.created_at)}</span>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {Object.entries(p.changes || {}).map(([f, v]) => (
+                        <span key={f} className="text-xs bg-slate-100 px-2 py-0.5 rounded">
+                          {f === 'start_datetime' ? 'Date' : f === 'duration_minutes' ? 'Durée' : f === 'location' ? 'Lieu' : f}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {participants.length > 0 && (
           <div className={`bg-white rounded-lg border p-6 mt-6 ${isCancelled ? 'border-slate-200 opacity-60' : 'border-slate-200'}`}>

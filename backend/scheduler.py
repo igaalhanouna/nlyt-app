@@ -45,6 +45,15 @@ async def attendance_evaluation_job():
         logger.error(f"[SCHEDULER] Attendance evaluation job failed: {str(e)}")
 
 
+async def proposal_expiration_job():
+    """Job to expire stale modification proposals (24h timeout)"""
+    try:
+        from services.modification_service import expire_stale_proposals
+        expire_stale_proposals()
+    except Exception as e:
+        logger.error(f"[SCHEDULER] Proposal expiration job failed: {str(e)}")
+
+
 def start_scheduler():
     """Start the background scheduler"""
     # Job 1: Cancellation deadline reminders (every 5 minutes)
@@ -71,6 +80,15 @@ def start_scheduler():
         trigger=IntervalTrigger(minutes=10),
         id='attendance_evaluation_job',
         name='Evaluate attendance for ended appointments',
+        replace_existing=True
+    )
+
+    # Job 4: Modification proposal expiration (every 5 minutes)
+    scheduler.add_job(
+        proposal_expiration_job,
+        trigger=IntervalTrigger(minutes=5),
+        id='proposal_expiration_job',
+        name='Expire stale modification proposals (24h timeout)',
         replace_existing=True
     )
 

@@ -125,4 +125,12 @@ export const adminAPI = {
   getStripeEvents: (limit) => api.get(`/api/admin/stripe-events?limit=${limit || 50}`),
 };
 
+export const modificationAPI = {
+  create: (data) => api.post('/api/modifications/', data),
+  getForAppointment: (appointmentId) => api.get(`/api/modifications/appointment/${appointmentId}`),
+  getActive: (appointmentId) => api.get(`/api/modifications/active/${appointmentId}`),
+  respond: (proposalId, data) => api.post(`/api/modifications/${proposalId}/respond`, data),
+  cancel: (proposalId) => api.post(`/api/modifications/${proposalId}/cancel`),
+};
+
 export default api;
