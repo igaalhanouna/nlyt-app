@@ -237,6 +237,27 @@ def _apply_proposal(proposal: dict):
     changes = proposal['changes']
 
     update_fields = {**changes, "updated_at": now_utc_iso()}
+
+    # When location changes, invalidate cached GPS coordinates
+    # so the evidence system re-geocodes on next check
+    if 'location' in changes:
+        update_fields['location_latitude'] = None
+        update_fields['location_longitude'] = None
+        update_fields['location_geocoded'] = False
+        update_fields['location_display_name'] = None
+
+    # When switching to video, clear physical location fields
+    if changes.get('appointment_type') == 'video':
+        update_fields.setdefault('location', '')
+        update_fields['location_latitude'] = None
+        update_fields['location_longitude'] = None
+        update_fields['location_geocoded'] = False
+        update_fields['location_display_name'] = None
+
+    # When switching to physical, clear meeting provider
+    if changes.get('appointment_type') == 'physical':
+        update_fields.setdefault('meeting_provider', '')
+
     db.appointments.update_one(
         {"appointment_id": appointment_id},
         {"$set": update_fields}
