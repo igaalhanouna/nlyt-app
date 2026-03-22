@@ -55,6 +55,7 @@ Email: Resend | Payments: Stripe | Video: Zoom API, Teams Graph API, Google Cale
 - iteration_31: 23/23 frontend + 9/9 backend (video check-in differentiation)
 - iteration_32: 22/22 frontend + 12/13 backend (meeting auto-creation fix)
 - iteration_33: 7/7 frontend + 16/16 backend (host experience improvements)
+- iteration_34: all frontend + 11/11 backend (honest UX messaging)
 - Credentials: testuser_audit@nlyt.app / Test1234!
 
 ## Completed (March 2026)
@@ -63,6 +64,7 @@ Email: Resend | Payments: Stripe | Video: Zoom API, Teams Graph API, Google Cale
 - Video vs Physical check-in UX differentiation
 - **Meeting auto-creation regression fix** (March 22): Restored Microsoft Teams credentials, improved is_configured() guard, added error logging in lifecycle
 - **Host experience fix** (March 22): Teams lobby bypass (scope=everyone, allowedPresenters=organizer), Meet creator email hint in UI, Zoom host/participant URL distinction in frontend
+- **Honest UX messaging** (March 22): Provider-specific check-in messages (auto-fetch Zoom/Teams, manual import Meet), contextual evidence action bars, auto-fetch scheduler job (5min interval after meeting end)
 
 ## Backlog (Prioritized)
 ### P1
