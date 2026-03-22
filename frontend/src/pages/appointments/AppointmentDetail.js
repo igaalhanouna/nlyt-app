@@ -1219,6 +1219,23 @@ export default function AppointmentDetail() {
                                   }`}>
                                     {e.confidence_score === 'high' ? 'Confiance haute' : e.confidence_score === 'medium' ? 'Confiance moyenne' : 'Confiance faible'}
                                   </span>
+                                  {/* Source trust badge for video evidence */}
+                                  {e.source === 'video_conference' && facts.source_trust && (
+                                    <span
+                                      data-testid={`source-trust-badge-${e.evidence_id}`}
+                                      className={`text-xs px-1.5 py-0.5 rounded inline-flex items-center gap-1 ${
+                                        facts.source_trust === 'api_verified'
+                                          ? 'bg-blue-100 text-blue-700'
+                                          : 'bg-orange-100 text-orange-700'
+                                      }`}
+                                    >
+                                      {facts.source_trust === 'api_verified' ? (
+                                        <><Shield className="w-3 h-3" /> Vérifié par API</>
+                                      ) : (
+                                        <><Upload className="w-3 h-3" /> Import manuel</>
+                                      )}
+                                    </span>
+                                  )}
                                 </div>
 
                                 <p className="text-sm text-slate-600 mt-0.5" data-testid={`evidence-date-${e.evidence_id}`}>

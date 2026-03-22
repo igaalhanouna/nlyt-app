@@ -86,6 +86,7 @@ def ingest_video_attendance(
     raw_payload: dict,
     ingested_by: str = "organizer",
     external_meeting_id: Optional[str] = None,
+    source_trust: str = "manual_upload",
 ) -> dict:
     """
     Main ingestion entry point.
@@ -158,6 +159,7 @@ def ingest_video_attendance(
         "normalized_record_count": len(normalized_records),
         "ingested_by": ingested_by,
         "ingested_at": now_utc().isoformat(),
+        "source_trust": source_trust,
     }
     db.video_ingestion_logs.insert_one(ingestion_log)
 
@@ -240,6 +242,7 @@ def ingest_video_attendance(
                 "video_attendance_outcome": video_outcome,
                 "participant_email_from_provider": norm_rec.participant_email,
                 "participant_name_from_provider": norm_rec.participant_name,
+                "source_trust": source_trust,
             }
 
             # Create evidence item
@@ -261,6 +264,7 @@ def ingest_video_attendance(
                 "identity_confidence": match_result["confidence"],
                 "video_outcome": video_outcome,
                 "evidence_confidence": evidence_confidence,
+                "source_trust": source_trust,
             })
         else:
             unmatched_records.append({

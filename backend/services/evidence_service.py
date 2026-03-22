@@ -630,6 +630,7 @@ def aggregate_evidence(appointment_id: str, participant_id: str, appointment: di
     video_provider_ceiling = None
     video_identity_confidence = None
     video_outcome = None
+    video_source_trust = None
     earliest_timestamp = None
     worst_temporal = "valid"
     best_geographic = "no_reference"
@@ -663,6 +664,7 @@ def aggregate_evidence(appointment_id: str, participant_id: str, appointment: di
             video_provider_ceiling = facts.get('provider_evidence_ceiling', 'assisted')
             video_identity_confidence = facts.get('identity_confidence', 'low')
             video_outcome = facts.get('video_attendance_outcome', 'manual_review')
+            video_source_trust = facts.get('source_trust', 'manual_upload')
             signals.append(f"video_{video_provider}")
         if source == 'gps' or (source == 'manual_checkin' and facts.get('latitude')):
             gc = facts.get('geographic_consistency', 'no_reference')
@@ -696,6 +698,11 @@ def aggregate_evidence(appointment_id: str, participant_id: str, appointment: di
             strength = "medium"
         else:
             strength = "weak"
+
+        # CAP: manual_upload evidence can never reach "strong" — organizer-provided
+        # data is not independently verified, so always requires human review
+        if video_source_trust == "manual_upload" and strength == "strong":
+            strength = "medium"
 
         # Boost from physical evidence (hybrid meetings)
         if has_qr or has_gps_close or has_checkin:
@@ -791,4 +798,5 @@ def aggregate_evidence(appointment_id: str, participant_id: str, appointment: di
         "video_provider_ceiling": video_provider_ceiling,
         "video_identity_confidence": video_identity_confidence,
         "video_outcome": video_outcome,
+        "video_source_trust": video_source_trust,
     }

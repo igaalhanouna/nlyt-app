@@ -130,6 +130,8 @@ def evaluate_participant(participant: dict, appointment: dict) -> dict:
 
         # --- VIDEO APPOINTMENT SPECIFIC RULES ---
         if is_video and aggregation.get('video_provider'):
+            video_trust = aggregation.get('video_source_trust', 'manual_upload')
+            
             # RULE: Google Meet alone (assisted ceiling) → ALWAYS manual_review
             if video_provider_ceiling == "assisted" and strength != "strong":
                 return {
@@ -142,6 +144,7 @@ def evaluate_participant(participant: dict, appointment: dict) -> dict:
                         "provider": aggregation.get('video_provider'),
                         "provider_ceiling": video_provider_ceiling,
                         "video_outcome": video_outcome,
+                        "source_trust": video_trust,
                         "rule": "Google Meet seul ne declenche pas de decision automatique",
                     }
                 }
@@ -157,6 +160,7 @@ def evaluate_participant(participant: dict, appointment: dict) -> dict:
                     "video_context": {
                         "provider": aggregation.get('video_provider'),
                         "video_outcome": video_outcome,
+                        "source_trust": video_trust,
                     }
                 }
 
@@ -170,6 +174,7 @@ def evaluate_participant(participant: dict, appointment: dict) -> dict:
                     "video_context": {
                         "provider": aggregation.get('video_provider'),
                         "video_outcome": video_outcome,
+                        "source_trust": video_trust,
                     }
                 }
 
@@ -183,6 +188,7 @@ def evaluate_participant(participant: dict, appointment: dict) -> dict:
                     "video_context": {
                         "provider": aggregation.get('video_provider'),
                         "video_outcome": video_outcome,
+                        "source_trust": video_trust,
                     }
                 }
 
@@ -196,6 +202,7 @@ def evaluate_participant(participant: dict, appointment: dict) -> dict:
                 "video_context": {
                     "provider": aggregation.get('video_provider'),
                     "video_outcome": video_outcome,
+                    "source_trust": video_trust,
                     "rule": "Signal video ambigu — revue manuelle requise",
                 }
             }

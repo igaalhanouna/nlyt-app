@@ -167,6 +167,7 @@ async def fetch_attendance(appointment_id: str, request: Request):
             raw_payload=result["raw_payload"],
             ingested_by=user["user_id"],
             external_meeting_id=appointment.get("external_meeting_id"),
+            source_trust="api_verified",
         )
         return {
             "success": True,
