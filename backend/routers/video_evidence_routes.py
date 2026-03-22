@@ -234,9 +234,142 @@ async def ingest_file(
 
 @router.get("/provider-status")
 async def provider_status_endpoint(request: Request):
-    """Check which video providers are configured and ready."""
-    await get_current_user(request)
-    return get_provider_status()
+    """Check which video providers are configured, per-user connection status."""
+    user = await get_current_user(request)
+    platform_status = get_provider_status()
+
+    # Enrich with per-user connection info
+    google_conn = db.calendar_connections.find_one(
+        {"user_id": user["user_id"], "provider": "google", "status": "connected"},
+        {"_id": 0, "google_email": 1, "connected_at": 1, "status": 1}
+    )
+    outlook_conn = db.calendar_connections.find_one(
+        {"user_id": user["user_id"], "provider": "outlook", "status": "connected"},
+        {"_id": 0, "outlook_email": 1, "connected_at": 1, "status": 1}
+    )
+
+    # Zoom: user-level config from user_settings
+    zoom_user_config = db.user_settings.find_one(
+        {"user_id": user["user_id"]},
+        {"_id": 0, "zoom_connected": 1, "zoom_email": 1, "zoom_connected_at": 1}
+    )
+
+    # Teams: user-level config (azure_user_id)
+    teams_user_config = db.user_settings.find_one(
+        {"user_id": user["user_id"]},
+        {"_id": 0, "azure_user_id": 1, "teams_connected": 1, "teams_email": 1, "teams_connected_at": 1}
+    )
+
+    # Google Meet: connected if Google Calendar is connected (same OAuth)
+    meet_connected = bool(google_conn)
+
+    # Zoom: connected if platform configured AND user has zoom settings, or platform configured alone
+    zoom_platform = platform_status["zoom"]["configured"]
+    zoom_user_ok = bool(zoom_user_config and zoom_user_config.get("zoom_connected"))
+    zoom_connected = zoom_platform or zoom_user_ok
+
+    # Teams: connected if platform configured AND user has azure_user_id, or platform configured alone
+    teams_platform = platform_status["teams"]["configured"]
+    teams_user_ok = bool(teams_user_config and teams_user_config.get("teams_connected"))
+    teams_connected = teams_platform or teams_user_ok
+
+    return {
+        "meet": {
+            "configured": platform_status["meet"]["configured"],
+            "connected": meet_connected,
+            "email": google_conn.get("google_email") if google_conn else None,
+            "connected_at": google_conn.get("connected_at") if google_conn else None,
+            "features": ["create_meeting"],
+            "requires": "google_calendar",
+            "label": "Google Meet",
+        },
+        "zoom": {
+            "configured": zoom_platform,
+            "connected": zoom_connected,
+            "email": (zoom_user_config or {}).get("zoom_email"),
+            "connected_at": (zoom_user_config or {}).get("zoom_connected_at"),
+            "features": ["create_meeting", "fetch_attendance"],
+            "requires": "zoom_credentials",
+            "label": "Zoom",
+        },
+        "teams": {
+            "configured": teams_platform,
+            "connected": teams_connected,
+            "email": (teams_user_config or {}).get("teams_email") or (outlook_conn.get("outlook_email") if outlook_conn else None),
+            "connected_at": (teams_user_config or {}).get("teams_connected_at"),
+            "features": ["create_meeting", "fetch_attendance"],
+            "requires": "azure_credentials",
+            "label": "Microsoft Teams",
+        },
+    }
+
+
+class ZoomConnectRequest(BaseModel):
+    zoom_email: Optional[str] = None
+
+
+class TeamsConnectRequest(BaseModel):
+    azure_user_id: Optional[str] = None
+    teams_email: Optional[str] = None
+
+
+@router.post("/connect/zoom")
+async def connect_zoom(body: ZoomConnectRequest, request: Request):
+    """Save Zoom user configuration."""
+    user = await get_current_user(request)
+    from utils.date_utils import now_utc
+
+    db.user_settings.update_one(
+        {"user_id": user["user_id"]},
+        {"$set": {
+            "zoom_connected": True,
+            "zoom_email": body.zoom_email,
+            "zoom_connected_at": now_utc().isoformat(),
+        }},
+        upsert=True,
+    )
+    return {"status": "connected", "provider": "zoom"}
+
+
+@router.delete("/connect/zoom")
+async def disconnect_zoom(request: Request):
+    """Remove Zoom user configuration."""
+    user = await get_current_user(request)
+    db.user_settings.update_one(
+        {"user_id": user["user_id"]},
+        {"$unset": {"zoom_connected": "", "zoom_email": "", "zoom_connected_at": ""}},
+    )
+    return {"status": "disconnected", "provider": "zoom"}
+
+
+@router.post("/connect/teams")
+async def connect_teams(body: TeamsConnectRequest, request: Request):
+    """Save Teams user configuration (Azure AD User ID)."""
+    user = await get_current_user(request)
+    from utils.date_utils import now_utc
+
+    db.user_settings.update_one(
+        {"user_id": user["user_id"]},
+        {"$set": {
+            "teams_connected": True,
+            "azure_user_id": body.azure_user_id,
+            "teams_email": body.teams_email,
+            "teams_connected_at": now_utc().isoformat(),
+        }},
+        upsert=True,
+    )
+    return {"status": "connected", "provider": "teams"}
+
+
+@router.delete("/connect/teams")
+async def disconnect_teams(request: Request):
+    """Remove Teams user configuration."""
+    user = await get_current_user(request)
+    db.user_settings.update_one(
+        {"user_id": user["user_id"]},
+        {"$unset": {"teams_connected": "", "azure_user_id": "", "teams_email": "", "teams_connected_at": ""}},
+    )
+    return {"status": "disconnected", "provider": "teams"}
 
 
 def _parse_csv_to_payload(content: bytes, provider: str) -> dict:

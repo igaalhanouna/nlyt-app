@@ -142,6 +142,10 @@ export const videoEvidenceAPI = {
   createMeeting: (appointmentId, data) => api.post(`/api/video-evidence/${appointmentId}/create-meeting`, data || {}),
   fetchAttendance: (appointmentId) => api.post(`/api/video-evidence/${appointmentId}/fetch-attendance`),
   providerStatus: () => api.get(`/api/video-evidence/provider-status`),
+  connectZoom: (data) => api.post('/api/video-evidence/connect/zoom', data || {}),
+  disconnectZoom: () => api.delete('/api/video-evidence/connect/zoom'),
+  connectTeams: (data) => api.post('/api/video-evidence/connect/teams', data || {}),
+  disconnectTeams: () => api.delete('/api/video-evidence/connect/teams'),
 };
 
 export default api;
