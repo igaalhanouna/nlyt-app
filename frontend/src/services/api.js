@@ -133,4 +133,11 @@ export const modificationAPI = {
   cancel: (proposalId) => api.post(`/api/modifications/${proposalId}/cancel`),
 };
 
+export const videoEvidenceAPI = {
+  ingest: (appointmentId, data) => api.post(`/api/video-evidence/${appointmentId}/ingest`, data),
+  get: (appointmentId) => api.get(`/api/video-evidence/${appointmentId}`),
+  getLogs: (appointmentId) => api.get(`/api/video-evidence/${appointmentId}/logs`),
+  getLog: (appointmentId, logId) => api.get(`/api/video-evidence/${appointmentId}/log/${logId}`),
+};
+
 export default api;

@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { appointmentAPI, participantAPI, calendarAPI, invitationAPI, attendanceAPI, checkinAPI, modificationAPI } from '../../services/api';
+import { appointmentAPI, participantAPI, calendarAPI, invitationAPI, attendanceAPI, checkinAPI, modificationAPI, videoEvidenceAPI } from '../../services/api';
 import { Button } from '../../components/ui/button';
-import { ArrowLeft, Calendar, MapPin, Video, Clock, Users, Ban, Check, X, AlertTriangle, Download, Heart, ShieldCheck, CreditCard, RefreshCw, Loader2, Zap, ClipboardCheck, Eye, UserX, UserCheck, HelpCircle, ChevronDown, ScanLine, QrCode, MapPinCheck, ExternalLink, Timer, Navigation, Pencil, Save, Send, FileEdit } from 'lucide-react';
+import { ArrowLeft, Calendar, MapPin, Video, Clock, Users, Ban, Check, X, AlertTriangle, Download, Heart, ShieldCheck, CreditCard, RefreshCw, Loader2, Zap, ClipboardCheck, Eye, UserX, UserCheck, HelpCircle, ChevronDown, ScanLine, QrCode, MapPinCheck, ExternalLink, Timer, Navigation, Pencil, Save, Send, FileEdit, Upload, Monitor, Shield, FileJson, Link2, UserCog } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDateTimeFr, formatTimeFr, formatEvidenceDateFr, parseUTC, utcToLocalInput, localInputToUTC } from '../../utils/dateFormat';
 import { Input } from '../../components/ui/input';
@@ -34,6 +34,13 @@ export default function AppointmentDetail() {
   const [submittingProposal, setSubmittingProposal] = useState(false);
   const [respondingProposal, setRespondingProposal] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [videoEvidence, setVideoEvidence] = useState(null);
+  const [showVideoIngest, setShowVideoIngest] = useState(false);
+  const [videoIngestForm, setVideoIngestForm] = useState({
+    provider: 'zoom', external_meeting_id: '', meeting_join_url: '', raw_json: ''
+  });
+  const [ingestingVideo, setIngestingVideo] = useState(false);
+  const [videoIngestionLogs, setVideoIngestionLogs] = useState([]);
 
   useEffect(() => {
     loadData();
@@ -69,6 +76,14 @@ export default function AppointmentDetail() {
         .catch(() => {});
       modificationAPI.getForAppointment(id)
         .then(res => setProposalHistory(res.data?.proposals || []))
+        .catch(() => {});
+
+      // Load video evidence (non-blocking)
+      videoEvidenceAPI.get(id)
+        .then(res => setVideoEvidence(res.data))
+        .catch(() => {});
+      videoEvidenceAPI.getLogs(id)
+        .then(res => setVideoIngestionLogs(res.data?.logs || []))
         .catch(() => {});
     } catch (error) {
       toast.error('Erreur lors du chargement');
@@ -244,6 +259,12 @@ export default function AppointmentDetail() {
       medium_evidence_on_time: 'Preuve moyenne — à l\'heure',
       medium_evidence_late: 'Preuve moyenne — en retard',
       weak_evidence: 'Preuve faible',
+      video_strong_on_time: 'Visio — preuve forte, connecté à l\'heure',
+      video_strong_late: 'Visio — preuve forte, connecté en retard',
+      video_medium_joined_on_time: 'Visio — preuve moyenne, connecté à l\'heure',
+      video_medium_joined_late: 'Visio — preuve moyenne, connecté en retard',
+      video_ambiguous: 'Visio — signal ambigu, revue manuelle',
+      meet_assisted_only: 'Google Meet — preuve assistée uniquement',
     };
     return labels[basis] || basis;
   };
@@ -353,6 +374,7 @@ export default function AppointmentDetail() {
         {sources.has('manual_checkin') && <MapPinCheck className="w-3.5 h-3.5 text-emerald-500" title="Check-in manuel" />}
         {sources.has('qr') && <QrCode className="w-3.5 h-3.5 text-blue-500" title="QR vérifié" />}
         {sources.has('gps') && <MapPin className="w-3.5 h-3.5 text-purple-500" title="GPS" />}
+        {sources.has('video_conference') && <Monitor className="w-3.5 h-3.5 text-indigo-500" title="Visioconférence" />}
       </div>
     );
   };
@@ -375,7 +397,7 @@ export default function AppointmentDetail() {
   };
 
   const formatSourceLabel = (source) => {
-    const labels = { manual_checkin: 'Check-in manuel', qr: 'QR code', gps: 'GPS', system: 'Système' };
+    const labels = { manual_checkin: 'Check-in manuel', qr: 'QR code', gps: 'GPS', system: 'Système', video_conference: 'Visioconférence' };
     return labels[source] || source;
   };
 
@@ -385,6 +407,7 @@ export default function AppointmentDetail() {
     if (source === 'manual_checkin') return <MapPinCheck className="w-4 h-4 text-emerald-600" />;
     if (source === 'qr') return <QrCode className="w-4 h-4 text-blue-600" />;
     if (source === 'gps') return <MapPin className="w-4 h-4 text-purple-600" />;
+    if (source === 'video_conference') return <Monitor className="w-4 h-4 text-indigo-600" />;
     return <ScanLine className="w-4 h-4 text-slate-500" />;
   };
 
@@ -392,7 +415,67 @@ export default function AppointmentDetail() {
     if (source === 'manual_checkin') return 'border-l-emerald-500';
     if (source === 'qr') return 'border-l-blue-500';
     if (source === 'gps') return 'border-l-purple-500';
+    if (source === 'video_conference') return 'border-l-indigo-500';
     return 'border-l-slate-300';
+  };
+
+  const getProviderIcon = (provider) => {
+    const icons = {
+      zoom: { label: 'Zoom', color: 'text-blue-600', bg: 'bg-blue-50' },
+      teams: { label: 'Teams', color: 'text-purple-600', bg: 'bg-purple-50' },
+      meet: { label: 'Google Meet', color: 'text-emerald-600', bg: 'bg-emerald-50' },
+    };
+    return icons[(provider || '').toLowerCase()] || { label: provider || 'Visio', color: 'text-slate-600', bg: 'bg-slate-50' };
+  };
+
+  const getVideoOutcomeBadge = (outcome) => {
+    const badges = {
+      joined_on_time: { bg: 'bg-emerald-100', text: 'text-emerald-800', label: 'Connecté à l\'heure' },
+      joined_late: { bg: 'bg-amber-100', text: 'text-amber-800', label: 'Connecté en retard' },
+      no_join_detected: { bg: 'bg-red-100', text: 'text-red-800', label: 'Aucune connexion' },
+      manual_review: { bg: 'bg-yellow-100', text: 'text-yellow-800', label: 'Revue manuelle' },
+      partial_attendance: { bg: 'bg-orange-100', text: 'text-orange-800', label: 'Présence partielle' },
+    };
+    const b = badges[outcome] || badges.manual_review;
+    return <span className={`inline-flex items-center gap-1 px-2 py-0.5 ${b.bg} ${b.text} rounded-full text-xs font-medium`}>{b.label}</span>;
+  };
+
+  const getIdentityConfidenceBadge = (confidence) => {
+    const badges = {
+      high: { bg: 'bg-emerald-50 border-emerald-200', text: 'text-emerald-700', label: 'Identité forte' },
+      medium: { bg: 'bg-amber-50 border-amber-200', text: 'text-amber-700', label: 'Identité moyenne' },
+      low: { bg: 'bg-red-50 border-red-200', text: 'text-red-700', label: 'Identité faible' },
+    };
+    const b = badges[confidence] || badges.low;
+    return <span className={`text-xs px-2 py-0.5 rounded-full border ${b.bg} ${b.text} font-medium`}>{b.label}</span>;
+  };
+
+  const handleVideoIngest = async () => {
+    let parsed;
+    try {
+      parsed = JSON.parse(videoIngestForm.raw_json);
+    } catch {
+      toast.error('JSON invalide. Vérifiez le format du rapport de présence.');
+      return;
+    }
+    setIngestingVideo(true);
+    try {
+      const res = await videoEvidenceAPI.ingest(id, {
+        provider: videoIngestForm.provider,
+        external_meeting_id: videoIngestForm.external_meeting_id || undefined,
+        meeting_join_url: videoIngestForm.meeting_join_url || undefined,
+        raw_payload: parsed,
+      });
+      const data = res.data;
+      toast.success(`Ingestion terminée : ${data.records_created} preuve(s) créée(s), ${data.matched?.length || 0} matchée(s), ${data.unmatched?.length || 0} non-matchée(s)`);
+      setShowVideoIngest(false);
+      setVideoIngestForm({ provider: 'zoom', external_meeting_id: '', meeting_join_url: '', raw_json: '' });
+      loadData();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Erreur lors de l\'ingestion');
+    } finally {
+      setIngestingVideo(false);
+    }
   };
 
   // Status badge helper
@@ -640,7 +723,29 @@ export default function AppointmentDetail() {
                   <Video className="w-5 h-5 text-slate-500 mt-0.5" />
                   <div>
                     <p className="text-sm font-medium text-slate-700">Plateforme</p>
-                    <p className="text-slate-900">{appointment.meeting_provider}</p>
+                    <div className="flex items-center gap-2">
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-sm font-medium ${getProviderIcon(appointment.meeting_provider).bg} ${getProviderIcon(appointment.meeting_provider).color}`} data-testid="meeting-provider-badge">
+                        <Monitor className="w-3.5 h-3.5" />
+                        {getProviderIcon(appointment.meeting_provider).label}
+                      </span>
+                      {appointment.external_meeting_id && (
+                        <span className="text-xs text-slate-400" data-testid="external-meeting-id">
+                          ID: {appointment.external_meeting_id}
+                        </span>
+                      )}
+                    </div>
+                    {appointment.meeting_join_url && (
+                      <a
+                        href={appointment.meeting_join_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 hover:underline mt-1"
+                        data-testid="meeting-join-url"
+                      >
+                        <Link2 className="w-3.5 h-3.5" />
+                        Rejoindre la réunion
+                      </a>
+                    )}
                   </div>
                 </div>
               )}
@@ -1006,7 +1111,7 @@ export default function AppointmentDetail() {
                                 </div>
 
                                 <p className="text-sm text-slate-600 mt-0.5" data-testid={`evidence-date-${e.evidence_id}`}>
-                                  {e.source === 'manual_checkin' ? 'Arrivé le ' : 'Enregistré le '}
+                                  {e.source === 'manual_checkin' ? 'Arrivé le ' : e.source === 'video_conference' ? 'Connecté le ' : 'Enregistré le '}
                                   {formatEvidenceDate(e.source_timestamp)}
                                 </p>
 
@@ -1087,6 +1192,237 @@ export default function AppointmentDetail() {
                 );
               })}
             </div>
+          </div>
+        )}
+
+        {/* Video Evidence Section — visible for video appointments */}
+        {!isCancelled && appointment.appointment_type === 'video' && (
+          <div className="bg-white rounded-lg border border-slate-200 p-6 mt-6" data-testid="video-evidence-section">
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center gap-2">
+                <Monitor className="w-5 h-5 text-indigo-700" />
+                <h2 className="text-lg font-semibold text-slate-900">Preuves de présence visio</h2>
+                {appointment.meeting_provider && (
+                  <span className={`text-xs px-2 py-0.5 rounded-full ${getProviderIcon(appointment.meeting_provider).bg} ${getProviderIcon(appointment.meeting_provider).color} font-medium`}>
+                    {getProviderIcon(appointment.meeting_provider).label}
+                  </span>
+                )}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowVideoIngest(!showVideoIngest)}
+                data-testid="toggle-video-ingest-btn"
+              >
+                <Upload className="w-4 h-4 mr-1" />
+                Importer un rapport
+              </Button>
+            </div>
+
+            {/* Ingestion Form */}
+            {showVideoIngest && (
+              <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-5 mb-5" data-testid="video-ingest-form">
+                <div className="flex items-center gap-2 mb-3">
+                  <FileJson className="w-4 h-4 text-indigo-600" />
+                  <p className="text-sm font-semibold text-indigo-900">Importer un rapport de présence</p>
+                </div>
+                <p className="text-xs text-indigo-700 mb-4">
+                  Collez le rapport de présence JSON de votre provider (Zoom, Teams ou Google Meet).
+                  Le système analysera les participants et créera les preuves correspondantes.
+                </p>
+                <div className="grid md:grid-cols-3 gap-3 mb-3">
+                  <div>
+                    <Label htmlFor="video-provider" className="text-xs text-slate-700">Provider</Label>
+                    <select
+                      id="video-provider"
+                      data-testid="video-provider-select"
+                      value={videoIngestForm.provider}
+                      onChange={(e) => setVideoIngestForm({...videoIngestForm, provider: e.target.value})}
+                      className="mt-1 w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-sm"
+                    >
+                      <option value="zoom">Zoom</option>
+                      <option value="teams">Microsoft Teams</option>
+                      <option value="meet">Google Meet</option>
+                    </select>
+                  </div>
+                  <div>
+                    <Label htmlFor="video-meeting-id" className="text-xs text-slate-700">ID réunion externe (optionnel)</Label>
+                    <Input
+                      id="video-meeting-id"
+                      data-testid="video-meeting-id-input"
+                      value={videoIngestForm.external_meeting_id}
+                      onChange={(e) => setVideoIngestForm({...videoIngestForm, external_meeting_id: e.target.value})}
+                      placeholder="ex: 123456789"
+                      className="mt-1 h-9"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="video-join-url" className="text-xs text-slate-700">URL de la réunion (optionnel)</Label>
+                    <Input
+                      id="video-join-url"
+                      data-testid="video-join-url-input"
+                      value={videoIngestForm.meeting_join_url}
+                      onChange={(e) => setVideoIngestForm({...videoIngestForm, meeting_join_url: e.target.value})}
+                      placeholder="https://zoom.us/j/..."
+                      className="mt-1 h-9"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="video-raw-json" className="text-xs text-slate-700">Rapport de présence (JSON)</Label>
+                  <textarea
+                    id="video-raw-json"
+                    data-testid="video-raw-json-input"
+                    rows={6}
+                    value={videoIngestForm.raw_json}
+                    onChange={(e) => setVideoIngestForm({...videoIngestForm, raw_json: e.target.value})}
+                    placeholder={videoIngestForm.provider === 'zoom'
+                      ? '{\n  "meeting_id": "123456789",\n  "participants": [\n    {"user_email": "john@example.com", "name": "John Doe", "join_time": "2026-01-01T10:00:00Z", "leave_time": "2026-01-01T11:00:00Z", "duration": 3600}\n  ]\n}'
+                      : videoIngestForm.provider === 'teams'
+                      ? '{\n  "meeting_id": "AAMkAG...",\n  "attendanceRecords": [\n    {"emailAddress": "john@example.com", "identity": {"displayName": "John Doe"}, "totalAttendanceInSeconds": 3600, "attendanceIntervals": [{"joinDateTime": "2026-01-01T10:00:00Z", "leaveDateTime": "2026-01-01T11:00:00Z"}]}\n  ]\n}'
+                      : '{\n  "meeting_id": "abc-defg-hij",\n  "participants": [\n    {"name": "John Doe", "email": "john@example.com", "join_time": "2026-01-01T10:00:00Z", "leave_time": "2026-01-01T11:00:00Z", "duration": 3600}\n  ]\n}'
+                    }
+                    className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono"
+                  />
+                </div>
+                {videoIngestForm.provider === 'meet' && (
+                  <div className="flex items-start gap-2 mt-3 p-2.5 bg-amber-50 border border-amber-200 rounded-md">
+                    <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                    <p className="text-xs text-amber-800">
+                      <strong>Google Meet = preuve assistée uniquement.</strong> Les identités Meet ne sont pas vérifiées par Google.
+                      Toute preuve Meet sera marquée comme confiance faible et nécessitera une revue manuelle.
+                    </p>
+                  </div>
+                )}
+                <div className="flex gap-2 mt-4">
+                  <Button onClick={handleVideoIngest} disabled={ingestingVideo || !videoIngestForm.raw_json.trim()} size="sm" data-testid="submit-video-ingest-btn">
+                    {ingestingVideo ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Upload className="w-4 h-4 mr-1" />}
+                    Analyser et ingérer
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => setShowVideoIngest(false)}>Annuler</Button>
+                </div>
+              </div>
+            )}
+
+            {/* Video Evidence Timeline */}
+            {videoEvidence?.video_evidence?.length > 0 ? (
+              <div className="space-y-4">
+                {videoEvidence.video_evidence.map((ve) => {
+                  const facts = ve.derived_facts || {};
+                  const providerInfo = getProviderIcon(facts.provider);
+                  return (
+                    <div key={ve.evidence_id} className="border border-slate-200 rounded-xl overflow-hidden" data-testid={`video-evidence-${ve.evidence_id}`}>
+                      <div className="px-5 py-3 bg-indigo-50/50 border-b border-slate-200 flex items-center justify-between flex-wrap gap-2">
+                        <div className="flex items-center gap-3">
+                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${providerInfo.bg} ${providerInfo.color}`}>
+                            <Monitor className="w-3 h-3" />
+                            {providerInfo.label}
+                          </span>
+                          {facts.participant_email_from_provider && (
+                            <span className="text-xs text-slate-500">{facts.participant_email_from_provider}</span>
+                          )}
+                          {facts.participant_name_from_provider && !facts.participant_email_from_provider && (
+                            <span className="text-xs text-slate-500">{facts.participant_name_from_provider}</span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {getVideoOutcomeBadge(facts.video_attendance_outcome)}
+                          {getIdentityConfidenceBadge(facts.identity_confidence)}
+                          {facts.provider_evidence_ceiling === 'assisted' && (
+                            <span className="text-xs px-2 py-0.5 rounded-full border bg-amber-50 border-amber-200 text-amber-700 font-medium flex items-center gap-1">
+                              <AlertTriangle className="w-3 h-3" />
+                              Preuve assistée
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="px-5 py-3 space-y-2">
+                        {/* Join / Leave times */}
+                        <div className="flex items-center gap-4 text-sm">
+                          {facts.joined_at && (
+                            <span className="flex items-center gap-1 text-emerald-700">
+                              <Check className="w-3.5 h-3.5" />
+                              Connecté : {formatEvidenceDate(facts.joined_at)}
+                            </span>
+                          )}
+                          {facts.left_at && (
+                            <span className="flex items-center gap-1 text-slate-500">
+                              <X className="w-3.5 h-3.5" />
+                              Déconnecté : {formatEvidenceDate(facts.left_at)}
+                            </span>
+                          )}
+                          {facts.duration_seconds != null && (
+                            <span className="text-xs text-slate-400">
+                              Durée : {Math.round(facts.duration_seconds / 60)} min
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Temporal info */}
+                        {facts.temporal_detail && (
+                          <p className={`text-xs flex items-center gap-1 ${
+                            facts.temporal_consistency === 'valid' ? 'text-emerald-600' :
+                            facts.temporal_consistency === 'valid_late' ? 'text-amber-600' :
+                            'text-red-600'
+                          }`}>
+                            <Timer className="w-3 h-3" />
+                            {facts.temporal_detail}
+                          </p>
+                        )}
+
+                        {/* Identity matching info */}
+                        <div className="flex items-center gap-2 text-xs text-slate-500">
+                          <UserCog className="w-3 h-3" />
+                          <span>{facts.identity_match_detail}</span>
+                        </div>
+
+                        {/* Confidence badge */}
+                        <div className="flex items-center gap-2">
+                          <span className={`text-xs px-1.5 py-0.5 rounded ${
+                            ve.confidence_score === 'high' ? 'bg-emerald-100 text-emerald-700' :
+                            ve.confidence_score === 'medium' ? 'bg-amber-100 text-amber-700' :
+                            'bg-red-100 text-red-700'
+                          }`}>
+                            Confiance {ve.confidence_score === 'high' ? 'haute' : ve.confidence_score === 'medium' ? 'moyenne' : 'faible'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-slate-400">
+                <Monitor className="w-10 h-10 mx-auto mb-2 text-slate-300" />
+                <p className="text-sm">Aucune preuve de présence visio pour le moment.</p>
+                <p className="text-xs text-slate-400 mt-1">Importez un rapport de présence depuis votre provider (Zoom, Teams, Google Meet).</p>
+              </div>
+            )}
+
+            {/* Ingestion Logs */}
+            {videoIngestionLogs.length > 0 && (
+              <div className="mt-5 pt-4 border-t border-slate-200">
+                <p className="text-sm font-medium text-slate-600 mb-2">Historique d'ingestion</p>
+                <div className="space-y-2">
+                  {videoIngestionLogs.map((log) => (
+                    <div key={log.ingestion_log_id} className="flex items-center justify-between p-2.5 bg-slate-50 rounded-lg text-xs" data-testid={`ingestion-log-${log.ingestion_log_id}`}>
+                      <div className="flex items-center gap-3">
+                        <span className={`px-2 py-0.5 rounded-full font-medium ${getProviderIcon(log.provider).bg} ${getProviderIcon(log.provider).color}`}>
+                          {getProviderIcon(log.provider).label}
+                        </span>
+                        <span className="text-slate-500">
+                          {log.matched_count || 0} matché(s), {log.unmatched_count || 0} non-matché(s)
+                        </span>
+                        {log.provider_evidence_ceiling === 'assisted' && (
+                          <span className="text-amber-600 font-medium">Preuve assistée</span>
+                        )}
+                      </div>
+                      <span className="text-slate-400">{formatEvidenceDate(log.ingested_at)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 

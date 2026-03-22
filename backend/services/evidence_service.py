@@ -1,7 +1,7 @@
 """
 Evidence Service — Collects, validates, and aggregates presence proofs.
 
-Evidence sources: qr, gps, manual_checkin, system
+Evidence sources: qr, gps, manual_checkin, system, video_conference
 Confidence scoring: low / medium / high
 Aggregation: strong / medium / weak proof strength
 
@@ -625,6 +625,11 @@ def aggregate_evidence(appointment_id: str, participant_id: str, appointment: di
     has_qr = False
     has_gps_close = False
     has_checkin = False
+    has_video = False
+    video_provider = None
+    video_provider_ceiling = None
+    video_identity_confidence = None
+    video_outcome = None
     earliest_timestamp = None
     worst_temporal = "valid"
     best_geographic = "no_reference"
@@ -652,6 +657,13 @@ def aggregate_evidence(appointment_id: str, participant_id: str, appointment: di
         if source == 'manual_checkin':
             has_checkin = True
             signals.append("manual_checkin")
+        if source == 'video_conference':
+            has_video = True
+            video_provider = facts.get('provider', '')
+            video_provider_ceiling = facts.get('provider_evidence_ceiling', 'assisted')
+            video_identity_confidence = facts.get('identity_confidence', 'low')
+            video_outcome = facts.get('video_attendance_outcome', 'manual_review')
+            signals.append(f"video_{video_provider}")
         if source == 'gps' or (source == 'manual_checkin' and facts.get('latitude')):
             gc = facts.get('geographic_consistency', 'no_reference')
             if gc in ('close', 'nearby'):
@@ -669,15 +681,50 @@ def aggregate_evidence(appointment_id: str, participant_id: str, appointment: di
             best_geographic = gc
 
     # --- Smart strength calculation ---
-    positive_signals = sum([has_qr, has_gps_close, has_checkin])
+    # For video appointments: video evidence is the primary signal
+    # For physical appointments: original logic applies
+    is_video_appointment = appointment.get('appointment_type') == 'video'
 
-    # Start with signal-based strength
-    if positive_signals >= 2:
-        strength = "strong"
-    elif positive_signals == 1:
-        strength = "medium"
+    if is_video_appointment and has_video:
+        # Video appointment with video evidence: video is the primary signal
+        # Google Meet (assisted ceiling) → always weak by itself
+        if video_provider_ceiling == "assisted":
+            strength = "weak"  # Meet alone = weak, always manual_review
+        elif video_identity_confidence == "high" and video_outcome in ("joined_on_time", "joined_late"):
+            strength = "strong"
+        elif video_identity_confidence == "medium" and video_outcome in ("joined_on_time", "joined_late"):
+            strength = "medium"
+        else:
+            strength = "weak"
+
+        # Boost from physical evidence (hybrid meetings)
+        if has_qr or has_gps_close or has_checkin:
+            if strength == "weak":
+                strength = "medium"
+            elif strength == "medium":
+                strength = "strong"
+    elif is_video_appointment and not has_video:
+        # Video appointment but no video evidence
+        positive_signals = sum([has_qr, has_gps_close, has_checkin])
+        if positive_signals >= 2:
+            strength = "medium"  # Physical proof at a video meeting is odd, but consider it
+        elif positive_signals == 1:
+            strength = "weak"
+        else:
+            strength = "none"
     else:
-        strength = "weak"
+        # Physical appointment: original logic
+        positive_signals = sum([has_qr, has_gps_close, has_checkin])
+        # Video evidence can boost physical appointment too (rare but possible)
+        if has_video and video_provider_ceiling == "strong" and video_identity_confidence in ("high", "medium"):
+            positive_signals += 1
+
+        if positive_signals >= 2:
+            strength = "strong"
+        elif positive_signals == 1:
+            strength = "medium"
+        else:
+            strength = "weak"
 
     # Degrade for temporal issues
     if worst_temporal == 'too_early':
@@ -740,4 +787,8 @@ def aggregate_evidence(appointment_id: str, participant_id: str, appointment: di
         "earliest_evidence": earliest_timestamp.isoformat() if earliest_timestamp else None,
         "temporal_flag": worst_temporal,
         "geographic_flag": best_geographic,
+        "video_provider": video_provider,
+        "video_provider_ceiling": video_provider_ceiling,
+        "video_identity_confidence": video_identity_confidence,
+        "video_outcome": video_outcome,
     }

@@ -124,7 +124,83 @@ def evaluate_participant(participant: dict, appointment: dict) -> dict:
         )
         strength = aggregation.get('strength', 'none')
         timing = aggregation.get('timing')
+        is_video = appointment.get('appointment_type') == 'video'
+        video_provider_ceiling = aggregation.get('video_provider_ceiling')
+        video_outcome = aggregation.get('video_outcome')
 
+        # --- VIDEO APPOINTMENT SPECIFIC RULES ---
+        if is_video and aggregation.get('video_provider'):
+            # RULE: Google Meet alone (assisted ceiling) → ALWAYS manual_review
+            if video_provider_ceiling == "assisted" and strength != "strong":
+                return {
+                    "outcome": "manual_review",
+                    "decision_basis": "meet_assisted_only",
+                    "confidence": "low",
+                    "review_required": True,
+                    "evidence_summary": aggregation,
+                    "video_context": {
+                        "provider": aggregation.get('video_provider'),
+                        "provider_ceiling": video_provider_ceiling,
+                        "video_outcome": video_outcome,
+                        "rule": "Google Meet seul ne declenche pas de decision automatique",
+                    }
+                }
+
+            # RULE: Zoom/Teams with strong evidence and clear outcome
+            if strength == "strong" and video_outcome == "joined_on_time":
+                return {
+                    "outcome": "on_time",
+                    "decision_basis": "video_strong_on_time",
+                    "confidence": "high",
+                    "review_required": False,
+                    "evidence_summary": aggregation,
+                    "video_context": {
+                        "provider": aggregation.get('video_provider'),
+                        "video_outcome": video_outcome,
+                    }
+                }
+
+            if strength == "strong" and video_outcome == "joined_late":
+                return {
+                    "outcome": "late",
+                    "decision_basis": "video_strong_late",
+                    "confidence": "high",
+                    "review_required": False,
+                    "evidence_summary": aggregation,
+                    "video_context": {
+                        "provider": aggregation.get('video_provider'),
+                        "video_outcome": video_outcome,
+                    }
+                }
+
+            if strength == "medium" and video_outcome in ("joined_on_time", "joined_late"):
+                return {
+                    "outcome": "on_time" if video_outcome == "joined_on_time" else "late",
+                    "decision_basis": f"video_medium_{video_outcome}",
+                    "confidence": "medium",
+                    "review_required": True,
+                    "evidence_summary": aggregation,
+                    "video_context": {
+                        "provider": aggregation.get('video_provider'),
+                        "video_outcome": video_outcome,
+                    }
+                }
+
+            # Weak or ambiguous video evidence → manual_review
+            return {
+                "outcome": "manual_review",
+                "decision_basis": "video_ambiguous",
+                "confidence": "low",
+                "review_required": True,
+                "evidence_summary": aggregation,
+                "video_context": {
+                    "provider": aggregation.get('video_provider'),
+                    "video_outcome": video_outcome,
+                    "rule": "Signal video ambigu — revue manuelle requise",
+                }
+            }
+
+        # --- PHYSICAL APPOINTMENT (original logic, unchanged) ---
         if strength == 'strong' and timing == 'on_time':
             return {
                 "outcome": "on_time",

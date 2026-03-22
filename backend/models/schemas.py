@@ -125,6 +125,8 @@ class AppointmentCreate(BaseModel):
     location_longitude: Optional[float] = None
     location_place_id: Optional[str] = None
     meeting_provider: Optional[str] = None
+    external_meeting_id: Optional[str] = None
+    meeting_join_url: Optional[str] = None
     start_datetime: str
     duration_minutes: int = Field(ge=1)
     tolerated_delay_minutes: int = Field(default=0, ge=0, le=120)
@@ -148,6 +150,8 @@ class AppointmentResponse(BaseModel):
     appointment_type: str
     location: Optional[str] = None
     meeting_provider: Optional[str] = None
+    external_meeting_id: Optional[str] = None
+    meeting_join_url: Optional[str] = None
     start_datetime: str
     duration_minutes: int
     policy_snapshot_id: Optional[str] = None

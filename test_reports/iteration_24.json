@@ -1,0 +1,82 @@
+{
+  "summary": "Video Conference Attendance Evidence Engine - All 17 backend tests PASSED, frontend UI verified. Conservative rules working correctly: Google Meet always returns low confidence and manual_review, Zoom/Teams with email match return high confidence and auto-decision.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": [
+    "POST /api/video-evidence/{apt_id}/ingest — Zoom with exact email match → high confidence, joined_on_time ✓",
+    "POST /api/video-evidence/{apt_id}/ingest — Teams with exact email match → high confidence ✓",
+    "POST /api/video-evidence/{apt_id}/ingest — Google Meet → ALWAYS low confidence, ALWAYS manual_review ✓",
+    "POST /api/video-evidence/{apt_id}/ingest — Ambiguous logs (name-only match) → low confidence ✓",
+    "POST /api/video-evidence/{apt_id}/ingest — No matching participant → returns unmatched ✓",
+    "POST /api/video-evidence/{apt_id}/ingest — Duplicate payload → returns error about already ingested ✓",
+    "POST /api/video-evidence/{apt_id}/ingest — Invalid provider → returns error ✓",
+    "POST /api/video-evidence/{apt_id}/ingest — Invalid JSON payload → returns error ✓",
+    "GET /api/video-evidence/{apt_id} — Returns video evidence for appointment ✓",
+    "GET /api/video-evidence/{apt_id}/logs — Returns ingestion logs ✓",
+    "POST /api/attendance/evaluate/{apt_id} — Zoom with video evidence → on_time (auto-decision) ✓",
+    "POST /api/attendance/evaluate/{apt_id} — Teams with video evidence → on_time (auto-decision) ✓",
+    "POST /api/attendance/evaluate/{apt_id} — Meet with video evidence → manual_review (no auto-penalty) ✓",
+    "POST /api/attendance/evaluate/{apt_id} — Physical appointment still works correctly (no regression) ✓",
+    "Frontend: Video appointment detail shows provider badge (Zoom/Teams/Meet) ✓",
+    "Frontend: Video evidence section shows timeline with confidence badges, join/leave times ✓",
+    "Frontend: Ingestion form allows selecting provider, entering JSON, submitting ✓",
+    "Frontend: Ingestion logs visible in appointment detail (Historique d'ingestion) ✓"
+  ],
+  "test_report_links": [
+    "/app/backend/tests/test_video_evidence.py",
+    "/app/test_reports/pytest/pytest_video_evidence.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "MeetAdapter correctly caps identity_confidence at 'low' regardless of email match (line 72-82 in meet_adapter.py)",
+    "MeetAdapter.EVIDENCE_CEILING = 'assisted' ensures no auto-penalty (line 43)",
+    "ZoomAdapter and TeamsAdapter have EVIDENCE_CEILING = 'strong' for auto-decisions",
+    "attendance_service.py correctly handles video_provider_ceiling == 'assisted' → always manual_review (line 134-147)",
+    "video_evidence_service.py correctly computes video_outcome = 'manual_review' for assisted ceiling (line 329-330)",
+    "Frontend AppointmentDetail.js correctly displays provider badges with color coding (getProviderIcon function)",
+    "Frontend shows 'Confiance faible' for Meet and 'Confiance haute' for Zoom/Teams"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_video_evidence.py"
+  ],
+  "success_rate": {
+    "backend": "100% (17/17 tests passed)",
+    "frontend": "100% (all UI elements verified)"
+  },
+  "test_credentials": {
+    "email": "testuser_audit@nlyt.app",
+    "password": "Test1234!"
+  },
+  "test_appointments": {
+    "zoom": "5fef7ecd-5a97-4ee7-9507-92837d7a4313",
+    "teams": "17697c91-5fa4-49e6-8a50-e18551fccfcf",
+    "meet": "fe91df67-5e40-41d8-94d4-4d02d142eae0",
+    "workspace": "7e219321-18fd-4643-9be6-e4f1de88a2a8"
+  },
+  "seed_data_creation": "Used existing test appointments with video evidence already ingested",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Video evidence system fully tested. Key conservative rules verified: 1) Google Meet evidence is ALWAYS low confidence and results in manual_review, 2) Zoom/Teams with email match get high confidence and auto-decision, 3) Name-only matches get low confidence. Physical appointment logic unchanged. Frontend shows correct provider badges and confidence levels.",
+  "verified_conservative_rules": {
+    "google_meet_always_low_confidence": true,
+    "google_meet_always_manual_review": true,
+    "zoom_teams_high_identity_auto_decision": true,
+    "ambiguous_identity_manual_review": true,
+    "physical_appointment_no_regression": true
+  },
+  "video_evidence_ui_elements_verified": {
+    "provider_badge": "Shows Zoom/Teams/Google Meet with color coding",
+    "external_meeting_id": "Displayed next to provider badge",
+    "meeting_join_url": "Link to join meeting shown",
+    "video_evidence_section": "Shows timeline with confidence badges",
+    "ingestion_form": "Provider dropdown, external ID, URL, JSON textarea, submit button",
+    "ingestion_logs": "Historique d'ingestion shows all past ingestions with timestamps"
+  }
+}

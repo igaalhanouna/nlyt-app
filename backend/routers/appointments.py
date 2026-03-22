@@ -106,6 +106,8 @@ async def create_appointment(appointment: AppointmentCreate, request: Request):
         "location_longitude": appointment.location_longitude,
         "location_place_id": appointment.location_place_id,
         "meeting_provider": appointment.meeting_provider,
+        "external_meeting_id": appointment.external_meeting_id,
+        "meeting_join_url": appointment.meeting_join_url,
         "start_datetime": utc_start,
         "duration_minutes": appointment.duration_minutes,
         "tolerated_delay_minutes": appointment.tolerated_delay_minutes,
@@ -312,6 +314,7 @@ async def update_appointment(appointment_id: str, update_data: dict, request: Re
     ALLOWED_FIELDS = {
         "title", "description", "appointment_type", "location", "location_latitude",
         "location_longitude", "location_place_id", "meeting_provider",
+        "external_meeting_id", "meeting_join_url",
         "start_datetime", "duration_minutes", "tolerated_delay_minutes",
         "cancellation_deadline_hours", "penalty_amount", "penalty_currency",
         "affected_compensation_percent", "charity_percent",
