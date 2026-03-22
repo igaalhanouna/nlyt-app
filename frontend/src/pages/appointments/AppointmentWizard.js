@@ -291,6 +291,13 @@ export default function AppointmentWizard() {
         workspace_id: currentWorkspace.workspace_id,
         participants: validParticipants
       };
+      // Clean video-only fields for physical appointments
+      if (payload.appointment_type !== 'video') {
+        delete payload.meeting_provider;
+        delete payload.meeting_join_url;
+      } else if (!payload.meeting_provider) {
+        delete payload.meeting_provider;
+      }
       
       const response = await appointmentAPI.create(payload);
       toast.success('Rendez-vous créé avec succès');
@@ -324,6 +331,13 @@ export default function AppointmentWizard() {
         workspace_id: currentWorkspace.workspace_id,
         participants: validParticipants
       };
+      // Clean video-only fields for physical appointments
+      if (payload.appointment_type !== 'video') {
+        delete payload.meeting_provider;
+        delete payload.meeting_join_url;
+      } else if (!payload.meeting_provider) {
+        delete payload.meeting_provider;
+      }
 
       const response = await appointmentAPI.create(payload);
       toast.success('Rendez-vous créé en express avec vos paramètres par défaut');

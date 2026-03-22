@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 from enum import Enum
@@ -147,6 +147,13 @@ class AppointmentCreate(BaseModel):
     appointment_timezone: Optional[str] = None
     participants: Optional[List[ParticipantInput]] = []
     event_reminders: Optional[EventRemindersConfig] = None
+
+    @field_validator('meeting_provider', mode='before')
+    @classmethod
+    def empty_string_to_none(cls, v):
+        if v == '':
+            return None
+        return v
 
 class AppointmentResponse(BaseModel):
     appointment_id: str
