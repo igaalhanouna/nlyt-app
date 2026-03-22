@@ -53,14 +53,20 @@ Email: Resend | Payments: Stripe | Video: Zoom API, Teams Graph API, Google Cale
 ## Testing
 - iteration_30: 16/16 frontend + 8/9 backend (guarantee-first)
 - iteration_31: 23/23 frontend + 9/9 backend (video check-in differentiation)
+- iteration_32: 22/22 frontend + 12/13 backend (meeting auto-creation fix)
 - Credentials: testuser_audit@nlyt.app / Test1234!
+
+## Completed (March 2026)
+- Guarantee-first architecture (pending_organizer_guarantee → active)
+- CORS + SlowAPI rate limiting
+- Video vs Physical check-in UX differentiation
+- **Meeting auto-creation regression fix** (March 22): Restored Microsoft Teams credentials, improved is_configured() guard, added error logging in lifecycle
 
 ## Backlog (Prioritized)
 ### P1
 - Stripe Connect (automatic fund distribution)
 - Zoom real API keys configuration
 - Real-time webhooks for Zoom/Teams
-- Microsoft Teams auto-creation (pending MS propagation)
 ### P2
 - Pagination for list endpoints
 - Auto-update calendar V2 (retry on failure)
