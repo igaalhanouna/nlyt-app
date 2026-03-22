@@ -5,66 +5,46 @@ SaaS de gestion d'assiduité avec garanties financières. NLYT est le **point ce
 
 ## Core Requirements
 1. Création de RDV (physique + vidéo) avec paramètres de pénalité
-2. **Création automatique de réunions** Zoom/Teams/Meet via API
+2. Création automatique de réunions Zoom/Teams/Meet via API
 3. Invitation par email avec lien sécurisé + lien de réunion
 4. Workflow contractuel de modification unanime
 5. Garantie financière Stripe (setup mode)
 6. Moteur de preuves physiques (GPS, QR, check-in)
 7. Moteur de preuves vidéo (Zoom, Teams, Google Meet)
-8. **Import de présences** : API auto-fetch (Zoom/Teams) + upload CSV/JSON + JSON avancé
+8. Import de présences : API auto-fetch + upload CSV/JSON
 9. Moteur de décision d'assiduité conservateur
-10. Emails transactionnels avec gestion correcte des timezones
-11. Synchronisation calendrier (Google/Outlook)
+10. **Page Intégrations** avec sections Calendriers + Visioconférence
+11. Emails transactionnels avec gestion correcte des timezones
+12. Synchronisation calendrier (Google/Outlook)
+
+## Integrations Architecture
+### Page Paramètres > Intégrations
+- **Section CALENDRIERS** : Google Calendar (+ badge Meet), Outlook/Microsoft 365
+- **Section VISIOCONFÉRENCE** : Zoom (carte dédiée), Microsoft Teams (carte dédiée), Google Meet (note liée à Calendar)
+- **Auto-sync** : section dédiée si au moins 1 calendrier connecté
+
+### Provider Connection Model
+| Provider | Modèle | Stockage |
+|----------|--------|----------|
+| Google Calendar + Meet | OAuth per-user | `calendar_connections` |
+| Outlook | OAuth per-user | `calendar_connections` |
+| Zoom | User config + Platform env | `user_settings` (per-user) + env vars |
+| Teams | User config + Platform env | `user_settings` (per-user) + env vars |
+
+### Feature Matrix
+| Provider | Calendrier | Création meeting | Présences auto |
+|----------|-----------|-----------------|----------------|
+| Google   | Oui       | Oui (Meet)      | Non            |
+| Outlook  | Oui       | Non             | Non            |
+| Zoom     | Non       | Oui             | Oui            |
+| Teams    | Non       | Oui             | Oui            |
 
 ## Technical Stack
-- Frontend: React.js + TailwindCSS + Shadcn/UI
-- Backend: FastAPI + Python + Pydantic + MongoDB
-- Email: Resend (notify.nlyt.io), Payments: Stripe
-- Video: Zoom API, Teams Graph API, Google Calendar API (Meet)
-
-## Architecture
-```
-backend/
-├── adapters/
-│   ├── google_calendar_adapter.py
-│   ├── outlook_calendar_adapter.py
-│   └── video_providers/
-│       ├── base.py (VideoProviderAdapter interface)
-│       ├── zoom_adapter.py (ceiling: strong)
-│       ├── teams_adapter.py (ceiling: strong)
-│       └── meet_adapter.py (ceiling: assisted)
-├── services/
-│   ├── meeting_provider_service.py (ZoomMeetingClient, TeamsMeetingClient, GoogleMeetClient)
-│   ├── video_evidence_service.py (ingestion + matching)
-│   ├── evidence_service.py (extended: video_conference)
-│   ├── attendance_service.py (extended: video decision)
-│   └── email_service.py (meeting_join_url in emails)
-├── routers/
-│   ├── video_evidence_routes.py (create-meeting, fetch-attendance, ingest, ingest-file, provider-status)
-│   └── appointments.py (auto-create meeting on video apt)
-```
-
-## Meeting Creation Flow
-1. User creates video appointment → NLYT auto-calls provider API
-2. Provider returns meeting_id + join_url → stored in appointment
-3. Join link displayed in UI + sent in invitation emails + synced to calendar
-4. After meeting: fetch attendance via API (Zoom/Teams) or manual import (Meet/fallback)
-
-## Provider Configuration
-| Provider | Status | Features | Credentials |
-|----------|--------|----------|-------------|
-| Zoom | Ready (needs credentials) | create_meeting, fetch_attendance | ZOOM_ACCOUNT_ID, ZOOM_CLIENT_ID, ZOOM_CLIENT_SECRET |
-| Teams | Ready (needs credentials) | create_meeting, fetch_attendance | MICROSOFT_TENANT_ID, MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET |
-| Meet | **CONFIGURED** | create_meeting (via Calendar API) | GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET (existing) |
-
-## Video Evidence Rules (V1)
-| Provider | Evidence Ceiling | Identity Match | Auto-Decision |
-|----------|-----------------|---------------|---------------|
-| Zoom | strong | high (email) | Yes |
-| Teams | strong | high (AAD) | Yes |
-| Meet | **assisted** | **always low** | **NEVER** |
+Frontend: React + TailwindCSS + Shadcn/UI | Backend: FastAPI + Python + MongoDB
+Email: Resend | Payments: Stripe | Video: Zoom API, Teams Graph API, Google Calendar API
 
 ## Testing
-- iteration_24: 17/17 MVP tests passed
-- iteration_25: 13/13 API integration tests passed + full UI verification
+- iteration_24: 17/17 (Video evidence MVP)
+- iteration_25: 13/13 (Meeting API integration)
+- iteration_26: 15/15 + full UI (Integrations page)
 - Credentials: testuser_audit@nlyt.app / Test1234!

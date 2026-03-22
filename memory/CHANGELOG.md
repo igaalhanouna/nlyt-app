@@ -1,58 +1,40 @@
 # NLYT — Changelog
 
-## 2026-03-22 — Video Meeting API Integration (Phase 2) ✅
+## 2026-03-22 — Page Intégrations Visioconférence ✅
 
-### Meeting Provider Service (`meeting_provider_service.py`)
-- **ZoomMeetingClient**: Server-to-Server OAuth, create_meeting(), fetch_attendance() — ready, needs credentials
-- **TeamsMeetingClient**: Graph API app permissions, create_meeting(), fetch_attendance() — ready, needs real Azure credentials
-- **GoogleMeetClient**: Calendar API with conferenceData, create_meeting() — **WORKING** (creates real meet.google.com links)
-- Orchestrator `create_meeting_for_appointment()` + `fetch_attendance_for_appointment()`
-- Auto-resolves user tokens (Google Calendar connection, Azure AD user ID)
+### Architecture retenue
+- **Google Meet** : enrichissement de la carte Google Calendar existante (même OAuth) — badge "Google Meet" + note "Création de liens Meet activée"
+- **Zoom** : carte dédiée dans section Visioconférence — connect/disconnect, email, feature badges
+- **Teams** : carte dédiée dans section Visioconférence — connect/disconnect, Azure AD ID, email, feature badges
+- **Pas de carte Google Meet séparée** : même connexion que Google Calendar
 
-### Auto-Create Meeting on Appointment
-- When creating a video appointment, NLYT auto-calls the provider API
-- Response includes `meeting.join_url`, `meeting.external_meeting_id`, `meeting.provider`
-- Non-blocking: if API fails, appointment still created with warning
+### Frontend (`Integrations.js` — réécriture complète)
+- **Section CALENDRIERS** : Google Calendar (badge Calendrier + badge Google Meet avec checkmark si connecté), Outlook (badge Calendrier uniquement)
+- **Section VISIOCONFÉRENCE** : Zoom card, Teams card, Google Meet note
+- Chaque carte : nom, usage, état connexion, email/compte, bouton connecter/déconnecter, badges features
+- Badges : "Création de réunion", "Présences auto", "Calendrier", "Google Meet"
+- Zoom config form : email Zoom + avertissement si credentials serveur manquants
+- Teams config form : Azure AD User ID + email Teams + avertissement si credentials manquants
+- Note Google Meet : "Activé via votre connexion Google Calendar" ou "Connectez Google Calendar pour activer Meet"
 
-### Meeting Link in Emails
-- `send_invitation_email()` now accepts `meeting_join_url` and `meeting_provider`
-- Email shows "Rejoindre la réunion {Provider}" button + "En ligne ({Provider})" location
-
-### Enhanced Import (Fallback Manuel)
-- **File upload (CSV/JSON)**: `POST /api/video-evidence/{apt}/ingest-file` accepts multipart form
-- CSV parsing: handles Zoom CSV export format with column name variations (FR/EN)
-- **File/JSON toggle**: "Fichier (CSV/JSON)" mode (default) + "JSON avancé" mode
-- **File preview**: table preview for CSV, participant count for JSON
-- Instructions contextuelles: "Dans Zoom, allez dans Reports > Meeting > Participants pour exporter le CSV"
-
-### New API Endpoints
-- `POST /api/video-evidence/{apt}/create-meeting` — Create meeting via provider API
-- `POST /api/video-evidence/{apt}/fetch-attendance` — Fetch + auto-ingest attendance
-- `POST /api/video-evidence/{apt}/ingest-file` — File upload (CSV/JSON)
-- `GET /api/video-evidence/provider-status` — Check configured providers
-
-### Frontend UI Enhancements
-- "Créer la réunion" button (shown if no meeting link yet)
-- "Récupérer les présences" button (shown for Zoom/Teams, NOT for Meet)
-- "Import manuel" with file upload + JSON advanced mode toggle
-- Drag-and-drop file zone with format-specific instructions
-- CSV/JSON preview before ingestion
+### Backend (endpoints ajoutés)
+- `GET /api/video-evidence/provider-status` — enrichi avec statut per-user (email, connected_at, features, requires)
+- `POST /api/video-evidence/connect/zoom` — sauvegarde config Zoom dans user_settings
+- `DELETE /api/video-evidence/connect/zoom` — supprime config Zoom
+- `POST /api/video-evidence/connect/teams` — sauvegarde Azure AD + Teams email dans user_settings
+- `DELETE /api/video-evidence/connect/teams` — supprime config Teams
 
 ### Testing
-- iteration_25: 13/13 tests passed + full UI verification
-- No regressions on physical appointments or existing video evidence
+- iteration_26: 15/15 backend + UI complète vérifiée, 0 régression
 
 ---
 
-## 2026-03-22 — Video Conference Attendance Evidence MVP (Phase 1) ✅
-- Modular video provider adapters (Zoom, Teams, Meet)
-- Evidence ingestion service with identity matching
-- Conservative attendance decision engine (Meet = always manual_review)
-- Video evidence timeline UI with confidence badges
-- iteration_24: 17/17 tests passed
+## 2026-03-22 — Video Meeting API Integration ✅
+- Meeting creation API (Zoom/Teams/Meet), auto-create on appointment, CSV/JSON upload, meeting link in emails
+- iteration_25: 13/13 passed
 
-## Previous (2026-03-21 and earlier)
-- Appointment timezone field, Express creation button
-- Email timezone fix, Email URL fix
-- Modification UX + Stripe revalidation
-- GPS evidence fix
+## 2026-03-22 — Video Conference Attendance Evidence MVP ✅
+- Modular adapters, evidence ingestion, conservative decision engine
+- iteration_24: 17/17 passed
+
+## Previous: Timezone, Express creation, Email fixes, Modification UX, GPS fix
