@@ -1292,11 +1292,37 @@ export default function AppointmentDetail() {
               </div>
             ) : appointment.appointment_type === 'video' ? (
               <div className="space-y-3">
-                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                  <p className="text-sm text-blue-800">
-                    Votre présence sera vérifiée automatiquement via votre connexion à la réunion.
-                  </p>
-                </div>
+                {/* Provider-specific honest messaging */}
+                {(() => {
+                  const provider = (appointment.meeting_provider || '').toLowerCase();
+                  const providerLabel = provider === 'zoom' ? 'Zoom' : provider === 'teams' ? 'Teams' : provider === 'meet' ? 'Google Meet' : appointment.meeting_provider;
+                  const hasAutoFetch = provider === 'zoom' || provider === 'teams';
+
+                  if (hasAutoFetch) {
+                    return (
+                      <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg" data-testid="checkin-msg-auto-fetch">
+                        <p className="text-sm font-medium text-blue-900 mb-1">Récupération automatique via {providerLabel}</p>
+                        <p className="text-xs text-blue-700">
+                          Après la fin de la réunion, les présences seront récupérées automatiquement depuis {providerLabel}. Ce n'est pas une détection en temps réel — les données sont disponibles une fois la réunion terminée.
+                        </p>
+                      </div>
+                    );
+                  } else if (provider === 'meet') {
+                    return (
+                      <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg" data-testid="checkin-msg-manual-import">
+                        <p className="text-sm font-medium text-amber-900 mb-1">Import manuel requis — Google Meet</p>
+                        <p className="text-xs text-amber-700">
+                          Google Meet ne fournit pas d'API de récupération automatique des présences. Après la réunion, importez le rapport de présence depuis la section "Preuves de présence visio" ci-dessous.
+                        </p>
+                      </div>
+                    );
+                  }
+                  return (
+                    <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                      <p className="text-sm text-slate-700">Les preuves de présence seront vérifiées après la réunion.</p>
+                    </div>
+                  );
+                })()}
                 <details className="group">
                   <summary className="flex items-center gap-2 text-xs text-slate-400 cursor-pointer hover:text-slate-600 transition-colors">
                     <AlertTriangle className="w-3.5 h-3.5" />
@@ -1588,30 +1614,97 @@ export default function AppointmentDetail() {
                     Créer la réunion
                   </Button>
                 )}
-                {/* Fetch attendance button — shown if meeting was created via API */}
-                {appointment.meeting_join_url && appointment.meeting_provider && (appointment.meeting_provider || '').toLowerCase() !== 'meet' && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleFetchAttendance}
-                    disabled={fetchingAttendance}
-                    data-testid="fetch-attendance-btn"
-                  >
-                    {fetchingAttendance ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <RefreshCw className="w-4 h-4 mr-1" />}
-                    Récupérer les présences
-                  </Button>
-                )}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowVideoIngest(!showVideoIngest)}
-                  data-testid="toggle-video-ingest-btn"
-                >
-                  <Upload className="w-4 h-4 mr-1" />
-                  Import manuel
-                </Button>
               </div>
             </div>
+
+            {/* Provider-specific action bar */}
+            {(() => {
+              const provider = (appointment.meeting_provider || '').toLowerCase();
+              const hasAutoFetch = provider === 'zoom' || provider === 'teams';
+              const providerLabel = provider === 'zoom' ? 'Zoom' : provider === 'teams' ? 'Teams' : 'Google Meet';
+              const meetingEnd = appointment.start_datetime && appointment.duration_minutes
+                ? new Date(new Date(appointment.start_datetime).getTime() + appointment.duration_minutes * 60000)
+                : null;
+              const isMeetingEnded = meetingEnd && new Date() > meetingEnd;
+              const hasEvidence = videoEvidence?.total_video_evidence > 0;
+
+              return (
+                <div className="mb-5" data-testid="video-evidence-action-bar">
+                  {hasAutoFetch ? (
+                    <div className={`rounded-lg border p-4 ${hasEvidence ? 'bg-emerald-50 border-emerald-200' : isMeetingEnded ? 'bg-blue-50 border-blue-200' : 'bg-slate-50 border-slate-200'}`}>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          {hasEvidence ? (
+                            <p className="text-sm font-medium text-emerald-800" data-testid="evidence-status-fetched">Présences récupérées via {providerLabel}</p>
+                          ) : isMeetingEnded ? (
+                            <>
+                              <p className="text-sm font-medium text-blue-900" data-testid="evidence-status-ready">Réunion terminée — présences disponibles</p>
+                              <p className="text-xs text-blue-700 mt-0.5">Récupérez les présences depuis {providerLabel}, ou attendez la récupération automatique.</p>
+                            </>
+                          ) : (
+                            <>
+                              <p className="text-sm font-medium text-slate-700" data-testid="evidence-status-waiting">Réunion en cours ou à venir</p>
+                              <p className="text-xs text-slate-500 mt-0.5">Les présences seront récupérées automatiquement depuis {providerLabel} après la fin de la réunion.</p>
+                            </>
+                          )}
+                        </div>
+                        <div className="flex gap-2 ml-4 shrink-0">
+                          {appointment.meeting_join_url && (
+                            <Button
+                              variant={isMeetingEnded && !hasEvidence ? 'default' : 'outline'}
+                              size="sm"
+                              onClick={handleFetchAttendance}
+                              disabled={fetchingAttendance}
+                              data-testid="fetch-attendance-btn"
+                            >
+                              {fetchingAttendance ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <RefreshCw className="w-4 h-4 mr-1" />}
+                              Récupérer les présences
+                            </Button>
+                          )}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setShowVideoIngest(!showVideoIngest)}
+                            data-testid="toggle-video-ingest-btn"
+                          >
+                            <Upload className="w-4 h-4 mr-1" />
+                            Import manuel
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    /* Google Meet: manual import is the primary action */
+                    <div className={`rounded-lg border p-4 ${hasEvidence ? 'bg-emerald-50 border-emerald-200' : 'bg-amber-50 border-amber-200'}`}>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          {hasEvidence ? (
+                            <p className="text-sm font-medium text-emerald-800" data-testid="evidence-status-fetched">Présences importées pour {providerLabel}</p>
+                          ) : (
+                            <>
+                              <p className="text-sm font-medium text-amber-900" data-testid="evidence-status-meet-manual">Import requis — {providerLabel}</p>
+                              <p className="text-xs text-amber-700 mt-0.5">Google Meet ne fournit pas de rapport automatique. Après la réunion, importez le rapport de présence (CSV ou JSON).</p>
+                            </>
+                          )}
+                        </div>
+                        <div className="ml-4 shrink-0">
+                          <Button
+                            variant={!hasEvidence ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => setShowVideoIngest(!showVideoIngest)}
+                            className={!hasEvidence ? 'bg-amber-600 hover:bg-amber-700' : ''}
+                            data-testid="toggle-video-ingest-btn"
+                          >
+                            <Upload className="w-4 h-4 mr-1" />
+                            Importer le rapport de présence
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* Ingestion Form — redesigned with file upload + JSON mode */}
             {showVideoIngest && (
@@ -1893,10 +1986,28 @@ export default function AppointmentDetail() {
                 })}
               </div>
             ) : (
-              <div className="text-center py-8 text-slate-400">
+              <div className="text-center py-8 text-slate-400" data-testid="no-video-evidence">
                 <Monitor className="w-10 h-10 mx-auto mb-2 text-slate-300" />
-                <p className="text-sm">Aucune preuve de présence visio pour le moment.</p>
-                <p className="text-xs text-slate-400 mt-1">Importez un rapport de présence depuis votre provider (Zoom, Teams, Google Meet).</p>
+                {(() => {
+                  const provider = (appointment.meeting_provider || '').toLowerCase();
+                  if (provider === 'meet') {
+                    return (
+                      <>
+                        <p className="text-sm text-slate-500">Aucune preuve de présence importée.</p>
+                        <p className="text-xs text-amber-600 mt-1 font-medium">Google Meet requiert un import manuel du rapport de présence.</p>
+                      </>
+                    );
+                  }
+                  if (provider === 'zoom' || provider === 'teams') {
+                    return (
+                      <>
+                        <p className="text-sm text-slate-500">Aucune preuve de présence récupérée.</p>
+                        <p className="text-xs text-slate-400 mt-1">Les présences seront récupérées automatiquement après la fin de la réunion, ou utilisez le bouton ci-dessus.</p>
+                      </>
+                    );
+                  }
+                  return <p className="text-sm">Aucune preuve de présence visio pour le moment.</p>;
+                })()}
               </div>
             )}
 

@@ -45,6 +45,15 @@ async def attendance_evaluation_job():
         logger.error(f"[SCHEDULER] Attendance evaluation job failed: {str(e)}")
 
 
+async def auto_fetch_attendance_job():
+    """Job to auto-fetch video attendance from Zoom/Teams after meetings end"""
+    try:
+        from services.auto_fetch_attendance_service import run_auto_fetch_attendance_job
+        run_auto_fetch_attendance_job()
+    except Exception as e:
+        logger.error(f"[SCHEDULER] Auto-fetch attendance job failed: {str(e)}")
+
+
 async def proposal_expiration_job():
     """Job to expire stale modification proposals (24h timeout)"""
     try:
@@ -92,11 +101,21 @@ def start_scheduler():
         replace_existing=True
     )
 
+    # Job 5: Auto-fetch video attendance from Zoom/Teams (every 5 minutes)
+    scheduler.add_job(
+        auto_fetch_attendance_job,
+        trigger=IntervalTrigger(minutes=5),
+        id='auto_fetch_attendance_job',
+        name='Auto-fetch Zoom/Teams attendance after meeting ends',
+        replace_existing=True
+    )
+
     scheduler.start()
     logger.info("[SCHEDULER] Background scheduler started")
     logger.info("[SCHEDULER]    - Cancellation deadline reminders: every 5 minutes")
     logger.info("[SCHEDULER]    - Event reminders (10min/1h/1day): every 2 minutes")
     logger.info("[SCHEDULER]    - Attendance evaluation: every 10 minutes")
+    logger.info("[SCHEDULER]    - Auto-fetch video attendance (Zoom/Teams): every 5 minutes")
 
 
 def stop_scheduler():

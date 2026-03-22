@@ -586,7 +586,7 @@ export default function InvitationPage() {
                     La réunion commencera dans <span className="font-bold text-slate-900">{formatCountdown()}</span>
                   </p>
                   <p className="text-xs text-slate-500 mt-2">
-                    Votre présence sera vérifiée automatiquement via votre connexion à la réunion.
+                    Votre présence sera vérifiée après la réunion via le rapport du provider.
                   </p>
                   {appointment.meeting_join_url && (
                     <p className="text-xs text-blue-600 mt-2">
@@ -633,10 +633,10 @@ export default function InvitationPage() {
                       <Video className="w-6 h-6 text-blue-600" />
                     </div>
                     <p className="text-sm font-semibold text-blue-900 mb-1">
-                      Votre présence est vérifiée automatiquement
+                      Rejoignez la réunion pour confirmer votre présence
                     </p>
                     <p className="text-xs text-blue-700 mb-3">
-                      Rejoignez la réunion — votre connexion servira de preuve de présence.
+                      Votre présence sera vérifiée après la réunion via le rapport du provider.
                     </p>
                     {appointment.meeting_join_url && (
                       <a
