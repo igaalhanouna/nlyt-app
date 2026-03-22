@@ -1,5 +1,47 @@
 # NLYT — Changelog
 
+## 2026-03-22 — Organisateur comme participant (symétrie complète)
+
+### Backend (`appointments.py`)
+- Auto-injection de l'organisateur comme participant à chaque création de RDV
+- `is_organizer: true`, `role: "organizer"`, `status: "accepted_pending_guarantee"`
+- Création d'une session Stripe pour la garantie organisateur (même flow que participants)
+- `organizer_checkout_url`, `organizer_participant_id`, `organizer_invitation_token` dans la réponse
+- Skip email d'invitation si l'email du participant = email organisateur (pas de doublon)
+- Si penalty_amount = 0 → statut directement `accepted_guaranteed`
+
+### Frontend (`AppointmentWizard.js`)
+- Redirection vers Stripe après création si `organizer_checkout_url` présent
+
+### Frontend (`AppointmentDetail.js`)
+- Section "Mon check-in (organisateur)" avec bouton check-in manuel
+- Section "Garantie organisateur requise" si statut `accepted_pending_guarantee`
+- Badge "Organisateur" dans la liste des participants
+- Bouton "Renvoyer invitation" masqué pour l'organisateur
+
+### Testing
+- iteration_29: 12/12 tests passés (9 backend + 4 frontend), 0 régression
+
+---
+
+## 2026-03-22 — Sécurisation meeting_provider (validation conditionnelle)
+
+### Backend (`schemas.py`)
+- `field_validator` : `""` → `None`
+- `model_validator` : `meeting_provider` obligatoire si `video`, forcé à `None` si `physical`
+
+### Backend (`modification_service.py`)
+- Switch physical → `meeting_provider: None` (était `""`)
+
+### Frontend (`AppointmentWizard.js`, `AppointmentDetail.js`)
+- Init `meeting_provider: null` (était `""`)
+- Nettoyage payload : suppression du champ si `appointment_type !== 'video'`
+
+### Testing
+- 7/7 tests unitaires + 6/6 tests API
+
+---
+
 ## 2026-03-22 — Sécurité imports manuels + Guides configuration
 
 ### Backend — source_trust (`video_evidence_service.py`, `evidence_service.py`, `attendance_service.py`)
