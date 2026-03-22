@@ -1,5 +1,19 @@
 # NLYT - Changelog
 
+## 2026-02-20 — DST Timezone Validation
+
+### Scénarios testés (CET → CEST, 29 mars 2026)
+1. Veille (28 mars 23:00 CET = 22:00 UTC) → Affiche 23:00 ✅
+2. Dernière heure avant switch (01:30 CET = 00:30 UTC) → Affiche 01:30 ✅
+3. Gap DST (01:30 UTC → 03:30 CEST, 02:30 n'existe pas) → Affiche 03:30 ✅
+4. Après switch (02:00 UTC = 04:00 CEST) → Affiche 04:00 ✅
+
+### Vérifications
+- API: 4/4 endpoints retournent la même valeur UTC ✅
+- Frontend invitation (Playwright + Europe/Paris): 4/4 heures correctes ✅
+- Cross-page consistency (Node.js): 4/4 identiques ✅
+- Aucun bug DST détecté
+
 ## 2026-02-20 — Timezone Bug Fix (P0 Critical)
 
 ### Root Cause
