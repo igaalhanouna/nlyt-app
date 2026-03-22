@@ -1,5 +1,33 @@
 # NLYT - Changelog
 
+## 2026-03-22 — UX: Repositionnement du bouton de modification de RDV
+
+### Changement
+- **Suppression** du crayon (edit-datetime-btn) qui était collé au champ "Date et heure"
+- **Ajout** d'un bouton "Modifier" (edit-general-info-btn) à droite du titre "Informations générales"
+- Le bouton couvre clairement tout le bloc : date, durée, lieu, type de RDV
+- Design : bouton discret avec bordure, icône crayon + texte "Modifier", hover bleu
+
+### Fichier modifié
+- `/app/frontend/src/pages/appointments/AppointmentDetail.js`
+
+### Tests
+- 8/8 tests passés (iteration_20) : visibilité, ouverture formulaire, masquage RDV passé, pas d'impact autres blocs
+
+---
+
+## 2026-03-22 — Fix: GPS Coordinates Reset on Location Modification
+
+### Changement
+- Dans `_apply_proposal()`, quand le champ `location` change, les champs `location_latitude`, `location_longitude`, `location_geocoded`, `location_display_name` sont réinitialisés à `None`/`False`
+- Force le re-géocodage par le moteur de preuves
+
+### Fichier modifié
+- `/app/backend/services/modification_service.py`
+
+---
+
+
 ## 2026-02-22 — Feature: Flow contractuel de modification de RDV
 
 ### Architecture

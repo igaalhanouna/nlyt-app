@@ -1,55 +1,63 @@
-# NLYT - Product Requirements Document
+# NLYT — Product Requirements Document
 
-## Vision
-SaaS de prise de rendez-vous avec garanties financières (Stripe), détection de présence et preuves physiques.
+## Problem Statement
+Construire un moteur de détection de présence ultra-conservateur avec collecte de preuves physiques pour une plateforme SaaS de gestion de rendez-vous avec garanties financières.
 
-## Architecture
+## Core Architecture
 - **Frontend**: React.js, TailwindCSS, Shadcn/UI
-- **Backend**: FastAPI, Python, APScheduler, MongoDB
-- **Intégrations**: Stripe (paiements), Resend (emails), Google/Outlook Calendar, Nominatim (géocodage)
+- **Backend**: FastAPI, Python, APScheduler
+- **Database**: MongoDB
+- **Integrations**: Stripe (paiements), Resend (emails), Google/Outlook Calendar, Nominatim (géocodage)
 
-## Règle fondamentale — Gestion des dates
-- **Backend** : stocke et retourne TOUTES les dates en **UTC ISO** (`2026-03-22T00:04:00Z`)
-- **Frontend** : convertit en heure locale via `Intl.DateTimeFormat().resolvedOptions().timeZone`
-- **Utilitaire unique** : `/app/frontend/src/utils/dateFormat.js` — toutes les pages utilisent `formatDateTimeFr()`, `formatTimeFr()`, etc.
-- **Backend normalization** : `normalize_to_utc()` dans `date_utils.py` — gère les dates naïves legacy (interprétées comme Europe/Paris)
+## Key Technical Decisions
+- **Timezone**: Strict UTC backend (`YYYY-MM-DDTHH:MM:SSZ`), frontend localise via `formatDateTimeFr()`
+- **Modifications**: Flux contractuel avec propositions et acceptation unanime (collection `modification_proposals`)
+- **Evidence Engine**: GPS, QR, check-in manuel — scoring conservateur
 
-## Core Features (Implémentées)
-1. Auth (JWT) + Workspace management
-2. Appointment creation with financial guarantees
-3. Stripe payment integration for guarantee deposits
-4. Invitation system with accept/decline/cancel flows
-5. Calendar sync (Google/Outlook)
-6. Email reminders (cancellation deadline + event)
-7. Attendance Evaluation Engine V1 (APScheduler)
-8. Physical Evidence System (QR, GPS, Manual check-in)
-9. Smart Evidence Scoring V2 (Temporal + Geographic consistency, Nominatim reverse geocoding)
-10. Participant Check-in UX (4 temporal states)
-11. **Contractual Modification Flow** (proposals + unanimity + expiration)
-    - Organizer AND participants can propose changes (date, time, duration, location, type)
-    - Unanimity required to apply
-    - 24h timeout with APScheduler auto-expiration
-    - Full audit trail (who proposed, who accepted/rejected, when)
+## What's Implemented ✅
+1. Auth complète (inscription, connexion, vérification email, reset password)
+2. Gestion de workspaces multi-utilisateurs
+3. Wizard de création de RDV (participants, infos, règles, pénalités, révision)
+4. Invitations par email avec tokens uniques
+5. Page participant (accepter/décliner, garantie Stripe)
+6. Synchronisation Google/Outlook Calendar (auto + manuelle)
+7. Adresse avec autocomplétion (Nominatim)
+8. Moteur d'évaluation de présence (attendance_service)
+9. Collecte de preuves physiques (GPS, QR, check-in manuel)
+10. Reclassification manuelle par l'organisateur
+11. Validation dates passées (création + modification)
+12. Flux contractuel de modification de RDV (propositions unanimes)
+13. UX bouton "Modifier" sur bloc "Informations générales" (repositionné)
+14. Reset coordonnées GPS quand le lieu est modifié via proposition (code appliqué, test e2e en attente)
+15. Gestion DST testée et validée
+16. Templates de politiques d'engagement
+17. Centre de litiges
+18. Dashboard analytics de base
 
-## Database Collections
-- `users`, `workspaces`, `workspace_memberships`
-- `appointments` (start_datetime stored in UTC with 'Z')
-- `participants` (status, accepted_at, etc.)
-- `evidence_items` (evidence_id, confidence_score, derived_facts)
-- `checkins`, `attendance_evaluations`
+## P0 — En attente de test
+- Vérifier le correctif GPS (reset lat/lon sur modification du lieu)
 
-## Key API Endpoints
-- `POST /api/auth/login` → access_token
-- `GET/POST /api/appointments/`
-- `GET /api/invitations/{token}`
-- `POST /api/checkin/manual`, `POST /api/checkin/qr/verify`
-- `POST /api/attendance/reevaluate/{appointment_id}`
+## P2 — À venir
+- Stripe Hook pour modification majeure (re-confirmation garantie)
+- Stripe Connect (répartition automatique des fonds)
+- Auto-update calendrier V2 (retry + notification)
 
-## Test Credentials
-- Email: `testuser_audit@nlyt.app`
-- Password: `Test1234!`
+## P3 — Backlog
+- Dashboard analytics organisateur avancé
+- Preuve de présence par vidéo
+- Amélioration résolution de litiges
 
-## Backlog
-- P2: Stripe Connect (automated fund splits — DO NOT TOUCH YET)
-- P2: Calendar sync V2 (auto-retry + notifications)
-- P3: Dashboard analytics organisateur
+## Key Files
+- `/app/frontend/src/pages/appointments/AppointmentDetail.js` — Détail RDV (organisateur)
+- `/app/frontend/src/pages/invitations/InvitationPage.js` — Page participant
+- `/app/backend/services/modification_service.py` — Logique propositions
+- `/app/backend/services/evidence_service.py` — Moteur de preuves
+- `/app/backend/services/attendance_service.py` — Évaluation présence
+- `/app/frontend/src/utils/dateFormat.js` — Utilitaires dates UTC/local
+
+## Test Reports
+- iteration_16: Timezone fix
+- iteration_17: Past date creation prevention
+- iteration_18: Past date modification prevention
+- iteration_19: Modification proposals flow
+- iteration_20: UI repositioning of edit button (8/8 passed)
