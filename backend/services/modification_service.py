@@ -262,7 +262,7 @@ def _apply_proposal(proposal: dict):
 
     # When switching to physical, clear meeting provider
     if changes.get('appointment_type') == 'physical':
-        update_fields.setdefault('meeting_provider', '')
+        update_fields.setdefault('meeting_provider', None)
 
     db.appointments.update_one(
         {"appointment_id": appointment_id},

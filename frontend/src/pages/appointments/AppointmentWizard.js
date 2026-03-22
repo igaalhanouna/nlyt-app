@@ -47,7 +47,7 @@ export default function AppointmentWizard() {
     location_latitude: null,
     location_longitude: null,
     location_place_id: null,
-    meeting_provider: '',
+    meeting_provider: null,
     start_datetime: '',
     duration_minutes: 60,
     tolerated_delay_minutes: 15,

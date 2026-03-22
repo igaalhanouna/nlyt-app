@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 from enum import Enum
@@ -154,6 +154,14 @@ class AppointmentCreate(BaseModel):
         if v == '':
             return None
         return v
+
+    @model_validator(mode='after')
+    def validate_meeting_provider_for_type(self):
+        if self.appointment_type == AppointmentType.VIDEO and self.meeting_provider is None:
+            raise ValueError("meeting_provider est obligatoire pour un rendez-vous visio")
+        if self.appointment_type == AppointmentType.PHYSICAL:
+            self.meeting_provider = None
+        return self
 
 class AppointmentResponse(BaseModel):
     appointment_id: str

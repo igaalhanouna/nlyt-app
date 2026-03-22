@@ -29,7 +29,7 @@ export default function AppointmentDetail() {
   const [showProposalForm, setShowProposalForm] = useState(false);
   const [proposalForm, setProposalForm] = useState({
     start_datetime: '', duration_minutes: '', location: '',
-    meeting_provider: '', appointment_type: ''
+    meeting_provider: null, appointment_type: ''
   });
   const [submittingProposal, setSubmittingProposal] = useState(false);
   const [respondingProposal, setRespondingProposal] = useState(false);
