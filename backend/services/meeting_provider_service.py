@@ -146,9 +146,11 @@ class TeamsMeetingClient:
         self.graph_url = "https://graph.microsoft.com/v1.0"
 
     def is_configured(self) -> bool:
+        placeholder_values = {"detect-presence", "guarantee-first", "placeholder", "your-tenant-id", "your-client-id"}
         return bool(
             self.tenant_id and self.client_id and self.client_secret
-            and self.tenant_id != "detect-presence"
+            and self.tenant_id not in placeholder_values
+            and self.client_id not in placeholder_values
         )
 
     def _get_token(self) -> str:

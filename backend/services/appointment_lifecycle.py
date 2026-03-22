@@ -123,6 +123,8 @@ async def activate_appointment(appointment_id: str, organizer_user_id: str) -> d
             )
             if meeting_result and meeting_result.get("success"):
                 print(f"[ACTIVATE] Auto-created meeting: {meeting_result.get('join_url')}")
+            elif meeting_result and meeting_result.get("error"):
+                print(f"[ACTIVATE] Meeting creation FAILED for {appointment['meeting_provider']}: {meeting_result.get('error')}")
         except Exception as e:
             print(f"[ACTIVATE] Meeting creation error: {e}")
             meeting_result = {"error": str(e)}
