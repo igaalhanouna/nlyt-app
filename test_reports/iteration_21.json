@@ -1,0 +1,77 @@
+{
+  "summary": "Guarantee Revalidation Feature - All tests PASSED. Backend APIs and Frontend UI verified. Fixed missing enrichment in participants list endpoint.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": [
+    "GET /api/invitations/{token} returns guarantee_revalidation=null when no flag ✓",
+    "GET /api/invitations/{token} returns guarantee_revalidation with requires_revalidation=true when flagged ✓",
+    "POST /api/invitations/{token}/reconfirm-guarantee creates new Stripe session and marks old guarantee as superseded ✓",
+    "POST /api/invitations/{token}/reconfirm-guarantee returns 400 if no revalidation needed ✓",
+    "GET /api/appointments/ enriches participants with guarantee_requires_revalidation ✓",
+    "GET /api/participants/ enriches participants with guarantee_requires_revalidation (FIXED) ✓",
+    "Frontend InvitationPage: revalidation banner visible (data-testid='guarantee-revalidation-banner') ✓",
+    "Frontend InvitationPage: status badge 'À reconfirmer' (data-testid='status-badge-revalidation') ✓",
+    "Frontend InvitationPage: 'Reconfirmer ma garantie' button (data-testid='reconfirm-guarantee-btn') functional ✓",
+    "Frontend InvitationPage: revalidation reasons displayed (Décalage de date > 24h, Changement de ville) ✓",
+    "Frontend InvitationPage: response section shows amber warning icon when revalidation required ✓",
+    "Frontend InvitationPage: clicking reconfirm button redirects to Stripe checkout ✓",
+    "Frontend AppointmentDetail: badge 'À reconfirmer' (data-testid='badge-revalidation-{participant_id}') displayed ✓",
+    "Minor modification scenario: NO revalidation banner when requires_revalidation=false ✓",
+    "Minor modification scenario: 'Garanti' badge shown instead of 'À reconfirmer' ✓"
+  ],
+  "test_report_links": [
+    "/app/backend/tests/test_guarantee_revalidation.py",
+    "/app/test_reports/pytest/pytest_guarantee_revalidation.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "FIXED: /app/backend/routers/participants.py - Added guarantee revalidation enrichment to list_participants endpoint (lines 102-113)",
+    "Backend invitations.py correctly returns guarantee_revalidation in GET /{token} response",
+    "Backend invitations.py POST /{token}/reconfirm-guarantee correctly creates new Stripe session and marks old guarantee as superseded",
+    "Backend appointments.py correctly enriches participants with guarantee_requires_revalidation in list endpoint",
+    "Frontend InvitationPage.js correctly displays revalidation banner, status badge, and reconfirm button",
+    "Frontend AppointmentDetail.js correctly displays 'À reconfirmer' badge for participants with guarantee_requires_revalidation=true"
+  ],
+  "updated_files": [
+    "/app/backend/routers/participants.py - Added guarantee revalidation enrichment to list_participants endpoint"
+  ],
+  "success_rate": {
+    "backend": "100% (7/7 tests passed)",
+    "frontend": "100% (8/8 UI tests passed)"
+  },
+  "test_credentials": {
+    "email": "testuser_audit@nlyt.app",
+    "password": "Test1234!",
+    "appointment_id": "e2f69471-af5a-4def-a96b-20c31605e234",
+    "invitation_token": "386b6f65-ce96-4c47-bd97-b0bd4d0e9449",
+    "participant_id": "3124d763-7daf-46a1-8a99-fff8d1aca8a0"
+  },
+  "seed_data_creation": "Test guarantees created with requires_revalidation=true for testing, cleaned up after tests",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Guarantee revalidation feature fully tested. Key data-testid values: guarantee-revalidation-banner, status-badge-revalidation, reconfirm-guarantee-btn, badge-revalidation-{participant_id}. The participants list endpoint was fixed to include guarantee_requires_revalidation enrichment. Stripe is in dev mode (sk_test_emergent) - returns simulated checkout URLs.",
+  "mocked_apis": {
+    "has_mocked_apis": true,
+    "mocked_apis_list": ["Stripe (dev mode with sk_test_emergent key - simulates checkout URLs)"]
+  },
+  "screenshots": [
+    ".screenshots/invitation_revalidation_banner.png - Shows revalidation banner with amber styling, reasons, and reconfirm button",
+    ".screenshots/appointment_detail_revalidation_fixed.png - Shows 'À reconfirmer' badge on participant in AppointmentDetail",
+    ".screenshots/invitation_no_revalidation.png - Shows normal 'Garanti' badge when no revalidation needed"
+  ],
+  "verified_features": {
+    "invitation_page_revalidation_banner": "Amber banner with warning icon, explanation text, reason badges, and 'Reconfirmer ma garantie' button",
+    "invitation_page_status_badge": "'À reconfirmer' badge in header when revalidation required, 'Garanti' when not",
+    "invitation_page_response_section": "Amber warning icon and 'Garantie à reconfirmer' text when revalidation required",
+    "reconfirm_button_functionality": "Clicking button calls POST /api/invitations/{token}/reconfirm-guarantee and redirects to Stripe checkout",
+    "appointment_detail_participant_badge": "'À reconfirmer' badge shown for participants with guarantee_requires_revalidation=true",
+    "api_enrichment": "Both /api/appointments/ and /api/participants/ endpoints enrich participants with guarantee_requires_revalidation"
+  }
+}

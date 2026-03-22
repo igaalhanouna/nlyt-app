@@ -396,7 +396,16 @@ export default function AppointmentDetail() {
   };
 
   // Status badge helper
-  const getParticipantStatusBadge = (status) => {
+  const getParticipantStatusBadge = (status, participant = null) => {
+    // Check if this participant's guarantee needs revalidation
+    if (participant?.guarantee_requires_revalidation && status === 'accepted_guaranteed') {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-1 bg-amber-100 text-amber-800 rounded-full text-xs font-medium" data-testid={`badge-revalidation-${participant.participant_id}`}>
+          <AlertTriangle className="w-3 h-3" /> À reconfirmer
+        </span>
+      );
+    }
+
     switch (status) {
       case 'accepted_guaranteed':
         return <span className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-100 text-emerald-800 rounded-full text-xs font-medium"><ShieldCheck className="w-3 h-3" /> Garanti</span>;
@@ -906,7 +915,7 @@ export default function AppointmentDetail() {
                     <p className="text-sm text-slate-600">{participant.email}</p>
                   </div>
                   <div className="flex items-center gap-2">
-                    {getParticipantStatusBadge(participant.status)}
+                    {getParticipantStatusBadge(participant.status, participant)}
                     {participant.status === 'invited' && !isCancelled && (
                       <button
                         title="Renvoyer l'invitation"

@@ -240,6 +240,18 @@ async def list_appointments(workspace_id: str = None, request: Request = None):
         ))
         apt['participants'] = participants
         apt['participants_count'] = len(participants)
+
+        # Enrich participants with guarantee revalidation status
+        for p in participants:
+            if p.get('status') in ('accepted_guaranteed', 'accepted_pending_guarantee'):
+                g = db.payment_guarantees.find_one(
+                    {"participant_id": p['participant_id'], "appointment_id": apt['appointment_id'],
+                     "status": {"$in": ["completed", "dev_pending"]}},
+                    {"_id": 0, "requires_revalidation": 1, "revalidation_reason": 1}
+                )
+                if g and g.get('requires_revalidation'):
+                    p['guarantee_requires_revalidation'] = True
+                    p['guarantee_revalidation_reason'] = g.get('revalidation_reason', '')
         
         # Add summary of participant statuses
         status_summary = {"invited": 0, "accepted": 0, "declined": 0, "cancelled_by_participant": 0}

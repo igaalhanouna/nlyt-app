@@ -28,6 +28,8 @@ export default function InvitationPage() {
   const [showProposeForm, setShowProposeForm] = useState(false);
   const [proposalForm, setProposalForm] = useState({ start_datetime: '', duration_minutes: '', location: '' });
   const [submittingProposal, setSubmittingProposal] = useState(false);
+  const [guaranteeRevalidation, setGuaranteeRevalidation] = useState(null);
+  const [reconfirming, setReconfirming] = useState(false);
 
   useEffect(() => {
     // Check for Stripe redirect params
@@ -93,6 +95,13 @@ export default function InvitationPage() {
       const data = await response.json();
       setInvitation(data);
       
+      // Check guarantee revalidation status
+      if (data.guarantee_revalidation?.requires_revalidation) {
+        setGuaranteeRevalidation(data.guarantee_revalidation);
+      } else {
+        setGuaranteeRevalidation(null);
+      }
+
       // Check if already responded
       if (['accepted', 'accepted_guaranteed', 'accepted_pending_guarantee', 'declined', 'cancelled_by_participant'].includes(data.participant.status)) {
         setResponseStatus(data.participant.status);
@@ -226,6 +235,28 @@ export default function InvitationPage() {
       setError(err.message);
     } finally {
       setSubmittingProposal(false);
+    }
+  };
+
+  // --- Guarantee reconfirmation ---
+  const handleReconfirmGuarantee = async () => {
+    setReconfirming(true);
+    try {
+      const res = await fetch(`${API_URL}/api/invitations/${token}/reconfirm-guarantee`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.detail || 'Erreur lors de la reconfirmation');
+      }
+      if (data.checkout_url) {
+        window.location.href = data.checkout_url;
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setReconfirming(false);
     }
   };
 
@@ -390,6 +421,15 @@ export default function InvitationPage() {
 
   // Determine status badge
   const getStatusBadge = (status) => {
+    // If guarantee needs revalidation, show specific badge
+    if (guaranteeRevalidation?.requires_revalidation && status === 'accepted_guaranteed') {
+      return (
+        <span className="inline-flex items-center gap-1 px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-sm font-medium" data-testid="status-badge-revalidation">
+          <AlertTriangle className="w-4 h-4" /> À reconfirmer
+        </span>
+      );
+    }
+
     switch (status) {
       case 'accepted_guaranteed':
         return (
@@ -674,6 +714,45 @@ export default function InvitationPage() {
             </div>
           </div>
 
+          {/* Guarantee Revalidation Banner */}
+          {guaranteeRevalidation?.requires_revalidation && (responseStatus === 'accepted_guaranteed' || participant.status === 'accepted_guaranteed') && (
+            <div className="p-5 bg-amber-50 border-b-2 border-amber-300" data-testid="guarantee-revalidation-banner">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0">
+                  <AlertTriangle className="w-5 h-5 text-amber-600" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-amber-900 mb-1">Garantie à reconfirmer</h3>
+                  <p className="text-sm text-amber-800 mb-3">
+                    Les conditions du rendez-vous ont changé de manière significative. Veuillez reconfirmer votre garantie.
+                  </p>
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {(guaranteeRevalidation.reason || '').split(', ').map((r, i) => {
+                      let label = r;
+                      if (r.includes('city_change')) label = 'Changement de ville';
+                      else if (r.includes('date_shift')) label = 'Décalage de date > 24h';
+                      else if (r.includes('type_change')) label = 'Changement de type';
+                      return (
+                        <span key={i} className="text-xs bg-amber-200 text-amber-900 px-2 py-1 rounded-full font-medium" data-testid={`revalidation-reason-${i}`}>
+                          {label}
+                        </span>
+                      );
+                    })}
+                  </div>
+                  <button
+                    onClick={handleReconfirmGuarantee}
+                    disabled={reconfirming}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors font-semibold text-sm disabled:opacity-50"
+                    data-testid="reconfirm-guarantee-btn"
+                  >
+                    {reconfirming ? <Loader2 className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />}
+                    Reconfirmer ma garantie
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Appointment Details */}
           <div className="p-6 border-b border-slate-100">
             <h2 className="text-2xl font-bold text-slate-800 mb-4" data-testid="appointment-title">
@@ -911,15 +990,30 @@ export default function InvitationPage() {
             {/* Accepted with guarantee */}
             {responseStatus === 'accepted_guaranteed' ? (
               <div className="text-center py-4">
-                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <ShieldCheck className="w-8 h-8 text-green-600" />
-                </div>
-                <h3 className="text-xl font-semibold text-green-800 mb-2">Participation confirmée avec garantie !</h3>
-                <p className="text-slate-600">Votre moyen de paiement a été enregistré comme garantie.</p>
-                <p className="text-xs text-slate-500 mt-2">
-                  Aucun montant ne sera prélevé sauf en cas d'absence ou de retard excessif.
-                </p>
-                {participant.guaranteed_at && (
+                {guaranteeRevalidation?.requires_revalidation ? (
+                  <>
+                    <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <AlertTriangle className="w-8 h-8 text-amber-600" />
+                    </div>
+                    <h3 className="text-xl font-semibold text-amber-800 mb-2" data-testid="guarantee-status-revalidation">Garantie à reconfirmer</h3>
+                    <p className="text-slate-600">Votre garantie doit être reconfirmée suite à un changement majeur du rendez-vous.</p>
+                    <p className="text-xs text-amber-600 mt-2">
+                      Tant que vous n'avez pas reconfirmé, votre garantie est considérée comme partiellement invalide.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <ShieldCheck className="w-8 h-8 text-green-600" />
+                    </div>
+                    <h3 className="text-xl font-semibold text-green-800 mb-2" data-testid="guarantee-status-valid">Participation confirmée avec garantie !</h3>
+                    <p className="text-slate-600">Votre moyen de paiement a été enregistré comme garantie.</p>
+                    <p className="text-xs text-slate-500 mt-2">
+                      Aucun montant ne sera prélevé sauf en cas d'absence ou de retard excessif.
+                    </p>
+                  </>
+                )}
+                {participant.guaranteed_at && !guaranteeRevalidation?.requires_revalidation && (
                   <p className="text-xs text-slate-400 mt-2">
                     Garanti le {formatActionDateFr(participant.guaranteed_at)}
                   </p>

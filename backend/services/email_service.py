@@ -671,3 +671,82 @@ class EmailService:
         </html>
         """
         return await EmailService.send_email(participant_email, subject, html_content, email_type="appointment_deleted")
+
+    @staticmethod
+    async def send_guarantee_revalidation_email(
+        participant_email: str,
+        participant_name: str,
+        appointment_title: str,
+        revalidation_reason: str,
+        invitation_link: str
+    ):
+        """Send email when a major modification requires guarantee reconfirmation"""
+
+        reason_labels = {
+            "city_change": "Le lieu a changé de ville",
+            "date_shift": "La date a été décalée de plus de 24 heures",
+            "type_change": "Le type de rendez-vous a changé"
+        }
+
+        reason_parts = revalidation_reason.split(", ") if revalidation_reason else []
+        reason_html_items = ""
+        for r in reason_parts:
+            key = r.split(":")[0] if ":" in r else r.split("_")[0] + "_" + r.split("_")[1] if "_" in r else r
+            for label_key, label_val in reason_labels.items():
+                if label_key in r:
+                    detail = r.split(":", 1)[1] if ":" in r else ""
+                    reason_html_items += f'<li style="margin:6px 0;color:#92400E;">{label_val}{" (" + detail + ")" if detail else ""}</li>'
+                    break
+
+        if not reason_html_items:
+            reason_html_items = f'<li style="margin:6px 0;color:#92400E;">{revalidation_reason}</li>'
+
+        subject = f"Action requise — Reconfirmez votre garantie pour \"{appointment_title}\""
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <style>
+                body {{ font-family: 'Inter', Arial, sans-serif; line-height: 1.6; color: #334155; }}
+                .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+                .header {{ background: #D97706; color: white; padding: 25px; text-align: center; }}
+                .content {{ background: #ffffff; padding: 30px; border: 1px solid #E2E8F0; }}
+                .alert-box {{ background: #FFFBEB; border-left: 4px solid #D97706; padding: 15px; margin: 20px 0; }}
+                .cta-btn {{ display: inline-block; background: #D97706; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; margin-top: 10px; }}
+                .footer {{ text-align: center; color: #64748B; font-size: 14px; padding: 20px; }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1 style="margin: 0; font-size: 22px;">Garantie à reconfirmer</h1>
+                </div>
+                <div class="content">
+                    <h2 style="color: #1E293B; margin-top: 0;">Bonjour {participant_name},</h2>
+
+                    <p>Les conditions du rendez-vous <strong>"{appointment_title}"</strong> ont changé de manière significative :</p>
+
+                    <div class="alert-box">
+                        <ul style="margin:0;padding-left:20px;">
+                            {reason_html_items}
+                        </ul>
+                    </div>
+
+                    <p>Votre garantie actuelle nécessite une reconfirmation pour rester valide.</p>
+
+                    <div style="text-align:center;margin:25px 0;">
+                        <a href="{invitation_link}" class="cta-btn">Reconfirmer ma garantie</a>
+                    </div>
+
+                    <p style="color:#64748B;font-size:13px;">
+                        Tant que vous n'avez pas reconfirmé, votre garantie est considérée comme partiellement invalide.
+                    </p>
+                </div>
+                <div class="footer">
+                    <p>© 2026 NLYT. Tous droits réservés.</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+        return await EmailService.send_email(participant_email, subject, html_content, email_type="guarantee_revalidation")

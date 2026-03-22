@@ -101,6 +101,22 @@ async def get_invitation_details(token: str):
     # Normalize start_datetime to UTC for consistent frontend display
     utc_start = normalize_to_utc(appointment.get('start_datetime', ''))
 
+    # Check guarantee revalidation status
+    guarantee_revalidation = None
+    if participant.get('guarantee_id'):
+        guarantee = db.payment_guarantees.find_one(
+            {"guarantee_id": participant['guarantee_id']},
+            {"_id": 0, "requires_revalidation": 1, "revalidation_reason": 1,
+             "revalidation_flagged_at": 1, "capture_deadline": 1, "status": 1}
+        )
+        if guarantee and guarantee.get('requires_revalidation'):
+            guarantee_revalidation = {
+                "requires_revalidation": True,
+                "reason": guarantee.get('revalidation_reason', ''),
+                "flagged_at": guarantee.get('revalidation_flagged_at'),
+                "guarantee_status": guarantee.get('status')
+            }
+
     # Build response with limited, privacy-conscious data
     return {
         "invitation_token": token,
@@ -151,7 +167,8 @@ async def get_invitation_details(token: str):
             }
             for p in other_participants
         ],
-        "policy_summary": policy_snapshot.get('summary') if policy_snapshot else None
+        "policy_summary": policy_snapshot.get('summary') if policy_snapshot else None,
+        "guarantee_revalidation": guarantee_revalidation
     }
 
 
@@ -384,6 +401,94 @@ async def check_guarantee_status(token: str, session_id: str = None):
         "guarantee_id": guarantee_id,
         "is_guaranteed": status == "accepted_guaranteed",
         "participant_id": participant.get('participant_id')
+    }
+
+
+@router.post("/{token}/reconfirm-guarantee")
+async def reconfirm_guarantee(token: str, request: Request):
+    """
+    Create a new Stripe checkout session to reconfirm a guarantee
+    after a major modification flagged it for revalidation.
+    """
+    participant = db.participants.find_one({"invitation_token": token}, {"_id": 0})
+    if not participant:
+        raise HTTPException(status_code=404, detail="Invitation non trouvée")
+
+    if participant.get('status') not in ('accepted_guaranteed', 'accepted_pending_guarantee'):
+        raise HTTPException(status_code=400, detail="Pas de garantie active à reconfirmer")
+
+    guarantee_id = participant.get('guarantee_id')
+    if not guarantee_id:
+        raise HTTPException(status_code=400, detail="Aucune garantie trouvée pour ce participant")
+
+    guarantee = db.payment_guarantees.find_one({"guarantee_id": guarantee_id}, {"_id": 0})
+    if not guarantee or not guarantee.get('requires_revalidation'):
+        raise HTTPException(status_code=400, detail="Cette garantie ne nécessite pas de reconfirmation")
+
+    appointment = db.appointments.find_one(
+        {"appointment_id": participant['appointment_id']},
+        {"_id": 0}
+    )
+    if not appointment:
+        raise HTTPException(status_code=404, detail="Rendez-vous introuvable")
+
+    from services.stripe_guarantee_service import StripeGuaranteeService
+
+    frontend_url = os.environ.get('FRONTEND_URL', '').rstrip('/')
+    if not frontend_url:
+        frontend_url = str(request.base_url).rstrip('/')
+
+    participant_name = f"{participant.get('first_name', '')} {participant.get('last_name', '')}".strip()
+    if not participant_name:
+        participant_name = participant.get('email', '').split('@')[0]
+
+    result = StripeGuaranteeService.create_guarantee_session(
+        participant_id=participant['participant_id'],
+        appointment_id=appointment['appointment_id'],
+        participant_email=participant.get('email', ''),
+        participant_name=participant_name,
+        appointment_title=appointment.get('title', 'Rendez-vous'),
+        penalty_amount=float(appointment.get('penalty_amount', 0)),
+        penalty_currency=appointment.get('penalty_currency', 'eur'),
+        frontend_url=frontend_url,
+        invitation_token=token
+    )
+
+    if not result.get('success'):
+        raise HTTPException(status_code=500, detail=f"Erreur Stripe: {result.get('error')}")
+
+    # Clear old revalidation flag and link to new guarantee
+    now = now_utc_iso()
+    old_guarantee_id = guarantee_id
+    new_guarantee_id = result['guarantee_id']
+
+    # Mark old guarantee as superseded
+    db.payment_guarantees.update_one(
+        {"guarantee_id": old_guarantee_id},
+        {"$set": {
+            "status": "superseded",
+            "superseded_by": new_guarantee_id,
+            "superseded_at": now,
+            "requires_revalidation": False
+        }}
+    )
+
+    # Link new guarantee to participant
+    db.participants.update_one(
+        {"invitation_token": token},
+        {"$set": {
+            "guarantee_id": new_guarantee_id,
+            "stripe_session_id": result['session_id'],
+            "status": "accepted_pending_guarantee",
+            "updated_at": now
+        }}
+    )
+
+    return {
+        "success": True,
+        "checkout_url": result['checkout_url'],
+        "session_id": result['session_id'],
+        "new_guarantee_id": new_guarantee_id
     }
 
 

@@ -494,6 +494,7 @@ def _flag_guarantees_if_major(appointment_id: str, impact: dict):
     """
     If modification is major, flag all completed guarantees as requiring revalidation.
     Does NOT release or capture — just sets a flag for future business logic.
+    Also sends revalidation emails to affected participants (non-blocking).
     """
     if not impact.get('is_major'):
         return
@@ -513,6 +514,51 @@ def _flag_guarantees_if_major(appointment_id: str, impact: dict):
     )
     if result.modified_count > 0:
         logger.info(f"[GUARANTEE] Flagged {result.modified_count} guarantee(s) for revalidation on {appointment_id}: {reason}")
+        # Send revalidation emails (non-blocking)
+        _send_revalidation_emails(appointment_id, reason)
+
+
+def _send_revalidation_emails(appointment_id: str, reason: str):
+    """Send revalidation notification emails to all affected participants."""
+    import asyncio
+
+    appointment = db.appointments.find_one({"appointment_id": appointment_id}, {"_id": 0})
+    if not appointment:
+        return
+
+    frontend_url = os.environ.get('FRONTEND_URL', '').rstrip('/')
+
+    # Find all participants with flagged guarantees
+    flagged = list(db.payment_guarantees.find(
+        {"appointment_id": appointment_id, "requires_revalidation": True},
+        {"_id": 0, "participant_id": 1}
+    ))
+
+    for g in flagged:
+        participant = db.participants.find_one(
+            {"participant_id": g['participant_id']},
+            {"_id": 0, "email": 1, "first_name": 1, "last_name": 1, "invitation_token": 1}
+        )
+        if not participant or not participant.get('email'):
+            continue
+
+        name = f"{participant.get('first_name', '')} {participant.get('last_name', '')}".strip() or "Participant"
+        invitation_link = f"{frontend_url}/invitation/{participant['invitation_token']}" if frontend_url else ""
+
+        try:
+            from services.email_service import EmailService
+            loop = asyncio.new_event_loop()
+            loop.run_until_complete(EmailService.send_guarantee_revalidation_email(
+                participant_email=participant['email'],
+                participant_name=name,
+                appointment_title=appointment.get('title', 'Rendez-vous'),
+                revalidation_reason=reason,
+                invitation_link=invitation_link
+            ))
+            loop.close()
+            logger.info(f"[EMAIL] Revalidation email sent to {participant['email']}")
+        except Exception as e:
+            logger.warning(f"[EMAIL] Failed to send revalidation email to {participant.get('email')}: {e}")
 
 
 def _handle_guarantees_after_modification(appointment_id: str, proposal: dict):

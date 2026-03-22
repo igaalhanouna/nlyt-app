@@ -101,6 +101,18 @@ async def list_participants(appointment_id: str, request: Request):
     
     participants = list(db.participants.find({"appointment_id": appointment_id}, {"_id": 0}))
     
+    # Enrich participants with guarantee revalidation status
+    for p in participants:
+        if p.get('status') in ('accepted_guaranteed', 'accepted_pending_guarantee'):
+            g = db.payment_guarantees.find_one(
+                {"participant_id": p['participant_id'], "appointment_id": appointment_id,
+                 "status": {"$in": ["completed", "dev_pending"]}},
+                {"_id": 0, "requires_revalidation": 1, "revalidation_reason": 1}
+            )
+            if g and g.get('requires_revalidation'):
+                p['guarantee_requires_revalidation'] = True
+                p['guarantee_revalidation_reason'] = g.get('revalidation_reason', '')
+    
     return {"participants": participants}
 
 @router.get("/{participant_id}")
