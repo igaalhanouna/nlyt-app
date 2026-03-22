@@ -848,6 +848,19 @@ export default function AppointmentDetail() {
                         Rejoindre la réunion
                       </a>
                     )}
+                    {!appointment.meeting_join_url && appointment.meeting_provider && appointment.meeting_provider !== 'external' && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="mt-1.5 text-xs h-7 gap-1"
+                        onClick={handleCreateMeeting}
+                        disabled={creatingMeeting}
+                        data-testid="inline-create-meeting-btn"
+                      >
+                        {creatingMeeting ? <Loader2 className="w-3 h-3 animate-spin" /> : <PlayCircle className="w-3 h-3" />}
+                        Créer le lien de réunion
+                      </Button>
+                    )}
                   </div>
                 </div>
               )}
