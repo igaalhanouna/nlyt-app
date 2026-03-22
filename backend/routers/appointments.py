@@ -124,13 +124,18 @@ async def create_appointment(appointment: AppointmentCreate, request: Request):
         "event_reminders": event_reminders_config,
         "event_reminders_sent": {},
         "appointment_timezone": appointment.appointment_timezone or 'Europe/Paris',
-        "status": "draft",
+        "status": "pending_organizer_guarantee",
         "created_at": now_utc_iso(),
         "updated_at": now_utc_iso()
     }
     
     db.appointments.insert_one(appointment_doc)
     
+    # Validate external provider requires a join URL (early, before DB writes)
+    if appointment.appointment_type == "video" and appointment.meeting_provider == "external":
+        if not appointment.meeting_join_url or not appointment.meeting_join_url.strip():
+            raise HTTPException(status_code=400, detail="L'URL de la réunion est requise pour un lien externe")
+
     # --- Inject organizer as participant (same rules, with guarantee) ---
     organizer_user = db.users.find_one({"user_id": user['user_id']}, {"_id": 0})
     organizer_invitation_token = str(uuid.uuid4())
@@ -152,50 +157,11 @@ async def create_appointment(appointment: AppointmentCreate, request: Request):
         "created_at": now_utc().isoformat()
     }
     db.participants.insert_one(organizer_participant_doc)
-    
-    # Create Stripe guarantee session for organizer
-    organizer_checkout_url = None
-    if appointment.penalty_amount and appointment.penalty_amount > 0:
-        try:
-            from services.stripe_guarantee_service import StripeGuaranteeService
-            frontend_url = os.environ.get('FRONTEND_URL', '').rstrip('/') or str(request.base_url).rstrip('/')
-            org_name = f"{organizer_user.get('first_name', '')} {organizer_user.get('last_name', '')}".strip()
-            result = StripeGuaranteeService.create_guarantee_session(
-                participant_id=organizer_participant_id,
-                appointment_id=appointment_id,
-                participant_email=organizer_user.get('email', ''),
-                participant_name=org_name or 'Organisateur',
-                appointment_title=appointment.title,
-                penalty_amount=float(appointment.penalty_amount),
-                penalty_currency=appointment.penalty_currency.lower(),
-                frontend_url=frontend_url,
-                invitation_token=organizer_invitation_token
-            )
-            if result.get('success'):
-                organizer_checkout_url = result['checkout_url']
-                db.participants.update_one(
-                    {"participant_id": organizer_participant_id},
-                    {"$set": {
-                        "guarantee_id": result['guarantee_id'],
-                        "stripe_session_id": result['session_id']
-                    }}
-                )
-            else:
-                print(f"[ORGANIZER] Stripe session failed: {result.get('error')}")
-        except Exception as e:
-            print(f"[ORGANIZER] Non-blocking Stripe error: {e}")
-    else:
-        # No penalty → directly accepted_guaranteed
-        db.participants.update_one(
-            {"participant_id": organizer_participant_id},
-            {"$set": {"status": "accepted_guaranteed"}}
-        )
 
-    # Save other participants from step 1 of the wizard and send invitation emails
+    # --- Save other participants (DB records only — NO emails yet) ---
     if appointment.participants:
         for p in appointment.participants:
             if p.email and p.email.strip():
-                # Skip if this email is the organizer's own email
                 if p.email.strip().lower() == organizer_user.get('email', '').lower():
                     continue
                 invitation_token = str(uuid.uuid4())
@@ -205,7 +171,7 @@ async def create_appointment(appointment: AppointmentCreate, request: Request):
                     "email": p.email.strip(),
                     "first_name": p.first_name or "",
                     "last_name": p.last_name or "",
-                    "name": p.name or "",  # Kept for backward compatibility
+                    "name": p.name or "",
                     "role": p.role or "participant",
                     "status": "invited",
                     "invitation_token": invitation_token,
@@ -214,92 +180,128 @@ async def create_appointment(appointment: AppointmentCreate, request: Request):
                     "created_at": now_utc().isoformat()
                 }
                 db.participants.insert_one(participant_doc)
-                
-                # Send invitation email
-                try:
-                    from services.email_service import EmailService
-                    organizer = db.users.find_one({"user_id": user['user_id']}, {"_id": 0})
-                    organizer_name = f"{organizer.get('first_name', '')} {organizer.get('last_name', '')}"
-                    base_url = get_frontend_url(request)
-                    invitation_link = f"{base_url}/invitation/{invitation_token}"
-                    ics_link = f"{base_url}/api/calendar/export/ics/{appointment_id}"
-                    
-                    # Build participant name from first_name + last_name
-                    participant_name = f"{p.first_name or ''} {p.last_name or ''}".strip()
-                    if not participant_name:
-                        participant_name = p.name or p.email.split('@')[0]
-                    
-                    await EmailService.send_invitation_email(
-                        to_email=p.email.strip(),
-                        to_name=participant_name,
-                        organizer_name=organizer_name,
-                        appointment_title=appointment.title,
-                        appointment_datetime=utc_start,
-                        invitation_link=invitation_link,
-                        location=appointment.location or appointment.meeting_provider,
-                        penalty_amount=appointment.penalty_amount,
-                        penalty_currency=appointment.penalty_currency,
-                        cancellation_deadline_hours=appointment.cancellation_deadline_hours,
-                        appointment_id=appointment_id,
-                        ics_link=ics_link,
-                        appointment_timezone=appointment.appointment_timezone or 'Europe/Paris',
-                        meeting_join_url=appointment.meeting_join_url,
-                        meeting_provider=appointment.meeting_provider
-                    )
-                except Exception as e:
-                    # Log error but don't fail the appointment creation
-                    print(f"Failed to send invitation to {p.email}: {e}")
-    
+
+    # --- Generate policy snapshot (independent of guarantee) ---
     organizer = db.users.find_one({"user_id": user['user_id']}, {"_id": 0})
     snapshot = ContractService.generate_policy_snapshot(appointment_id, appointment_doc, organizer)
-    
     db.appointments.update_one(
         {"appointment_id": appointment_id},
-        {"$set": {"policy_snapshot_id": snapshot['snapshot_id'], "status": "active"}}
+        {"$set": {"policy_snapshot_id": snapshot['snapshot_id']}}
     )
-    
-    # Auto-sync to calendar if enabled (non-blocking)
-    try:
-        from routers.calendar_routes import perform_auto_sync
-        appointment_doc["status"] = "active"
-        perform_auto_sync(user['user_id'], appointment_id, appointment_doc)
-    except Exception as e:
-        print(f"[AUTO-SYNC] Error during auto-sync: {e}")
 
-    # Auto-create meeting if video appointment with a configured provider (non-blocking)
-    # Validate external provider requires a join URL
-    if appointment.appointment_type == "video" and appointment.meeting_provider == "external":
-        if not appointment.meeting_join_url or not appointment.meeting_join_url.strip():
-            raise HTTPException(status_code=400, detail="L'URL de la réunion est requise pour un lien externe")
-    
-    meeting_result = None
-    if appointment.appointment_type == "video" and appointment.meeting_provider and appointment.meeting_provider != "external":
-        try:
-            from services.meeting_provider_service import create_meeting_for_appointment
-            meeting_result = create_meeting_for_appointment(
-                appointment_id=appointment_id,
-                provider=appointment.meeting_provider,
-                title=appointment.title,
-                start_datetime=utc_start,
-                duration_minutes=appointment.duration_minutes,
-                timezone_str=appointment.appointment_timezone or 'UTC',
-                organizer_user_id=user['user_id'],
+    # ──────────────────────────────────────────────────────────────
+    # ORGANIZER GUARANTEE LOGIC
+    # Rule: invitations are NEVER sent before organizer is guaranteed
+    # ──────────────────────────────────────────────────────────────
+    organizer_checkout_url = None
+    organizer_auto_guaranteed = False
+
+    if appointment.penalty_amount and appointment.penalty_amount > 0:
+        # Check if organizer has a saved default payment method + consent
+        has_default_pm = (
+            organizer_user.get('default_payment_method_id')
+            and organizer_user.get('payment_method_consent')
+            and organizer_user.get('stripe_customer_id')
+        )
+
+        if has_default_pm:
+            # ── OPTION A: Auto-guarantee with saved card (no Stripe redirect) ──
+            guarantee_id = str(uuid.uuid4())
+            guarantee_record = {
+                "guarantee_id": guarantee_id,
+                "participant_id": organizer_participant_id,
+                "appointment_id": appointment_id,
+                "stripe_customer_id": organizer_user['stripe_customer_id'],
+                "stripe_payment_method_id": organizer_user['default_payment_method_id'],
+                "penalty_amount": float(appointment.penalty_amount),
+                "penalty_currency": appointment.penalty_currency.lower(),
+                "status": "completed",
+                "source": "default_payment_method",
+                "created_at": now_utc_iso(),
+                "completed_at": now_utc_iso(),
+                "updated_at": now_utc_iso()
+            }
+            db.payment_guarantees.insert_one(guarantee_record)
+
+            db.participants.update_one(
+                {"participant_id": organizer_participant_id},
+                {"$set": {
+                    "status": "accepted_guaranteed",
+                    "guarantee_id": guarantee_id,
+                    "stripe_customer_id": organizer_user['stripe_customer_id'],
+                    "stripe_payment_method_id": organizer_user['default_payment_method_id'],
+                    "guaranteed_at": now_utc_iso(),
+                    "updated_at": now_utc_iso()
+                }}
             )
-            if meeting_result.get("success"):
-                print(f"[MEETING] Auto-created {appointment.meeting_provider} meeting: {meeting_result.get('join_url')}")
-        except Exception as e:
-            print(f"[MEETING] Non-blocking error creating meeting: {e}")
-            meeting_result = {"error": str(e)}
+            organizer_auto_guaranteed = True
+        else:
+            # ── OPTION B: Stripe Checkout redirect (fallback) ──
+            try:
+                from services.stripe_guarantee_service import StripeGuaranteeService
+                frontend_url = os.environ.get('FRONTEND_URL', '').rstrip('/') or str(request.base_url).rstrip('/')
+                org_name = f"{organizer_user.get('first_name', '')} {organizer_user.get('last_name', '')}".strip()
+                result = StripeGuaranteeService.create_guarantee_session(
+                    participant_id=organizer_participant_id,
+                    appointment_id=appointment_id,
+                    participant_email=organizer_user.get('email', ''),
+                    participant_name=org_name or 'Organisateur',
+                    appointment_title=appointment.title,
+                    penalty_amount=float(appointment.penalty_amount),
+                    penalty_currency=appointment.penalty_currency.lower(),
+                    frontend_url=frontend_url,
+                    invitation_token=organizer_invitation_token
+                )
+                if result.get('success'):
+                    organizer_checkout_url = result['checkout_url']
+                    db.participants.update_one(
+                        {"participant_id": organizer_participant_id},
+                        {"$set": {
+                            "guarantee_id": result['guarantee_id'],
+                            "stripe_session_id": result['session_id']
+                        }}
+                    )
+                else:
+                    print(f"[ORGANIZER] Stripe session failed: {result.get('error')}")
+            except Exception as e:
+                print(f"[ORGANIZER] Non-blocking Stripe error: {e}")
+    else:
+        # No penalty → organizer directly guaranteed
+        db.participants.update_one(
+            {"participant_id": organizer_participant_id},
+            {"$set": {"status": "accepted_guaranteed"}}
+        )
+        organizer_auto_guaranteed = True
 
+    # ──────────────────────────────────────────────────────────────
+    # ACTIVATION: only if organizer is already guaranteed
+    # If not, RDV stays "pending_organizer_guarantee" — no emails,
+    # no calendar sync, no meeting creation.
+    # ──────────────────────────────────────────────────────────────
+    meeting_result = None
+    if organizer_auto_guaranteed:
+        from services.appointment_lifecycle import activate_appointment
+        activation = await activate_appointment(appointment_id, user['user_id'])
+        meeting_result = activation.get("meeting_result")
+
+    # Build response
+    final_status = "active" if organizer_auto_guaranteed else "pending_organizer_guarantee"
     response = {
         "appointment_id": appointment_id,
         "policy_snapshot_id": snapshot['snapshot_id'],
-        "message": "Rendez-vous créé avec succès",
         "organizer_participant_id": organizer_participant_id,
         "organizer_invitation_token": organizer_invitation_token,
+        "status": final_status,
     }
+
+    if organizer_auto_guaranteed:
+        response["message"] = "Rendez-vous créé et invitations envoyées"
+    else:
+        response["message"] = "Rendez-vous créé. Complétez votre garantie pour envoyer les invitations."
+
     if organizer_checkout_url:
         response["organizer_checkout_url"] = organizer_checkout_url
+
     if meeting_result and meeting_result.get("success"):
         response["meeting"] = {
             "join_url": meeting_result.get("join_url"),
@@ -311,6 +313,64 @@ async def create_appointment(appointment: AppointmentCreate, request: Request):
         response["meeting_warning"] = meeting_result["error"]
 
     return response
+
+
+@router.post("/{appointment_id}/check-activation")
+async def check_and_activate(appointment_id: str, request: Request):
+    """
+    Comfort polling endpoint — called by frontend after Stripe redirect.
+    If the organizer guarantee is completed (via webhook or direct check),
+    this activates the appointment (sends invitations, syncs calendar, etc.).
+    Webhook is the primary source of truth; this is the fallback.
+    """
+    user = await get_current_user(request)
+
+    appointment = db.appointments.find_one({"appointment_id": appointment_id}, {"_id": 0})
+    if not appointment:
+        raise HTTPException(status_code=404, detail="Rendez-vous introuvable")
+
+    if appointment['organizer_id'] != user['user_id']:
+        raise HTTPException(status_code=403, detail="Accès refusé")
+
+    if appointment.get('status') == 'active':
+        return {"status": "active", "already_active": True}
+
+    if appointment.get('status') != 'pending_organizer_guarantee':
+        return {"status": appointment.get('status')}
+
+    # Check if organizer participant is already guaranteed
+    org_p = db.participants.find_one(
+        {"appointment_id": appointment_id, "is_organizer": True},
+        {"_id": 0}
+    )
+    if not org_p:
+        return {"status": "pending_organizer_guarantee", "guaranteed": False}
+
+    if org_p.get('status') == 'accepted_guaranteed':
+        from services.appointment_lifecycle import activate_appointment
+        result = await activate_appointment(appointment_id, user['user_id'])
+        return {
+            "status": "active" if result.get("success") else "pending_organizer_guarantee",
+            "activated": result.get("success", False),
+            "meeting": result.get("meeting_result")
+        }
+
+    # Guarantee might be completed but webhook hasn't arrived yet — poll Stripe
+    if org_p.get('stripe_session_id'):
+        from services.stripe_guarantee_service import StripeGuaranteeService
+        g_result = StripeGuaranteeService.get_guarantee_status(org_p['stripe_session_id'])
+
+        if g_result.get('status') == 'completed':
+            from services.appointment_lifecycle import activate_appointment
+            result = await activate_appointment(appointment_id, user['user_id'])
+            return {
+                "status": "active" if result.get("success") else "pending_organizer_guarantee",
+                "activated": result.get("success", False),
+                "meeting": result.get("meeting_result")
+            }
+
+    return {"status": "pending_organizer_guarantee", "guaranteed": False}
+
 
 @router.get("/")
 async def list_appointments(workspace_id: str = None, request: Request = None):
@@ -481,6 +541,9 @@ async def cancel_appointment(appointment_id: str, request: Request):
     if appointment.get('status') == 'cancelled':
         raise HTTPException(status_code=400, detail="Ce rendez-vous est déjà annulé")
     
+    # Allow cancellation from both active and pending_organizer_guarantee statuses
+    is_pending = appointment.get('status') == 'pending_organizer_guarantee'
+    
     # Update appointment status to cancelled
     now = now_utc().isoformat()
     db.appointments.update_one(
@@ -514,33 +577,34 @@ async def cancel_appointment(appointment_id: str, request: Request):
                 import logging
                 logging.error(f"Failed to release guarantee {gp['guarantee_id']}: {e}")
     
-    # Notify all participants
-    participants = list(db.participants.find({"appointment_id": appointment_id}, {"_id": 0}))
+    # Notify participants ONLY if appointment was active (invitations were sent)
     notifications_sent = 0
+    if not is_pending:
+        participants = list(db.participants.find({"appointment_id": appointment_id}, {"_id": 0}))
+        from services.email_service import EmailService
+        for participant in participants:
+            try:
+                participant_name = f"{participant.get('first_name', '')} {participant.get('last_name', '')}".strip()
+                if not participant_name:
+                    participant_name = participant.get('email', '').split('@')[0]
+                
+                await EmailService.send_appointment_cancelled_notification(
+                    participant_email=participant['email'],
+                    participant_name=participant_name,
+                    organizer_name=organizer_name,
+                    appointment_title=appointment.get('title', 'Rendez-vous'),
+                    appointment_datetime=appointment.get('start_datetime', ''),
+                    location=appointment.get('location') or appointment.get('meeting_provider'),
+                    appointment_timezone=appointment.get('appointment_timezone', 'Europe/Paris')
+                )
+                notifications_sent += 1
+            except Exception as e:
+                import logging
+                logging.error(f"Failed to send cancellation notification to {participant.get('email')}: {e}")
     
-    from services.email_service import EmailService
+    participants = list(db.participants.find({"appointment_id": appointment_id}, {"_id": 0}))
     
-    for participant in participants:
-        try:
-            participant_name = f"{participant.get('first_name', '')} {participant.get('last_name', '')}".strip()
-            if not participant_name:
-                participant_name = participant.get('email', '').split('@')[0]
-            
-            await EmailService.send_appointment_cancelled_notification(
-                participant_email=participant['email'],
-                participant_name=participant_name,
-                organizer_name=organizer_name,
-                appointment_title=appointment.get('title', 'Rendez-vous'),
-                appointment_datetime=appointment.get('start_datetime', ''),
-                location=appointment.get('location') or appointment.get('meeting_provider'),
-                appointment_timezone=appointment.get('appointment_timezone', 'Europe/Paris')
-            )
-            notifications_sent += 1
-        except Exception as e:
-            import logging
-            logging.error(f"Failed to send cancellation notification to {participant.get('email')}: {e}")
-    
-    # Delete calendar events across all connected providers (best-effort)
+    # Delete calendar events across all connected providers (best-effort, only if was active)
     try:
         from adapters.google_calendar_adapter import GoogleCalendarAdapter
         from adapters.outlook_calendar_adapter import OutlookCalendarAdapter

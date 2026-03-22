@@ -33,6 +33,9 @@ export default function AppointmentWizard() {
   const [videoProviders, setVideoProviders] = useState(null);
   const [loadingProviders, setLoadingProviders] = useState(false);
   
+  // Default payment method for organizer guarantee
+  const [orgPaymentMethod, setOrgPaymentMethod] = useState(null);
+  
   // Platform commission comes from server — not user-editable
   const [systemPlatformCommission, setSystemPlatformCommission] = useState(20);
   
@@ -101,6 +104,19 @@ export default function AppointmentWizard() {
           const assocData = await assocResponse.json();
           setCharityAssociations(assocData.associations || []);
         }
+
+        // Fetch default payment method for organizer guarantee
+        try {
+          const pmResponse = await fetch(`${API_URL}/api/user-settings/me/payment-method`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (pmResponse.ok) {
+            const pmData = await pmResponse.json();
+            if (pmData.has_payment_method) {
+              setOrgPaymentMethod(pmData.payment_method);
+            }
+          }
+        } catch { /* non-blocking */ }
       } catch (error) {
         console.error('Error loading defaults:', error);
         // Keep default values if fetch fails
@@ -300,13 +316,13 @@ export default function AppointmentWizard() {
       }
       
       const response = await appointmentAPI.create(payload);
-      toast.success('Rendez-vous créé avec succès');
       
       // If organizer needs to provide Stripe guarantee, redirect to checkout
       if (response.data.organizer_checkout_url) {
-        toast.info('Vous allez être redirigé vers Stripe pour votre garantie organisateur');
+        toast.info('Vous allez être redirigé vers Stripe pour valider votre garantie organisateur. Les invitations seront envoyées après validation.');
         window.location.href = response.data.organizer_checkout_url;
       } else {
+        toast.success('Rendez-vous créé et invitations envoyées');
         navigate(`/appointments/${response.data.appointment_id}`);
       }
     } catch (error) {
@@ -347,11 +363,11 @@ export default function AppointmentWizard() {
       }
 
       const response = await appointmentAPI.create(payload);
-      toast.success('Rendez-vous créé en express avec vos paramètres par défaut');
       if (response.data.organizer_checkout_url) {
-        toast.info('Vous allez être redirigé vers Stripe pour votre garantie organisateur');
+        toast.info('Vous allez être redirigé vers Stripe pour valider votre garantie organisateur.');
         window.location.href = response.data.organizer_checkout_url;
       } else {
+        toast.success('Rendez-vous créé en express — invitations envoyées');
         navigate(`/appointments/${response.data.appointment_id}`);
       }
     } catch (error) {
@@ -1087,6 +1103,36 @@ export default function AppointmentWizard() {
                 )}
               </div>
             </div>
+
+            {/* Organizer guarantee info */}
+            {formData.penalty_amount > 0 && (
+              <div data-testid="organizer-guarantee-info">
+                {orgPaymentMethod ? (
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 flex items-start gap-3">
+                    <CheckCircle className="w-5 h-5 text-emerald-600 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium text-emerald-800">Votre garantie organisateur sera couverte automatiquement</p>
+                      <p className="text-xs text-emerald-700 mt-1">
+                        Carte {orgPaymentMethod.brand?.toUpperCase()} •••• {orgPaymentMethod.last4} — Les invitations seront envoyées immédiatement.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start gap-3">
+                    <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium text-amber-800">Redirection Stripe requise</p>
+                      <p className="text-xs text-amber-700 mt-1">
+                        Vous serez redirigé vers Stripe pour valider votre garantie. Les invitations ne seront envoyées qu'après validation.
+                      </p>
+                      <a href="/settings/payment" className="text-xs text-amber-800 underline mt-2 inline-block">
+                        Configurer une carte par défaut pour éviter cette étape
+                      </a>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>

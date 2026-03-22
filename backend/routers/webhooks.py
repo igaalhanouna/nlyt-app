@@ -68,7 +68,12 @@ async def stripe_webhook(request: Request):
             session_mode = session.get("mode")
             metadata = session.get("metadata", {})
             
-            # Check if this is a guarantee setup session
+            # ── Default payment method setup (Settings page) ──
+            if session_mode == "setup" and metadata.get("type") == "nlyt_default_payment_method":
+                result = StripeGuaranteeService.handle_default_payment_setup_completed(session)
+                return {"status": "success", "event_type": event_type, "result": result}
+            
+            # ── Guarantee setup session (participant or organizer) ──
             if session_mode == "setup" and metadata.get("type") == "nlyt_guarantee":
                 # Verify appointment is still active before confirming guarantee
                 apt_id = metadata.get("appointment_id")
@@ -84,52 +89,67 @@ async def stripe_webhook(request: Request):
                 result = StripeGuaranteeService.handle_checkout_completed(session)
                 
                 if result.get("success"):
-                    # Send confirmation email with calendar link
-                    try:
-                        participant_id = result.get("participant_id")
-                        participant = db.participants.find_one(
-                            {"participant_id": participant_id},
+                    participant_id = result.get("participant_id")
+                    participant = db.participants.find_one(
+                        {"participant_id": participant_id},
+                        {"_id": 0}
+                    )
+                    
+                    if participant:
+                        appointment = db.appointments.find_one(
+                            {"appointment_id": participant.get("appointment_id")},
                             {"_id": 0}
                         )
                         
-                        if participant:
-                            appointment = db.appointments.find_one(
-                                {"appointment_id": participant.get("appointment_id")},
-                                {"_id": 0}
-                            )
-                            
-                            if appointment:
-                                from services.email_service import EmailService
-                                
-                                organizer = db.users.find_one(
-                                    {"user_id": appointment.get('organizer_id')},
-                                    {"_id": 0}
-                                )
-                                organizer_name = f"{organizer.get('first_name', '')} {organizer.get('last_name', '')}".strip() if organizer else "L'organisateur"
-                                
-                                participant_name = f"{participant.get('first_name', '')} {participant.get('last_name', '')}".strip()
-                                if not participant_name:
-                                    participant_name = participant.get('email', '').split('@')[0]
-                                
-                                frontend_url = os.environ.get('FRONTEND_URL', '').rstrip('/')
-                                ics_link = f"{frontend_url}/api/calendar/export/ics/{appointment['appointment_id']}"
-                                invitation_link = f"{frontend_url}/invitation/{participant.get('invitation_token')}"
-                                
-                                await EmailService.send_acceptance_confirmation_email(
-                                    to_email=participant.get('email', ''),
-                                    to_name=participant_name,
-                                    organizer_name=organizer_name,
-                                    appointment_title=appointment.get('title', ''),
-                                    appointment_datetime=appointment.get('start_datetime', ''),
-                                    location=appointment.get('location') or appointment.get('meeting_provider'),
-                                    penalty_amount=appointment.get('penalty_amount'),
-                                    penalty_currency=appointment.get('penalty_currency', 'EUR'),
-                                    cancellation_deadline_hours=appointment.get('cancellation_deadline_hours'),
-                                    ics_link=ics_link,
-                                    invitation_link=invitation_link
-                                )
-                    except Exception as email_error:
-                        print(f"[WEBHOOK] Email error: {email_error}")
+                        if appointment:
+                            # ── ORGANIZER ACTIVATION ──
+                            # If this is the organizer's guarantee and the RDV is still pending,
+                            # activate it: send invitations, sync calendar, create meeting.
+                            if (participant.get("is_organizer")
+                                    and appointment.get("status") == "pending_organizer_guarantee"):
+                                try:
+                                    from services.appointment_lifecycle import activate_appointment
+                                    activation = await activate_appointment(
+                                        appointment["appointment_id"],
+                                        appointment["organizer_id"]
+                                    )
+                                    print(f"[WEBHOOK] Appointment {appointment['appointment_id']} activated: {activation.get('success')}")
+                                except Exception as act_err:
+                                    print(f"[WEBHOOK] Activation error: {act_err}")
+                            else:
+                                # Regular participant — send confirmation email
+                                try:
+                                    from services.email_service import EmailService
+                                    
+                                    organizer = db.users.find_one(
+                                        {"user_id": appointment.get('organizer_id')},
+                                        {"_id": 0}
+                                    )
+                                    organizer_name = f"{organizer.get('first_name', '')} {organizer.get('last_name', '')}".strip() if organizer else "L'organisateur"
+                                    
+                                    participant_name = f"{participant.get('first_name', '')} {participant.get('last_name', '')}".strip()
+                                    if not participant_name:
+                                        participant_name = participant.get('email', '').split('@')[0]
+                                    
+                                    frontend_url = os.environ.get('FRONTEND_URL', '').rstrip('/')
+                                    ics_link = f"{frontend_url}/api/calendar/export/ics/{appointment['appointment_id']}"
+                                    invitation_link = f"{frontend_url}/invitation/{participant.get('invitation_token')}"
+                                    
+                                    await EmailService.send_acceptance_confirmation_email(
+                                        to_email=participant.get('email', ''),
+                                        to_name=participant_name,
+                                        organizer_name=organizer_name,
+                                        appointment_title=appointment.get('title', ''),
+                                        appointment_datetime=appointment.get('start_datetime', ''),
+                                        location=appointment.get('location') or appointment.get('meeting_provider'),
+                                        penalty_amount=appointment.get('penalty_amount'),
+                                        penalty_currency=appointment.get('penalty_currency', 'EUR'),
+                                        cancellation_deadline_hours=appointment.get('cancellation_deadline_hours'),
+                                        ics_link=ics_link,
+                                        invitation_link=invitation_link
+                                    )
+                                except Exception as email_error:
+                                    print(f"[WEBHOOK] Email error: {email_error}")
                 
                 return {"status": "success", "event_type": event_type, "result": result}
         

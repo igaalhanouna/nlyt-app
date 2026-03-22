@@ -342,6 +342,185 @@ class StripeGuaranteeService:
             "participant_id": guarantee.get("participant_id")
         }
     
+    # ────────────────────────────────────────────────────────
+    #  Default Payment Method (Settings)
+    # ────────────────────────────────────────────────────────
+
+    @staticmethod
+    def setup_default_payment_method_session(
+        user_id: str,
+        user_email: str,
+        user_name: str,
+        frontend_url: str
+    ) -> dict:
+        """
+        Create a Stripe Checkout Session (setup mode) to save a default
+        payment method in Settings.  The captured PaymentMethod can then be
+        reused for future organizer guarantees without redirect.
+        """
+        try:
+            if not STRIPE_API_KEY or STRIPE_API_KEY == 'sk_test_emergent':
+                # Dev mode — auto-save simulated card
+                dev_session_id = f"cs_dev_pm_{user_id[:8]}"
+                dev_pm_id = f"pm_dev_{user_id[:8]}"
+
+                db.users.update_one(
+                    {"user_id": user_id},
+                    {"$set": {
+                        "stripe_customer_id": f"cus_dev_{user_id[:8]}",
+                        "default_payment_method_id": dev_pm_id,
+                        "default_payment_method_last4": "4242",
+                        "default_payment_method_brand": "visa",
+                        "default_payment_method_exp": "12/2028",
+                        "payment_method_consent": True,
+                        "payment_method_setup_at": datetime.now(timezone.utc).isoformat(),
+                        "updated_at": datetime.now(timezone.utc).isoformat()
+                    }}
+                )
+
+                success_url = (
+                    f"{frontend_url}/settings/payment"
+                    f"?setup_status=success&session_id={dev_session_id}&dev_mode=true"
+                )
+                return {
+                    "success": True,
+                    "checkout_url": success_url,
+                    "session_id": dev_session_id,
+                    "dev_mode": True
+                }
+
+            # Production — real Stripe
+            customer = StripeGuaranteeService._get_or_create_customer(user_email, user_name)
+
+            success_url = (
+                f"{frontend_url}/settings/payment"
+                "?setup_status=success&session_id={CHECKOUT_SESSION_ID}"
+            )
+            cancel_url = f"{frontend_url}/settings/payment?setup_status=cancelled"
+
+            session = stripe.checkout.Session.create(
+                mode="setup",
+                customer=customer.id,
+                payment_method_types=["card"],
+                success_url=success_url,
+                cancel_url=cancel_url,
+                locale="fr",
+                metadata={
+                    "type": "nlyt_default_payment_method",
+                    "user_id": user_id
+                },
+                custom_text={
+                    "submit": {
+                        "message": (
+                            "En enregistrant cette carte, vous autorisez NLYT "
+                            "à l'utiliser automatiquement pour vos garanties "
+                            "organisateur futures."
+                        )
+                    }
+                }
+            )
+
+            # Persist customer_id on user doc
+            db.users.update_one(
+                {"user_id": user_id},
+                {"$set": {"stripe_customer_id": customer.id}}
+            )
+
+            return {
+                "success": True,
+                "checkout_url": session.url,
+                "session_id": session.id
+            }
+
+        except stripe.error.StripeError as e:
+            print(f"[DEFAULT_PM_SETUP] Stripe error: {e}")
+            return {"success": False, "error": str(e)}
+        except Exception as e:
+            print(f"[DEFAULT_PM_SETUP] Error: {e}")
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def handle_default_payment_setup_completed(session: dict) -> dict:
+        """
+        Process checkout.session.completed for a default-payment-method setup.
+        Retrieves the PaymentMethod from the SetupIntent and persists card
+        details + consent flag on the user document.
+        """
+        metadata = session.get("metadata", {})
+        user_id = metadata.get("user_id")
+        setup_intent_id = session.get("setup_intent")
+        customer_id = session.get("customer")
+
+        if not user_id:
+            return {"success": False, "error": "No user_id in metadata"}
+
+        try:
+            setup_intent = stripe.SetupIntent.retrieve(setup_intent_id)
+            payment_method_id = setup_intent.payment_method
+            payment_method = stripe.PaymentMethod.retrieve(payment_method_id)
+
+            card = payment_method.get("card", {})
+
+            db.users.update_one(
+                {"user_id": user_id},
+                {"$set": {
+                    "stripe_customer_id": customer_id,
+                    "default_payment_method_id": payment_method_id,
+                    "default_payment_method_last4": card.get("last4", "****"),
+                    "default_payment_method_brand": card.get("brand", "unknown"),
+                    "default_payment_method_exp": (
+                        f"{card.get('exp_month', '??')}/{card.get('exp_year', '????')}"
+                    ),
+                    "payment_method_consent": True,
+                    "payment_method_setup_at": datetime.now(timezone.utc).isoformat(),
+                    "updated_at": datetime.now(timezone.utc).isoformat()
+                }}
+            )
+
+            return {"success": True, "user_id": user_id, "payment_method_id": payment_method_id}
+        except Exception as e:
+            print(f"[DEFAULT_PM_SETUP] Error: {e}")
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def check_default_payment_setup(session_id: str, user_id: str) -> dict:
+        """
+        Polling endpoint helper — checks whether the default payment method
+        has been saved.  If the webhook hasn't arrived yet, proactively
+        retrieves the session from Stripe and processes it.
+        """
+        user = db.users.find_one({"user_id": user_id}, {"_id": 0})
+        if not user:
+            return {"success": False, "error": "User not found"}
+
+        if user.get("default_payment_method_id"):
+            return {
+                "success": True,
+                "status": "completed",
+                "payment_method": {
+                    "last4": user.get("default_payment_method_last4"),
+                    "brand": user.get("default_payment_method_brand"),
+                    "exp": user.get("default_payment_method_exp")
+                }
+            }
+
+        # Fallback: query Stripe directly if webhook delayed
+        if (STRIPE_API_KEY and STRIPE_API_KEY != 'sk_test_emergent'
+                and session_id and not session_id.startswith('cs_dev_')):
+            try:
+                s = stripe.checkout.Session.retrieve(session_id)
+                if s.status == "complete" and s.setup_intent:
+                    return StripeGuaranteeService.handle_default_payment_setup_completed({
+                        "id": s.id,
+                        "setup_intent": s.setup_intent,
+                        "customer": s.customer,
+                        "metadata": dict(s.metadata) if s.metadata else {}
+                    })
+            except Exception as e:
+                print(f"[DEFAULT_PM_CHECK] Stripe check failed: {e}")
+
+        return {"success": True, "status": "pending"}
+
     @staticmethod
     def release_guarantee(guarantee_id: str, reason: str) -> dict:
         """

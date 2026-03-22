@@ -114,6 +114,9 @@ export default function OrganizerDashboard() {
     if (appointment.status === 'cancelled') {
       return { label: 'Annulé', className: 'bg-red-100 text-red-800' };
     }
+    if (appointment.status === 'pending_organizer_guarantee') {
+      return { label: 'En attente de garantie', className: 'bg-amber-100 text-amber-800' };
+    }
     if (appointment.status === 'draft') {
       return { label: 'Brouillon', className: 'bg-slate-100 text-slate-800' };
     }

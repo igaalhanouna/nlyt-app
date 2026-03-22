@@ -52,6 +52,8 @@ export default function AppointmentDetail() {
   const [selectedFile, setSelectedFile] = useState(null);
   const [csvPreview, setCsvPreview] = useState(null);
   const [uploadingFile, setUploadingFile] = useState(false);
+  const [resumingGuarantee, setResumingGuarantee] = useState(false);
+  const [checkingActivation, setCheckingActivation] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -261,6 +263,63 @@ export default function AppointmentDetail() {
   const acceptedCount = participants.filter(p => ['accepted', 'accepted_pending_guarantee', 'accepted_guaranteed'].includes(p.status)).length;
   const pendingCount = participants.filter(p => p.status === 'invited').length;
   const isCancelled = appointment.status === 'cancelled';
+  const isPendingGuarantee = appointment.status === 'pending_organizer_guarantee';
+
+  // Resume organizer guarantee (get a new Stripe session)
+  const handleResumeGuarantee = async () => {
+    setResumingGuarantee(true);
+    try {
+      // Check if user now has a default payment method
+      const pmRes = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/user-settings/me/payment-method`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+      const pmData = await pmRes.json();
+
+      if (pmData.has_payment_method) {
+        // User set up a card since creating this appointment — check activation
+        const actRes = await appointmentAPI.checkActivation(id);
+        if (actRes.data.status === 'active' || actRes.data.activated) {
+          toast.success('Garantie validée ! Invitations envoyées.');
+          await loadData();
+          return;
+        }
+      }
+
+      // Find the organizer participant checkout URL
+      const orgP = participants.find(p => p.is_organizer);
+      if (orgP?.stripe_session_id) {
+        // Try to use the existing session — Stripe might have expired it
+        // Best approach: create a new guarantee session
+      }
+
+      // Create a new Stripe session via re-posting the appointment activate endpoint
+      // For now, redirect to settings to add card
+      toast.info('Configurez votre carte par défaut dans les paramètres pour activer ce rendez-vous.');
+      navigate('/settings/payment');
+    } catch (error) {
+      toast.error('Erreur lors de la reprise de la garantie');
+    } finally {
+      setResumingGuarantee(false);
+    }
+  };
+
+  // Check activation status (polling after Stripe return)
+  const handleCheckActivation = async () => {
+    setCheckingActivation(true);
+    try {
+      const res = await appointmentAPI.checkActivation(id);
+      if (res.data.status === 'active' || res.data.activated) {
+        toast.success('Rendez-vous activé ! Invitations envoyées.');
+        await loadData();
+      } else {
+        toast.info('Garantie en cours de validation...');
+      }
+    } catch {
+      toast.error('Erreur lors de la vérification');
+    } finally {
+      setCheckingActivation(false);
+    }
+  };
 
   const handleDownloadICS = () => {
     // Open ICS download in new tab/trigger download
@@ -675,15 +734,40 @@ export default function AppointmentDetail() {
             <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
               appointment.status === 'active' ? 'bg-emerald-100 text-emerald-800' :
               appointment.status === 'cancelled' ? 'bg-red-100 text-red-800' :
+              appointment.status === 'pending_organizer_guarantee' ? 'bg-amber-100 text-amber-800' :
               appointment.status === 'draft' ? 'bg-slate-100 text-slate-800' :
               'bg-slate-100 text-slate-600'
-            }`}>
+            }`} data-testid="appointment-status-badge">
               {appointment.status === 'active' ? 'Actif' : 
                appointment.status === 'cancelled' ? 'Annulé' :
+               appointment.status === 'pending_organizer_guarantee' ? 'En attente de votre garantie' :
                appointment.status === 'draft' ? 'Brouillon' : appointment.status}
             </span>
           </div>
           <div className="flex gap-2 flex-wrap">
+            {/* Resume guarantee button for pending appointments */}
+            {isPendingGuarantee && (
+              <>
+                <Button
+                  onClick={handleResumeGuarantee}
+                  disabled={resumingGuarantee}
+                  className="bg-amber-600 hover:bg-amber-700"
+                  data-testid="resume-guarantee-btn"
+                >
+                  {resumingGuarantee ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <CreditCard className="w-4 h-4 mr-2" />}
+                  Compléter ma garantie
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={handleCheckActivation}
+                  disabled={checkingActivation}
+                  data-testid="check-activation-btn"
+                >
+                  {checkingActivation ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <RefreshCw className="w-4 h-4 mr-2" />}
+                  Vérifier
+                </Button>
+              </>
+            )}
             {/* ICS Download button */}
             <Button 
               variant="outline"
@@ -775,6 +859,41 @@ export default function AppointmentDetail() {
             )}
           </div>
         </div>
+
+        {/* Banner for pending organizer guarantee */}
+        {isPendingGuarantee && (
+          <div className="mb-6 bg-amber-50 border border-amber-200 rounded-lg p-5 flex items-start gap-4" data-testid="pending-guarantee-banner">
+            <AlertTriangle className="w-6 h-6 text-amber-600 mt-0.5 flex-shrink-0" />
+            <div className="flex-1">
+              <h3 className="font-semibold text-amber-900">Rendez-vous en attente de votre garantie</h3>
+              <p className="text-sm text-amber-800 mt-1">
+                Les invitations ne seront envoyées aux participants qu'après validation de votre garantie organisateur.
+                Complétez votre garantie ou configurez une carte par défaut dans vos paramètres.
+              </p>
+              <div className="flex gap-3 mt-3">
+                <Button
+                  size="sm"
+                  onClick={handleResumeGuarantee}
+                  disabled={resumingGuarantee}
+                  className="bg-amber-600 hover:bg-amber-700"
+                  data-testid="banner-resume-guarantee-btn"
+                >
+                  {resumingGuarantee ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <CreditCard className="w-4 h-4 mr-2" />}
+                  Compléter ma garantie
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => navigate('/settings/payment')}
+                  data-testid="banner-settings-btn"
+                >
+                  <Settings2 className="w-4 h-4 mr-2" />
+                  Configurer une carte par défaut
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="grid md:grid-cols-3 gap-6 mb-6">
           <div className={`bg-white p-6 rounded-lg border ${isCancelled ? 'border-slate-200 opacity-60' : 'border-slate-200'}`}>

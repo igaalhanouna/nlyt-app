@@ -184,3 +184,100 @@ async def get_appointment_defaults(user: dict = Depends(get_current_user)):
         "platform_commission_percent": PLATFORM_COMMISSION_PERCENT,
         "has_custom_defaults": bool(defaults)
     }
+
+
+# ────────────────────────────────────────────────────────
+#  Default Payment Method (Stripe guarantee card)
+# ────────────────────────────────────────────────────────
+
+@router.get("/me/payment-method")
+async def get_payment_method(user: dict = Depends(get_current_user)):
+    """
+    Return the user's saved default payment method for organizer guarantees.
+    """
+    user_data = db.users.find_one(
+        {"user_id": user['user_id']},
+        {"_id": 0, "default_payment_method_id": 1, "default_payment_method_last4": 1,
+         "default_payment_method_brand": 1, "default_payment_method_exp": 1,
+         "payment_method_consent": 1, "payment_method_setup_at": 1,
+         "stripe_customer_id": 1}
+    )
+
+    if not user_data or not user_data.get("default_payment_method_id"):
+        return {"has_payment_method": False}
+
+    return {
+        "has_payment_method": True,
+        "payment_method": {
+            "last4": user_data.get("default_payment_method_last4"),
+            "brand": user_data.get("default_payment_method_brand"),
+            "exp": user_data.get("default_payment_method_exp"),
+            "consent": user_data.get("payment_method_consent", False),
+            "setup_at": user_data.get("payment_method_setup_at"),
+        }
+    }
+
+
+@router.post("/me/setup-payment-method")
+async def setup_payment_method(user: dict = Depends(get_current_user)):
+    """
+    Initiate Stripe Checkout (setup mode) to save a default payment method.
+    Returns a checkout_url to redirect the user to.
+    """
+    from services.stripe_guarantee_service import StripeGuaranteeService
+
+    user_data = db.users.find_one(
+        {"user_id": user['user_id']},
+        {"_id": 0, "email": 1, "first_name": 1, "last_name": 1}
+    )
+    if not user_data:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Utilisateur non trouvé")
+
+    frontend_url = os.environ.get('FRONTEND_URL', '').rstrip('/')
+    user_name = f"{user_data.get('first_name', '')} {user_data.get('last_name', '')}".strip()
+
+    result = StripeGuaranteeService.setup_default_payment_method_session(
+        user_id=user['user_id'],
+        user_email=user_data['email'],
+        user_name=user_name or user_data['email'],
+        frontend_url=frontend_url
+    )
+
+    if not result.get("success"):
+        from fastapi import HTTPException
+        raise HTTPException(status_code=500, detail=result.get("error", "Erreur Stripe"))
+
+    return result
+
+
+@router.get("/me/payment-method/check-setup")
+async def check_payment_setup(session_id: str, user: dict = Depends(get_current_user)):
+    """
+    Polling endpoint — called by frontend after Stripe redirect to verify
+    that the default payment method was saved (webhook may be delayed).
+    """
+    from services.stripe_guarantee_service import StripeGuaranteeService
+    return StripeGuaranteeService.check_default_payment_setup(session_id, user['user_id'])
+
+
+@router.delete("/me/payment-method")
+async def remove_payment_method(user: dict = Depends(get_current_user)):
+    """
+    Remove the saved default payment method.
+    Future guarantees will require Stripe redirect.
+    """
+    db.users.update_one(
+        {"user_id": user['user_id']},
+        {"$unset": {
+            "default_payment_method_id": "",
+            "default_payment_method_last4": "",
+            "default_payment_method_brand": "",
+            "default_payment_method_exp": "",
+            "payment_method_consent": "",
+            "payment_method_setup_at": ""
+        },
+        "$set": {"updated_at": datetime.now(timezone.utc).isoformat()}}
+    )
+
+    return {"success": True, "message": "Moyen de paiement supprimé"}

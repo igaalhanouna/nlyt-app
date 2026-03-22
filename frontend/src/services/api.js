@@ -60,6 +60,7 @@ export const appointmentAPI = {
   update: (id, data) => api.patch(`/api/appointments/${id}`, data),
   delete: (id) => api.delete(`/api/appointments/${id}`),
   cancel: (id) => api.post(`/api/appointments/${id}/cancel`),
+  checkActivation: (id) => api.post(`/api/appointments/${id}/check-activation`),
 };
 
 export const participantAPI = {
