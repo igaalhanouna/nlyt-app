@@ -996,7 +996,7 @@ export default function AppointmentDetail() {
                           </a>
                         )}
 
-                        {/* Unified organizer identity block */}
+                        {/* Unified organizer identity + proof availability block */}
                         {(() => {
                           const provider = (appointment.meeting_provider || '').toLowerCase();
                           const metadata = appointment.meeting_provider_metadata || {};
@@ -1009,33 +1009,72 @@ export default function AppointmentDetail() {
                             provider === 'teams' ? 'Microsoft Teams' :
                             provider === 'meet' ? 'Google' : appointment.meeting_provider;
 
-                          const providerGuidance = provider === 'meet'
-                            ? 'Google identifie l\'organisateur uniquement via le compte connecté dans votre navigateur.'
-                            : provider === 'teams'
-                            ? 'Teams identifie l\'organisateur via votre compte Microsoft connecté.'
-                            : provider === 'zoom' && appointment.meeting_host_url
-                            ? 'Utilisez le lien "Démarrer la réunion" ci-dessus pour être reconnu automatiquement comme organisateur.'
-                            : 'Connectez-vous avec le bon compte pour être reconnu comme organisateur.';
+                          // Detect personal Gmail vs Workspace
+                          const isMeetPersonal = provider === 'meet' && creatorEmail &&
+                            (creatorEmail.endsWith('@gmail.com') || creatorEmail.endsWith('@googlemail.com'));
+                          const isMeetWorkspace = provider === 'meet' && creatorEmail && !isMeetPersonal;
 
                           return (
-                            <div className="mt-2 p-3 bg-slate-50 border border-slate-200 rounded-lg" data-testid="organizer-identity-block">
-                              <p className="text-xs font-semibold text-slate-700 mb-1.5">Connexion en tant qu'organisateur</p>
-                              {creatorEmail && (
-                                <p className="text-xs text-slate-600 mb-1">
-                                  Réunion créée avec le compte {providerLabel} : <span className="font-semibold text-slate-800" data-testid="organizer-account-email">{creatorEmail}</span>
-                                  {creatorName && <span className="text-slate-400"> ({creatorName})</span>}
-                                </p>
-                              )}
-                              {!(provider === 'zoom' && appointment.meeting_host_url) && creatorEmail && (
-                                <p className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded px-2 py-1 mt-1.5" data-testid="organizer-identity-hint">
-                                  Pour être reconnu comme organisateur, rejoignez la réunion avec ce même compte. {providerGuidance}
-                                </p>
-                              )}
-                              {provider === 'zoom' && appointment.meeting_host_url && (
-                                <p className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-100 rounded px-2 py-1 mt-1.5" data-testid="organizer-identity-hint">
-                                  {providerGuidance}
-                                </p>
-                              )}
+                            <div className="mt-2 p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-2.5" data-testid="organizer-identity-block">
+                              {/* Section 1: Account identity */}
+                              <div>
+                                <p className="text-xs font-semibold text-slate-700 mb-1">Connexion en tant qu'organisateur</p>
+                                {creatorEmail && (
+                                  <p className="text-xs text-slate-600">
+                                    Réunion créée avec le compte {providerLabel} : <span className="font-semibold text-slate-800" data-testid="organizer-account-email">{creatorEmail}</span>
+                                    {creatorName && <span className="text-slate-400"> ({creatorName})</span>}
+                                  </p>
+                                )}
+                                {!(provider === 'zoom' && appointment.meeting_host_url) && creatorEmail && (
+                                  <p className="text-xs text-slate-500 mt-1" data-testid="organizer-identity-hint">
+                                    Rejoignez la réunion avec ce même compte pour être reconnu comme organisateur.
+                                  </p>
+                                )}
+                                {provider === 'zoom' && appointment.meeting_host_url && (
+                                  <p className="text-xs text-slate-500 mt-1" data-testid="organizer-identity-hint">
+                                    Utilisez le lien "Démarrer la réunion" ci-dessus pour être reconnu automatiquement.
+                                  </p>
+                                )}
+                              </div>
+
+                              {/* Section 2: Proof availability — provider-specific */}
+                              <div className="border-t border-slate-200 pt-2" data-testid="proof-availability-block">
+                                <p className="text-xs font-semibold text-slate-700 mb-1">Preuves de présence</p>
+                                {isMeetPersonal && (
+                                  <div className="flex items-start gap-2 p-2 bg-red-50 border border-red-100 rounded" data-testid="proof-status-no-auto">
+                                    <span className="text-red-500 text-sm leading-none mt-0.5">&#10005;</span>
+                                    <div>
+                                      <p className="text-xs font-medium text-red-800">Pas de récupération automatique</p>
+                                      <p className="text-xs text-red-700 mt-0.5">
+                                        Avec un compte Google personnel ({creatorEmail.split('@')[1]}), Google Meet ne fournit pas de rapport de présence exploitable.
+                                        Utilisez le check-in manuel ou importez une preuve alternative après la réunion.
+                                      </p>
+                                    </div>
+                                  </div>
+                                )}
+                                {isMeetWorkspace && (
+                                  <div className="flex items-start gap-2 p-2 bg-amber-50 border border-amber-100 rounded" data-testid="proof-status-manual-import">
+                                    <span className="text-amber-500 text-sm leading-none mt-0.5">&#9888;</span>
+                                    <div>
+                                      <p className="text-xs font-medium text-amber-800">Import manuel requis</p>
+                                      <p className="text-xs text-amber-700 mt-0.5">
+                                        Après la réunion, exportez le rapport de présence depuis Google Meet et importez-le dans la section "Preuves de présence visio" ci-dessous.
+                                      </p>
+                                    </div>
+                                  </div>
+                                )}
+                                {(provider === 'teams' || provider === 'zoom') && (
+                                  <div className="flex items-start gap-2 p-2 bg-emerald-50 border border-emerald-100 rounded" data-testid="proof-status-auto">
+                                    <span className="text-emerald-500 text-sm leading-none mt-0.5">&#10003;</span>
+                                    <div>
+                                      <p className="text-xs font-medium text-emerald-800">Récupération automatique</p>
+                                      <p className="text-xs text-emerald-700 mt-0.5">
+                                        Les présences seront récupérées automatiquement depuis {providerLabel} après la fin de la réunion. Ce n'est pas une détection en temps réel.
+                                      </p>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           );
                         })()}
@@ -1335,6 +1374,8 @@ export default function AppointmentDetail() {
                   const provider = (appointment.meeting_provider || '').toLowerCase();
                   const providerLabel = provider === 'zoom' ? 'Zoom' : provider === 'teams' ? 'Teams' : provider === 'meet' ? 'Google Meet' : appointment.meeting_provider;
                   const hasAutoFetch = provider === 'zoom' || provider === 'teams';
+                  const creatorEmail = appointment.meeting_provider_metadata?.creator_email || '';
+                  const isMeetPersonal = provider === 'meet' && (creatorEmail.endsWith('@gmail.com') || creatorEmail.endsWith('@googlemail.com'));
 
                   if (hasAutoFetch) {
                     return (
@@ -1345,12 +1386,21 @@ export default function AppointmentDetail() {
                         </p>
                       </div>
                     );
+                  } else if (isMeetPersonal) {
+                    return (
+                      <div className="p-3 bg-red-50 border border-red-200 rounded-lg" data-testid="checkin-msg-meet-personal">
+                        <p className="text-sm font-medium text-red-900 mb-1">Aucune preuve automatique disponible</p>
+                        <p className="text-xs text-red-700">
+                          Avec un compte Google personnel ({creatorEmail.split('@')[1]}), Google Meet ne fournit pas de rapport de présence exploitable. Utilisez le check-in ci-dessous pour confirmer votre présence.
+                        </p>
+                      </div>
+                    );
                   } else if (provider === 'meet') {
                     return (
                       <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg" data-testid="checkin-msg-manual-import">
                         <p className="text-sm font-medium text-amber-900 mb-1">Import manuel requis — Google Meet</p>
                         <p className="text-xs text-amber-700">
-                          Google Meet ne fournit pas d'API de récupération automatique des présences. Après la réunion, importez le rapport de présence depuis la section "Preuves de présence visio" ci-dessous.
+                          Après la réunion, importez le rapport de présence depuis la section "Preuves de présence visio" ci-dessous.
                         </p>
                       </div>
                     );
@@ -1361,24 +1411,47 @@ export default function AppointmentDetail() {
                     </div>
                   );
                 })()}
-                <details className="group">
-                  <summary className="flex items-center gap-2 text-xs text-slate-400 cursor-pointer hover:text-slate-600 transition-colors">
-                    <AlertTriangle className="w-3.5 h-3.5" />
-                    <span>Problème de connexion ? Check-in de secours</span>
-                  </summary>
-                  <div className="mt-2">
-                    <Button
-                      onClick={handleOrganizerCheckin}
-                      disabled={checkingIn}
-                      variant="outline"
-                      className="gap-1.5 border-amber-300 text-amber-700 hover:bg-amber-50"
-                      data-testid="organizer-manual-checkin-btn"
-                    >
-                      {checkingIn ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                      Check-in de secours
-                    </Button>
-                  </div>
-                </details>
+                {/* Meet personal: check-in is PRIMARY action, not hidden */}
+                {(() => {
+                  const provider = (appointment.meeting_provider || '').toLowerCase();
+                  const creatorEmail = appointment.meeting_provider_metadata?.creator_email || '';
+                  const isMeetPersonal = provider === 'meet' && (creatorEmail.endsWith('@gmail.com') || creatorEmail.endsWith('@googlemail.com'));
+
+                  if (isMeetPersonal) {
+                    return (
+                      <Button
+                        onClick={handleOrganizerCheckin}
+                        disabled={checkingIn}
+                        className="gap-1.5"
+                        data-testid="organizer-manual-checkin-btn"
+                      >
+                        {checkingIn ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                        Confirmer ma présence (check-in)
+                      </Button>
+                    );
+                  }
+                  // All other providers: check-in is a fallback
+                  return (
+                    <details className="group">
+                      <summary className="flex items-center gap-2 text-xs text-slate-400 cursor-pointer hover:text-slate-600 transition-colors">
+                        <AlertTriangle className="w-3.5 h-3.5" />
+                        <span>Problème de connexion ? Check-in de secours</span>
+                      </summary>
+                      <div className="mt-2">
+                        <Button
+                          onClick={handleOrganizerCheckin}
+                          disabled={checkingIn}
+                          variant="outline"
+                          className="gap-1.5 border-amber-300 text-amber-700 hover:bg-amber-50"
+                          data-testid="organizer-manual-checkin-btn"
+                        >
+                          {checkingIn ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                          Check-in de secours
+                        </Button>
+                      </div>
+                    </details>
+                  );
+                })()}
               </div>
             ) : (
               <div className="space-y-3">
