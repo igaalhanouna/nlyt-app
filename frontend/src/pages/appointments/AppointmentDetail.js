@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { appointmentAPI, participantAPI, calendarAPI, invitationAPI, attendanceAPI, checkinAPI, modificationAPI, videoEvidenceAPI } from '../../services/api';
 import { Button } from '../../components/ui/button';
-import { ArrowLeft, Calendar, MapPin, Video, Clock, Users, Ban, Check, X, AlertTriangle, Download, Heart, ShieldCheck, CreditCard, RefreshCw, Loader2, Zap, ClipboardCheck, Eye, UserX, UserCheck, HelpCircle, ChevronDown, ScanLine, QrCode, MapPinCheck, ExternalLink, Timer, Navigation, Pencil, Save, Send, FileEdit, Upload, Monitor, Shield, FileJson, Link2, UserCog, FileUp, PlayCircle, Settings2 } from 'lucide-react';
+import { ArrowLeft, Calendar, MapPin, Video, Clock, Users, Ban, Check, X, AlertTriangle, Download, Heart, ShieldCheck, CreditCard, RefreshCw, Loader2, Zap, ClipboardCheck, Eye, UserX, UserCheck, HelpCircle, ChevronDown, ScanLine, QrCode, MapPinCheck, ExternalLink, Timer, Navigation, Pencil, Save, Send, FileEdit, Upload, Monitor, Shield, FileJson, Link2, UserCog, FileUp, PlayCircle, Settings2, DollarSign } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDateTimeFr, formatTimeFr, formatEvidenceDateFr, parseUTC, utcToLocalInput, localInputToUTC } from '../../utils/dateFormat';
 import { Input } from '../../components/ui/input';
@@ -25,6 +25,11 @@ export default function AppointmentDetail() {
   const [reclassifyDropdown, setReclassifyDropdown] = useState(null);
   const [evidenceData, setEvidenceData] = useState(null);
   const [activeProposal, setActiveProposal] = useState(null);
+  
+  // Organizer check-in state
+  const [organizerParticipant, setOrganizerParticipant] = useState(null);
+  const [organizerCheckinDone, setOrganizerCheckinDone] = useState(false);
+  const [checkingIn, setCheckingIn] = useState(false);
   const [proposalHistory, setProposalHistory] = useState([]);
   const [showProposalForm, setShowProposalForm] = useState(false);
   const [proposalForm, setProposalForm] = useState({
@@ -59,7 +64,19 @@ export default function AppointmentDetail() {
         participantAPI.list(id)
       ]);
       setAppointment(appointmentRes.data);
-      setParticipants(participantsRes.data.participants || []);
+      const allParticipants = participantsRes.data.participants || [];
+      setParticipants(allParticipants);
+      
+      // Detect organizer's participant record
+      const orgP = allParticipants.find(p => p.is_organizer === true);
+      setOrganizerParticipant(orgP || null);
+      if (orgP && orgP.invitation_token) {
+        checkinAPI.getStatus(id, orgP.invitation_token)
+          .then(res => {
+            if (res.data?.evidence_count > 0) setOrganizerCheckinDone(true);
+          })
+          .catch(() => {});
+      }
 
       // Check calendar sync status for all providers (non-blocking)
       calendarAPI.getSyncStatus(id)
@@ -95,6 +112,26 @@ export default function AppointmentDetail() {
       toast.error('Erreur lors du chargement');
     } finally {
       setLoading(false);
+    }
+  };
+
+
+  const handleOrganizerCheckin = async () => {
+    if (!organizerParticipant?.invitation_token) return;
+    setCheckingIn(true);
+    try {
+      await checkinAPI.manual({
+        appointment_id: id,
+        invitation_token: organizerParticipant.invitation_token
+      });
+      setOrganizerCheckinDone(true);
+      toast.success('Check-in organisateur enregistré');
+      loadData(); // Refresh evidence
+    } catch (error) {
+      const msg = error.response?.data?.detail || 'Erreur lors du check-in';
+      toast.error(msg);
+    } finally {
+      setCheckingIn(false);
     }
   };
 
@@ -1136,6 +1173,66 @@ export default function AppointmentDetail() {
           </div>
         )}
 
+
+        {/* ORGANIZER CHECK-IN SECTION */}
+        {organizerParticipant && organizerParticipant.status === 'accepted_guaranteed' && !isCancelled && (
+          <div className="bg-white rounded-lg border border-indigo-200 p-6 mt-6" data-testid="organizer-checkin-section">
+            <div className="flex items-center gap-2 mb-4">
+              <UserCog className="w-5 h-5 text-indigo-600" />
+              <h2 className="text-lg font-semibold text-slate-900">Mon check-in (organisateur)</h2>
+            </div>
+            {organizerCheckinDone ? (
+              <div className="flex items-center gap-2 p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
+                <Check className="w-5 h-5 text-emerald-600" />
+                <p className="text-sm font-medium text-emerald-700">Check-in enregistré</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-sm text-slate-600">Confirmez votre présence en tant qu'organisateur.</p>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={handleOrganizerCheckin}
+                    disabled={checkingIn}
+                    className="gap-1.5"
+                    data-testid="organizer-manual-checkin-btn"
+                  >
+                    {checkingIn ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                    Check-in manuel
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+        
+        {/* Organizer pending guarantee notice */}
+        {organizerParticipant && organizerParticipant.status === 'accepted_pending_guarantee' && !isCancelled && (
+          <div className="bg-white rounded-lg border border-amber-200 p-6 mt-6" data-testid="organizer-guarantee-notice">
+            <div className="flex items-center gap-2 mb-3">
+              <Shield className="w-5 h-5 text-amber-600" />
+              <h2 className="text-lg font-semibold text-slate-900">Garantie organisateur requise</h2>
+            </div>
+            <p className="text-sm text-slate-600 mb-3">Vous devez déposer votre garantie pour activer le rendez-vous.</p>
+            <Button
+              onClick={async () => {
+                try {
+                  const res = await invitationAPI.accept(organizerParticipant.invitation_token);
+                  if (res.data.checkout_url) {
+                    window.location.href = res.data.checkout_url;
+                  }
+                } catch (e) {
+                  toast.error('Erreur lors de la création de la session de paiement');
+                }
+              }}
+              className="gap-1.5"
+              data-testid="organizer-guarantee-btn"
+            >
+              <DollarSign className="w-4 h-4" />
+              Déposer ma garantie
+            </Button>
+          </div>
+        )}
+
         {participants.length > 0 && (
           <div className={`bg-white rounded-lg border p-6 mt-6 ${isCancelled ? 'border-slate-200 opacity-60' : 'border-slate-200'}`}>
             <div className="flex items-center justify-between mb-4">
@@ -1154,15 +1251,24 @@ export default function AppointmentDetail() {
                   key={participant.participant_id}
                   className="flex items-center justify-between p-3 border border-slate-200 rounded-lg"
                 >
-                  <div>
-                    <p className="font-medium text-slate-900">
-                      {participant.first_name} {participant.last_name}
-                    </p>
-                    <p className="text-sm text-slate-600">{participant.email}</p>
+                  <div className="flex items-center gap-2">
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <p className="font-medium text-slate-900">
+                          {participant.first_name} {participant.last_name}
+                        </p>
+                        {participant.is_organizer && (
+                          <span className="text-xs px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700 font-medium" data-testid={`organizer-badge-${participant.participant_id}`}>
+                            Organisateur
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-sm text-slate-600">{participant.email}</p>
+                    </div>
                   </div>
                   <div className="flex items-center gap-2">
                     {getParticipantStatusBadge(participant.status, participant)}
-                    {participant.status === 'invited' && !isCancelled && (
+                    {participant.status === 'invited' && !isCancelled && !participant.is_organizer && (
                       <button
                         title="Renvoyer l'invitation"
                         data-testid={`resend-detail-btn-${participant.participant_id}`}

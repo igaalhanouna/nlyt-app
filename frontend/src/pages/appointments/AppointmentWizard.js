@@ -301,7 +301,14 @@ export default function AppointmentWizard() {
       
       const response = await appointmentAPI.create(payload);
       toast.success('Rendez-vous créé avec succès');
-      navigate(`/appointments/${response.data.appointment_id}`);
+      
+      // If organizer needs to provide Stripe guarantee, redirect to checkout
+      if (response.data.organizer_checkout_url) {
+        toast.info('Vous allez être redirigé vers Stripe pour votre garantie organisateur');
+        window.location.href = response.data.organizer_checkout_url;
+      } else {
+        navigate(`/appointments/${response.data.appointment_id}`);
+      }
     } catch (error) {
       console.error('Appointment creation error:', error);
       const errorMessage = error.response?.data?.detail || 'Erreur lors de la création du rendez-vous';
@@ -341,7 +348,12 @@ export default function AppointmentWizard() {
 
       const response = await appointmentAPI.create(payload);
       toast.success('Rendez-vous créé en express avec vos paramètres par défaut');
-      navigate(`/appointments/${response.data.appointment_id}`);
+      if (response.data.organizer_checkout_url) {
+        toast.info('Vous allez être redirigé vers Stripe pour votre garantie organisateur');
+        window.location.href = response.data.organizer_checkout_url;
+      } else {
+        navigate(`/appointments/${response.data.appointment_id}`);
+      }
     } catch (error) {
       console.error('Quick create error:', error);
       const errorMessage = error.response?.data?.detail || 'Erreur lors de la création du rendez-vous';

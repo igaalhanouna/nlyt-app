@@ -131,10 +131,73 @@ async def create_appointment(appointment: AppointmentCreate, request: Request):
     
     db.appointments.insert_one(appointment_doc)
     
-    # Save participants from step 1 of the wizard and send invitation emails
+    # --- Inject organizer as participant (same rules, with guarantee) ---
+    organizer_user = db.users.find_one({"user_id": user['user_id']}, {"_id": 0})
+    organizer_invitation_token = str(uuid.uuid4())
+    organizer_participant_id = str(uuid.uuid4())
+    organizer_participant_doc = {
+        "participant_id": organizer_participant_id,
+        "appointment_id": appointment_id,
+        "email": organizer_user.get('email', ''),
+        "first_name": organizer_user.get('first_name', ''),
+        "last_name": organizer_user.get('last_name', ''),
+        "name": f"{organizer_user.get('first_name', '')} {organizer_user.get('last_name', '')}".strip(),
+        "role": "organizer",
+        "is_organizer": True,
+        "status": "accepted_pending_guarantee",
+        "invitation_token": organizer_invitation_token,
+        "user_id": user['user_id'],
+        "accepted_at": now_utc().isoformat(),
+        "invited_at": now_utc().isoformat(),
+        "created_at": now_utc().isoformat()
+    }
+    db.participants.insert_one(organizer_participant_doc)
+    
+    # Create Stripe guarantee session for organizer
+    organizer_checkout_url = None
+    if appointment.penalty_amount and appointment.penalty_amount > 0:
+        try:
+            from services.stripe_guarantee_service import StripeGuaranteeService
+            frontend_url = os.environ.get('FRONTEND_URL', '').rstrip('/') or str(request.base_url).rstrip('/')
+            org_name = f"{organizer_user.get('first_name', '')} {organizer_user.get('last_name', '')}".strip()
+            result = StripeGuaranteeService.create_guarantee_session(
+                participant_id=organizer_participant_id,
+                appointment_id=appointment_id,
+                participant_email=organizer_user.get('email', ''),
+                participant_name=org_name or 'Organisateur',
+                appointment_title=appointment.title,
+                penalty_amount=float(appointment.penalty_amount),
+                penalty_currency=appointment.penalty_currency.lower(),
+                frontend_url=frontend_url,
+                invitation_token=organizer_invitation_token
+            )
+            if result.get('success'):
+                organizer_checkout_url = result['checkout_url']
+                db.participants.update_one(
+                    {"participant_id": organizer_participant_id},
+                    {"$set": {
+                        "guarantee_id": result['guarantee_id'],
+                        "stripe_session_id": result['session_id']
+                    }}
+                )
+            else:
+                print(f"[ORGANIZER] Stripe session failed: {result.get('error')}")
+        except Exception as e:
+            print(f"[ORGANIZER] Non-blocking Stripe error: {e}")
+    else:
+        # No penalty → directly accepted_guaranteed
+        db.participants.update_one(
+            {"participant_id": organizer_participant_id},
+            {"$set": {"status": "accepted_guaranteed"}}
+        )
+
+    # Save other participants from step 1 of the wizard and send invitation emails
     if appointment.participants:
         for p in appointment.participants:
             if p.email and p.email.strip():
+                # Skip if this email is the organizer's own email
+                if p.email.strip().lower() == organizer_user.get('email', '').lower():
+                    continue
                 invitation_token = str(uuid.uuid4())
                 participant_doc = {
                     "participant_id": str(uuid.uuid4()),
@@ -231,8 +294,12 @@ async def create_appointment(appointment: AppointmentCreate, request: Request):
     response = {
         "appointment_id": appointment_id,
         "policy_snapshot_id": snapshot['snapshot_id'],
-        "message": "Rendez-vous créé avec succès"
+        "message": "Rendez-vous créé avec succès",
+        "organizer_participant_id": organizer_participant_id,
+        "organizer_invitation_token": organizer_invitation_token,
     }
+    if organizer_checkout_url:
+        response["organizer_checkout_url"] = organizer_checkout_url
     if meeting_result and meeting_result.get("success"):
         response["meeting"] = {
             "join_url": meeting_result.get("join_url"),
