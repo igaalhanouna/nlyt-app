@@ -58,6 +58,7 @@ Email: Resend | Payments: Stripe | Video: Zoom API, Teams Graph API, Google Cale
 - iteration_34: all frontend + 11/11 backend (honest UX messaging)
 - iteration_35: 11/11 frontend + 6/6 backend (unified organizer identity block)
 - iteration_36: 25/25 frontend + 7/7 backend (proof availability by provider + account type)
+- iteration_37: 21/21 frontend + 6/6 backend (Phase A Teams delegated permissions)
 - Credentials: testuser_audit@nlyt.app / Test1234!
 
 ## Completed (March 2026)
@@ -69,6 +70,7 @@ Email: Resend | Payments: Stripe | Video: Zoom API, Teams Graph API, Google Cale
 - **Honest UX messaging** (March 22): Provider-specific check-in messages (auto-fetch Zoom/Teams, manual import Meet), contextual evidence action bars, auto-fetch scheduler job (5min interval after meeting end)
 - **Unified organizer identity block** (March 22): "Connexion en tant qu'organisateur" for all providers — shows creator email (Google/Microsoft/Zoom), provider-specific guidance, only visible to organizer (not participants)
 - **Proof availability by provider + account type** (March 22): Meet Gmail perso = ❌ rouge (no auto proof, manual check-in promoted as primary), Meet Workspace = ⚠️ ambre (import manual), Teams/Zoom = ✅ vert (auto-fetch). Check-in button promoted for Meet personal, hidden as fallback for auto-fetch providers
+- **Phase A Teams Delegated Permissions** (March 22): Refonte création Teams via /me/onlineMeetings avec token utilisateur délégué. Scope OnlineMeetings.ReadWrite ajouté à OAuth Outlook. Fallback explicite sur app permissions avec bandeau orange 'Mode legacy — identité technique'. Bandeau de reconnexion dans Settings. Metadata stocke creation_mode: delegated|application_fallback
 
 ## Backlog (Prioritized)
 ### P1
