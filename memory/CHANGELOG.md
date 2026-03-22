@@ -1,5 +1,20 @@
 # NLYT - Changelog
 
+## 2026-02-20 — Bug Fix: Création RDV dans le passé (P0)
+
+### Problème
+Il était possible de créer un rendez-vous avec une date passée, sans aucune validation.
+
+### Fix
+**Double validation** :
+- **Frontend** : attribut `min` dynamique sur `<input type="datetime-local">` + message d'erreur inline rouge + toast + blocage du bouton "Suivant"
+- **Backend** : vérification `start_datetime <= now_utc()` → HTTP 400 "Impossible de créer un rendez-vous dans le passé"
+
+### Tests
+- 6/6 backend (hier, heure passée, heure exacte, heure future, demain, edge case)
+- 5/5 frontend (min attribute, error message, toast, navigation bloquée, navigation OK si futur)
+- Rapport: `/app/test_reports/iteration_17.json`
+
 ## 2026-02-20 — DST Timezone Validation
 
 ### Scénarios testés (CET → CEST, 29 mars 2026)
