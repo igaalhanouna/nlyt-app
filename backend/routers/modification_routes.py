@@ -208,7 +208,7 @@ async def _send_proposal_emails(proposal: dict):
         return
 
     proposer_name = proposal['proposed_by'].get('name', 'Un participant')
-    base_url = os.environ.get('REACT_APP_BACKEND_URL', os.environ.get('BASE_URL', ''))
+    base_url = os.environ.get('FRONTEND_URL', '').rstrip('/')
 
     # Build changes description
     changes_html = _build_changes_html(proposal)
@@ -323,7 +323,7 @@ async def _send_acceptance_emails(proposal: dict):
         return
 
     changes_html = _build_changes_html(proposal)
-    base_url = os.environ.get('REACT_APP_BACKEND_URL', os.environ.get('BASE_URL', ''))
+    base_url = os.environ.get('FRONTEND_URL', '').rstrip('/')
 
     # Notify all participants
     accepted_statuses = ["accepted", "guaranteed", "accepted_pending_guarantee", "accepted_guaranteed"]

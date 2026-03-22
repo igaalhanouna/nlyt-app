@@ -1,5 +1,34 @@
 # NLYT - Changelog
 
+## 2026-03-22 — Bugfix: URLs cassées dans les emails de modification
+
+### Cause racine
+`modification_routes.py` L211 et L326 utilisaient `REACT_APP_BACKEND_URL` (variable frontend, absente du backend) au lieu de `FRONTEND_URL` (variable backend correcte). Résultat: `base_url = ""` → liens relatifs `/invitation/<token>` au lieu d'absolus.
+
+### Correction
+Remplacé `os.environ.get('REACT_APP_BACKEND_URL', os.environ.get('BASE_URL', ''))` par `os.environ.get('FRONTEND_URL', '').rstrip('/')` aux deux endroits.
+
+### Fichier modifié
+- `/app/backend/routers/modification_routes.py` (L211, L326)
+
+### Audit complet des emails
+| Email | Fichier | Variable URL | Status |
+|---|---|---|---|
+| Invitation initiale | `invitations.py` | `FRONTEND_URL` | ✅ OK |
+| Modification proposée (participant) | `modification_routes.py` | ~~`REACT_APP_BACKEND_URL`~~ → `FRONTEND_URL` | ✅ Corrigé |
+| Modification proposée (organisateur) | `modification_routes.py` | ~~`REACT_APP_BACKEND_URL`~~ → `FRONTEND_URL` | ✅ Corrigé |
+| Modification acceptée | `modification_routes.py` | ~~`REACT_APP_BACKEND_URL`~~ → `FRONTEND_URL` | ✅ Corrigé |
+| Garantie à reconfirmer | `modification_service.py` | `FRONTEND_URL` | ✅ OK |
+| Confirmation acceptation | `invitations.py` | `FRONTEND_URL` | ✅ OK |
+
+### Tests
+- 5/5 types d'emails vérifiés avec URLs absolues correctes
+- Email réellement envoyé via Resend avec succès (id: ebab7d70)
+- Pages /invitation/ et /appointments/ retournent HTTP 200
+
+---
+
+
 ## 2026-03-22 — E2E Verification: GPS Coordinates Reset on Location Modification
 
 ### Résultat: 9/9 tests PASS
