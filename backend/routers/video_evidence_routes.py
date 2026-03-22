@@ -3,17 +3,24 @@ Video Evidence Routes — API for ingesting and viewing video conference attenda
 
 Endpoints:
 - POST /api/video-evidence/{appointment_id}/ingest  — Ingest attendance data (organizer)
+- POST /api/video-evidence/{appointment_id}/ingest-file — Ingest from CSV/JSON file upload
 - GET  /api/video-evidence/{appointment_id}         — Get video evidence (organizer)
 - GET  /api/video-evidence/{appointment_id}/logs     — Get ingestion logs (organizer)
 - GET  /api/video-evidence/{appointment_id}/log/{id} — Get specific ingestion log (organizer)
+- POST /api/video-evidence/{appointment_id}/create-meeting — Create meeting via provider API
+- POST /api/video-evidence/{appointment_id}/fetch-attendance — Fetch attendance via provider API
+- GET  /api/video-evidence/provider-status — Check which providers are configured
 - POST /api/video-evidence/webhook/{provider}        — Webhook endpoint (future)
 """
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, UploadFile, File, Form
 from pymongo import MongoClient
 from pydantic import BaseModel
 from typing import Optional
 import os
 import sys
+import csv
+import io
+import json
 
 sys.path.append('/app/backend')
 from middleware.auth_middleware import get_current_user
@@ -21,6 +28,11 @@ from services.video_evidence_service import (
     ingest_video_attendance,
     get_video_evidence_for_appointment,
     get_ingestion_log,
+)
+from services.meeting_provider_service import (
+    create_meeting_for_appointment,
+    fetch_attendance_for_appointment,
+    get_provider_status,
 )
 
 router = APIRouter()
@@ -81,6 +93,193 @@ async def ingest_video_evidence(
         raise HTTPException(status_code=400, detail=result["error"])
 
     return result
+
+
+class CreateMeetingRequest(BaseModel):
+    provider: Optional[str] = None  # Override provider from appointment
+
+
+@router.post("/{appointment_id}/create-meeting")
+async def create_meeting(appointment_id: str, body: CreateMeetingRequest = None, request: Request = None):
+    """Create a meeting via the provider API (Zoom/Teams/Meet)."""
+    user = await get_current_user(request)
+
+    appointment = db.appointments.find_one(
+        {"appointment_id": appointment_id}, {"_id": 0}
+    )
+    if not appointment:
+        raise HTTPException(status_code=404, detail="Rendez-vous introuvable")
+    if appointment.get("organizer_id") != user["user_id"]:
+        raise HTTPException(status_code=403, detail="Seul l'organisateur peut créer la réunion")
+
+    # Already has a meeting created?
+    if appointment.get("meeting_created_via_api") and appointment.get("meeting_join_url"):
+        return {
+            "already_exists": True,
+            "external_meeting_id": appointment.get("external_meeting_id"),
+            "join_url": appointment.get("meeting_join_url"),
+            "host_url": appointment.get("meeting_host_url"),
+        }
+
+    provider = (body.provider if body and body.provider else appointment.get("meeting_provider") or "").strip().lower()
+    if not provider:
+        raise HTTPException(status_code=400, detail="Aucun provider de visioconférence spécifié")
+
+    result = create_meeting_for_appointment(
+        appointment_id=appointment_id,
+        provider=provider,
+        title=appointment.get("title", "NLYT Meeting"),
+        start_datetime=appointment.get("start_datetime", ""),
+        duration_minutes=appointment.get("duration_minutes", 60),
+        timezone_str=appointment.get("appointment_timezone", "UTC"),
+        organizer_user_id=user["user_id"],
+    )
+
+    if result.get("error"):
+        status_code = 424 if result.get("needs_config") else 400
+        raise HTTPException(status_code=status_code, detail=result["error"])
+
+    return result
+
+
+@router.post("/{appointment_id}/fetch-attendance")
+async def fetch_attendance(appointment_id: str, request: Request):
+    """Fetch attendance report from provider API (Zoom/Teams) and auto-ingest."""
+    user = await get_current_user(request)
+
+    appointment = db.appointments.find_one(
+        {"appointment_id": appointment_id}, {"_id": 0}
+    )
+    if not appointment:
+        raise HTTPException(status_code=404, detail="Rendez-vous introuvable")
+    if appointment.get("organizer_id") != user["user_id"]:
+        raise HTTPException(status_code=403, detail="Seul l'organisateur peut récupérer les présences")
+
+    result = fetch_attendance_for_appointment(appointment_id)
+    if result.get("error"):
+        raise HTTPException(status_code=400, detail=result["error"])
+
+    # Auto-ingest the fetched data
+    if result.get("raw_payload"):
+        ingest_result = ingest_video_attendance(
+            appointment_id=appointment_id,
+            provider_name=result["provider"],
+            raw_payload=result["raw_payload"],
+            ingested_by=user["user_id"],
+            external_meeting_id=appointment.get("external_meeting_id"),
+        )
+        return {
+            "success": True,
+            "provider": result["provider"],
+            "fetch_source": "api",
+            "ingestion_result": ingest_result,
+        }
+
+    return result
+
+
+@router.post("/{appointment_id}/ingest-file")
+async def ingest_file(
+    appointment_id: str,
+    request: Request,
+    file: UploadFile = File(...),
+    provider: str = Form("zoom"),
+):
+    """
+    Ingest attendance from a CSV or JSON file upload.
+    Supports:
+    - Zoom CSV export (Name, Email, Join Time, Leave Time, Duration)
+    - JSON format (same as manual JSON input)
+    """
+    user = await get_current_user(request)
+
+    appointment = db.appointments.find_one(
+        {"appointment_id": appointment_id}, {"_id": 0}
+    )
+    if not appointment:
+        raise HTTPException(status_code=404, detail="Rendez-vous introuvable")
+    if appointment.get("organizer_id") != user["user_id"]:
+        raise HTTPException(status_code=403, detail="Seul l'organisateur peut importer les preuves")
+
+    content = await file.read()
+    filename = (file.filename or "").lower()
+
+    try:
+        if filename.endswith(".csv"):
+            raw_payload = _parse_csv_to_payload(content, provider)
+        elif filename.endswith(".json"):
+            raw_payload = json.loads(content.decode("utf-8"))
+        else:
+            # Try JSON first, then CSV
+            try:
+                raw_payload = json.loads(content.decode("utf-8"))
+            except (json.JSONDecodeError, UnicodeDecodeError):
+                raw_payload = _parse_csv_to_payload(content, provider)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Erreur de parsing du fichier: {str(e)}")
+
+    result = ingest_video_attendance(
+        appointment_id=appointment_id,
+        provider_name=provider,
+        raw_payload=raw_payload,
+        ingested_by=user["user_id"],
+        external_meeting_id=appointment.get("external_meeting_id"),
+    )
+
+    if result.get("error"):
+        raise HTTPException(status_code=400, detail=result["error"])
+
+    return result
+
+
+@router.get("/provider-status")
+async def provider_status_endpoint(request: Request):
+    """Check which video providers are configured and ready."""
+    await get_current_user(request)
+    return get_provider_status()
+
+
+def _parse_csv_to_payload(content: bytes, provider: str) -> dict:
+    """Parse CSV file to standard attendance payload format."""
+    text = content.decode("utf-8-sig")  # Handle BOM
+    reader = csv.DictReader(io.StringIO(text))
+
+    participants = []
+    for row in reader:
+        # Normalize column names (Zoom CSV format varies)
+        name = row.get("Name (Original Name)") or row.get("Name") or row.get("Nom") or row.get("name") or ""
+        email = row.get("User Email") or row.get("Email") or row.get("email") or row.get("Email Address") or ""
+        join_time = row.get("Join Time") or row.get("join_time") or row.get("Heure d'arrivée") or ""
+        leave_time = row.get("Leave Time") or row.get("leave_time") or row.get("Heure de départ") or ""
+        duration_str = row.get("Duration (Minutes)") or row.get("Duration") or row.get("duration") or row.get("Durée (Minutes)") or ""
+
+        # Convert duration to seconds if in minutes
+        duration_seconds = None
+        if duration_str:
+            try:
+                duration_val = float(duration_str.strip())
+                if duration_val < 500:  # Likely minutes
+                    duration_seconds = int(duration_val * 60)
+                else:
+                    duration_seconds = int(duration_val)
+            except ValueError:
+                pass
+
+        if name.strip() or email.strip():
+            p = {"name": name.strip(), "email": email.strip()}
+            if join_time.strip():
+                p["join_time"] = join_time.strip()
+            if leave_time.strip():
+                p["leave_time"] = leave_time.strip()
+            if duration_seconds is not None:
+                p["duration"] = duration_seconds
+            participants.append(p)
+
+    if not participants:
+        raise ValueError("Aucun participant trouvé dans le fichier CSV")
+
+    return {"meeting_id": "csv-import", "participants": participants}
+
 
 
 @router.get("/{appointment_id}")

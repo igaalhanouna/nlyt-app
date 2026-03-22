@@ -61,7 +61,7 @@ class ZoomAdapter(VideoProviderAdapter):
         payload_hash = hashlib.sha256(json.dumps(raw_payload, sort_keys=True, default=str).encode()).hexdigest()[:16]
 
         for p in participants:
-            email = (p.get("user_email") or "").strip().lower() or None
+            email = (p.get("user_email") or p.get("email") or "").strip().lower() or None
             name = (p.get("name") or "").strip() or None
             join_time = p.get("join_time", "")
             leave_time = p.get("leave_time")

@@ -216,7 +216,9 @@ class EmailService:
         cancellation_deadline_hours: int = None,
         appointment_id: str = None,
         ics_link: str = None,
-        appointment_timezone: str = 'Europe/Paris'
+        appointment_timezone: str = 'Europe/Paris',
+        meeting_join_url: str = None,
+        meeting_provider: str = None
     ):
         """Send invitation email with full appointment details and ICS calendar link"""
         formatted_date = format_email_datetime(appointment_datetime, appointment_timezone)
@@ -241,6 +243,24 @@ class EmailService:
         
         # Build location info
         location_display = location if location else "Non spécifié"
+        
+        # Build meeting link section for video appointments
+        meeting_section = ""
+        if meeting_join_url:
+            provider_label = {"zoom": "Zoom", "teams": "Microsoft Teams", "meet": "Google Meet"}.get(
+                (meeting_provider or "").lower(), meeting_provider or "Visioconférence"
+            )
+            meeting_section = f"""
+                        <p style="margin: 8px 0; color: #64748B;">
+                            <strong>🖥️ Visioconférence :</strong> {provider_label}
+                        </p>
+                        <div style="text-align: center; margin: 12px 0;">
+                            <a href="{meeting_join_url}" style="display: inline-block; padding: 10px 24px; background: #6366F1; color: white; text-decoration: none; border-radius: 6px; font-size: 14px; font-weight: bold;">
+                                Rejoindre la réunion {provider_label}
+                            </a>
+                        </div>
+            """
+            location_display = f"En ligne ({provider_label})"
         
         # Build ICS calendar link section
         calendar_section = ""
@@ -290,6 +310,7 @@ class EmailService:
                         <p style="margin: 8px 0; color: #64748B;">
                             <strong>📍 Lieu :</strong> {location_display}
                         </p>
+                        {meeting_section}
                         {penalty_info}
                         {deadline_info}
                     </div>

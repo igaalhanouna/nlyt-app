@@ -179,7 +179,9 @@ async def create_appointment(appointment: AppointmentCreate, request: Request):
                         cancellation_deadline_hours=appointment.cancellation_deadline_hours,
                         appointment_id=appointment_id,
                         ics_link=ics_link,
-                        appointment_timezone=appointment.appointment_timezone or 'Europe/Paris'
+                        appointment_timezone=appointment.appointment_timezone or 'Europe/Paris',
+                        meeting_join_url=appointment.meeting_join_url,
+                        meeting_provider=appointment.meeting_provider
                     )
                 except Exception as e:
                     # Log error but don't fail the appointment creation
@@ -200,12 +202,43 @@ async def create_appointment(appointment: AppointmentCreate, request: Request):
         perform_auto_sync(user['user_id'], appointment_id, appointment_doc)
     except Exception as e:
         print(f"[AUTO-SYNC] Error during auto-sync: {e}")
-    
-    return {
+
+    # Auto-create meeting if video appointment with a configured provider (non-blocking)
+    meeting_result = None
+    if appointment.appointment_type == "video" and appointment.meeting_provider:
+        try:
+            from services.meeting_provider_service import create_meeting_for_appointment
+            meeting_result = create_meeting_for_appointment(
+                appointment_id=appointment_id,
+                provider=appointment.meeting_provider,
+                title=appointment.title,
+                start_datetime=utc_start,
+                duration_minutes=appointment.duration_minutes,
+                timezone_str=appointment.appointment_timezone or 'UTC',
+                organizer_user_id=user['user_id'],
+            )
+            if meeting_result.get("success"):
+                print(f"[MEETING] Auto-created {appointment.meeting_provider} meeting: {meeting_result.get('join_url')}")
+        except Exception as e:
+            print(f"[MEETING] Non-blocking error creating meeting: {e}")
+            meeting_result = {"error": str(e)}
+
+    response = {
         "appointment_id": appointment_id,
         "policy_snapshot_id": snapshot['snapshot_id'],
         "message": "Rendez-vous créé avec succès"
     }
+    if meeting_result and meeting_result.get("success"):
+        response["meeting"] = {
+            "join_url": meeting_result.get("join_url"),
+            "external_meeting_id": meeting_result.get("external_meeting_id"),
+            "host_url": meeting_result.get("host_url"),
+            "provider": meeting_result.get("provider"),
+        }
+    elif meeting_result and meeting_result.get("error"):
+        response["meeting_warning"] = meeting_result["error"]
+
+    return response
 
 @router.get("/")
 async def list_appointments(workspace_id: str = None, request: Request = None):

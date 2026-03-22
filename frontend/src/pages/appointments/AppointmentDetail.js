@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { appointmentAPI, participantAPI, calendarAPI, invitationAPI, attendanceAPI, checkinAPI, modificationAPI, videoEvidenceAPI } from '../../services/api';
 import { Button } from '../../components/ui/button';
-import { ArrowLeft, Calendar, MapPin, Video, Clock, Users, Ban, Check, X, AlertTriangle, Download, Heart, ShieldCheck, CreditCard, RefreshCw, Loader2, Zap, ClipboardCheck, Eye, UserX, UserCheck, HelpCircle, ChevronDown, ScanLine, QrCode, MapPinCheck, ExternalLink, Timer, Navigation, Pencil, Save, Send, FileEdit, Upload, Monitor, Shield, FileJson, Link2, UserCog } from 'lucide-react';
+import { ArrowLeft, Calendar, MapPin, Video, Clock, Users, Ban, Check, X, AlertTriangle, Download, Heart, ShieldCheck, CreditCard, RefreshCw, Loader2, Zap, ClipboardCheck, Eye, UserX, UserCheck, HelpCircle, ChevronDown, ScanLine, QrCode, MapPinCheck, ExternalLink, Timer, Navigation, Pencil, Save, Send, FileEdit, Upload, Monitor, Shield, FileJson, Link2, UserCog, FileUp, PlayCircle, Settings2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDateTimeFr, formatTimeFr, formatEvidenceDateFr, parseUTC, utcToLocalInput, localInputToUTC } from '../../utils/dateFormat';
 import { Input } from '../../components/ui/input';
@@ -41,6 +41,12 @@ export default function AppointmentDetail() {
   });
   const [ingestingVideo, setIngestingVideo] = useState(false);
   const [videoIngestionLogs, setVideoIngestionLogs] = useState([]);
+  const [creatingMeeting, setCreatingMeeting] = useState(false);
+  const [fetchingAttendance, setFetchingAttendance] = useState(false);
+  const [ingestMode, setIngestMode] = useState('file'); // 'file' or 'json'
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [csvPreview, setCsvPreview] = useState(null);
+  const [uploadingFile, setUploadingFile] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -475,6 +481,102 @@ export default function AppointmentDetail() {
       toast.error(err.response?.data?.detail || 'Erreur lors de l\'ingestion');
     } finally {
       setIngestingVideo(false);
+    }
+  };
+
+  const handleCreateMeeting = async () => {
+    setCreatingMeeting(true);
+    try {
+      const res = await videoEvidenceAPI.createMeeting(id);
+      const data = res.data;
+      if (data.already_exists) {
+        toast.info('La réunion existe déjà.');
+      } else {
+        toast.success(`Réunion ${data.provider} créée ! Lien : ${data.join_url ? 'disponible' : 'en attente'}`);
+      }
+      loadData();
+    } catch (err) {
+      const detail = err.response?.data?.detail || 'Erreur lors de la création de la réunion';
+      if (err.response?.status === 424) {
+        toast.error(`Configuration requise : ${detail}`);
+      } else {
+        toast.error(detail);
+      }
+    } finally {
+      setCreatingMeeting(false);
+    }
+  };
+
+  const handleFetchAttendance = async () => {
+    setFetchingAttendance(true);
+    try {
+      const res = await videoEvidenceAPI.fetchAttendance(id);
+      const data = res.data;
+      if (data.ingestion_result) {
+        const ir = data.ingestion_result;
+        toast.success(`Présences récupérées via API : ${ir.records_created || 0} preuve(s), ${ir.matched?.length || 0} matchée(s)`);
+      } else {
+        toast.success('Données de présence récupérées.');
+      }
+      loadData();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Erreur lors de la récupération des présences');
+    } finally {
+      setFetchingAttendance(false);
+    }
+  };
+
+  const handleFileSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setSelectedFile(file);
+    setCsvPreview(null);
+
+    // Preview CSV/JSON content
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const text = ev.target.result;
+      try {
+        if (file.name.endsWith('.csv')) {
+          const lines = text.split('\n').filter(l => l.trim());
+          const headers = lines[0]?.split(',').map(h => h.trim().replace(/"/g, ''));
+          const rows = lines.slice(1, 6).map(line => {
+            const vals = line.split(',').map(v => v.trim().replace(/"/g, ''));
+            const obj = {};
+            headers.forEach((h, i) => { obj[h] = vals[i] || ''; });
+            return obj;
+          });
+          setCsvPreview({ type: 'csv', headers, rows, total: lines.length - 1 });
+        } else {
+          const json = JSON.parse(text);
+          const participants = json.participants || json.attendanceRecords || [];
+          setCsvPreview({ type: 'json', total: participants.length, participants: participants.slice(0, 5) });
+        }
+      } catch {
+        setCsvPreview({ type: 'error', message: 'Impossible de lire le fichier' });
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleFileUpload = async () => {
+    if (!selectedFile) return;
+    setUploadingFile(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+      formData.append('provider', videoIngestForm.provider);
+      const res = await videoEvidenceAPI.ingestFile(id, formData);
+      const data = res.data;
+      toast.success(`Import terminé : ${data.records_created} preuve(s), ${data.matched?.length || 0} matchée(s), ${data.unmatched?.length || 0} non-matchée(s)`);
+      setSelectedFile(null);
+      setCsvPreview(null);
+      setShowVideoIngest(false);
+      loadData();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Erreur lors de l\'import du fichier');
+    } finally {
+      setUploadingFile(false);
     }
   };
 
@@ -1208,28 +1310,71 @@ export default function AppointmentDetail() {
                   </span>
                 )}
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowVideoIngest(!showVideoIngest)}
-                data-testid="toggle-video-ingest-btn"
-              >
-                <Upload className="w-4 h-4 mr-1" />
-                Importer un rapport
-              </Button>
+              <div className="flex gap-2">
+                {/* Create Meeting button — shown if no meeting link yet */}
+                {!appointment.meeting_join_url && appointment.meeting_provider && (
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={handleCreateMeeting}
+                    disabled={creatingMeeting}
+                    data-testid="create-meeting-btn"
+                  >
+                    {creatingMeeting ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <PlayCircle className="w-4 h-4 mr-1" />}
+                    Créer la réunion
+                  </Button>
+                )}
+                {/* Fetch attendance button — shown if meeting was created via API */}
+                {appointment.meeting_join_url && appointment.meeting_provider && (appointment.meeting_provider || '').toLowerCase() !== 'meet' && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleFetchAttendance}
+                    disabled={fetchingAttendance}
+                    data-testid="fetch-attendance-btn"
+                  >
+                    {fetchingAttendance ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <RefreshCw className="w-4 h-4 mr-1" />}
+                    Récupérer les présences
+                  </Button>
+                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowVideoIngest(!showVideoIngest)}
+                  data-testid="toggle-video-ingest-btn"
+                >
+                  <Upload className="w-4 h-4 mr-1" />
+                  Import manuel
+                </Button>
+              </div>
             </div>
 
-            {/* Ingestion Form */}
+            {/* Ingestion Form — redesigned with file upload + JSON mode */}
             {showVideoIngest && (
               <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-5 mb-5" data-testid="video-ingest-form">
-                <div className="flex items-center gap-2 mb-3">
-                  <FileJson className="w-4 h-4 text-indigo-600" />
-                  <p className="text-sm font-semibold text-indigo-900">Importer un rapport de présence</p>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <FileJson className="w-4 h-4 text-indigo-600" />
+                    <p className="text-sm font-semibold text-indigo-900">Importer un rapport de présence</p>
+                  </div>
+                  <div className="flex gap-1 bg-indigo-100 rounded-md p-0.5">
+                    <button
+                      onClick={() => setIngestMode('file')}
+                      className={`text-xs px-3 py-1 rounded ${ingestMode === 'file' ? 'bg-white text-indigo-700 shadow-sm font-medium' : 'text-indigo-500'}`}
+                      data-testid="ingest-mode-file"
+                    >
+                      Fichier (CSV/JSON)
+                    </button>
+                    <button
+                      onClick={() => setIngestMode('json')}
+                      className={`text-xs px-3 py-1 rounded ${ingestMode === 'json' ? 'bg-white text-indigo-700 shadow-sm font-medium' : 'text-indigo-500'}`}
+                      data-testid="ingest-mode-json"
+                    >
+                      JSON avancé
+                    </button>
+                  </div>
                 </div>
-                <p className="text-xs text-indigo-700 mb-4">
-                  Collez le rapport de présence JSON de votre provider (Zoom, Teams ou Google Meet).
-                  Le système analysera les participants et créera les preuves correspondantes.
-                </p>
+
                 <div className="grid md:grid-cols-3 gap-3 mb-3">
                   <div>
                     <Label htmlFor="video-provider" className="text-xs text-slate-700">Provider</Label>
@@ -1268,23 +1413,108 @@ export default function AppointmentDetail() {
                     />
                   </div>
                 </div>
-                <div>
-                  <Label htmlFor="video-raw-json" className="text-xs text-slate-700">Rapport de présence (JSON)</Label>
-                  <textarea
-                    id="video-raw-json"
-                    data-testid="video-raw-json-input"
-                    rows={6}
-                    value={videoIngestForm.raw_json}
-                    onChange={(e) => setVideoIngestForm({...videoIngestForm, raw_json: e.target.value})}
-                    placeholder={videoIngestForm.provider === 'zoom'
-                      ? '{\n  "meeting_id": "123456789",\n  "participants": [\n    {"user_email": "john@example.com", "name": "John Doe", "join_time": "2026-01-01T10:00:00Z", "leave_time": "2026-01-01T11:00:00Z", "duration": 3600}\n  ]\n}'
-                      : videoIngestForm.provider === 'teams'
-                      ? '{\n  "meeting_id": "AAMkAG...",\n  "attendanceRecords": [\n    {"emailAddress": "john@example.com", "identity": {"displayName": "John Doe"}, "totalAttendanceInSeconds": 3600, "attendanceIntervals": [{"joinDateTime": "2026-01-01T10:00:00Z", "leaveDateTime": "2026-01-01T11:00:00Z"}]}\n  ]\n}'
-                      : '{\n  "meeting_id": "abc-defg-hij",\n  "participants": [\n    {"name": "John Doe", "email": "john@example.com", "join_time": "2026-01-01T10:00:00Z", "leave_time": "2026-01-01T11:00:00Z", "duration": 3600}\n  ]\n}'
-                    }
-                    className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono"
-                  />
-                </div>
+
+                {/* File upload mode */}
+                {ingestMode === 'file' && (
+                  <div>
+                    <p className="text-xs text-indigo-700 mb-3">
+                      Importez le rapport de présence {videoIngestForm.provider === 'zoom' ? 'Zoom' : videoIngestForm.provider === 'teams' ? 'Teams' : 'Google Meet'} (export CSV ou JSON).
+                      {videoIngestForm.provider === 'zoom' && ' Dans Zoom, allez dans Reports > Meeting > Participants pour exporter le CSV.'}
+                    </p>
+                    <div className="border-2 border-dashed border-indigo-300 rounded-lg p-6 text-center bg-white/50 hover:bg-white transition-colors">
+                      <input
+                        type="file"
+                        accept=".csv,.json"
+                        onChange={handleFileSelect}
+                        className="hidden"
+                        id="attendance-file-input"
+                        data-testid="attendance-file-input"
+                      />
+                      <label htmlFor="attendance-file-input" className="cursor-pointer">
+                        <FileUp className="w-8 h-8 mx-auto mb-2 text-indigo-400" />
+                        <p className="text-sm text-indigo-700 font-medium">Cliquez pour choisir un fichier</p>
+                        <p className="text-xs text-indigo-500 mt-1">CSV ou JSON — max 5 Mo</p>
+                      </label>
+                    </div>
+
+                    {/* File preview */}
+                    {selectedFile && (
+                      <div className="mt-3 p-3 bg-white rounded-lg border border-indigo-200">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <FileJson className="w-4 h-4 text-indigo-500" />
+                            <span className="text-sm font-medium text-slate-700">{selectedFile.name}</span>
+                            <span className="text-xs text-slate-400">({(selectedFile.size / 1024).toFixed(1)} Ko)</span>
+                          </div>
+                          <button onClick={() => { setSelectedFile(null); setCsvPreview(null); }} className="text-xs text-red-500 hover:text-red-700">Supprimer</button>
+                        </div>
+
+                        {/* CSV/JSON preview */}
+                        {csvPreview && csvPreview.type === 'csv' && (
+                          <div>
+                            <p className="text-xs text-slate-500 mb-2">{csvPreview.total} participant(s) détecté(s) — aperçu :</p>
+                            <div className="overflow-x-auto">
+                              <table className="w-full text-xs">
+                                <thead>
+                                  <tr className="bg-slate-50">
+                                    {csvPreview.headers?.slice(0, 5).map((h, i) => (
+                                      <th key={i} className="px-2 py-1 text-left font-medium text-slate-600 border-b">{h}</th>
+                                    ))}
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {csvPreview.rows?.map((row, i) => (
+                                    <tr key={i} className="border-b border-slate-100">
+                                      {csvPreview.headers?.slice(0, 5).map((h, j) => (
+                                        <td key={j} className="px-2 py-1 text-slate-500">{row[h] || '—'}</td>
+                                      ))}
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                            {csvPreview.total > 5 && <p className="text-xs text-slate-400 mt-1">...et {csvPreview.total - 5} autre(s)</p>}
+                          </div>
+                        )}
+                        {csvPreview && csvPreview.type === 'json' && (
+                          <div>
+                            <p className="text-xs text-slate-500 mb-1">{csvPreview.total} participant(s) détecté(s)</p>
+                            {csvPreview.participants?.map((p, i) => (
+                              <div key={i} className="text-xs text-slate-500 py-0.5">
+                                {p.user_email || p.emailAddress || p.email || p.name || 'Anonyme'}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {csvPreview && csvPreview.type === 'error' && (
+                          <p className="text-xs text-red-500">{csvPreview.message}</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* JSON mode (advanced) */}
+                {ingestMode === 'json' && (
+                  <div>
+                    <Label htmlFor="video-raw-json" className="text-xs text-slate-700">Rapport de présence (JSON)</Label>
+                    <textarea
+                      id="video-raw-json"
+                      data-testid="video-raw-json-input"
+                      rows={6}
+                      value={videoIngestForm.raw_json}
+                      onChange={(e) => setVideoIngestForm({...videoIngestForm, raw_json: e.target.value})}
+                      placeholder={videoIngestForm.provider === 'zoom'
+                        ? '{\n  "meeting_id": "123456789",\n  "participants": [\n    {"user_email": "john@example.com", "name": "John Doe", "join_time": "2026-01-01T10:00:00Z", "leave_time": "2026-01-01T11:00:00Z", "duration": 3600}\n  ]\n}'
+                        : videoIngestForm.provider === 'teams'
+                        ? '{\n  "meeting_id": "AAMkAG...",\n  "attendanceRecords": [\n    {"emailAddress": "john@example.com", "identity": {"displayName": "John Doe"}, "totalAttendanceInSeconds": 3600, "attendanceIntervals": [{"joinDateTime": "2026-01-01T10:00:00Z", "leaveDateTime": "2026-01-01T11:00:00Z"}]}\n  ]\n}'
+                        : '{\n  "meeting_id": "abc-defg-hij",\n  "participants": [\n    {"name": "John Doe", "email": "john@example.com", "join_time": "2026-01-01T10:00:00Z", "leave_time": "2026-01-01T11:00:00Z", "duration": 3600}\n  ]\n}'
+                      }
+                      className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono"
+                    />
+                  </div>
+                )}
+
                 {videoIngestForm.provider === 'meet' && (
                   <div className="flex items-start gap-2 mt-3 p-2.5 bg-amber-50 border border-amber-200 rounded-md">
                     <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
@@ -1295,11 +1525,18 @@ export default function AppointmentDetail() {
                   </div>
                 )}
                 <div className="flex gap-2 mt-4">
-                  <Button onClick={handleVideoIngest} disabled={ingestingVideo || !videoIngestForm.raw_json.trim()} size="sm" data-testid="submit-video-ingest-btn">
-                    {ingestingVideo ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Upload className="w-4 h-4 mr-1" />}
-                    Analyser et ingérer
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={() => setShowVideoIngest(false)}>Annuler</Button>
+                  {ingestMode === 'file' ? (
+                    <Button onClick={handleFileUpload} disabled={uploadingFile || !selectedFile} size="sm" data-testid="submit-file-upload-btn">
+                      {uploadingFile ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Upload className="w-4 h-4 mr-1" />}
+                      Analyser et ingérer ({selectedFile?.name || 'aucun fichier'})
+                    </Button>
+                  ) : (
+                    <Button onClick={handleVideoIngest} disabled={ingestingVideo || !videoIngestForm.raw_json.trim()} size="sm" data-testid="submit-video-ingest-btn">
+                      {ingestingVideo ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Upload className="w-4 h-4 mr-1" />}
+                      Analyser et ingérer
+                    </Button>
+                  )}
+                  <Button variant="outline" size="sm" onClick={() => { setShowVideoIngest(false); setSelectedFile(null); setCsvPreview(null); }}>Annuler</Button>
                 </div>
               </div>
             )}

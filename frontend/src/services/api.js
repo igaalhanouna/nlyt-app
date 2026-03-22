@@ -135,9 +135,13 @@ export const modificationAPI = {
 
 export const videoEvidenceAPI = {
   ingest: (appointmentId, data) => api.post(`/api/video-evidence/${appointmentId}/ingest`, data),
+  ingestFile: (appointmentId, formData) => api.post(`/api/video-evidence/${appointmentId}/ingest-file`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
   get: (appointmentId) => api.get(`/api/video-evidence/${appointmentId}`),
   getLogs: (appointmentId) => api.get(`/api/video-evidence/${appointmentId}/logs`),
   getLog: (appointmentId, logId) => api.get(`/api/video-evidence/${appointmentId}/log/${logId}`),
+  createMeeting: (appointmentId, data) => api.post(`/api/video-evidence/${appointmentId}/create-meeting`, data || {}),
+  fetchAttendance: (appointmentId) => api.post(`/api/video-evidence/${appointmentId}/fetch-attendance`),
+  providerStatus: () => api.get(`/api/video-evidence/provider-status`),
 };
 
 export default api;
