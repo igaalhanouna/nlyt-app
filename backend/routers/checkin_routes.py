@@ -7,6 +7,8 @@ from fastapi.responses import Response
 from pymongo import MongoClient
 from pydantic import BaseModel
 from typing import Optional
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 import os
 import sys
 import io
@@ -26,6 +28,7 @@ from services.evidence_service import (
     _get_qr_window,
     QR_ROTATION_SECONDS,
 )
+from rate_limiter import limiter
 
 router = APIRouter()
 
@@ -80,7 +83,8 @@ def _resolve_participant(invitation_token: str) -> tuple:
 # --- PUBLIC ENDPOINTS (token-based) ---
 
 @router.post("/manual")
-async def manual_checkin(body: ManualCheckinRequest):
+@limiter.limit("20/minute")
+async def manual_checkin(request: Request, body: ManualCheckinRequest):
     """Participant manual check-in: 'Je suis arrivé'"""
     participant, appointment = _resolve_participant(body.invitation_token)
 
@@ -103,7 +107,8 @@ async def manual_checkin(body: ManualCheckinRequest):
 
 
 @router.post("/qr/verify")
-async def qr_verify(body: QRVerifyRequest):
+@limiter.limit("30/minute")
+async def qr_verify(request: Request, body: QRVerifyRequest):
     """Verify a scanned QR code and create evidence."""
     participant, appointment = _resolve_participant(body.invitation_token)
 
@@ -120,7 +125,8 @@ async def qr_verify(body: QRVerifyRequest):
 
 
 @router.post("/gps")
-async def gps_checkin(body: GPSCheckinRequest):
+@limiter.limit("20/minute")
+async def gps_checkin(request: Request, body: GPSCheckinRequest):
     """Submit GPS evidence (complementary proof)."""
     participant, appointment = _resolve_participant(body.invitation_token)
 

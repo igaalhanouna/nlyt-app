@@ -3,12 +3,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 import os
 
 load_dotenv()
 
 from routers import auth, workspaces, appointments, participants, contracts, calendar_routes, disputes, admin, webhooks, debug, invitations, user_settings, charity_associations, attendance_routes, checkin_routes, modification_routes, video_evidence_routes
 from scheduler import start_scheduler, stop_scheduler
+from rate_limiter import limiter
 
 
 @asynccontextmanager
@@ -21,12 +24,25 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="NLYT API", version="1.0.0", lifespan=lifespan)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-CORS_ORIGINS = os.environ.get('CORS_ORIGINS', '*').split(',')
+# ── CORS ──
+# Production: restrict to FRONTEND_URL domain only
+# Dev/Preview: falls back to '*' if CORS_ORIGINS not set
+FRONTEND_URL = os.environ.get('FRONTEND_URL', '').rstrip('/')
+CORS_RAW = os.environ.get('CORS_ORIGINS', '')
+
+if CORS_RAW and CORS_RAW != '*':
+    CORS_ORIGINS = [o.strip() for o in CORS_RAW.split(',') if o.strip()]
+elif FRONTEND_URL:
+    CORS_ORIGINS = [FRONTEND_URL]
+else:
+    CORS_ORIGINS = ['*']
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=CORS_ORIGINS if CORS_ORIGINS != ['*'] else ['*'],
+    allow_origins=CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

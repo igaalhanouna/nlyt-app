@@ -18,7 +18,7 @@ SaaS de gestion d'assiduité avec garanties financières. NLYT est le **point ce
 12. Synchronisation calendrier (Google/Outlook)
 13. **Garantie Organisateur Préalable** : l'organisateur s'engage financièrement AVANT d'engager les autres
 
-## Guarantee-First Architecture (NEW - March 2026)
+## Guarantee-First Architecture (March 2026)
 ### Business Rule
 Un RDV ne devient jamais "active" tant que la garantie organisateur n'est pas validée.
 - `pending_organizer_guarantee` = RDV créé mais invitations NON envoyées
@@ -39,6 +39,34 @@ Un RDV ne devient jamais "active" tant que la garantie organisateur n'est pas va
 - Auto-guarantee: PaymentMethod réutilisé (pas de nouvel appel Stripe)
 - Capture (no-show): `PaymentIntent.create(off_session=True, confirm=True)`
 
+## Security Architecture (March 2026)
+### CORS
+- Production: restreint au `FRONTEND_URL` uniquement
+- Config via `CORS_ORIGINS` en `.env` (supporte liste CSV)
+- Fallback: si vide, utilise `FRONTEND_URL`
+
+### Rate Limiting (slowapi)
+| Endpoint | Limite | Raison |
+|----------|--------|--------|
+| POST /auth/login | 10/min | Anti brute-force |
+| POST /auth/register | 5/min | Anti spam comptes |
+| POST /auth/forgot-password | 3/min | Anti abus email |
+| POST /auth/reset-password | 5/min | Anti brute-force |
+| POST /auth/resend-verification | 3/min | Anti spam email |
+| GET /auth/verify-email | 10/min | Anti scraping |
+| GET /invitations/{token} | 30/min | Anti scraping |
+| POST /invitations/{token}/respond | 10/min | Anti spam |
+| POST /invitations/{token}/reconfirm | 5/min | Anti abus Stripe |
+| POST /invitations/{token}/cancel | 5/min | Anti abus |
+| POST /checkin/manual | 20/min | Anti spam evidence |
+| POST /checkin/qr/verify | 30/min | Anti brute-force QR |
+| POST /checkin/gps | 20/min | Anti spam GPS |
+| Default (all others) | 200/min | Protection globale |
+
+### IP Resolution
+- `X-Real-IP` > `X-Forwarded-For` > `request.client.host`
+- Compatible reverse proxy / CDN / Kubernetes ingress
+
 ## Integrations Architecture
 ### Page Paramètres
 | Carte | Route | Description |
@@ -48,16 +76,8 @@ Un RDV ne devient jamais "active" tant que la garantie organisateur n'est pas va
 | Intégrations | /settings/integrations | Calendriers + visioconférence |
 | Paiement | /settings/payment | Carte par défaut pour garanties organisateur |
 
-### Provider Connection Model
-| Provider | Modèle | Stockage |
-|----------|--------|----------|
-| Google Calendar + Meet | OAuth per-user | `calendar_connections` |
-| Outlook | OAuth per-user | `calendar_connections` |
-| Zoom | User config + Platform env | `user_settings` + env vars |
-| Teams | User config + Platform env | `user_settings` + env vars |
-
 ## Technical Stack
-Frontend: React + TailwindCSS + Shadcn/UI | Backend: FastAPI + Python + MongoDB
+Frontend: React + TailwindCSS + Shadcn/UI | Backend: FastAPI + Python + MongoDB + slowapi
 Email: Resend | Payments: Stripe | Video: Zoom API, Teams Graph API, Google Calendar API
 
 ## Key DB Schema
@@ -67,16 +87,11 @@ Email: Resend | Payments: Stripe | Video: Zoom API, Teams Graph API, Google Cale
 - `payment_guarantees`: source (default_payment_method | stripe_checkout)
 
 ## Testing
-- iteration_24: 17/17 (Video evidence MVP)
-- iteration_25: 13/13 (Meeting API integration)
-- iteration_26: 15/15 + full UI (Integrations page)
-- iteration_30: 16/16 frontend + 8/9 backend (Guarantee-First feature)
+- iteration_30: 16/16 frontend + 8/9 backend (1 skipped: impossible by design)
+- Manual revalidation: 7/7 critical scenarios
 - Credentials: testuser_audit@nlyt.app / Test1234!
 
 ## Backlog (Prioritized)
-### P0
-- Rate limiting and CORS restriction (security pre-launch)
-
 ### P1
 - Stripe Connect (automatic fund distribution)
 - Zoom real API keys configuration

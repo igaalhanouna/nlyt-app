@@ -6,11 +6,14 @@ from fastapi import APIRouter, HTTPException, Request
 from pymongo import MongoClient
 from pydantic import BaseModel
 from typing import Optional
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 import os
 import sys
 sys.path.append('/app/backend')
 from utils.date_utils import now_utc, now_utc_iso, format_datetime_fr, parse_iso_datetime, normalize_to_utc
 from datetime import datetime, timezone, timedelta
+from rate_limiter import limiter
 
 router = APIRouter()
 
@@ -25,7 +28,8 @@ class InvitationResponse(BaseModel):
 
 
 @router.get("/{token}")
-async def get_invitation_details(token: str):
+@limiter.limit("30/minute")
+async def get_invitation_details(request: Request, token: str):
     """
     Public endpoint to view invitation details via secure token.
     No authentication required.
@@ -173,7 +177,8 @@ async def get_invitation_details(token: str):
 
 
 @router.post("/{token}/respond")
-async def respond_to_invitation(token: str, response: InvitationResponse, request: Request):
+@limiter.limit("10/minute")
+async def respond_to_invitation(request: Request, token: str, response: InvitationResponse):
     """
     Public endpoint to accept or decline an invitation.
     
@@ -373,7 +378,8 @@ async def respond_to_invitation(token: str, response: InvitationResponse, reques
 
 
 @router.get("/{token}/guarantee-status")
-async def check_guarantee_status(token: str, session_id: str = None):
+@limiter.limit("30/minute")
+async def check_guarantee_status(request: Request, token: str, session_id: str = None):
     """
     Check the status of a payment guarantee for an invitation.
     Used after Stripe redirect to verify completion.
@@ -406,7 +412,8 @@ async def check_guarantee_status(token: str, session_id: str = None):
 
 
 @router.post("/{token}/reconfirm-guarantee")
-async def reconfirm_guarantee(token: str, request: Request):
+@limiter.limit("5/minute")
+async def reconfirm_guarantee(request: Request, token: str):
     """
     Create a new Stripe checkout session to reconfirm a guarantee
     after a major modification flagged it for revalidation.
@@ -494,7 +501,8 @@ async def reconfirm_guarantee(token: str, request: Request):
 
 
 @router.post("/{token}/cancel")
-async def cancel_participation(token: str):
+@limiter.limit("5/minute")
+async def cancel_participation(request: Request, token: str):
     """
     Public endpoint to cancel participation after acceptance.
     Only allowed if cancellation deadline has not passed.

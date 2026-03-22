@@ -1,10 +1,13 @@
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, EmailStr
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 import sys
 import os
 sys.path.append('/app/backend')
 from models.schemas import UserCreate, UserLogin, PasswordResetRequest, PasswordReset, TokenResponse
 from services.auth_service import AuthService
+from rate_limiter import limiter
 
 router = APIRouter()
 
@@ -16,7 +19,8 @@ def get_frontend_url(request: Request) -> str:
     return str(request.base_url).rstrip('/')
 
 @router.post("/register")
-async def register(user: UserCreate, request: Request):
+@limiter.limit("5/minute")
+async def register(request: Request, user: UserCreate):
     base_url = get_frontend_url(request)
     result = await AuthService.register_user(
         email=user.email,
@@ -33,7 +37,8 @@ async def register(user: UserCreate, request: Request):
     return result
 
 @router.post("/login")
-async def login(credentials: UserLogin):
+@limiter.limit("10/minute")
+async def login(request: Request, credentials: UserLogin):
     result = await AuthService.login_user(credentials.email, credentials.password)
     
     if not result['success']:
@@ -52,7 +57,8 @@ async def login(credentials: UserLogin):
     }
 
 @router.get("/verify-email")
-async def verify_email(token: str):
+@limiter.limit("10/minute")
+async def verify_email(request: Request, token: str):
     result = await AuthService.verify_email(token)
     
     if not result['success']:
@@ -61,13 +67,15 @@ async def verify_email(token: str):
     return result
 
 @router.post("/forgot-password")
-async def forgot_password(request_data: PasswordResetRequest, request: Request):
+@limiter.limit("3/minute")
+async def forgot_password(request: Request, request_data: PasswordResetRequest):
     base_url = get_frontend_url(request)
     result = await AuthService.request_password_reset(request_data.email, base_url)
     return result
 
 @router.post("/reset-password")
-async def reset_password(reset_data: PasswordReset):
+@limiter.limit("5/minute")
+async def reset_password(request: Request, reset_data: PasswordReset):
     result = await AuthService.reset_password(reset_data.token, reset_data.new_password)
     
     if not result['success']:
@@ -76,7 +84,8 @@ async def reset_password(reset_data: PasswordReset):
     return result
 
 @router.post("/resend-verification")
-async def resend_verification_email(request_data: PasswordResetRequest, request: Request):
+@limiter.limit("3/minute")
+async def resend_verification_email(request: Request, request_data: PasswordResetRequest):
     base_url = get_frontend_url(request)
     result = await AuthService.resend_verification_email(request_data.email, base_url)
     
