@@ -298,7 +298,7 @@ export default function AppointmentWizard() {
       };
 
       const response = await appointmentAPI.create(payload);
-      toast.success('Rendez-vous créé avec vos paramètres par défaut');
+      toast.success('Rendez-vous créé en express avec vos paramètres par défaut');
       navigate(`/appointments/${response.data.appointment_id}`);
     } catch (error) {
       console.error('Quick create error:', error);
@@ -1038,7 +1038,7 @@ export default function AppointmentWizard() {
                   ) : (
                     <Zap className="w-4 h-4 mr-2" />
                   )}
-                  Valider avec les paramètres du profil
+                  Validation express avec les paramètres du profil
                 </Button>
               )}
 
