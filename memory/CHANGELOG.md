@@ -1,5 +1,38 @@
 # NLYT - Changelog
 
+## 2026-03-22 — Bugfix: Heure décalée +1h dans les emails
+
+### Cause racine
+`email_service.py` avait 5 blocs de parsing inline identiques qui traitaient les datetimes naïves comme UTC (`datetime.strptime` → `replace(tzinfo=utc)`). Or, `parse_iso_datetime` (le standard du projet) traite les datetimes naïves comme Europe/Paris. Résultat : si une datetime naïve atteignait l'email, elle était décalée de +1h (CET) ou +2h (CEST). De plus, `appointments.py` L171 passait la valeur brute du Pydantic au lieu de `utc_start`.
+
+### Correction
+- Créé `format_email_datetime(dt_string)` — **helper centralisé unique** pour TOUS les emails
+- Utilise `parse_iso_datetime` (gère UTC, offsets, naive legacy) + `format_datetime_fr(dt, 'Europe/Paris')`
+- Remplacé les 5 blocs inline dans `email_service.py`
+- Mis à jour `modification_routes.py`, `reminder_service.py`, `event_reminder_service.py`
+- Corrigé `appointments.py` L171 : `utc_start` au lieu de `appointment.start_datetime`
+
+### Règle email
+> Tous les emails utilisent `format_email_datetime()`. Aucun parsing datetime inline.
+> UTC → Europe/Paris. Naive legacy → interprété comme Europe/Paris (pas UTC).
+
+### Fichiers modifiés
+- `/app/backend/services/email_service.py` (helper + 5 remplacements)
+- `/app/backend/routers/modification_routes.py` (import + _build_changes_html)
+- `/app/backend/routers/appointments.py` (L171)
+- `/app/backend/services/reminder_service.py` (import + usage)
+- `/app/backend/services/event_reminder_service.py` (import + usage)
+
+### Tests (17/17 passés)
+- UTC CET: 13:00Z → 14:00 ✓
+- UTC CEST: 12:00Z → 14:00 ✓
+- Naive legacy: "14:00" → 14:00 (pas 16:00) ✓
+- DST transition: OK ✓
+- Edge cases (empty, None): OK ✓
+
+---
+
+
 ## 2026-03-22 — Bugfix: URLs cassées dans les emails de modification
 
 ### Cause racine
