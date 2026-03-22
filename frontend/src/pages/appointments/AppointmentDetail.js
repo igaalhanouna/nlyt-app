@@ -958,10 +958,10 @@ export default function AppointmentDetail() {
                       )}
                     </div>
                     {appointment.meeting_join_url ? (
-                      <div className="flex flex-col gap-1.5 mt-1.5">
-                        {/* Zoom: distinction hôte / participant */}
+                      <div className="flex flex-col gap-2 mt-1.5">
+                        {/* Meeting links */}
                         {appointment.meeting_host_url ? (
-                          <>
+                          <div className="flex flex-col gap-1.5">
                             <a
                               href={appointment.meeting_host_url}
                               target="_blank"
@@ -982,7 +982,7 @@ export default function AppointmentDetail() {
                               <ExternalLink className="w-3 h-3" />
                               Lien participant
                             </a>
-                          </>
+                          </div>
                         ) : (
                           <a
                             href={appointment.meeting_join_url}
@@ -995,12 +995,50 @@ export default function AppointmentDetail() {
                             Rejoindre la réunion
                           </a>
                         )}
-                        {/* Google Meet: avertissement compte créateur */}
-                        {appointment.meeting_provider_metadata?.creator_email && (
-                          <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-md px-2.5 py-1.5 mt-1" data-testid="meet-creator-hint">
-                            Réunion créée avec <span className="font-semibold">{appointment.meeting_provider_metadata.creator_email}</span>. Connectez-vous avec ce compte Google pour être reconnu comme hôte.
-                          </p>
-                        )}
+
+                        {/* Unified organizer identity block */}
+                        {(() => {
+                          const provider = (appointment.meeting_provider || '').toLowerCase();
+                          const metadata = appointment.meeting_provider_metadata || {};
+                          const creatorEmail = metadata.creator_email || metadata.host_email;
+                          const creatorName = metadata.creator_name;
+
+                          if (!creatorEmail && !appointment.meeting_host_url) return null;
+
+                          const providerLabel = provider === 'zoom' ? 'Zoom' :
+                            provider === 'teams' ? 'Microsoft Teams' :
+                            provider === 'meet' ? 'Google' : appointment.meeting_provider;
+
+                          const providerGuidance = provider === 'meet'
+                            ? 'Google identifie l\'organisateur uniquement via le compte connecté dans votre navigateur.'
+                            : provider === 'teams'
+                            ? 'Teams identifie l\'organisateur via votre compte Microsoft connecté.'
+                            : provider === 'zoom' && appointment.meeting_host_url
+                            ? 'Utilisez le lien "Démarrer la réunion" ci-dessus pour être reconnu automatiquement comme organisateur.'
+                            : 'Connectez-vous avec le bon compte pour être reconnu comme organisateur.';
+
+                          return (
+                            <div className="mt-2 p-3 bg-slate-50 border border-slate-200 rounded-lg" data-testid="organizer-identity-block">
+                              <p className="text-xs font-semibold text-slate-700 mb-1.5">Connexion en tant qu'organisateur</p>
+                              {creatorEmail && (
+                                <p className="text-xs text-slate-600 mb-1">
+                                  Réunion créée avec le compte {providerLabel} : <span className="font-semibold text-slate-800" data-testid="organizer-account-email">{creatorEmail}</span>
+                                  {creatorName && <span className="text-slate-400"> ({creatorName})</span>}
+                                </p>
+                              )}
+                              {!(provider === 'zoom' && appointment.meeting_host_url) && creatorEmail && (
+                                <p className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded px-2 py-1 mt-1.5" data-testid="organizer-identity-hint">
+                                  Pour être reconnu comme organisateur, rejoignez la réunion avec ce même compte. {providerGuidance}
+                                </p>
+                              )}
+                              {provider === 'zoom' && appointment.meeting_host_url && (
+                                <p className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-100 rounded px-2 py-1 mt-1.5" data-testid="organizer-identity-hint">
+                                  {providerGuidance}
+                                </p>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </div>
                     ) : appointment.meeting_provider !== 'external' ? (
                       <Button

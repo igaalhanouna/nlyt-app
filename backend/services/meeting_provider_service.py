@@ -95,6 +95,7 @@ class ZoomMeetingClient:
             "metadata": {
                 "uuid": data.get("uuid"),
                 "host_id": data.get("host_id"),
+                "host_email": data.get("host_email"),
                 "topic": data.get("topic"),
                 "created_at": data.get("created_at"),
             },
@@ -398,6 +399,15 @@ def create_meeting_for_appointment(
                 end_time=end_time,
                 user_id=azure_user_id,
             )
+
+            # Enrich Teams metadata with the organizer's Outlook email
+            outlook_conn = db.calendar_connections.find_one(
+                {"user_id": organizer_user_id, "provider": "outlook", "status": "connected"},
+                {"_id": 0, "outlook_email": 1, "outlook_name": 1},
+            )
+            if outlook_conn and result.get("metadata"):
+                result["metadata"]["creator_email"] = outlook_conn.get("outlook_email")
+                result["metadata"]["creator_name"] = outlook_conn.get("outlook_name")
 
         elif provider_lower in ("meet", "google meet", "google_meet"):
             if not _meet_client.is_configured():
