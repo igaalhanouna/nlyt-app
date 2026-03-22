@@ -349,7 +349,8 @@ async def respond_to_invitation(token: str, response: InvitationResponse, reques
                 penalty_currency=appointment.get('penalty_currency', 'EUR'),
                 cancellation_deadline_hours=appointment.get('cancellation_deadline_hours'),
                 ics_link=ics_link,
-                invitation_link=invitation_link
+                invitation_link=invitation_link,
+                appointment_timezone=appointment.get('appointment_timezone', 'Europe/Paris')
             )
         except Exception as e:
             # Log error but don't fail the acceptance
@@ -606,10 +607,10 @@ async def cancel_participation(token: str):
                 appointment_title=appointment.get('title', 'Rendez-vous'),
                 appointment_datetime=appointment.get('start_datetime', ''),
                 location=appointment.get('location') or appointment.get('meeting_provider'),
-                appointment_link=appointment_link
+                appointment_link=appointment_link,
+                appointment_timezone=appointment.get('appointment_timezone', 'Europe/Paris')
             )
     except Exception as e:
-        # Log error but don't fail the cancellation
         import logging
         logging.error(f"Failed to send cancellation notification: {e}")
     
@@ -678,9 +679,10 @@ async def resend_invitation(token: str, request: Request):
         organizer_name=organizer_name,
         appointment_title=appointment['title'],
         appointment_datetime=appointment.get('start_datetime', ''),
-        invitation_link=invitation_link
+        invitation_link=invitation_link,
+        appointment_timezone=appointment.get('appointment_timezone', 'Europe/Paris')
     )
-    
+
     if result.get('success'):
         # Update last sent timestamp
         db.participants.update_one(

@@ -136,6 +136,7 @@ class AppointmentCreate(BaseModel):
     charity_percent: float = Field(default=0.0, ge=0, le=100)
     charity_association_id: Optional[str] = None
     policy_template_id: Optional[str] = None
+    appointment_timezone: Optional[str] = None
     participants: Optional[List[ParticipantInput]] = []
     event_reminders: Optional[EventRemindersConfig] = None
 

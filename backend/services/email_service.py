@@ -10,20 +10,24 @@ from pathlib import Path
 from utils.date_utils import format_datetime_fr, parse_iso_datetime
 
 
-def format_email_datetime(dt_string: str) -> str:
+def format_email_datetime(dt_string: str, tz_name: str = 'Europe/Paris') -> str:
     """
     Centralized datetime formatting for all emails.
 
     Uses the project-standard parse_iso_datetime (handles UTC, offsets, and
     legacy naive strings interpreted as Europe/Paris) then converts to
-    Europe/Paris display via format_datetime_fr.
+    the appointment's timezone via format_datetime_fr.
 
     This is the SINGLE source of truth for email date rendering.
     Every email template MUST use this instead of inline parsing.
+
+    Args:
+        dt_string: ISO datetime string (UTC preferred)
+        tz_name: IANA timezone name from the appointment (default: Europe/Paris)
     """
     dt = parse_iso_datetime(dt_string)
     if dt:
-        return format_datetime_fr(dt, 'Europe/Paris')
+        return format_datetime_fr(dt, tz_name)
     return dt_string or ''
 
 # Load .env from backend directory
@@ -211,10 +215,11 @@ class EmailService:
         penalty_currency: str = "EUR",
         cancellation_deadline_hours: int = None,
         appointment_id: str = None,
-        ics_link: str = None
+        ics_link: str = None,
+        appointment_timezone: str = 'Europe/Paris'
     ):
         """Send invitation email with full appointment details and ICS calendar link"""
-        formatted_date = format_email_datetime(appointment_datetime)
+        formatted_date = format_email_datetime(appointment_datetime, appointment_timezone)
         
         # Build penalty info
         penalty_info = ""
@@ -329,10 +334,11 @@ class EmailService:
         penalty_currency: str = "EUR",
         cancellation_deadline_hours: int = None,
         ics_link: str = None,
-        invitation_link: str = None
+        invitation_link: str = None,
+        appointment_timezone: str = 'Europe/Paris'
     ):
         """Send confirmation email after participant accepts invitation, with ICS download link"""
-        formatted_date = format_email_datetime(appointment_datetime)
+        formatted_date = format_email_datetime(appointment_datetime, appointment_timezone)
         
         location_display = location if location else "Non spécifié"
         
@@ -436,10 +442,11 @@ class EmailService:
         appointment_title: str,
         appointment_datetime: str,
         location: str = None,
-        appointment_link: str = None
+        appointment_link: str = None,
+        appointment_timezone: str = 'Europe/Paris'
     ):
         """Send notification to organizer when a participant cancels their participation"""
-        formatted_date = format_email_datetime(appointment_datetime)
+        formatted_date = format_email_datetime(appointment_datetime, appointment_timezone)
         
         location_display = location if location else "Non spécifié"
         
@@ -515,10 +522,11 @@ class EmailService:
         organizer_name: str,
         appointment_title: str,
         appointment_datetime: str,
-        location: str = None
+        location: str = None,
+        appointment_timezone: str = 'Europe/Paris'
     ):
         """Send notification to participant when appointment is cancelled by organizer"""
-        formatted_date = format_email_datetime(appointment_datetime)
+        formatted_date = format_email_datetime(appointment_datetime, appointment_timezone)
         
         location_display = location if location else "Non spécifié"
         
@@ -585,10 +593,11 @@ class EmailService:
         organizer_name: str,
         appointment_title: str,
         appointment_datetime: str,
-        location: str = None
+        location: str = None,
+        appointment_timezone: str = 'Europe/Paris'
     ):
         """Send notification to participant when appointment is deleted by organizer"""
-        formatted_date = format_email_datetime(appointment_datetime)
+        formatted_date = format_email_datetime(appointment_datetime, appointment_timezone)
         
         location_display = location if location else "Non spécifié"
         

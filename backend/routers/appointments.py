@@ -121,6 +121,7 @@ async def create_appointment(appointment: AppointmentCreate, request: Request):
         "policy_snapshot_id": None,
         "event_reminders": event_reminders_config,
         "event_reminders_sent": {},
+        "appointment_timezone": appointment.appointment_timezone or 'Europe/Paris',
         "status": "draft",
         "created_at": now_utc_iso(),
         "updated_at": now_utc_iso()
@@ -175,7 +176,8 @@ async def create_appointment(appointment: AppointmentCreate, request: Request):
                         penalty_currency=appointment.penalty_currency,
                         cancellation_deadline_hours=appointment.cancellation_deadline_hours,
                         appointment_id=appointment_id,
-                        ics_link=ics_link
+                        ics_link=ics_link,
+                        appointment_timezone=appointment.appointment_timezone or 'Europe/Paris'
                     )
                 except Exception as e:
                     # Log error but don't fail the appointment creation
@@ -422,7 +424,8 @@ async def cancel_appointment(appointment_id: str, request: Request):
                 organizer_name=organizer_name,
                 appointment_title=appointment.get('title', 'Rendez-vous'),
                 appointment_datetime=appointment.get('start_datetime', ''),
-                location=appointment.get('location') or appointment.get('meeting_provider')
+                location=appointment.get('location') or appointment.get('meeting_provider'),
+                appointment_timezone=appointment.get('appointment_timezone', 'Europe/Paris')
             )
             notifications_sent += 1
         except Exception as e:
@@ -515,7 +518,8 @@ async def delete_appointment(appointment_id: str, request: Request):
                 organizer_name=organizer_name,
                 appointment_title=appointment.get('title', 'Rendez-vous'),
                 appointment_datetime=appointment.get('start_datetime', ''),
-                location=appointment.get('location') or appointment.get('meeting_provider')
+                location=appointment.get('location') or appointment.get('meeting_provider'),
+                appointment_timezone=appointment.get('appointment_timezone', 'Europe/Paris')
             )
         except Exception as e:
             import logging

@@ -73,7 +73,7 @@ class EventReminderService:
             # Parse appointment datetime
             start_dt = EventReminderService.parse_datetime(appointment.get('start_datetime', ''))
             if start_dt:
-                date_display = format_email_datetime(appointment.get('start_datetime', ''))
+                date_display = format_email_datetime(appointment.get('start_datetime', ''), appointment.get('appointment_timezone', 'Europe/Paris'))
             else:
                 date_display = appointment.get('start_datetime', 'Date non disponible')
             

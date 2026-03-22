@@ -212,7 +212,8 @@ async def _send_proposal_emails(proposal: dict):
     base_url = os.environ.get('FRONTEND_URL', '').rstrip('/')
 
     # Build changes description
-    changes_html = _build_changes_html(proposal)
+    appt_tz = appointment.get('appointment_timezone', 'Europe/Paris')
+    changes_html = _build_changes_html(proposal, appt_tz)
 
     # Notify participants who need to respond
     for resp in proposal.get('responses', []):
@@ -323,7 +324,8 @@ async def _send_acceptance_emails(proposal: dict):
     if not appointment:
         return
 
-    changes_html = _build_changes_html(proposal)
+    appt_tz = appointment.get('appointment_timezone', 'Europe/Paris')
+    changes_html = _build_changes_html(proposal, appt_tz)
     base_url = os.environ.get('FRONTEND_URL', '').rstrip('/')
 
     # Notify all participants
@@ -365,7 +367,7 @@ async def _send_acceptance_emails(proposal: dict):
         await EmailService.send_email(p['email'], subject, html_content, email_type="modification_accepted")
 
 
-def _build_changes_html(proposal: dict) -> str:
+def _build_changes_html(proposal: dict, tz_name: str = 'Europe/Paris') -> str:
     """Build HTML showing old vs new values."""
     original = proposal.get('original_values', {})
     changes = proposal.get('changes', {})
@@ -384,8 +386,8 @@ def _build_changes_html(proposal: dict) -> str:
         label = labels.get(field, field)
 
         if field == 'start_datetime':
-            old_display = format_email_datetime(str(old_val)) if old_val else str(old_val)
-            new_display = format_email_datetime(str(new_val)) if new_val else str(new_val)
+            old_display = format_email_datetime(str(old_val), tz_name) if old_val else str(old_val)
+            new_display = format_email_datetime(str(new_val), tz_name) if new_val else str(new_val)
         elif field == 'duration_minutes':
             old_display = f"{old_val} min" if old_val else '—'
             new_display = f"{new_val} min"

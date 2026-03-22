@@ -37,7 +37,8 @@ Construire un moteur de détection de présence ultra-conservateur avec collecte
 20. Visibilité produit du flag `requires_revalidation` : bannière UI (InvitationPage), badge "À reconfirmer" (AppointmentDetail), email de notification (Resend), endpoint de reconfirmation Stripe
 21. Bugfix: URLs cassées dans les emails de modification (REACT_APP_BACKEND_URL → FRONTEND_URL)
 22. Bugfix: Heure décalée +1h dans les emails — centralisé via `format_email_datetime()`
-23. Création rapide de RDV : bouton "Valider avec les paramètres du profil" sur étape 2 du wizard
+23. Création rapide de RDV : bouton "Validation express avec les paramètres du profil" sur étape 2 du wizard
+24. Champ `appointment_timezone` explicite sur chaque RDV (IANA, capturé depuis le navigateur, propagé à tous les emails, fallback Europe/Paris)
 
 ## P2 — À venir
 - Stripe Connect (répartition automatique des fonds)

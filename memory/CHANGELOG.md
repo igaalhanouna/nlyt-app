@@ -1,5 +1,32 @@
 # NLYT - Changelog
 
+## 2026-03-22 — Feature: appointment_timezone explicite
+
+### Changement
+- Nouveau champ `appointment_timezone` (IANA) stocké sur chaque RDV
+- Frontend envoie `Intl.DateTimeFormat().resolvedOptions().timeZone` à la création (wizard + quick-create)
+- Backend stocke le champ, fallback `'Europe/Paris'` si absent (backward compat)
+- `format_email_datetime(dt_string, tz_name)` accepte maintenant une timezone explicite
+- Tous les emails (invitation, confirmation, annulation, suppression, rappels, modifications) propagent la timezone du RDV
+
+### Fichiers modifiés
+- `/app/backend/models/schemas.py` — `appointment_timezone: Optional[str]` dans `AppointmentCreate`
+- `/app/backend/routers/appointments.py` — stockage + propagation emails
+- `/app/backend/routers/invitations.py` — propagation emails
+- `/app/backend/routers/modification_routes.py` — `_build_changes_html` + emails
+- `/app/backend/services/email_service.py` — `format_email_datetime(dt, tz_name)` + 5 méthodes
+- `/app/backend/services/reminder_service.py` — propagation
+- `/app/backend/services/event_reminder_service.py` — propagation
+- `/app/frontend/src/pages/appointments/AppointmentWizard.js` — envoi timezone
+
+### Tests
+- Timezone stockée en DB (America/New_York) ✓
+- format_email_datetime: Paris 14:00, NY 08:00, Tokyo 21:00 pour le même UTC ✓
+- Legacy RDV sans timezone → fallback Europe/Paris ✓
+
+---
+
+
 ## 2026-03-22 — Feature: Création rapide de RDV
 
 ### Changement
