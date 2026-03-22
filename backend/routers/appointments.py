@@ -168,7 +168,7 @@ async def create_appointment(appointment: AppointmentCreate, request: Request):
                         to_name=participant_name,
                         organizer_name=organizer_name,
                         appointment_title=appointment.title,
-                        appointment_datetime=appointment.start_datetime,
+                        appointment_datetime=utc_start,
                         invitation_link=invitation_link,
                         location=appointment.location or appointment.meeting_provider,
                         penalty_amount=appointment.penalty_amount,

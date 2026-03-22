@@ -1,0 +1,75 @@
+{
+  "summary": "Email Datetime Timezone Fix - All 17 tests PASSED. The centralized format_email_datetime() function correctly handles UTC strings, milliseconds, and legacy naive datetimes (interpreted as Europe/Paris). Backend starts without errors, all API endpoints work correctly.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": [
+    "format_email_datetime handles UTC string (2026-04-15T12:00:00Z) -> Europe/Paris CEST 14:00 ✓",
+    "format_email_datetime handles UTC string (2026-03-22T13:00:00Z) -> Europe/Paris CET 14:00 ✓",
+    "format_email_datetime handles .000Z suffix (2026-04-15T12:00:00.000Z) correctly ✓",
+    "format_email_datetime handles naive datetime legacy (2026-04-15T14:00) as Europe/Paris -> 14:00 (not 16:00) ✓",
+    "format_email_datetime handles naive datetime winter (2026-01-15T14:00) as Europe/Paris -> 14:00 (not 15:00) ✓",
+    "format_email_datetime handles empty string -> returns empty ✓",
+    "format_email_datetime handles None -> returns empty ✓",
+    "Backend health check passes ✓",
+    "Auth login endpoint works ✓",
+    "GET /api/invitations/{token} returns correct formatted_date in Europe/Paris timezone ✓",
+    "_build_changes_html in modification_routes uses format_email_datetime correctly ✓",
+    "reminder_service.py imports format_email_datetime ✓",
+    "event_reminder_service.py imports format_email_datetime ✓",
+    "GET /api/appointments/ endpoint works after changes ✓",
+    "parse_iso_datetime handles UTC strings correctly ✓",
+    "parse_iso_datetime interprets naive datetime as Europe/Paris ✓",
+    "format_datetime_fr formats in French correctly ✓"
+  ],
+  "test_report_links": [
+    "/app/backend/tests/test_email_datetime_fix.py",
+    "/app/test_reports/pytest/pytest_email_datetime_fix.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "format_email_datetime() centralized at email_service.py lines 13-27 - uses parse_iso_datetime + format_datetime_fr(Europe/Paris)",
+    "email_service.py uses format_email_datetime in 5 email methods (lines 217, 335, 442, 521, 591)",
+    "modification_routes.py imports at line 17, uses in _build_changes_html at lines 387-388",
+    "reminder_service.py imports at line 13, uses at line 80",
+    "event_reminder_service.py imports at line 18, uses at line 76",
+    "appointments.py line 171 correctly uses utc_start (normalized UTC) for invitation emails",
+    "parse_iso_datetime in date_utils.py correctly interprets naive datetimes as Europe/Paris (not UTC)"
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100% (17/17 tests passed)",
+    "frontend": "N/A (backend only testing requested)"
+  },
+  "test_credentials": {
+    "email": "testuser_audit@nlyt.app",
+    "password": "Test1234!",
+    "invitation_token": "386b6f65-ce96-4c47-bd97-b0bd4d0e9449"
+  },
+  "seed_data_creation": "None - used existing test data",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Email datetime timezone fix verified. The centralized format_email_datetime() function in email_service.py correctly converts UTC datetimes to Europe/Paris display format. Legacy naive datetimes are interpreted as Europe/Paris (not UTC), which prevents the +1h/+2h offset bug. All 5 email methods in email_service.py, plus modification_routes.py, reminder_service.py, and event_reminder_service.py use this centralized function.",
+  "verified_fix_details": {
+    "bug_description": "Emails showed +1h offset compared to app display because inline parsing treated naive datetimes as UTC instead of Europe/Paris",
+    "fix_description": "Created centralized format_email_datetime() using parse_iso_datetime (interprets naive as Europe/Paris) + format_datetime_fr(Europe/Paris)",
+    "files_modified": [
+      "email_service.py - added format_email_datetime helper, replaced 5 inline parsing blocks",
+      "modification_routes.py - imports and uses format_email_datetime in _build_changes_html",
+      "reminder_service.py - imports and uses format_email_datetime",
+      "event_reminder_service.py - imports and uses format_email_datetime",
+      "appointments.py - line 171 uses utc_start instead of raw appointment.start_datetime"
+    ],
+    "test_verification": {
+      "utc_to_cest": "2026-04-15T12:00:00Z -> Mercredi 15 avril 2026 à 14:00 ✓",
+      "utc_to_cet": "2026-03-22T13:00:00Z -> Dimanche 22 mars 2026 à 14:00 ✓",
+      "naive_as_paris": "2026-04-15T14:00 -> Mercredi 15 avril 2026 à 14:00 (NOT 16:00) ✓"
+    }
+  }
+}

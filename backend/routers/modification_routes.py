@@ -14,6 +14,7 @@ from services.modification_service import (
     get_active_proposal, get_proposals_for_appointment
 )
 from utils.date_utils import now_utc_iso, format_datetime_fr, parse_iso_datetime
+from services.email_service import format_email_datetime
 from pymongo import MongoClient
 
 router = APIRouter()
@@ -383,10 +384,8 @@ def _build_changes_html(proposal: dict) -> str:
         label = labels.get(field, field)
 
         if field == 'start_datetime':
-            old_dt = parse_iso_datetime(str(old_val)) if old_val else None
-            new_dt = parse_iso_datetime(str(new_val)) if new_val else None
-            old_display = format_datetime_fr(old_dt) if old_dt else str(old_val)
-            new_display = format_datetime_fr(new_dt) if new_dt else str(new_val)
+            old_display = format_email_datetime(str(old_val)) if old_val else str(old_val)
+            new_display = format_email_datetime(str(new_val)) if new_val else str(new_val)
         elif field == 'duration_minutes':
             old_display = f"{old_val} min" if old_val else '—'
             new_display = f"{new_val} min"

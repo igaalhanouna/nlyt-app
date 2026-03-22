@@ -7,7 +7,24 @@ from datetime import datetime, timezone
 from pymongo import MongoClient
 import uuid
 from pathlib import Path
-from utils.date_utils import format_datetime_fr
+from utils.date_utils import format_datetime_fr, parse_iso_datetime
+
+
+def format_email_datetime(dt_string: str) -> str:
+    """
+    Centralized datetime formatting for all emails.
+
+    Uses the project-standard parse_iso_datetime (handles UTC, offsets, and
+    legacy naive strings interpreted as Europe/Paris) then converts to
+    Europe/Paris display via format_datetime_fr.
+
+    This is the SINGLE source of truth for email date rendering.
+    Every email template MUST use this instead of inline parsing.
+    """
+    dt = parse_iso_datetime(dt_string)
+    if dt:
+        return format_datetime_fr(dt, 'Europe/Paris')
+    return dt_string or ''
 
 # Load .env from backend directory
 ROOT_DIR = Path(__file__).parent.parent
@@ -197,16 +214,7 @@ class EmailService:
         ics_link: str = None
     ):
         """Send invitation email with full appointment details and ICS calendar link"""
-        # Parse datetime for display
-        try:
-            from datetime import datetime, timezone
-            if '+' in appointment_datetime or 'Z' in appointment_datetime:
-                dt = datetime.fromisoformat(appointment_datetime.replace('Z', '+00:00'))
-            else:
-                dt = datetime.strptime(appointment_datetime, "%Y-%m-%dT%H:%M")
-            formatted_date = format_datetime_fr(dt)
-        except:
-            formatted_date = appointment_datetime
+        formatted_date = format_email_datetime(appointment_datetime)
         
         # Build penalty info
         penalty_info = ""
@@ -324,16 +332,7 @@ class EmailService:
         invitation_link: str = None
     ):
         """Send confirmation email after participant accepts invitation, with ICS download link"""
-        # Parse datetime for display
-        try:
-            from datetime import datetime, timezone
-            if '+' in appointment_datetime or 'Z' in appointment_datetime:
-                dt = datetime.fromisoformat(appointment_datetime.replace('Z', '+00:00'))
-            else:
-                dt = datetime.strptime(appointment_datetime, "%Y-%m-%dT%H:%M")
-            formatted_date = format_datetime_fr(dt)
-        except:
-            formatted_date = appointment_datetime
+        formatted_date = format_email_datetime(appointment_datetime)
         
         location_display = location if location else "Non spécifié"
         
@@ -440,16 +439,7 @@ class EmailService:
         appointment_link: str = None
     ):
         """Send notification to organizer when a participant cancels their participation"""
-        # Parse datetime for display
-        try:
-            from datetime import datetime, timezone
-            if '+' in appointment_datetime or 'Z' in appointment_datetime:
-                dt = datetime.fromisoformat(appointment_datetime.replace('Z', '+00:00'))
-            else:
-                dt = datetime.strptime(appointment_datetime, "%Y-%m-%dT%H:%M")
-            formatted_date = format_datetime_fr(dt)
-        except:
-            formatted_date = appointment_datetime
+        formatted_date = format_email_datetime(appointment_datetime)
         
         location_display = location if location else "Non spécifié"
         
@@ -528,16 +518,7 @@ class EmailService:
         location: str = None
     ):
         """Send notification to participant when appointment is cancelled by organizer"""
-        # Parse datetime for display
-        try:
-            from datetime import datetime, timezone
-            if '+' in appointment_datetime or 'Z' in appointment_datetime:
-                dt = datetime.fromisoformat(appointment_datetime.replace('Z', '+00:00'))
-            else:
-                dt = datetime.strptime(appointment_datetime, "%Y-%m-%dT%H:%M")
-            formatted_date = format_datetime_fr(dt)
-        except:
-            formatted_date = appointment_datetime
+        formatted_date = format_email_datetime(appointment_datetime)
         
         location_display = location if location else "Non spécifié"
         
@@ -607,16 +588,7 @@ class EmailService:
         location: str = None
     ):
         """Send notification to participant when appointment is deleted by organizer"""
-        # Parse datetime for display
-        try:
-            from datetime import datetime, timezone
-            if '+' in appointment_datetime or 'Z' in appointment_datetime:
-                dt = datetime.fromisoformat(appointment_datetime.replace('Z', '+00:00'))
-            else:
-                dt = datetime.strptime(appointment_datetime, "%Y-%m-%dT%H:%M")
-            formatted_date = format_datetime_fr(dt)
-        except:
-            formatted_date = appointment_datetime
+        formatted_date = format_email_datetime(appointment_datetime)
         
         location_display = location if location else "Non spécifié"
         

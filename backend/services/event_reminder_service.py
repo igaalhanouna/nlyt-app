@@ -15,6 +15,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 from utils.date_utils import parse_iso_datetime as _parse_dt
 from utils.date_utils import format_datetime_fr
+from services.email_service import format_email_datetime
 
 # Load .env
 ROOT_DIR = Path(__file__).parent.parent
@@ -72,7 +73,7 @@ class EventReminderService:
             # Parse appointment datetime
             start_dt = EventReminderService.parse_datetime(appointment.get('start_datetime', ''))
             if start_dt:
-                date_display = format_datetime_fr(start_dt)
+                date_display = format_email_datetime(appointment.get('start_datetime', ''))
             else:
                 date_display = appointment.get('start_datetime', 'Date non disponible')
             
