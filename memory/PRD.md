@@ -34,6 +34,7 @@ Construire un moteur de détection de présence ultra-conservateur avec collecte
 17. Centre de litiges
 18. Dashboard analytics de base
 19. Stripe Guarantee Impact Assessment : capture window recalculée + flag revalidation si modification majeure (ville, date >24h, type)
+20. Visibilité produit du flag `requires_revalidation` : bannière UI (InvitationPage), badge "À reconfirmer" (AppointmentDetail), email de notification (Resend), endpoint de reconfirmation Stripe
 
 ## P2 — À venir
 - Stripe re-checkout flow : quand `requires_revalidation: true`, proposer au participant de reconfirmer sa garantie

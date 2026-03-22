@@ -1,5 +1,30 @@
 # NLYT - Changelog
 
+## 2026-03-22 — Feature: Visibilité produit du flag requires_revalidation
+
+### Backend
+- `GET /api/invitations/{token}` — retourne `guarantee_revalidation` avec `requires_revalidation`, `reason`, `flagged_at`
+- `POST /api/invitations/{token}/reconfirm-guarantee` — crée nouvelle session Stripe, marque l'ancienne garantie comme `superseded`
+- `GET /api/appointments/` et `GET /api/participants/` — enrichissent chaque participant avec `guarantee_requires_revalidation` et `guarantee_revalidation_reason`
+- `send_guarantee_revalidation_email()` — email Resend envoyé automatiquement lors du flag (non-bloquant si Resend non configuré)
+
+### Frontend — InvitationPage.js
+- Bannière amber `guarantee-revalidation-banner` avec raisons (city_change, date_shift, type_change) et bouton "Reconfirmer ma garantie"
+- Badge "À reconfirmer" (`status-badge-revalidation`) dans le header
+- Section réponse avec icône warning amber au lieu de green shield
+- Bouton de reconfirmation redirige vers Stripe checkout
+
+### Frontend — AppointmentDetail.js
+- Badge "À reconfirmer" (`badge-revalidation-{participant_id}`) dans la liste participants côté organisateur
+- `getParticipantStatusBadge` accepte maintenant l'objet participant complet
+
+### Tests
+- 15/15 tests passés (iteration_21) : 7 backend + 8 frontend
+- Scénarios: flag actif, flag absent, reconfirmation, endpoint 400, bannière visible/invisible
+
+---
+
+
 ## 2026-03-22 — Feature: Stripe Guarantee Impact Assessment après modification
 
 ### Logique
