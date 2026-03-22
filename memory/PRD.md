@@ -25,6 +25,11 @@ SaaS de prise de rendez-vous avec garanties financières (Stripe), détection de
 8. Physical Evidence System (QR, GPS, Manual check-in)
 9. Smart Evidence Scoring V2 (Temporal + Geographic consistency, Nominatim reverse geocoding)
 10. Participant Check-in UX (4 temporal states)
+11. **Contractual Modification Flow** (proposals + unanimity + expiration)
+    - Organizer AND participants can propose changes (date, time, duration, location, type)
+    - Unanimity required to apply
+    - 24h timeout with APScheduler auto-expiration
+    - Full audit trail (who proposed, who accepted/rejected, when)
 
 ## Database Collections
 - `users`, `workspaces`, `workspace_memberships`

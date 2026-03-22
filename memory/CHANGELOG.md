@@ -1,5 +1,48 @@
 # NLYT - Changelog
 
+## 2026-02-22 — Feature: Flow contractuel de modification de RDV
+
+### Architecture
+- Nouvelle collection MongoDB: `modification_proposals`
+- Nouveau service: `/app/backend/services/modification_service.py`
+- Nouveau routeur: `/app/backend/routers/modification_routes.py`
+- APScheduler job: expiration automatique à 24h
+
+### Modèle de données
+```
+modification_proposals: {
+  proposal_id, appointment_id,
+  proposed_by: { user_id?, participant_id?, role, name },
+  changes: { start_datetime?, duration_minutes?, location?, meeting_provider?, appointment_type? },
+  original_values: { ... },
+  responses: [{ participant_id, first_name, last_name, email, status, responded_at }],
+  organizer_response: { status, responded_at },
+  status: pending|accepted|rejected|expired|cancelled,
+  expires_at, created_at, resolved_at
+}
+```
+
+### Endpoints
+- `POST /api/modifications/` — créer (organizer JWT ou participant token)
+- `GET /api/modifications/appointment/{id}` — historique
+- `GET /api/modifications/active/{id}` — proposition active
+- `POST /api/modifications/{id}/respond` — accepter/refuser
+- `POST /api/modifications/{id}/cancel` — annuler
+
+### Logique
+- Unanimité requise (organizer + tous participants acceptés)
+- Rejet immédiat si un refuse
+- Timeout 24h → expiration automatique
+- Une seule proposition active par RDV
+- RDV inchangé tant que non unanimement accepté
+- Calendrier mis à jour après acceptation
+- Stripe: aucun changement en V1 (hook préparé)
+- Email notifications via Resend
+
+### Tests
+- 10/10 backend + 9/9 frontend = 100%
+- Rapport: `/app/test_reports/iteration_19.json`
+
 ## 2026-02-22 — Bug Fix: Modification RDV vers date passée (P0)
 
 ### Problème
