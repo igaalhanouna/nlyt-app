@@ -733,29 +733,6 @@ export default function AppointmentDetail() {
             </span>
           </div>
           <div className="flex gap-2 flex-wrap">
-            {/* Resume guarantee button for pending appointments */}
-            {isPendingGuarantee && (
-              <>
-                <Button
-                  onClick={handleResumeGuarantee}
-                  disabled={resumingGuarantee}
-                  className="bg-amber-600 hover:bg-amber-700"
-                  data-testid="resume-guarantee-btn"
-                >
-                  {resumingGuarantee ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <CreditCard className="w-4 h-4 mr-2" />}
-                  Compléter ma garantie
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={handleCheckActivation}
-                  disabled={checkingActivation}
-                  data-testid="check-activation-btn"
-                >
-                  {checkingActivation ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <RefreshCw className="w-4 h-4 mr-2" />}
-                  Vérifier
-                </Button>
-              </>
-            )}
             {/* ICS Download button */}
             <Button 
               variant="outline"
