@@ -1,5 +1,21 @@
 # NLYT - Changelog
 
+## 2026-02-22 — Bug Fix: Modification RDV vers date passée (P0)
+
+### Problème
+Un RDV existant pouvait être modifié vers une date passée via l'API PATCH.
+
+### Fix
+**Double validation (identique à la création)** :
+- **Backend** (`appointments.py` PATCH) : vérification `start_datetime <= now_utc()` → HTTP 400
+- **Frontend** (`AppointmentDetail.js`) : mode édition inline avec `min` dynamique, message d'erreur rouge, bouton "Enregistrer" désactivé si date passée
+- L'icône crayon n'apparaît que si le RDV n'est pas annulé et pas terminé
+
+### Tests
+- 6/6 backend (hier, heure passée, heure future, demain, champ non-date)
+- 7/7 frontend (icône visible, input min, erreur inline, bouton désactivé/activé, sauvegarde, annulation)
+- Rapport: `/app/test_reports/iteration_18.json`
+
 ## 2026-02-20 — Bug Fix: Création RDV dans le passé (P0)
 
 ### Problème
