@@ -8,10 +8,16 @@ Flow:
 3. If all accept → apply changes to the appointment
 4. If any reject → proposal rejected, appointment unchanged
 5. After 24h without full response → proposal expires
+
+Post-acceptance:
+- Capture window is recalculated on every accepted modification
+- Major modifications (date shift >24h, city change, type change) flag guarantees for revalidation
 """
 import os
+import re
 import uuid
 import logging
+import requests
 from datetime import datetime, timedelta, timezone
 from pymongo import MongoClient
 from utils.date_utils import now_utc, now_utc_iso, normalize_to_utc, parse_iso_datetime, format_datetime_fr
@@ -275,6 +281,12 @@ def _apply_proposal(proposal: dict):
     except Exception as e:
         logger.warning(f"[MODIFICATION] Calendar auto-update failed: {e}")
 
+    # Handle guarantee impact (capture window + major flag)
+    try:
+        _handle_guarantees_after_modification(appointment_id, proposal)
+    except Exception as e:
+        logger.warning(f"[MODIFICATION] Guarantee impact assessment failed: {e}")
+
 
 def cancel_proposal(proposal_id: str, canceller_id: str, canceller_role: str) -> dict:
     """Cancel an active proposal. Only the proposer can cancel."""
@@ -349,3 +361,178 @@ def expire_stale_proposals():
     )
     if result.modified_count > 0:
         logger.info(f"[MODIFICATION] Expired {result.modified_count} stale proposals")
+
+
+# ─── Guarantee Impact Assessment ──────────────────────────────────
+
+# Grace period after appointment end before capture window closes
+CAPTURE_GRACE_MINUTES = 30
+
+# Threshold for date shift to be considered major (seconds)
+MAJOR_DATE_SHIFT_SECONDS = 86400  # 24h
+
+
+def _extract_city_from_address(address: str) -> str:
+    """
+    Extract city name from a French address string.
+    Uses Nominatim with addressdetails for structured data.
+    Falls back to regex parsing of common French address formats.
+    """
+    if not address or not address.strip():
+        return ""
+
+    # Try Nominatim with structured address details
+    try:
+        resp = requests.get(
+            "https://nominatim.openstreetmap.org/search",
+            params={"q": address, "format": "json", "limit": 1, "addressdetails": 1},
+            headers={"User-Agent": "NLYT-SaaS/1.0 (contact@nlyt.io)"},
+            timeout=5
+        )
+        if resp.status_code == 200 and resp.json():
+            addr = resp.json()[0].get('address', {})
+            city = addr.get('city') or addr.get('town') or addr.get('village') or addr.get('municipality', '')
+            if city:
+                return city.strip()
+    except Exception as e:
+        logger.warning(f"[CITY_EXTRACT] Nominatim failed for '{address[:40]}': {e}")
+
+    # Fallback: parse French address pattern "... XXXXX Ville"
+    match = re.search(r'\b\d{5}\s+(.+)', address)
+    if match:
+        return match.group(1).strip().split(',')[0].strip()
+
+    # Last resort: last comma-separated segment
+    parts = [p.strip() for p in address.split(',') if p.strip()]
+    if parts:
+        return parts[-1]
+
+    return ""
+
+
+def _assess_modification_impact(proposal: dict) -> dict:
+    """
+    Determine if a modification is major or minor.
+
+    Major if any of:
+    - Date shift > 24h
+    - City change
+    - Appointment type change (physical ↔ video)
+
+    Returns: {is_major: bool, reasons: list[str]}
+    """
+    changes = proposal.get('changes', {})
+    original = proposal.get('original_values', {})
+    reasons = []
+
+    # 1. Date shift > 24h
+    if 'start_datetime' in changes:
+        old_dt = parse_iso_datetime(original.get('start_datetime', ''))
+        new_dt = parse_iso_datetime(changes['start_datetime'])
+        if old_dt and new_dt:
+            shift = abs((new_dt - old_dt).total_seconds())
+            if shift > MAJOR_DATE_SHIFT_SECONDS:
+                hours = round(shift / 3600, 1)
+                reasons.append(f"date_shift_{hours}h")
+
+    # 2. City change
+    if 'location' in changes:
+        old_loc = original.get('location', '') or ''
+        new_loc = changes['location'] or ''
+        if old_loc and new_loc:
+            old_city = _extract_city_from_address(old_loc)
+            new_city = _extract_city_from_address(new_loc)
+            if old_city and new_city and old_city.lower() != new_city.lower():
+                reasons.append(f"city_change:{old_city}->{new_city}")
+
+    # 3. Type change
+    if 'appointment_type' in changes:
+        old_type = original.get('appointment_type', '')
+        new_type = changes['appointment_type']
+        if old_type and new_type and old_type != new_type:
+            reasons.append(f"type_change:{old_type}->{new_type}")
+
+    return {
+        "is_major": len(reasons) > 0,
+        "reasons": reasons
+    }
+
+
+def _recalculate_capture_window(appointment_id: str, appointment: dict):
+    """
+    Recalculate and update capture_deadline on all active guarantees
+    for this appointment. Called after every accepted modification.
+
+    capture_deadline = appointment end time + grace period
+    """
+    start_str = appointment.get('start_datetime', '')
+    start_dt = parse_iso_datetime(start_str)
+    if not start_dt:
+        logger.warning(f"[GUARANTEE] Cannot parse start_datetime for {appointment_id}")
+        return
+
+    duration = appointment.get('duration_minutes', 60)
+    end_dt = start_dt + timedelta(minutes=duration)
+    capture_deadline = end_dt + timedelta(minutes=CAPTURE_GRACE_MINUTES)
+    capture_deadline_iso = capture_deadline.strftime('%Y-%m-%dT%H:%M:%SZ')
+
+    result = db.payment_guarantees.update_many(
+        {
+            "appointment_id": appointment_id,
+            "status": {"$in": ["completed", "pending", "dev_pending"]}
+        },
+        {"$set": {
+            "capture_deadline": capture_deadline_iso,
+            "capture_window_updated_at": now_utc_iso()
+        }}
+    )
+    if result.modified_count > 0:
+        logger.info(f"[GUARANTEE] Recalculated capture_deadline={capture_deadline_iso} for {result.modified_count} guarantee(s) on appointment {appointment_id}")
+
+
+def _flag_guarantees_if_major(appointment_id: str, impact: dict):
+    """
+    If modification is major, flag all completed guarantees as requiring revalidation.
+    Does NOT release or capture — just sets a flag for future business logic.
+    """
+    if not impact.get('is_major'):
+        return
+
+    reason = ", ".join(impact.get('reasons', []))
+    result = db.payment_guarantees.update_many(
+        {
+            "appointment_id": appointment_id,
+            "status": {"$in": ["completed", "dev_pending"]},
+            "requires_revalidation": {"$ne": True}
+        },
+        {"$set": {
+            "requires_revalidation": True,
+            "revalidation_reason": reason,
+            "revalidation_flagged_at": now_utc_iso()
+        }}
+    )
+    if result.modified_count > 0:
+        logger.info(f"[GUARANTEE] Flagged {result.modified_count} guarantee(s) for revalidation on {appointment_id}: {reason}")
+
+
+def _handle_guarantees_after_modification(appointment_id: str, proposal: dict):
+    """
+    Post-acceptance hook: recalculate capture window and flag if major.
+    Called from _apply_proposal after changes are persisted.
+    """
+    # Re-read appointment with updated values
+    appointment = db.appointments.find_one({"appointment_id": appointment_id}, {"_id": 0})
+    if not appointment:
+        return
+
+    # Always recalculate capture window
+    _recalculate_capture_window(appointment_id, appointment)
+
+    # Assess impact and flag if major
+    impact = _assess_modification_impact(proposal)
+    _flag_guarantees_if_major(appointment_id, impact)
+
+    if impact['is_major']:
+        logger.info(f"[MODIFICATION] MAJOR modification detected for {appointment_id}: {impact['reasons']}")
+    else:
+        logger.info(f"[MODIFICATION] Minor modification for {appointment_id} — guarantees preserved")

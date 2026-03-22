@@ -28,17 +28,15 @@ Construire un moteur de détection de présence ultra-conservateur avec collecte
 11. Validation dates passées (création + modification)
 12. Flux contractuel de modification de RDV (propositions unanimes)
 13. UX bouton "Modifier" sur bloc "Informations générales" (repositionné)
-14. Reset coordonnées GPS quand le lieu est modifié via proposition (code appliqué, test e2e en attente)
+14. Reset coordonnées GPS quand le lieu est modifié via proposition
 15. Gestion DST testée et validée
 16. Templates de politiques d'engagement
 17. Centre de litiges
 18. Dashboard analytics de base
-
-## P0 — En attente de test
-- Vérifier le correctif GPS (reset lat/lon sur modification du lieu)
+19. Stripe Guarantee Impact Assessment : capture window recalculée + flag revalidation si modification majeure (ville, date >24h, type)
 
 ## P2 — À venir
-- Stripe Hook pour modification majeure (re-confirmation garantie)
+- Stripe re-checkout flow : quand `requires_revalidation: true`, proposer au participant de reconfirmer sa garantie
 - Stripe Connect (répartition automatique des fonds)
 - Auto-update calendrier V2 (retry + notification)
 

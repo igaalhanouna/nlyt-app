@@ -1,5 +1,38 @@
 # NLYT - Changelog
 
+## 2026-03-22 — Feature: Stripe Guarantee Impact Assessment après modification
+
+### Logique
+- **Capture window recalculée** systématiquement après chaque modification acceptée (`capture_deadline` = fin RDV + 30min grâce)
+- **Modification majeure** détectée si : date shift > 24h, changement de ville (via Nominatim), ou changement de type RDV
+- **Flag `requires_revalidation`** posé sur les garanties `completed` si majeur — prépare le terrain pour un futur re-checkout
+- **Modification mineure** : garantie conservée intacte, seul le `capture_deadline` est mis à jour
+
+### Fichier modifié
+- `/app/backend/services/modification_service.py` — Ajout de :
+  - `_extract_city_from_address()` (Nominatim + fallback regex)
+  - `_assess_modification_impact()` (détection majeur/mineur)
+  - `_recalculate_capture_window()` (mise à jour deadline)
+  - `_flag_guarantees_if_major()` (flag revalidation)
+  - `_handle_guarantees_after_modification()` (hook principal)
+  - Hook dans `_apply_proposal()` après application des changements
+
+### Champs ajoutés sur `payment_guarantees`
+- `capture_deadline` (ISO UTC)
+- `capture_window_updated_at` (ISO UTC)
+- `requires_revalidation` (bool)
+- `revalidation_reason` (string, ex: "city_change:Paris->Lyon")
+- `revalidation_flagged_at` (ISO UTC)
+
+### Tests manuels passés
+1. Minor (même ville Paris) → `requires_revalidation: false`, `capture_deadline` recalculé ✓
+2. Major (ville Paris → Lyon) → `requires_revalidation: true`, raison `city_change:Paris->Lyon` ✓
+3. Major (date shift 72h) → `requires_revalidation: true`, raison `date_shift_72.0h` ✓
+4. Major (type physical → video) → `requires_revalidation: true`, raison `type_change:physical->video` ✓
+
+---
+
+
 ## 2026-03-22 — UX: Repositionnement du bouton de modification de RDV
 
 ### Changement
