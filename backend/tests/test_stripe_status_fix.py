@@ -11,7 +11,7 @@ import pytest
 import requests
 import os
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://meeting-auto-fix.preview.emergentagent.com')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://teams-identity-fix.preview.emergentagent.com')
 
 # Test data
 GUARANTEED_INVITATION_TOKEN = "df4600be-e050-4c9c-a8fe-250950227052"
