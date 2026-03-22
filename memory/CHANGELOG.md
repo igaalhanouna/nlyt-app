@@ -1,5 +1,28 @@
 # NLYT — Changelog
 
+## 2026-03-22 — Sécurité imports manuels + Guides configuration
+
+### Backend — source_trust (`video_evidence_service.py`, `evidence_service.py`, `attendance_service.py`)
+- Nouveau champ `source_trust` dans `derived_facts` de chaque evidence vidéo : `api_verified` | `manual_upload`
+- `ingest_video_attendance()` accepte un paramètre `source_trust` (default: `manual_upload`)
+- Route `fetch-attendance` passe `source_trust="api_verified"` (données récupérées via API provider)
+- Routes `ingest` et `ingest-file` gardent `source_trust="manual_upload"` (fichiers uploadés par l'organisateur)
+- `source_trust` stocké dans le log d'ingestion et dans chaque `evidence_item`
+- `aggregate_evidence()` extrait et retourne `video_source_trust`
+- **Plafonnement moteur** : `manual_upload` cap la strength à `"medium"` max (jamais `"strong"`) → `review_required: true`
+- `attendance_service` ajoute `source_trust` dans `video_context` de chaque décision
+
+### Frontend (`AppointmentDetail.js`)
+- Badge `source_trust` dans la timeline de preuves vidéo :
+  - "Vérifié par API" (bleu, icône Shield) pour `api_verified`
+  - "Import manuel" (orange, icône Upload) pour `manual_upload`
+- data-testid=`source-trust-badge-{evidence_id}`
+
+### Testing
+- iteration_28: 10/10 tests passés, 0 régression
+
+---
+
 ## 2026-03-22 — Sélecteur de plateforme visio contrôlé (Wizard)
 
 ### Backend (`schemas.py`, `appointments.py`)

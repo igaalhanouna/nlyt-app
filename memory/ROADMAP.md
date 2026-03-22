@@ -12,6 +12,7 @@
 - [x] **Google Meet creation** via Calendar API (WORKING)
 - [x] **Integrations page** — Calendars + Video sections with connection status
 - [x] **Controlled meeting provider selector** in wizard (enum, connection status, external fallback)
+- [x] **Source trust security** — `source_trust` field (api_verified/manual_upload) in evidence, strength capping, UI badges
 
 ## P0 — Configuration Pending
 - [ ] Zoom credentials (ZOOM_ACCOUNT_ID, ZOOM_CLIENT_ID, ZOOM_CLIENT_SECRET)
