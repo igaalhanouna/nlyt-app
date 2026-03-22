@@ -182,6 +182,11 @@ class TeamsMeetingClient:
             "subject": subject,
             "startDateTime": start_time,
             "endDateTime": end_time,
+            "lobbyBypassSettings": {
+                "scope": "everyone",
+            },
+            "allowedPresenters": "organizer",
+            "isEntryExitAnnounced": False,
         }
         resp = requests.post(
             f"{self.graph_url}/users/{user_id}/onlineMeetings",
@@ -200,6 +205,8 @@ class TeamsMeetingClient:
                 "video_teleconference_id": data.get("videoTeleconferenceId"),
                 "subject": data.get("subject"),
                 "created_at": data.get("creationDateTime"),
+                "lobby_bypass_scope": "everyone",
+                "allowed_presenters": "organizer",
             },
         }
 
@@ -413,6 +420,15 @@ def create_meeting_for_appointment(
                 end_time=end_time,
                 timezone_str=timezone_str,
             )
+
+            # Enrich Meet metadata with the creator's Google email
+            google_conn = db.calendar_connections.find_one(
+                {"user_id": organizer_user_id, "provider": "google", "status": "connected"},
+                {"_id": 0, "google_email": 1, "google_name": 1},
+            )
+            if google_conn and result.get("metadata"):
+                result["metadata"]["creator_email"] = google_conn.get("google_email")
+                result["metadata"]["creator_name"] = google_conn.get("google_name")
         else:
             return {"error": f"Provider '{provider}' non supporté. Utilisez 'zoom', 'teams' ou 'meet'."}
 

@@ -958,28 +958,48 @@ export default function AppointmentDetail() {
                       )}
                     </div>
                     {appointment.meeting_join_url ? (
-                      <div className="flex flex-col gap-1 mt-1.5">
-                        <a
-                          href={appointment.meeting_join_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline"
-                          data-testid="meeting-join-url"
-                        >
-                          <Link2 className="w-3.5 h-3.5" />
-                          Rejoindre la réunion
-                        </a>
-                        {appointment.meeting_host_url && (
+                      <div className="flex flex-col gap-1.5 mt-1.5">
+                        {/* Zoom: distinction hôte / participant */}
+                        {appointment.meeting_host_url ? (
+                          <>
+                            <a
+                              href={appointment.meeting_host_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 text-sm font-semibold text-emerald-600 hover:text-emerald-800 hover:underline"
+                              data-testid="meeting-host-url"
+                            >
+                              <Link2 className="w-3.5 h-3.5" />
+                              Démarrer la réunion (organisateur)
+                            </a>
+                            <a
+                              href={appointment.meeting_join_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700 hover:underline"
+                              data-testid="meeting-join-url"
+                            >
+                              <ExternalLink className="w-3 h-3" />
+                              Lien participant
+                            </a>
+                          </>
+                        ) : (
                           <a
-                            href={appointment.meeting_host_url}
+                            href={appointment.meeting_join_url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700 hover:underline"
-                            data-testid="meeting-host-url"
+                            className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline"
+                            data-testid="meeting-join-url"
                           >
-                            <ExternalLink className="w-3 h-3" />
-                            Ouvrir en tant qu'organisateur
+                            <Link2 className="w-3.5 h-3.5" />
+                            Rejoindre la réunion
                           </a>
+                        )}
+                        {/* Google Meet: avertissement compte créateur */}
+                        {appointment.meeting_provider_metadata?.creator_email && (
+                          <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-md px-2.5 py-1.5 mt-1" data-testid="meet-creator-hint">
+                            Réunion créée avec <span className="font-semibold">{appointment.meeting_provider_metadata.creator_email}</span>. Connectez-vous avec ce compte Google pour être reconnu comme hôte.
+                          </p>
                         )}
                       </div>
                     ) : appointment.meeting_provider !== 'external' ? (
