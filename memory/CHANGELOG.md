@@ -1,5 +1,32 @@
 # NLYT - Changelog
 
+## 2026-03-22 — Feature: Création rapide de RDV
+
+### Changement
+- Bouton "Valider avec les paramètres du profil" (data-testid=`quick-create-btn`) ajouté à l'étape 2 du wizard
+- Icône Zap, style amber secondaire, à côté de "Suivant"
+- Valide étapes 1+2 puis crée le RDV immédiatement avec les defaults du profil
+- Toast spécifique : "Rendez-vous créé avec vos paramètres par défaut"
+- Redirige vers la page détail du RDV
+
+### Architecture
+- Frontend uniquement (Option A) — réutilise l'endpoint existant POST /api/appointments/
+- Les defaults sont déjà chargés au mount depuis /api/user-settings/me/appointment-defaults
+- Aucun endpoint backend dédié créé
+
+### Fichier modifié
+- `/app/frontend/src/pages/appointments/AppointmentWizard.js`
+
+### Tests (15/15 passés)
+- Visibilité conditionnelle (step 2 uniquement) ✓
+- Validations (titre, date, passé, lieu) ✓
+- Création rapide avec defaults du profil ✓
+- Wizard complet sans régression ✓
+- Toasts différenciés ✓
+
+---
+
+
 ## 2026-03-22 — Bugfix: Heure décalée +1h dans les emails
 
 ### Cause racine
