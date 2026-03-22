@@ -1,5 +1,28 @@
 # NLYT — Changelog
 
+## 2026-03-22 — Sélecteur de plateforme visio contrôlé (Wizard)
+
+### Backend (`schemas.py`, `appointments.py`)
+- Ajout de l'enum `MeetingProvider` (zoom, teams, meet, external) dans schemas.py
+- `AppointmentCreate.meeting_provider` typé `Optional[MeetingProvider]` — Pydantic rejette toute valeur hors enum (422)
+- Validation serveur : `external` sans `meeting_join_url` → 400
+
+### Frontend (`AppointmentWizard.js`)
+- Remplacement du champ texte libre par un sélecteur de 4 providers avec états connecté/non-connecté
+- Providers connectés : sélectionnables, badge vert, email affiché
+- Providers non connectés : grisés (opacity), lien vers Paramètres > Intégrations
+- "Lien externe" : toujours disponible, affiche un champ URL obligatoire
+- Note auto-création affichée quand un provider connecté est sélectionné
+- Validation frontend : provider requis, non-connecté bloqué, URL externe obligatoire
+
+### Frontend (`AppointmentDetail.js`)
+- Formulaire de modification : input texte remplacé par select contrôlé (zoom/teams/meet/external)
+
+### Testing
+- iteration_27: 14/14 tests passés (8 backend + 6 frontend), 0 régression
+
+---
+
 ## 2026-03-22 — Page Intégrations Visioconférence ✅
 
 ### Architecture retenue

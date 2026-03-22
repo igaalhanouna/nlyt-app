@@ -10,6 +10,8 @@
 - [x] Video Conference Attendance Evidence MVP (adapters, ingestion, decision)
 - [x] **Meeting API Integration** (auto-create meetings, fetch attendance, CSV upload)
 - [x] **Google Meet creation** via Calendar API (WORKING)
+- [x] **Integrations page** — Calendars + Video sections with connection status
+- [x] **Controlled meeting provider selector** in wizard (enum, connection status, external fallback)
 
 ## P0 — Configuration Pending
 - [ ] Zoom credentials (ZOOM_ACCOUNT_ID, ZOOM_CLIENT_ID, ZOOM_CLIENT_SECRET)
