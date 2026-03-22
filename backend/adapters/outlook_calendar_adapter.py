@@ -8,7 +8,7 @@ CLIENT_SECRET = os.environ.get('MICROSOFT_CLIENT_SECRET')
 
 AUTHORITY = 'https://login.microsoftonline.com/common/oauth2/v2.0'
 GRAPH_API = 'https://graph.microsoft.com/v1.0'
-SCOPES = ['Calendars.ReadWrite', 'User.Read', 'MailboxSettings.Read', 'offline_access']
+SCOPES = ['Calendars.ReadWrite', 'User.Read', 'MailboxSettings.Read', 'offline_access', 'OnlineMeetings.ReadWrite']
 
 # IANA → Windows timezone mapping (Microsoft Graph requires Windows IDs for personal accounts)
 IANA_TO_WINDOWS_TZ = {
@@ -114,6 +114,7 @@ class OutlookCalendarAdapter:
                 'expires_in': resp.get('expires_in'),
                 'user_email': profile.get('mail') or profile.get('userPrincipalName', ''),
                 'user_name': profile.get('displayName', ''),
+                'granted_scopes': resp.get('scope', '').split(' '),
             }
         except Exception as e:
             print(f'[OUTLOOK] Error exchanging code: {e}')

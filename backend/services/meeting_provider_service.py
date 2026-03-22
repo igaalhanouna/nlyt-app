@@ -379,49 +379,128 @@ def create_meeting_for_appointment(
             )
 
         elif provider_lower in ("teams", "microsoft teams", "microsoft_teams"):
-            if not _teams_client.is_configured():
-                return {"error": "Teams API non configurée. Ajoutez MICROSOFT_TENANT_ID, MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET.", "needs_config": True}
             # Compute end time
             from utils.date_utils import parse_iso_datetime
             start_dt = parse_iso_datetime(start_datetime)
             end_dt = start_dt + timedelta(minutes=duration_minutes) if start_dt else None
             end_time = end_dt.isoformat() if end_dt else start_datetime
 
-            # For Teams app permissions, we need the user's Azure AD object ID
-            # Try to find it from user settings or use organizer_user_id
-            azure_user_id = _resolve_teams_user_id(organizer_user_id)
-            if not azure_user_id:
-                return {"error": "Azure AD User ID introuvable. Configurez votre ID utilisateur Teams dans les paramètres.", "needs_config": True}
+            meeting_payload = {
+                "subject": title,
+                "startDateTime": start_datetime,
+                "endDateTime": end_time,
+                "lobbyBypassSettings": {"scope": "everyone"},
+                "allowedPresenters": "organizer",
+                "isEntryExitAnnounced": False,
+            }
 
-            result = _teams_client.create_meeting(
-                subject=title,
-                start_time=start_datetime,
-                end_time=end_time,
-                user_id=azure_user_id,
+            # --- Priority 1: Delegated mode (user's own token with OnlineMeetings.ReadWrite) ---
+            outlook_conn = db.calendar_connections.find_one(
+                {"user_id": organizer_user_id, "provider": "outlook", "status": "connected"},
+                {"_id": 0},
+            )
+            has_delegated_scope = (
+                outlook_conn
+                and outlook_conn.get("has_online_meetings_scope") is True
+                and outlook_conn.get("access_token")
             )
 
-            # Enrich Teams metadata with the REAL Azure AD identity (not the Outlook personal email)
-            if result.get("metadata"):
+            if has_delegated_scope:
+                print(f"[MEETING] Teams DELEGATED mode for user {organizer_user_id[:8]}")
                 try:
-                    headers = {"Authorization": f"Bearer {_teams_client._get_token()}"}
-                    graph_user = requests.get(
-                        f"https://graph.microsoft.com/v1.0/users/{azure_user_id}?$select=mail,userPrincipalName,displayName",
-                        headers=headers, timeout=10,
-                    ).json()
-                    result["metadata"]["creator_email"] = graph_user.get("mail") or graph_user.get("userPrincipalName")
-                    result["metadata"]["creator_name"] = graph_user.get("displayName")
-                    result["metadata"]["azure_user_id"] = azure_user_id
-                except Exception as e:
-                    print(f"[MEETING] Could not resolve Azure AD email for {azure_user_id}: {e}")
-                    # Fallback to Outlook email if Graph lookup fails
-                    outlook_conn = db.calendar_connections.find_one(
-                        {"user_id": organizer_user_id, "provider": "outlook", "status": "connected"},
-                        {"_id": 0, "outlook_email": 1, "outlook_name": 1},
+                    # Ensure fresh token
+                    access_token = outlook_conn["access_token"]
+                    refresh_token = outlook_conn.get("refresh_token")
+                    if refresh_token:
+                        from adapters.outlook_calendar_adapter import OutlookCalendarAdapter
+                        refreshed = OutlookCalendarAdapter.refresh_access_token(refresh_token)
+                        if refreshed:
+                            access_token = refreshed
+                            db.calendar_connections.update_one(
+                                {"user_id": organizer_user_id, "provider": "outlook"},
+                                {"$set": {"access_token": access_token}},
+                            )
+
+                    headers = {"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"}
+                    resp = requests.post(
+                        "https://graph.microsoft.com/v1.0/me/onlineMeetings",
+                        json=meeting_payload, headers=headers, timeout=15,
                     )
-                    if outlook_conn:
-                        result["metadata"]["creator_email"] = outlook_conn.get("outlook_email")
-                        result["metadata"]["creator_name"] = outlook_conn.get("outlook_name")
-                        result["metadata"]["is_fallback_email"] = True
+                    resp.raise_for_status()
+                    data = resp.json()
+
+                    creator_email = outlook_conn.get("outlook_email", "")
+                    creator_name = outlook_conn.get("outlook_name", "")
+
+                    result = {
+                        "external_meeting_id": data.get("id"),
+                        "join_url": data.get("joinWebUrl") or data.get("joinUrl"),
+                        "host_url": None,
+                        "password": None,
+                        "metadata": {
+                            "video_teleconference_id": data.get("videoTeleconferenceId"),
+                            "subject": data.get("subject"),
+                            "created_at": data.get("creationDateTime"),
+                            "lobby_bypass_scope": "everyone",
+                            "allowed_presenters": "organizer",
+                            "creation_mode": "delegated",
+                            "creator_email": creator_email,
+                            "creator_name": creator_name,
+                        },
+                    }
+                    print(f"[MEETING] Teams DELEGATED success: {creator_email}")
+
+                except requests.exceptions.HTTPError as e:
+                    status_code = e.response.status_code if e.response is not None else 0
+                    print(f"[MEETING] Teams DELEGATED failed (HTTP {status_code}): {e}")
+                    if status_code == 403:
+                        # Scope might have been revoked, mark connection
+                        db.calendar_connections.update_one(
+                            {"user_id": organizer_user_id, "provider": "outlook"},
+                            {"$set": {"has_online_meetings_scope": False}},
+                        )
+                        print("[MEETING] Marked has_online_meetings_scope=False, will use fallback next time")
+                    # Fall through to application fallback below
+                    has_delegated_scope = False
+                except Exception as e:
+                    print(f"[MEETING] Teams DELEGATED error: {e}")
+                    has_delegated_scope = False
+
+            # --- Priority 2: Application fallback (legacy azure_user_id) ---
+            if not has_delegated_scope or not result:
+                if not _teams_client.is_configured():
+                    return {"error": "Teams API non configurée. Ajoutez MICROSOFT_TENANT_ID, MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET.", "needs_config": True}
+
+                azure_user_id = _resolve_teams_user_id(organizer_user_id)
+                if not azure_user_id:
+                    return {"error": "Azure AD User ID introuvable. Reconnectez votre compte Outlook pour permettre la création de réunions Teams sous votre propre identité.", "needs_config": True}
+
+                print(f"[MEETING] Teams APPLICATION FALLBACK for user {organizer_user_id[:8]} (azure_user_id={azure_user_id[:8]})")
+                result = _teams_client.create_meeting(
+                    subject=title,
+                    start_time=start_datetime,
+                    end_time=end_time,
+                    user_id=azure_user_id,
+                )
+
+                # Enrich with real Azure AD identity
+                if result.get("metadata"):
+                    result["metadata"]["creation_mode"] = "application_fallback"
+                    try:
+                        headers = {"Authorization": f"Bearer {_teams_client._get_token()}"}
+                        graph_user = requests.get(
+                            f"https://graph.microsoft.com/v1.0/users/{azure_user_id}?$select=mail,userPrincipalName,displayName",
+                            headers=headers, timeout=10,
+                        ).json()
+                        result["metadata"]["creator_email"] = graph_user.get("mail") or graph_user.get("userPrincipalName")
+                        result["metadata"]["creator_name"] = graph_user.get("displayName")
+                        result["metadata"]["azure_user_id"] = azure_user_id
+                    except Exception as e:
+                        print(f"[MEETING] Could not resolve Azure AD email for {azure_user_id}: {e}")
+                        if outlook_conn:
+                            result["metadata"]["creator_email"] = outlook_conn.get("outlook_email")
+                            result["metadata"]["creator_name"] = outlook_conn.get("outlook_name")
+                            result["metadata"]["is_fallback_email"] = True
 
         elif provider_lower in ("meet", "google meet", "google_meet"):
             if not _meet_client.is_configured():

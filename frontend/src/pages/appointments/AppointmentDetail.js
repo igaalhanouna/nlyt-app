@@ -1025,12 +1025,28 @@ export default function AppointmentDetail() {
                                     {creatorName && <span className="text-slate-400"> ({creatorName})</span>}
                                   </p>
                                 )}
+                                {/* Creation mode indicator for Teams */}
+                                {provider === 'teams' && metadata.creation_mode === 'application_fallback' && (
+                                  <div className="mt-1.5 p-2 bg-orange-50 border border-orange-200 rounded" data-testid="teams-legacy-mode-warning">
+                                    <p className="text-xs font-medium text-orange-800">Mode legacy — identité technique</p>
+                                    <p className="text-xs text-orange-700 mt-0.5">
+                                      Cette réunion a été créée via une identité technique ({creatorEmail}), et non via votre compte personnel. 
+                                      Pour créer les prochaines réunions sous votre propre identité, reconnectez votre compte Outlook dans les <a href="/settings/integrations" className="underline font-medium">paramètres d'intégration</a>.
+                                    </p>
+                                  </div>
+                                )}
+                                {provider === 'teams' && metadata.creation_mode === 'delegated' && (
+                                  <div className="mt-1.5 flex items-center gap-1.5" data-testid="teams-delegated-mode">
+                                    <span className="text-emerald-500 text-xs">&#10003;</span>
+                                    <p className="text-xs text-emerald-700">Réunion créée sous votre propre identité Microsoft.</p>
+                                  </div>
+                                )}
                                 {!(provider === 'zoom' && appointment.meeting_host_url) && creatorEmail && (
                                   <div className="mt-1.5" data-testid="organizer-identity-hint">
                                     <p className="text-xs text-slate-500">
                                       Rejoignez la réunion avec ce même compte pour être reconnu comme organisateur.
                                     </p>
-                                    {provider === 'teams' && (
+                                    {provider === 'teams' && metadata.creation_mode !== 'delegated' && (
                                       <p className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded px-2 py-1 mt-1.5" data-testid="teams-account-warning">
                                         Attention : utilisez votre compte professionnel ({creatorEmail.split('@').pop()}) dans Teams, et non un compte Microsoft personnel.
                                       </p>

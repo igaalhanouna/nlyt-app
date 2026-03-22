@@ -237,6 +237,34 @@ export default function Integrations() {
                 </p>
               </div>
             )}
+            {!isGoogle && provider === 'outlook' && !connection?.has_online_meetings_scope && (
+              <div className="mt-2 pt-2 border-t border-orange-100" data-testid="outlook-upgrade-scope-banner">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-xs text-orange-700">
+                    <span className="font-medium">Mise à jour recommandée :</span> Reconnectez votre compte Outlook pour créer les réunions Teams directement sous votre propre identité.
+                  </p>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleConnect(provider)}
+                    disabled={connectingState}
+                    className="h-7 text-xs border-orange-300 text-orange-700 hover:bg-orange-50 shrink-0"
+                    data-testid="upgrade-outlook-scope-btn"
+                  >
+                    {connectingState ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <ExternalLink className="w-3 h-3 mr-1" />}
+                    Mettre à jour
+                  </Button>
+                </div>
+              </div>
+            )}
+            {!isGoogle && provider === 'outlook' && connection?.has_online_meetings_scope && (
+              <div className="mt-2 pt-2 border-t border-slate-100">
+                <p className="text-xs text-emerald-700 flex items-center gap-1">
+                  <Video className="w-3 h-3" />
+                  Création de réunions Teams activée sous votre propre identité.
+                </p>
+              </div>
+            )}
           </div>
         ) : isExpired ? (
           <div className="border-t border-amber-100 bg-amber-50/50 px-5 py-3">

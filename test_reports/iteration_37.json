@@ -1,0 +1,98 @@
+{
+  "summary": "Teams Delegated Permissions Phase A Testing Complete. All backend tests passed (6/6). All frontend UI tests passed. The implementation correctly handles: (1) Teams appointments with creation_mode='application_fallback' show orange warning banner with 'identité technique' mention and link to /settings/integrations, (2) Teams appointments with creation_mode='delegated' show green confirmation, (3) Settings/Integrations page shows 'Mise à jour recommandée' banner for Outlook without OnlineMeetings scope, (4) Meet and physical appointments show correct identity blocks (no regression), (5) Backend logs show '[MEETING] Teams APPLICATION FALLBACK' when creating in fallback mode.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": {
+    "backend": [
+      "GET /api/appointments/{teams_fallback_id} returns creation_mode='application_fallback' in meeting_provider_metadata",
+      "GET /api/appointments/{teams_fallback_id} returns creator_email='igaal.hanouna@starauto.fr' from Azure AD",
+      "GET /api/appointments/{teams_fallback_id} returns azure_user_id in metadata (application_fallback mode)",
+      "GET /api/appointments/{meet_id} returns creator_email='igaal.hanouna@gmail.com' (no regression)",
+      "GET /api/calendar/connections returns Outlook connection (has_online_meetings_scope=None for old connection)",
+      "POST /api/appointments/ with meeting_provider=teams creates appointment with creation_mode='application_fallback'",
+      "Backend logs show '[MEETING] Teams APPLICATION FALLBACK for user d13498f9 (azure_user_id=79f6849a)'"
+    ],
+    "frontend": [
+      "Teams fallback: organizer-identity-block is present",
+      "Teams fallback: teams-legacy-mode-warning banner is present (orange)",
+      "Teams fallback: Warning mentions 'identité technique'",
+      "Teams fallback: Warning contains link to /settings/integrations",
+      "Teams fallback: teams-delegated-mode is NOT present (correct for fallback mode)",
+      "Teams fallback: organizer-account-email shows 'igaal.hanouna@starauto.fr'",
+      "Teams fallback: proof-availability-block is present",
+      "Teams fallback: proof-status-auto is present (Teams has auto attendance)",
+      "Teams delegated: teams-delegated-mode is present (green confirmation)",
+      "Teams delegated: teams-legacy-mode-warning is NOT present",
+      "Teams delegated: Shows 'Réunion créée sous votre propre identité Microsoft'",
+      "Settings/Integrations: outlook-upgrade-scope-banner is present",
+      "Settings/Integrations: Banner mentions 'Mise à jour recommandée'",
+      "Settings/Integrations: upgrade-outlook-scope-btn is present",
+      "Meet: organizer-identity-block is present (no regression)",
+      "Meet: organizer-account-email shows 'igaal.hanouna@gmail.com'",
+      "Meet: teams-legacy-mode-warning is NOT present (correct for Meet)",
+      "Meet: proof-status-no-auto is present (Meet Gmail personal)",
+      "Physical: organizer-identity-block is NOT present (correct)",
+      "Physical: proof-availability-block is NOT present (correct)",
+      "Physical: teams-legacy-mode-warning is NOT present (correct)"
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_teams_delegated_permissions.py",
+    "/app/test_reports/pytest/pytest_teams_delegated.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "meeting_provider_service.py lines 386-504: Teams delegated vs fallback logic correctly implemented with proper logging",
+    "meeting_provider_service.py line 478: Logs '[MEETING] Teams APPLICATION FALLBACK' when using fallback mode",
+    "meeting_provider_service.py lines 486-503: Enriches metadata with creation_mode, creator_email, azure_user_id",
+    "outlook_calendar_adapter.py line 11: SCOPES includes 'OnlineMeetings.ReadWrite'",
+    "calendar_routes.py line 331: has_online_meetings_scope stored at connection time",
+    "AppointmentDetail.js lines 1029-1043: Teams creation mode indicators correctly implemented",
+    "Integrations.js lines 240-259: Outlook upgrade scope banner correctly implemented"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_teams_delegated_permissions.py"
+  ],
+  "success_rate": {
+    "backend": "100% (6/6 tests passed)",
+    "frontend": "100% (21/21 UI checks passed)"
+  },
+  "test_credentials": {
+    "email": "testuser_audit@nlyt.app",
+    "password": "Test1234!"
+  },
+  "seed_data_used": {
+    "teams_fallback_appointment": "82f9be58-c4b7-48fa-a2e4-ef3b0470e626 (creation_mode: application_fallback, creator_email: igaal.hanouna@starauto.fr)",
+    "meet_appointment": "10c355e4-2796-4aaf-b163-74a912d71957 (creator_email: igaal.hanouna@gmail.com)",
+    "physical_appointment": "35df4fb0-91ac-4d6a-a56b-cfd6e06b4111"
+  },
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Teams Delegated Permissions Phase A fully tested. Key verified features: (1) Teams appointments with creation_mode='application_fallback' show orange 'Mode legacy — identité technique' warning with link to /settings/integrations, (2) Teams appointments with creation_mode='delegated' show green '✓ Réunion créée sous votre propre identité Microsoft' confirmation, (3) Settings/Integrations shows 'Mise à jour recommandée' banner for Outlook without OnlineMeetings.ReadWrite scope, (4) Backend logs '[MEETING] Teams APPLICATION FALLBACK' when creating in fallback mode. Data-testids verified: teams-legacy-mode-warning (orange), teams-delegated-mode (green), outlook-upgrade-scope-banner, upgrade-outlook-scope-btn. The current test user has an old Outlook connection without has_online_meetings_scope, so all Teams creations go through application_fallback mode.",
+  "verified_features": {
+    "teams_fallback_mode_orange_warning": true,
+    "teams_fallback_mode_identite_technique_mention": true,
+    "teams_fallback_mode_settings_link": true,
+    "teams_delegated_mode_green_confirmation": true,
+    "outlook_upgrade_scope_banner": true,
+    "backend_logs_application_fallback": true,
+    "metadata_creation_mode_stored": true,
+    "metadata_creator_email_stored": true,
+    "metadata_azure_user_id_stored": true,
+    "meet_no_regression": true,
+    "physical_no_regression": true
+  },
+  "code_verification": {
+    "meeting_provider_service.py_delegated_vs_fallback": "Lines 386-504 - Correct priority: delegated first, fallback second",
+    "meeting_provider_service.py_logging": "Line 478 - Logs '[MEETING] Teams APPLICATION FALLBACK'",
+    "AppointmentDetail.js_creation_mode_indicators": "Lines 1029-1043 - Orange for fallback, green for delegated",
+    "Integrations.js_upgrade_banner": "Lines 240-259 - Shows when has_online_meetings_scope is false/null"
+  }
+}
