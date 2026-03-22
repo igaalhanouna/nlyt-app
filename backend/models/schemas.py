@@ -50,6 +50,12 @@ class DisputeStatus(str, Enum):
     RESOLVED = "resolved"
     REJECTED = "rejected"
 
+class MeetingProvider(str, Enum):
+    ZOOM = "zoom"
+    TEAMS = "teams"
+    MEET = "meet"
+    EXTERNAL = "external"
+
 class CalendarProvider(str, Enum):
     GOOGLE = "google"
     OUTLOOK = "outlook"
@@ -124,7 +130,7 @@ class AppointmentCreate(BaseModel):
     location_latitude: Optional[float] = None
     location_longitude: Optional[float] = None
     location_place_id: Optional[str] = None
-    meeting_provider: Optional[str] = None
+    meeting_provider: Optional[MeetingProvider] = None
     external_meeting_id: Optional[str] = None
     meeting_join_url: Optional[str] = None
     start_datetime: str

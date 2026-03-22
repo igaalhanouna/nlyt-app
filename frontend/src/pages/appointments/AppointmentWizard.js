@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useWorkspace } from '../../contexts/WorkspaceContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { appointmentAPI } from '../../services/api';
+import { appointmentAPI, videoEvidenceAPI } from '../../services/api';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
-import { ArrowLeft, ArrowRight, Check, Calendar, MapPin, Video, DollarSign, Shield, Users, Plus, Trash2, Lock, Building2, ChevronDown, Loader2, Zap } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, Calendar, MapPin, Video, DollarSign, Shield, Users, Plus, Trash2, Lock, Building2, ChevronDown, Loader2, Zap, Monitor, ExternalLink, AlertTriangle, CheckCircle, Settings2 } from 'lucide-react';
 import { toast } from 'sonner';
 import AddressAutocomplete from '../../components/AddressAutocomplete';
 
@@ -28,6 +28,10 @@ export default function AppointmentWizard() {
   const [newWorkspaceDescription, setNewWorkspaceDescription] = useState('');
   const [creatingWorkspace, setCreatingWorkspace] = useState(false);
   const [charityAssociations, setCharityAssociations] = useState([]);
+  
+  // Video provider connection status
+  const [videoProviders, setVideoProviders] = useState(null);
+  const [loadingProviders, setLoadingProviders] = useState(false);
   
   // Platform commission comes from server — not user-editable
   const [systemPlatformCommission, setSystemPlatformCommission] = useState(20);
@@ -107,6 +111,17 @@ export default function AppointmentWizard() {
     
     loadDefaults();
   }, [token]);
+
+  // Load video provider status when switching to video type
+  useEffect(() => {
+    if (formData.appointment_type === 'video' && !videoProviders) {
+      setLoadingProviders(true);
+      videoEvidenceAPI.providerStatus()
+        .then(res => setVideoProviders(res.data))
+        .catch(() => setVideoProviders(null))
+        .finally(() => setLoadingProviders(false));
+    }
+  }, [formData.appointment_type, videoProviders]);
 
   const steps = [
     { number: 1, title: 'Participants', icon: Users },
@@ -213,8 +228,19 @@ export default function AppointmentWizard() {
           toast.error('Le lieu est requis pour un rendez-vous physique');
           return false;
         }
-        if (formData.appointment_type === 'video' && !formData.meeting_provider.trim()) {
-          toast.error('La plateforme de visio est requise');
+        if (formData.appointment_type === 'video' && !formData.meeting_provider) {
+          toast.error('Sélectionnez une plateforme de visioconférence');
+          return false;
+        }
+        if (formData.appointment_type === 'video' && formData.meeting_provider && formData.meeting_provider !== 'external') {
+          const p = videoProviders?.[formData.meeting_provider];
+          if (p && !p.connected) {
+            toast.error(`${p.label || formData.meeting_provider} n'est pas connecté. Configurez-le dans Paramètres > Intégrations.`);
+            return false;
+          }
+        }
+        if (formData.appointment_type === 'video' && formData.meeting_provider === 'external' && !formData.meeting_join_url?.trim()) {
+          toast.error('L\'URL de la réunion est requise pour un lien externe');
           return false;
         }
         return true;
@@ -474,16 +500,221 @@ export default function AppointmentWizard() {
           </p>
         </div>
       ) : (
-        <div>
-          <Label htmlFor="meeting_provider">Plateforme de visioconférence *</Label>
-          <Input
-            id="meeting_provider"
-            data-testid="appointment-provider-input"
-            value={formData.meeting_provider}
-            onChange={(e) => setFormData({ ...formData, meeting_provider: e.target.value })}
-            placeholder="Ex: Zoom, Google Meet, Microsoft Teams..."
-            className="mt-1"
-          />
+        <div className="space-y-3">
+          <Label>Plateforme de visioconférence *</Label>
+          {loadingProviders ? (
+            <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-lg border border-slate-200">
+              <Loader2 className="w-4 h-4 animate-spin text-slate-400" />
+              <span className="text-sm text-slate-500">Chargement des intégrations...</span>
+            </div>
+          ) : (
+            <div className="space-y-2" data-testid="meeting-provider-selector">
+              {/* Zoom */}
+              {(() => {
+                const zoomInfo = videoProviders?.zoom;
+                const isConnected = zoomInfo?.connected;
+                const isSelected = formData.meeting_provider === 'zoom';
+                return (
+                  <button
+                    type="button"
+                    onClick={() => isConnected && setFormData({ ...formData, meeting_provider: 'zoom', meeting_join_url: '' })}
+                    className={`w-full flex items-center gap-3 p-3 rounded-lg border text-left transition-all ${
+                      isSelected
+                        ? 'border-blue-400 bg-blue-50 ring-1 ring-blue-200'
+                        : isConnected
+                          ? 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50 cursor-pointer'
+                          : 'border-slate-100 bg-slate-50 opacity-60 cursor-not-allowed'
+                    }`}
+                    disabled={!isConnected}
+                    data-testid="provider-option-zoom"
+                  >
+                    <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
+                      <Video className="w-4 h-4 text-blue-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-slate-900">Zoom</span>
+                        {isConnected ? (
+                          <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-medium">
+                            <CheckCircle className="w-3 h-3" /> Connecté
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-500 font-medium">
+                            Non connecté
+                          </span>
+                        )}
+                      </div>
+                      {!isConnected && (
+                        <p className="text-xs text-slate-400 mt-0.5">
+                          <Link to="/settings/integrations" className="text-blue-500 hover:underline">Configurer dans les intégrations</Link>
+                        </p>
+                      )}
+                      {isConnected && zoomInfo?.email && (
+                        <p className="text-xs text-slate-400 mt-0.5">{zoomInfo.email}</p>
+                      )}
+                    </div>
+                    {isSelected && <Check className="w-4 h-4 text-blue-600 flex-shrink-0" />}
+                  </button>
+                );
+              })()}
+
+              {/* Microsoft Teams */}
+              {(() => {
+                const teamsInfo = videoProviders?.teams;
+                const isConnected = teamsInfo?.connected;
+                const isSelected = formData.meeting_provider === 'teams';
+                return (
+                  <button
+                    type="button"
+                    onClick={() => isConnected && setFormData({ ...formData, meeting_provider: 'teams', meeting_join_url: '' })}
+                    className={`w-full flex items-center gap-3 p-3 rounded-lg border text-left transition-all ${
+                      isSelected
+                        ? 'border-violet-400 bg-violet-50 ring-1 ring-violet-200'
+                        : isConnected
+                          ? 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50 cursor-pointer'
+                          : 'border-slate-100 bg-slate-50 opacity-60 cursor-not-allowed'
+                    }`}
+                    disabled={!isConnected}
+                    data-testid="provider-option-teams"
+                  >
+                    <div className="w-9 h-9 rounded-lg bg-violet-50 flex items-center justify-center flex-shrink-0">
+                      <Monitor className="w-4 h-4 text-violet-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-slate-900">Microsoft Teams</span>
+                        {isConnected ? (
+                          <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-medium">
+                            <CheckCircle className="w-3 h-3" /> Connecté
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-500 font-medium">
+                            Non connecté
+                          </span>
+                        )}
+                      </div>
+                      {!isConnected && (
+                        <p className="text-xs text-slate-400 mt-0.5">
+                          <Link to="/settings/integrations" className="text-violet-500 hover:underline">Configurer dans les intégrations</Link>
+                        </p>
+                      )}
+                      {isConnected && teamsInfo?.email && (
+                        <p className="text-xs text-slate-400 mt-0.5">{teamsInfo.email}</p>
+                      )}
+                    </div>
+                    {isSelected && <Check className="w-4 h-4 text-violet-600 flex-shrink-0" />}
+                  </button>
+                );
+              })()}
+
+              {/* Google Meet */}
+              {(() => {
+                const meetInfo = videoProviders?.meet;
+                const isConnected = meetInfo?.connected;
+                const isSelected = formData.meeting_provider === 'meet';
+                return (
+                  <button
+                    type="button"
+                    onClick={() => isConnected && setFormData({ ...formData, meeting_provider: 'meet', meeting_join_url: '' })}
+                    className={`w-full flex items-center gap-3 p-3 rounded-lg border text-left transition-all ${
+                      isSelected
+                        ? 'border-emerald-400 bg-emerald-50 ring-1 ring-emerald-200'
+                        : isConnected
+                          ? 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50 cursor-pointer'
+                          : 'border-slate-100 bg-slate-50 opacity-60 cursor-not-allowed'
+                    }`}
+                    disabled={!isConnected}
+                    data-testid="provider-option-meet"
+                  >
+                    <div className="w-9 h-9 rounded-lg bg-emerald-50 flex items-center justify-center flex-shrink-0">
+                      <Video className="w-4 h-4 text-emerald-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-slate-900">Google Meet</span>
+                        {isConnected ? (
+                          <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-medium">
+                            <CheckCircle className="w-3 h-3" /> via Google Calendar
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-500 font-medium">
+                            Non connecté
+                          </span>
+                        )}
+                      </div>
+                      {!isConnected && (
+                        <p className="text-xs text-slate-400 mt-0.5">
+                          <Link to="/settings/integrations" className="text-emerald-500 hover:underline">Connecter Google Calendar</Link>
+                        </p>
+                      )}
+                      {isConnected && meetInfo?.email && (
+                        <p className="text-xs text-slate-400 mt-0.5">{meetInfo.email}</p>
+                      )}
+                    </div>
+                    {isSelected && <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />}
+                  </button>
+                );
+              })()}
+
+              {/* External link */}
+              {(() => {
+                const isSelected = formData.meeting_provider === 'external';
+                return (
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, meeting_provider: 'external', meeting_join_url: '' })}
+                    className={`w-full flex items-center gap-3 p-3 rounded-lg border text-left transition-all ${
+                      isSelected
+                        ? 'border-amber-400 bg-amber-50 ring-1 ring-amber-200'
+                        : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50 cursor-pointer'
+                    }`}
+                    data-testid="provider-option-external"
+                  >
+                    <div className="w-9 h-9 rounded-lg bg-amber-50 flex items-center justify-center flex-shrink-0">
+                      <ExternalLink className="w-4 h-4 text-amber-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-slate-900">Lien externe</span>
+                        <span className="inline-flex items-center text-xs px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600 font-medium">
+                          Manuel
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-400 mt-0.5">Collez le lien d'une réunion déjà créée</p>
+                    </div>
+                    {isSelected && <Check className="w-4 h-4 text-amber-600 flex-shrink-0" />}
+                  </button>
+                );
+              })()}
+            </div>
+          )}
+
+          {/* External URL input */}
+          {formData.meeting_provider === 'external' && (
+            <div className="mt-3">
+              <Label htmlFor="meeting_join_url">URL de la réunion *</Label>
+              <Input
+                id="meeting_join_url"
+                data-testid="external-meeting-url-input"
+                type="url"
+                value={formData.meeting_join_url || ''}
+                onChange={(e) => setFormData({ ...formData, meeting_join_url: e.target.value })}
+                placeholder="https://zoom.us/j/... ou https://meet.google.com/..."
+                className="mt-1"
+              />
+              <p className="text-xs text-slate-500 mt-1">Collez le lien de la réunion que vous avez créée manuellement</p>
+            </div>
+          )}
+
+          {/* Info: auto-creation note for connected providers */}
+          {formData.meeting_provider && formData.meeting_provider !== 'external' && videoProviders?.[formData.meeting_provider]?.connected && (
+            <div className="flex items-start gap-2 p-2.5 bg-blue-50 border border-blue-100 rounded-lg mt-2">
+              <Zap className="w-3.5 h-3.5 text-blue-600 mt-0.5 flex-shrink-0" />
+              <p className="text-xs text-blue-700">
+                Le lien de réunion sera créé automatiquement via l'API {videoProviders[formData.meeting_provider]?.label || formData.meeting_provider} et inclus dans les invitations.
+              </p>
+            </div>
+          )}
         </div>
       )}
 
@@ -764,7 +995,17 @@ export default function AppointmentWizard() {
                 ) : (
                   <div className="flex justify-between">
                     <span className="text-slate-600">Plateforme:</span>
-                    <span className="font-medium text-slate-900">{formData.meeting_provider}</span>
+                    <span className="font-medium text-slate-900">
+                      {{ zoom: 'Zoom', teams: 'Microsoft Teams', meet: 'Google Meet', external: 'Lien externe' }[formData.meeting_provider] || formData.meeting_provider}
+                    </span>
+                  </div>
+                )}
+                {formData.meeting_provider === 'external' && formData.meeting_join_url && (
+                  <div className="flex justify-between">
+                    <span className="text-slate-600">URL:</span>
+                    <a href={formData.meeting_join_url} target="_blank" rel="noopener noreferrer" className="font-medium text-blue-600 hover:underline truncate max-w-[250px]">
+                      {formData.meeting_join_url}
+                    </a>
                   </div>
                 )}
                 <div className="flex justify-between">

@@ -204,8 +204,13 @@ async def create_appointment(appointment: AppointmentCreate, request: Request):
         print(f"[AUTO-SYNC] Error during auto-sync: {e}")
 
     # Auto-create meeting if video appointment with a configured provider (non-blocking)
+    # Validate external provider requires a join URL
+    if appointment.appointment_type == "video" and appointment.meeting_provider == "external":
+        if not appointment.meeting_join_url or not appointment.meeting_join_url.strip():
+            raise HTTPException(status_code=400, detail="L'URL de la réunion est requise pour un lien externe")
+    
     meeting_result = None
-    if appointment.appointment_type == "video" and appointment.meeting_provider:
+    if appointment.appointment_type == "video" and appointment.meeting_provider and appointment.meeting_provider != "external":
         try:
             from services.meeting_provider_service import create_meeting_for_appointment
             meeting_result = create_meeting_for_appointment(

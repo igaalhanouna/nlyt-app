@@ -942,18 +942,27 @@ export default function AppointmentDetail() {
               </div>
               <div>
                 <Label htmlFor="prop-location">{proposalForm.appointment_type === 'video' ? 'Plateforme visio' : 'Lieu'}</Label>
-                <Input
-                  id="prop-location" data-testid="proposal-location-input"
-                  value={proposalForm.appointment_type === 'video' ? proposalForm.meeting_provider : proposalForm.location}
-                  onChange={(e) => {
-                    if (proposalForm.appointment_type === 'video') {
-                      setProposalForm({...proposalForm, meeting_provider: e.target.value});
-                    } else {
-                      setProposalForm({...proposalForm, location: e.target.value});
-                    }
-                  }}
-                  className="mt-1"
-                />
+                {proposalForm.appointment_type === 'video' ? (
+                  <select
+                    id="prop-location" data-testid="proposal-provider-select"
+                    value={proposalForm.meeting_provider || ''}
+                    onChange={(e) => setProposalForm({...proposalForm, meeting_provider: e.target.value})}
+                    className="mt-1 w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  >
+                    <option value="">-- Sélectionner --</option>
+                    <option value="zoom">Zoom</option>
+                    <option value="teams">Microsoft Teams</option>
+                    <option value="meet">Google Meet</option>
+                    <option value="external">Lien externe</option>
+                  </select>
+                ) : (
+                  <Input
+                    id="prop-location" data-testid="proposal-location-input"
+                    value={proposalForm.location}
+                    onChange={(e) => setProposalForm({...proposalForm, location: e.target.value})}
+                    className="mt-1"
+                  />
+                )}
               </div>
             </div>
             {proposalForm.start_datetime && new Date(proposalForm.start_datetime) <= new Date() && (
