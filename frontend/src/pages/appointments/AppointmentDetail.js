@@ -1289,34 +1289,6 @@ export default function AppointmentDetail() {
           </div>
         )}
         
-        {/* Organizer pending guarantee notice */}
-        {organizerParticipant && organizerParticipant.status === 'accepted_pending_guarantee' && !isCancelled && (
-          <div className="bg-white rounded-lg border border-amber-200 p-6 mt-6" data-testid="organizer-guarantee-notice">
-            <div className="flex items-center gap-2 mb-3">
-              <Shield className="w-5 h-5 text-amber-600" />
-              <h2 className="text-lg font-semibold text-slate-900">Garantie organisateur requise</h2>
-            </div>
-            <p className="text-sm text-slate-600 mb-3">Vous devez déposer votre garantie pour activer le rendez-vous.</p>
-            <Button
-              onClick={async () => {
-                try {
-                  const res = await invitationAPI.accept(organizerParticipant.invitation_token);
-                  if (res.data.checkout_url) {
-                    window.location.href = res.data.checkout_url;
-                  }
-                } catch (e) {
-                  toast.error('Erreur lors de la création de la session de paiement');
-                }
-              }}
-              className="gap-1.5"
-              data-testid="organizer-guarantee-btn"
-            >
-              <DollarSign className="w-4 h-4" />
-              Déposer ma garantie
-            </Button>
-          </div>
-        )}
-
         {participants.length > 0 && (
           <div className={`bg-white rounded-lg border p-6 mt-6 ${isCancelled ? 'border-slate-200 opacity-60' : 'border-slate-200'}`}>
             <div className="flex items-center justify-between mb-4">
