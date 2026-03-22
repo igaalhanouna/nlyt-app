@@ -7,7 +7,7 @@ import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
-import { ArrowLeft, ArrowRight, Check, Calendar, MapPin, Video, DollarSign, Shield, Users, Plus, Trash2, Lock, Building2, ChevronDown, Loader2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, Calendar, MapPin, Video, DollarSign, Shield, Users, Plus, Trash2, Lock, Building2, ChevronDown, Loader2, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 import AddressAutocomplete from '../../components/AddressAutocomplete';
 
@@ -270,6 +270,38 @@ export default function AppointmentWizard() {
       navigate(`/appointments/${response.data.appointment_id}`);
     } catch (error) {
       console.error('Appointment creation error:', error);
+      const errorMessage = error.response?.data?.detail || 'Erreur lors de la création du rendez-vous';
+      toast.error(typeof errorMessage === 'string' ? errorMessage : JSON.stringify(errorMessage));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleQuickCreate = async () => {
+    // Validate participants (step 1) and basic info (step 2)
+    if (!validateStep(1) || !validateStep(2)) return;
+
+    if (!currentWorkspace || !currentWorkspace.workspace_id) {
+      toast.error('Une erreur technique est survenue. Veuillez vous reconnecter.');
+      navigate('/signin');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const validParticipants = participants.filter(p => p.email.trim() !== '');
+      const payload = {
+        ...formData,
+        start_datetime: localInputToUTC(formData.start_datetime),
+        workspace_id: currentWorkspace.workspace_id,
+        participants: validParticipants
+      };
+
+      const response = await appointmentAPI.create(payload);
+      toast.success('Rendez-vous créé avec vos paramètres par défaut');
+      navigate(`/appointments/${response.data.appointment_id}`);
+    } catch (error) {
+      console.error('Quick create error:', error);
       const errorMessage = error.response?.data?.detail || 'Erreur lors de la création du rendez-vous';
       toast.error(typeof errorMessage === 'string' ? errorMessage : JSON.stringify(errorMessage));
     } finally {
@@ -991,16 +1023,36 @@ export default function AppointmentWizard() {
               Précédent
             </Button>
 
-            {currentStep < 5 ? (
-              <Button type="button" onClick={handleNext} data-testid="wizard-next-btn">
-                Suivant
-                <ArrowRight className="w-4 h-4 ml-2" />
-              </Button>
-            ) : (
-              <Button type="button" onClick={handleSubmit} disabled={loading} data-testid="wizard-create-btn">
-                {loading ? 'Création...' : 'Créer le rendez-vous'}
-              </Button>
-            )}
+            <div className="flex items-center gap-3">
+              {currentStep === 2 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleQuickCreate}
+                  disabled={loading}
+                  className="border-amber-300 text-amber-700 hover:bg-amber-50 hover:border-amber-400"
+                  data-testid="quick-create-btn"
+                >
+                  {loading ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Zap className="w-4 h-4 mr-2" />
+                  )}
+                  Valider avec les paramètres du profil
+                </Button>
+              )}
+
+              {currentStep < 5 ? (
+                <Button type="button" onClick={handleNext} data-testid="wizard-next-btn">
+                  Suivant
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+              ) : (
+                <Button type="button" onClick={handleSubmit} disabled={loading} data-testid="wizard-create-btn">
+                  {loading ? 'Création...' : 'Créer le rendez-vous'}
+                </Button>
+              )}
+            </div>
           </div>
         </div>
           </>
