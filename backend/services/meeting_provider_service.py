@@ -400,14 +400,28 @@ def create_meeting_for_appointment(
                 user_id=azure_user_id,
             )
 
-            # Enrich Teams metadata with the organizer's Outlook email
-            outlook_conn = db.calendar_connections.find_one(
-                {"user_id": organizer_user_id, "provider": "outlook", "status": "connected"},
-                {"_id": 0, "outlook_email": 1, "outlook_name": 1},
-            )
-            if outlook_conn and result.get("metadata"):
-                result["metadata"]["creator_email"] = outlook_conn.get("outlook_email")
-                result["metadata"]["creator_name"] = outlook_conn.get("outlook_name")
+            # Enrich Teams metadata with the REAL Azure AD identity (not the Outlook personal email)
+            if result.get("metadata"):
+                try:
+                    headers = {"Authorization": f"Bearer {_teams_client._get_token()}"}
+                    graph_user = requests.get(
+                        f"https://graph.microsoft.com/v1.0/users/{azure_user_id}?$select=mail,userPrincipalName,displayName",
+                        headers=headers, timeout=10,
+                    ).json()
+                    result["metadata"]["creator_email"] = graph_user.get("mail") or graph_user.get("userPrincipalName")
+                    result["metadata"]["creator_name"] = graph_user.get("displayName")
+                    result["metadata"]["azure_user_id"] = azure_user_id
+                except Exception as e:
+                    print(f"[MEETING] Could not resolve Azure AD email for {azure_user_id}: {e}")
+                    # Fallback to Outlook email if Graph lookup fails
+                    outlook_conn = db.calendar_connections.find_one(
+                        {"user_id": organizer_user_id, "provider": "outlook", "status": "connected"},
+                        {"_id": 0, "outlook_email": 1, "outlook_name": 1},
+                    )
+                    if outlook_conn:
+                        result["metadata"]["creator_email"] = outlook_conn.get("outlook_email")
+                        result["metadata"]["creator_name"] = outlook_conn.get("outlook_name")
+                        result["metadata"]["is_fallback_email"] = True
 
         elif provider_lower in ("meet", "google meet", "google_meet"):
             if not _meet_client.is_configured():

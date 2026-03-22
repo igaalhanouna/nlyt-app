@@ -1026,9 +1026,16 @@ export default function AppointmentDetail() {
                                   </p>
                                 )}
                                 {!(provider === 'zoom' && appointment.meeting_host_url) && creatorEmail && (
-                                  <p className="text-xs text-slate-500 mt-1" data-testid="organizer-identity-hint">
-                                    Rejoignez la réunion avec ce même compte pour être reconnu comme organisateur.
-                                  </p>
+                                  <div className="mt-1.5" data-testid="organizer-identity-hint">
+                                    <p className="text-xs text-slate-500">
+                                      Rejoignez la réunion avec ce même compte pour être reconnu comme organisateur.
+                                    </p>
+                                    {provider === 'teams' && (
+                                      <p className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded px-2 py-1 mt-1.5" data-testid="teams-account-warning">
+                                        Attention : utilisez votre compte professionnel ({creatorEmail.split('@').pop()}) dans Teams, et non un compte Microsoft personnel.
+                                      </p>
+                                    )}
+                                  </div>
                                 )}
                                 {provider === 'zoom' && appointment.meeting_host_url && (
                                   <p className="text-xs text-slate-500 mt-1" data-testid="organizer-identity-hint">
