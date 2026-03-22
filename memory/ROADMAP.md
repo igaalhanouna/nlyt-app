@@ -1,18 +1,27 @@
-# NLYT - Roadmap
+# NLYT — Roadmap
 
-## P0 — Completed
-- [x] Timezone bug fix (UTC strict backend, local frontend display)
-- [x] Validation dates passées (création + modification)
-- [x] Flow contractuel de modification de RDV (propositions + unanimité)
+## Completed (P0)
+- [x] Physical attendance evidence engine (GPS, QR, check-in)
+- [x] Conservative attendance decision engine
+- [x] Financial guarantees (Stripe Checkout setup mode)
+- [x] Contractual modification workflow
+- [x] Email notifications with timezone handling
+- [x] Express creation button
+- [x] **Video Conference Attendance Evidence MVP** (Zoom, Teams, Meet)
 
-## P1 — En cours
-- [ ] Envoi réel des emails de modification via Resend (dépend de la clé API)
+## P1 — Next Up
+- [ ] Real-time Zoom webhook integration (auto-ingest after meeting ends)
+- [ ] Real-time Teams webhook integration (auto-ingest after meeting ends)
+- [ ] Dispute resolution for video appointments
 
-## P2 — Prochaines tâches
-- [ ] Stripe Connect — Split automatique des fonds (participant, charity, platform)
-- [ ] Stripe — Hook pour re-confirmation de garantie sur modification majeure
-- [ ] Calendar Sync V2 — Retry automatique en cas d'échec + notification
+## P2 — Planned
+- [ ] Stripe Connect (automatic fund distribution: participant, charity, platform)
+- [ ] Calendar auto-update V2 (retry + notification on failure)
+- [ ] Video recording evidence (short clip as proof)
 
 ## P3 — Backlog
-- [ ] Dashboard analytics organisateur
-- [ ] Dispute resolution improvements
+- [ ] Dashboard analytics for organizers
+- [ ] Google Meet Activity API integration (Workspace Enterprise)
+- [ ] Advanced dispute resolution improvements
+- [ ] Multi-provider support per appointment (mixed physical + video)
+- [ ] Participant self-service video evidence upload
