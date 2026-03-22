@@ -1,0 +1,79 @@
+{
+  "summary": "Frontend UX fix for Teams integration banners verified. All banners now use text-sm (upgraded from text-xs), have proper colored backgrounds, icons, and text wrapping. Teams fallback appointment shows orange 'Mode legacy — identité technique' banner with full text visible and link to /settings/integrations. Meet Gmail personal and Physical appointments show correct behavior (no regression).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": {
+    "frontend": [
+      "Teams fallback: organizer-identity-block is present",
+      "Teams fallback: teams-legacy-mode-warning banner is present with orange background (bg-orange-50)",
+      "Teams fallback: teams-legacy-mode-warning has orange border (border-orange-300)",
+      "Teams fallback: Banner title 'Mode legacy — identité technique' is visible (text-sm)",
+      "Teams fallback: Banner text is NOT truncated (full text visible)",
+      "Teams fallback: Banner contains link to /settings/integrations",
+      "Teams fallback: teams-account-warning is present with amber background (bg-amber-50)",
+      "Teams fallback: proof-availability-block is present",
+      "Teams fallback: proof-status-auto is present with green background (bg-emerald-50)",
+      "Meet Gmail personal: organizer-identity-block is present (NO REGRESSION)",
+      "Meet Gmail personal: organizer-account-email shows 'igaal.hanouna@gmail.com' (NO REGRESSION)",
+      "Meet Gmail personal: teams-legacy-mode-warning is NOT present (correct for Meet)",
+      "Meet Gmail personal: proof-status-no-auto is present with red background (bg-red-50) (NO REGRESSION)",
+      "Physical: organizer-identity-block is NOT present (correct for physical - NO REGRESSION)",
+      "Physical: proof-availability-block is NOT present (correct for physical - NO REGRESSION)",
+      "Physical: teams-legacy-mode-warning is NOT present (correct for physical - NO REGRESSION)",
+      "Physical: teams-account-warning is NOT present (correct for physical - NO REGRESSION)"
+    ]
+  },
+  "test_report_links": [
+    "/app/frontend/src/pages/settings/Integrations.js",
+    "/app/frontend/src/pages/appointments/AppointmentDetail.js"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Integrations.js line 241: outlook-upgrade-scope-banner uses text-sm (upgraded from text-xs)",
+    "Integrations.js line 245: Banner title uses 'text-sm font-semibold text-orange-900'",
+    "Integrations.js line 246: Banner description uses 'text-sm text-orange-800'",
+    "AppointmentDetail.js line 1045: teams-legacy-mode-warning uses text-sm (upgraded from text-xs)",
+    "AppointmentDetail.js line 1049: Banner title uses 'text-sm font-semibold text-orange-900'",
+    "AppointmentDetail.js line 1050: Banner description uses 'text-sm text-orange-800'",
+    "All banners have proper colored backgrounds (bg-orange-50, bg-amber-50, bg-emerald-50, bg-red-50)",
+    "All banners have AlertTriangle icons with proper sizing (w-5 h-5)",
+    "All banners have proper text wrapping with 'flex-1 min-w-0'"
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "Skipped (per request)",
+    "frontend": "100% (17/17 UI checks passed)"
+  },
+  "test_credentials": {
+    "email": "testuser_audit@nlyt.app",
+    "password": "Test1234!"
+  },
+  "seed_data_used": {
+    "teams_fallback_appointment": "82f9be58-c4b7-48fa-a2e4-ef3b0470e626 (creation_mode: application_fallback, creator_email: igaal.hanouna@starauto.fr)",
+    "meet_appointment": "10c355e4-2796-4aaf-b163-74a912d71957 (creator_email: igaal.hanouna@gmail.com)",
+    "physical_appointment": "35df4fb0-91ac-4d6a-a56b-cfd6e06b4111"
+  },
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "UX fix for Teams integration banners verified. All banners upgraded from text-xs to text-sm for better visibility. Key verified elements: (1) Teams fallback appointment shows orange 'Mode legacy — identité technique' banner with full text, AlertTriangle icon, and link to /settings/integrations, (2) Teams account warning shows amber background, (3) Proof availability block shows green 'Récupération automatique' for Teams, (4) Meet Gmail personal shows red 'Pas de récupération automatique' banner, (5) Physical appointments correctly hide all video-related blocks. Note: Outlook upgrade banner (outlook-upgrade-scope-banner) could not be tested because Outlook is NOT connected for the test user - the banner only appears when Outlook IS connected but WITHOUT OnlineMeetings scope.",
+  "verified_features": {
+    "teams_fallback_orange_banner_visible": true,
+    "teams_fallback_banner_text_sm": true,
+    "teams_fallback_banner_full_text_not_truncated": true,
+    "teams_fallback_banner_has_settings_link": true,
+    "teams_account_warning_amber_background": true,
+    "proof_status_auto_green_background": true,
+    "meet_gmail_proof_status_no_auto_red_background": true,
+    "physical_no_video_blocks": true,
+    "no_regression_meet": true,
+    "no_regression_physical": true
+  },
+  "note_on_outlook_banner": "The outlook-upgrade-scope-banner could not be tested because Outlook is NOT connected for the test user. The banner only appears when Outlook IS connected but WITHOUT the OnlineMeetings.ReadWrite scope. Code review confirms the banner is correctly implemented with text-sm, orange background, AlertTriangle icon, and 'Reconnecter Outlook' button."
+}

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { appointmentAPI, participantAPI, calendarAPI, invitationAPI, attendanceAPI, checkinAPI, modificationAPI, videoEvidenceAPI } from '../../services/api';
 import { Button } from '../../components/ui/button';
-import { ArrowLeft, Calendar, MapPin, Video, Clock, Users, Ban, Check, X, AlertTriangle, Download, Heart, ShieldCheck, CreditCard, RefreshCw, Loader2, Zap, ClipboardCheck, Eye, UserX, UserCheck, HelpCircle, ChevronDown, ScanLine, QrCode, MapPinCheck, ExternalLink, Timer, Navigation, Pencil, Save, Send, FileEdit, Upload, Monitor, Shield, FileJson, Link2, UserCog, FileUp, PlayCircle, Settings2, DollarSign } from 'lucide-react';
+import { ArrowLeft, Calendar, MapPin, Video, Clock, Users, Ban, Check, X, AlertTriangle, Download, Heart, ShieldCheck, CreditCard, RefreshCw, Loader2, Zap, ClipboardCheck, Eye, UserX, UserCheck, HelpCircle, ChevronDown, ScanLine, QrCode, MapPinCheck, ExternalLink, Timer, Navigation, Pencil, Save, Send, FileEdit, Upload, Monitor, Shield, FileJson, Link2, UserCog, FileUp, PlayCircle, Settings2, DollarSign, CheckCircle, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDateTimeFr, formatTimeFr, formatEvidenceDateFr, parseUTC, utcToLocalInput, localInputToUTC } from '../../utils/dateFormat';
 import { Input } from '../../components/ui/input';
@@ -904,7 +904,7 @@ export default function AppointmentDetail() {
         </div>
 
         <div className="grid md:grid-cols-2 gap-6">
-          <div className={`bg-white rounded-lg border p-6 ${isCancelled ? 'border-slate-200 opacity-60' : 'border-slate-200'}`}>
+          <div className={`bg-white rounded-lg border p-6 min-w-0 overflow-hidden ${isCancelled ? 'border-slate-200 opacity-60' : 'border-slate-200'}`}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-slate-900">Informations générales</h2>
               {canEditDatetime() && (
@@ -942,9 +942,9 @@ export default function AppointmentDetail() {
               )}
 
               {appointment.appointment_type === 'video' && appointment.meeting_provider && (
-                <div className="flex items-start gap-3">
-                  <Video className="w-5 h-5 text-slate-500 mt-0.5" />
-                  <div>
+                <div className="flex items-start gap-3 min-w-0">
+                  <Video className="w-5 h-5 text-slate-500 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-slate-700">Plateforme</p>
                     <div className="flex items-center gap-2">
                       <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-sm font-medium ${getProviderIcon(appointment.meeting_provider).bg} ${getProviderIcon(appointment.meeting_provider).color}`} data-testid="meeting-provider-badge">
@@ -1015,60 +1015,83 @@ export default function AppointmentDetail() {
                           const isMeetWorkspace = provider === 'meet' && creatorEmail && !isMeetPersonal;
 
                           return (
-                            <div className="mt-2 p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-2.5" data-testid="organizer-identity-block">
+                            <div className="mt-3 space-y-3" data-testid="organizer-identity-block">
                               {/* Section 1: Account identity */}
-                              <div>
-                                <p className="text-xs font-semibold text-slate-700 mb-1">Connexion en tant qu'organisateur</p>
+                              <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg">
+                                <p className="text-sm font-semibold text-slate-800 mb-1.5 flex items-center gap-2">
+                                  <UserCog className="w-4 h-4 text-slate-500" />
+                                  Connexion en tant qu'organisateur
+                                </p>
                                 {creatorEmail && (
-                                  <p className="text-xs text-slate-600">
-                                    Réunion créée avec le compte {providerLabel} : <span className="font-semibold text-slate-800" data-testid="organizer-account-email">{creatorEmail}</span>
+                                  <p className="text-sm text-slate-600">
+                                    Réunion créée avec le compte {providerLabel} : <span className="font-semibold text-slate-900" data-testid="organizer-account-email">{creatorEmail}</span>
                                     {creatorName && <span className="text-slate-400"> ({creatorName})</span>}
                                   </p>
                                 )}
-                                {/* Creation mode indicator for Teams */}
-                                {provider === 'teams' && metadata.creation_mode === 'application_fallback' && (
-                                  <div className="mt-1.5 p-2 bg-orange-50 border border-orange-200 rounded" data-testid="teams-legacy-mode-warning">
-                                    <p className="text-xs font-medium text-orange-800">Mode legacy — identité technique</p>
-                                    <p className="text-xs text-orange-700 mt-0.5">
-                                      Cette réunion a été créée via une identité technique ({creatorEmail}), et non via votre compte personnel. 
-                                      Pour créer les prochaines réunions sous votre propre identité, reconnectez votre compte Outlook dans les <a href="/settings/integrations" className="underline font-medium">paramètres d'intégration</a>.
-                                    </p>
-                                  </div>
-                                )}
-                                {provider === 'teams' && metadata.creation_mode === 'delegated' && (
-                                  <div className="mt-1.5 flex items-center gap-1.5" data-testid="teams-delegated-mode">
-                                    <span className="text-emerald-500 text-xs">&#10003;</span>
-                                    <p className="text-xs text-emerald-700">Réunion créée sous votre propre identité Microsoft.</p>
-                                  </div>
-                                )}
                                 {!(provider === 'zoom' && appointment.meeting_host_url) && creatorEmail && (
-                                  <div className="mt-1.5" data-testid="organizer-identity-hint">
-                                    <p className="text-xs text-slate-500">
-                                      Rejoignez la réunion avec ce même compte pour être reconnu comme organisateur.
-                                    </p>
-                                    {provider === 'teams' && metadata.creation_mode !== 'delegated' && (
-                                      <p className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded px-2 py-1 mt-1.5" data-testid="teams-account-warning">
-                                        Attention : utilisez votre compte professionnel ({creatorEmail.split('@').pop()}) dans Teams, et non un compte Microsoft personnel.
-                                      </p>
-                                    )}
-                                  </div>
+                                  <p className="text-sm text-slate-500 mt-1.5" data-testid="organizer-identity-hint">
+                                    Rejoignez la réunion avec ce même compte pour être reconnu comme organisateur.
+                                  </p>
                                 )}
                                 {provider === 'zoom' && appointment.meeting_host_url && (
-                                  <p className="text-xs text-slate-500 mt-1" data-testid="organizer-identity-hint">
+                                  <p className="text-sm text-slate-500 mt-1.5" data-testid="organizer-identity-hint">
                                     Utilisez le lien "Démarrer la réunion" ci-dessus pour être reconnu automatiquement.
                                   </p>
                                 )}
                               </div>
 
-                              {/* Section 2: Proof availability — provider-specific */}
-                              <div className="border-t border-slate-200 pt-2" data-testid="proof-availability-block">
-                                <p className="text-xs font-semibold text-slate-700 mb-1">Preuves de présence</p>
-                                {isMeetPersonal && (
-                                  <div className="flex items-start gap-2 p-2 bg-red-50 border border-red-100 rounded" data-testid="proof-status-no-auto">
-                                    <span className="text-red-500 text-sm leading-none mt-0.5">&#10005;</span>
+                              {/* Teams: Creation mode indicator */}
+                              {provider === 'teams' && metadata.creation_mode === 'application_fallback' && (
+                                <div className="p-4 bg-orange-50 border border-orange-300 rounded-lg" data-testid="teams-legacy-mode-warning">
+                                  <div className="flex items-start gap-3">
+                                    <AlertTriangle className="w-5 h-5 text-orange-600 mt-0.5 flex-shrink-0" />
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-sm font-semibold text-orange-900">Mode legacy — identité technique</p>
+                                      <p className="text-sm text-orange-800 mt-1">
+                                        Cette réunion a été créée via une identité technique (<span className="font-medium">{creatorEmail}</span>), et non via votre compte personnel.
+                                      </p>
+                                      <p className="text-sm text-orange-800 mt-1">
+                                        Pour créer les prochaines réunions sous votre propre identité, reconnectez votre compte Outlook dans les{' '}
+                                        <a href="/settings/integrations" className="underline font-semibold text-orange-900 hover:text-orange-950">paramètres d'intégration</a>.
+                                      </p>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                              {provider === 'teams' && metadata.creation_mode === 'delegated' && (
+                                <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-lg" data-testid="teams-delegated-mode">
+                                  <div className="flex items-center gap-3">
+                                    <CheckCircle className="w-5 h-5 text-emerald-600 flex-shrink-0" />
                                     <div>
-                                      <p className="text-xs font-medium text-red-800">Pas de récupération automatique</p>
-                                      <p className="text-xs text-red-700 mt-0.5">
+                                      <p className="text-sm font-semibold text-emerald-900">Identité Microsoft vérifiée</p>
+                                      <p className="text-sm text-emerald-700 mt-0.5">Réunion créée sous votre propre identité Microsoft.</p>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Teams: Account warning for legacy mode */}
+                              {provider === 'teams' && metadata.creation_mode !== 'delegated' && creatorEmail && (
+                                <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2.5" data-testid="teams-account-warning">
+                                  <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                                  <p className="text-sm text-amber-800">
+                                    <span className="font-semibold">Attention :</span> utilisez votre compte professionnel (<span className="font-medium">{creatorEmail.split('@').pop()}</span>) dans Teams, et non un compte Microsoft personnel.
+                                  </p>
+                                </div>
+                              )}
+
+                              {/* Section 2: Proof availability — provider-specific */}
+                              <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg" data-testid="proof-availability-block">
+                                <p className="text-sm font-semibold text-slate-800 mb-2 flex items-center gap-2">
+                                  <Shield className="w-4 h-4 text-slate-500" />
+                                  Preuves de présence
+                                </p>
+                                {isMeetPersonal && (
+                                  <div className="flex items-start gap-2.5 p-3 bg-red-50 border border-red-200 rounded-lg" data-testid="proof-status-no-auto">
+                                    <XCircle className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" />
+                                    <div>
+                                      <p className="text-sm font-medium text-red-900">Pas de récupération automatique</p>
+                                      <p className="text-sm text-red-700 mt-0.5">
                                         Avec un compte Google personnel ({creatorEmail.split('@')[1]}), Google Meet ne fournit pas de rapport de présence exploitable.
                                         Utilisez le check-in manuel ou importez une preuve alternative après la réunion.
                                       </p>
@@ -1076,22 +1099,22 @@ export default function AppointmentDetail() {
                                   </div>
                                 )}
                                 {isMeetWorkspace && (
-                                  <div className="flex items-start gap-2 p-2 bg-amber-50 border border-amber-100 rounded" data-testid="proof-status-manual-import">
-                                    <span className="text-amber-500 text-sm leading-none mt-0.5">&#9888;</span>
+                                  <div className="flex items-start gap-2.5 p-3 bg-amber-50 border border-amber-200 rounded-lg" data-testid="proof-status-manual-import">
+                                    <AlertTriangle className="w-5 h-5 text-amber-500 mt-0.5 flex-shrink-0" />
                                     <div>
-                                      <p className="text-xs font-medium text-amber-800">Import manuel requis</p>
-                                      <p className="text-xs text-amber-700 mt-0.5">
+                                      <p className="text-sm font-medium text-amber-900">Import manuel requis</p>
+                                      <p className="text-sm text-amber-700 mt-0.5">
                                         Après la réunion, exportez le rapport de présence depuis Google Meet et importez-le dans la section "Preuves de présence visio" ci-dessous.
                                       </p>
                                     </div>
                                   </div>
                                 )}
                                 {(provider === 'teams' || provider === 'zoom') && (
-                                  <div className="flex items-start gap-2 p-2 bg-emerald-50 border border-emerald-100 rounded" data-testid="proof-status-auto">
-                                    <span className="text-emerald-500 text-sm leading-none mt-0.5">&#10003;</span>
+                                  <div className="flex items-start gap-2.5 p-3 bg-emerald-50 border border-emerald-200 rounded-lg" data-testid="proof-status-auto">
+                                    <CheckCircle className="w-5 h-5 text-emerald-500 mt-0.5 flex-shrink-0" />
                                     <div>
-                                      <p className="text-xs font-medium text-emerald-800">Récupération automatique</p>
-                                      <p className="text-xs text-emerald-700 mt-0.5">
+                                      <p className="text-sm font-medium text-emerald-900">Récupération automatique</p>
+                                      <p className="text-sm text-emerald-700 mt-0.5">
                                         Les présences seront récupérées automatiquement depuis {providerLabel} après la fin de la réunion. Ce n'est pas une détection en temps réel.
                                       </p>
                                     </div>
