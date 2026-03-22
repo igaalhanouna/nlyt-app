@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { appointmentAPI, participantAPI, calendarAPI, invitationAPI, attendanceAPI, checkinAPI } from '../../services/api';
 import { Button } from '../../components/ui/button';
-import { ArrowLeft, Calendar, MapPin, Video, Clock, Users, Ban, Check, X, AlertTriangle, Download, Heart, ShieldCheck, CreditCard, RefreshCw, Loader2, Zap, ClipboardCheck, Eye, UserX, UserCheck, HelpCircle, ChevronDown, ScanLine, QrCode, MapPinCheck, ExternalLink, Timer, Navigation } from 'lucide-react';
+import { ArrowLeft, Calendar, MapPin, Video, Clock, Users, Ban, Check, X, AlertTriangle, Download, Heart, ShieldCheck, CreditCard, RefreshCw, Loader2, Zap, ClipboardCheck, Eye, UserX, UserCheck, HelpCircle, ChevronDown, ScanLine, QrCode, MapPinCheck, ExternalLink, Timer, Navigation, Pencil, Save } from 'lucide-react';
 import { toast } from 'sonner';
-import { formatDateTimeFr, formatTimeFr, formatEvidenceDateFr, parseUTC } from '../../utils/dateFormat';
+import { formatDateTimeFr, formatTimeFr, formatEvidenceDateFr, parseUTC, utcToLocalInput, localInputToUTC } from '../../utils/dateFormat';
+import { Input } from '../../components/ui/input';
 
 export default function AppointmentDetail() {
   const { id } = useParams();
@@ -22,6 +23,9 @@ export default function AppointmentDetail() {
   const [reclassifying, setReclassifying] = useState(null);
   const [reclassifyDropdown, setReclassifyDropdown] = useState(null);
   const [evidenceData, setEvidenceData] = useState(null);
+  const [isEditingDatetime, setIsEditingDatetime] = useState(false);
+  const [editDatetimeValue, setEditDatetimeValue] = useState('');
+  const [savingDatetime, setSavingDatetime] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -235,6 +239,49 @@ export default function AppointmentDetail() {
     if (!start) return false;
     const end = new Date(start.getTime() + (appointment.duration_minutes || 60) * 60000);
     return new Date() > end;
+  };
+
+  // Check if appointment can be edited (not cancelled, not ended)
+  const canEditDatetime = () => {
+    if (!appointment) return false;
+    if (appointment.status === 'cancelled') return false;
+    return !isAppointmentEnded();
+  };
+
+  const handleEditDatetime = () => {
+    setEditDatetimeValue(utcToLocalInput(appointment.start_datetime));
+    setIsEditingDatetime(true);
+  };
+
+  const handleCancelEditDatetime = () => {
+    setIsEditingDatetime(false);
+    setEditDatetimeValue('');
+  };
+
+  const isEditDatetimeValid = () => {
+    if (!editDatetimeValue) return false;
+    return new Date(editDatetimeValue) > new Date();
+  };
+
+  const handleSaveDatetime = async () => {
+    if (!isEditDatetimeValid()) {
+      toast.error("La date et l'heure du rendez-vous doivent être dans le futur");
+      return;
+    }
+    setSavingDatetime(true);
+    try {
+      const utcValue = localInputToUTC(editDatetimeValue);
+      await appointmentAPI.update(id, { start_datetime: utcValue });
+      toast.success('Date et heure mises à jour');
+      setIsEditingDatetime(false);
+      setEditDatetimeValue('');
+      loadData();
+    } catch (err) {
+      const msg = err.response?.data?.detail || 'Erreur lors de la mise à jour';
+      toast.error(msg);
+    } finally {
+      setSavingDatetime(false);
+    }
   };
 
   const reclassifyOptions = [
@@ -499,11 +546,63 @@ export default function AppointmentDetail() {
             <div className="space-y-4">
               <div className="flex items-start gap-3">
                 <Calendar className="w-5 h-5 text-slate-500 mt-0.5" />
-                <div>
+                <div className="flex-1">
                   <p className="text-sm font-medium text-slate-700">Date et heure</p>
-                  <p className="text-slate-900">
-                    {formatDateTimeFr(appointment.start_datetime)}
-                  </p>
+                  {isEditingDatetime ? (
+                    <div className="mt-1 space-y-2">
+                      <Input
+                        type="datetime-local"
+                        data-testid="edit-datetime-input"
+                        value={editDatetimeValue}
+                        min={(() => {
+                          const now = new Date();
+                          const y = now.getFullYear();
+                          const m = String(now.getMonth() + 1).padStart(2, '0');
+                          const d = String(now.getDate()).padStart(2, '0');
+                          const h = String(now.getHours()).padStart(2, '0');
+                          const mi = String(now.getMinutes()).padStart(2, '0');
+                          return `${y}-${m}-${d}T${h}:${mi}`;
+                        })()}
+                        onChange={(e) => setEditDatetimeValue(e.target.value)}
+                        className="max-w-xs"
+                      />
+                      {editDatetimeValue && !isEditDatetimeValid() && (
+                        <p className="text-sm text-red-600" data-testid="edit-datetime-past-error">
+                          La date et l'heure du rendez-vous doivent être dans le futur
+                        </p>
+                      )}
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          onClick={handleSaveDatetime}
+                          disabled={!isEditDatetimeValid() || savingDatetime}
+                          data-testid="save-datetime-btn"
+                        >
+                          {savingDatetime ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Save className="w-3 h-3 mr-1" />}
+                          Enregistrer
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={handleCancelEditDatetime} data-testid="cancel-edit-datetime-btn">
+                          Annuler
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <p className="text-slate-900" data-testid="appointment-datetime-display">
+                        {formatDateTimeFr(appointment.start_datetime)}
+                      </p>
+                      {canEditDatetime() && (
+                        <button
+                          onClick={handleEditDatetime}
+                          className="text-slate-400 hover:text-blue-600 transition-colors"
+                          title="Modifier la date"
+                          data-testid="edit-datetime-btn"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  )}
                   <p className="text-sm text-slate-500 mt-1">Durée : {appointment.duration_minutes} minutes</p>
                 </div>
               </div>

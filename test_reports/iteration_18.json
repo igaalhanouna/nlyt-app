@@ -1,0 +1,78 @@
+{
+  "summary": "PATCH past date validation for existing appointments VERIFIED. Backend correctly rejects PATCH with past start_datetime (400 error). Frontend edit mode has double validation: min attribute on datetime-local input, inline error message, disabled save button.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": [
+    "Backend: API health check (PASSED)",
+    "Backend: PATCH /api/appointments/{id} with past date (1 day ago) returns 400 with 'Impossible de modifier un rendez-vous vers une date dans le passé' (PASSED)",
+    "Backend: PATCH /api/appointments/{id} with past hour (2 hours ago) returns 400 (PASSED)",
+    "Backend: PATCH /api/appointments/{id} with future date (7 days ahead) returns 200 (PASSED)",
+    "Backend: PATCH /api/appointments/{id} with future hour (3 hours ahead) returns 200 (PASSED)",
+    "Backend: PATCH /api/appointments/{id} with non-date field (title) returns 200 - no date validation triggered (PASSED)",
+    "Frontend: Edit datetime button (pencil icon) visible for non-cancelled, non-ended appointments (PASSED)",
+    "Frontend: Clicking edit icon opens datetime-local input with min attribute (value: 2026-03-22T00:53) (PASSED)",
+    "Frontend: Entering past date shows error message 'La date et l'heure du rendez-vous doivent être dans le futur' (PASSED)",
+    "Frontend: Save button is disabled when past date is entered (PASSED)",
+    "Frontend: Save button is enabled when future date is entered (PASSED)",
+    "Frontend: Save button works and updates appointment when future date is entered (PASSED)",
+    "Frontend: Cancel button closes edit mode (PASSED)"
+  ],
+  "test_report_links": [
+    "/app/backend/tests/test_patch_past_date_validation.py",
+    "/app/test_reports/pytest/pytest_patch_past_date.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Backend appointments.py lines 313-319: Correctly checks if new_start <= now_utc() and raises HTTPException 400 with French error message",
+    "Frontend AppointmentDetail.js lines 551-573: Edit mode with datetime-local input, dynamic min attribute computed from current datetime",
+    "Frontend AppointmentDetail.js lines 569-572: Inline error message with data-testid='edit-datetime-past-error'",
+    "Frontend AppointmentDetail.js lines 261-264: isEditDatetimeValid() checks new Date(editDatetimeValue) > new Date()",
+    "Frontend AppointmentDetail.js lines 575-587: Save button disabled when !isEditDatetimeValid()"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_patch_past_date_validation.py"
+  ],
+  "success_rate": {
+    "backend": "100% (6/6 passed)",
+    "frontend": "100% (7/7 UI tests passed)"
+  },
+  "test_credentials": {
+    "user": {
+      "email": "testuser_audit@nlyt.app",
+      "password": "Test1234!"
+    },
+    "workspace_id": "7e219321-18fd-4643-9be6-e4f1de88a2a8",
+    "editable_appointment_id": "ee6a3d00-f7ad-4d0f-859f-4b2271784878"
+  },
+  "seed_data_creation": "No new seed data created - used existing test appointment",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "PATCH past date validation for existing appointments fully verified. Backend uses UTC comparison (new_start <= now_utc()). Frontend edit mode in AppointmentDetail.js has triple validation: 1) min attribute prevents browser date picker from selecting past dates, 2) inline red error message appears below input when past date detected, 3) save button disabled when past date entered. data-testid attributes: edit-datetime-btn (pencil icon), edit-datetime-input (datetime-local input), edit-datetime-past-error (error message), save-datetime-btn (save button), cancel-edit-datetime-btn (cancel button), appointment-datetime-display (current date display).",
+  "verified_features": {
+    "backend_patch_past_date_rejection": "PATCH /api/appointments/{id} with past start_datetime returns 400 with French error message",
+    "backend_patch_future_date_acceptance": "PATCH /api/appointments/{id} with future start_datetime returns 200",
+    "backend_patch_non_date_field": "PATCH /api/appointments/{id} with non-date field (title) returns 200 without date validation",
+    "frontend_edit_icon_visibility": "Pencil icon visible for non-cancelled, non-ended appointments (canEditDatetime() check)",
+    "frontend_min_attribute": "datetime-local input has min attribute dynamically set to current datetime",
+    "frontend_inline_error": "Red error message with data-testid='edit-datetime-past-error' appears below input",
+    "frontend_save_button_disabled": "Save button disabled when past date entered",
+    "frontend_save_button_enabled": "Save button enabled when future date entered",
+    "frontend_save_success": "Save button updates appointment and closes edit mode with success toast"
+  },
+  "mocked_apis": {
+    "has_mocked_apis": false,
+    "mocked_apis_list": []
+  },
+  "bug_fix_verification": {
+    "original_feature": "Ajouter la validation date passée sur la modification de RDV existant",
+    "implementation": "Double validation: Frontend (min attribute + error message + disabled save button) AND Backend (PATCH rejet 400 si nouvelle start_datetime <= now UTC)",
+    "verification_result": "PASSED - Both frontend and backend correctly prevent past date modifications on existing appointments"
+  }
+}

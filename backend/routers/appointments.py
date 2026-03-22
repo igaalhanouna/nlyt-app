@@ -312,6 +312,11 @@ async def update_appointment(appointment_id: str, update_data: dict, request: Re
     # Normalize start_datetime to UTC if being updated
     if 'start_datetime' in safe_data:
         safe_data['start_datetime'] = normalize_to_utc(safe_data['start_datetime'])
+        # Reject past dates
+        from utils.date_utils import parse_iso_datetime
+        new_start = parse_iso_datetime(safe_data['start_datetime'])
+        if new_start and new_start <= now_utc():
+            raise HTTPException(status_code=400, detail="Impossible de modifier un rendez-vous vers une date dans le passé")
     
     # platform_commission_percent is NEVER user-editable
     safe_data.pop("platform_commission_percent", None)
