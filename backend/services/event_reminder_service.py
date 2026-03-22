@@ -13,6 +13,7 @@ from datetime import datetime, timedelta, timezone
 from pymongo import MongoClient
 from pathlib import Path
 from dotenv import load_dotenv
+from utils.date_utils import parse_iso_datetime as _parse_dt
 from utils.date_utils import format_datetime_fr
 
 # Load .env
@@ -52,13 +53,7 @@ class EventReminderService:
     @staticmethod
     def parse_datetime(dt_str: str) -> datetime:
         """Parse datetime string to datetime object with UTC timezone"""
-        try:
-            if '+' in dt_str or 'Z' in dt_str:
-                return datetime.fromisoformat(dt_str.replace('Z', '+00:00'))
-            dt = datetime.strptime(dt_str, "%Y-%m-%dT%H:%M")
-            return dt.replace(tzinfo=timezone.utc)
-        except:
-            return None
+        return _parse_dt(dt_str)
     
     @staticmethod
     async def send_event_reminder_email(participant: dict, appointment: dict, reminder_type: str) -> bool:

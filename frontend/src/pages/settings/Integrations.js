@@ -4,6 +4,7 @@ import { calendarAPI } from '../../services/api';
 import { Button } from '../../components/ui/button';
 import { ArrowLeft, Calendar, CheckCircle, XCircle, Loader2, ExternalLink, Unlink, Zap, ZapOff } from 'lucide-react';
 import { toast } from 'sonner';
+import { formatDateLongFr } from '../../utils/dateFormat';
 
 export default function Integrations() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -138,7 +139,7 @@ export default function Integrations() {
                     {email || 'Compte connecté'}
                   </p>
                   <p className="text-xs text-slate-500">
-                    Connecté le {new Date(connection.connected_at).toLocaleDateString('fr-FR')}
+                    Connecté le {formatDateLongFr(connection.connected_at)}
                   </p>
                 </div>
               </div>

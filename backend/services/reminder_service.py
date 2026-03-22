@@ -9,7 +9,7 @@ from datetime import datetime, timedelta, timezone
 from pymongo import MongoClient
 from pathlib import Path
 from dotenv import load_dotenv
-from utils.date_utils import format_datetime_fr
+from utils.date_utils import format_datetime_fr, parse_iso_datetime as _parse_dt
 
 # Load .env
 ROOT_DIR = Path(__file__).parent.parent
@@ -39,15 +39,7 @@ class ReminderService:
     @staticmethod
     def parse_datetime(dt_str: str) -> datetime:
         """Parse datetime string to datetime object with UTC timezone"""
-        try:
-            # Try ISO format with timezone
-            if '+' in dt_str or 'Z' in dt_str:
-                return datetime.fromisoformat(dt_str.replace('Z', '+00:00'))
-            # Try simple format (YYYY-MM-DDTHH:MM)
-            dt = datetime.strptime(dt_str, "%Y-%m-%dT%H:%M")
-            return dt.replace(tzinfo=timezone.utc)
-        except:
-            return None
+        return _parse_dt(dt_str)
     
     @staticmethod
     def calculate_reminder_time(appointment: dict) -> datetime:

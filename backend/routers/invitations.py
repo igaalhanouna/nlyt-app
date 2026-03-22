@@ -9,8 +9,8 @@ from typing import Optional
 import os
 import sys
 sys.path.append('/app/backend')
-from utils.date_utils import now_utc, format_datetime_fr
-from datetime import datetime, timezone
+from utils.date_utils import now_utc, now_utc_iso, format_datetime_fr, parse_iso_datetime, normalize_to_utc
+from datetime import datetime, timezone, timedelta
 
 router = APIRouter()
 
@@ -22,21 +22,6 @@ db = client[DB_NAME]
 
 class InvitationResponse(BaseModel):
     action: str  # "accept" or "decline"
-
-
-def parse_datetime(dt_str: str) -> datetime:
-    """Parse datetime string to timezone-aware datetime object.
-    Handles: '2026-03-20T14:00', '2026-03-20T14:00:00', '2026-03-20T14:00:00Z', '2026-03-20T14:00:00+01:00'
-    """
-    if not dt_str:
-        return None
-    try:
-        if '+' in dt_str or 'Z' in dt_str:
-            return datetime.fromisoformat(dt_str.replace('Z', '+00:00'))
-        # Naive datetime — treat as UTC
-        return datetime.fromisoformat(dt_str).replace(tzinfo=timezone.utc)
-    except Exception:
-        return None
 
 
 @router.get("/{token}")
@@ -89,11 +74,11 @@ async def get_invitation_details(token: str):
         {"_id": 0, "first_name": 1, "last_name": 1, "status": 1}
     ))
     
-    # Parse date for display (in French)
-    start_dt = parse_datetime(appointment.get('start_datetime', ''))
+    # Parse date for display (in French) — convert UTC to Europe/Paris for formatted_date
+    start_dt = parse_iso_datetime(appointment.get('start_datetime', ''))
     formatted_date = None
     if start_dt:
-        formatted_date = format_datetime_fr(start_dt)
+        formatted_date = format_datetime_fr(start_dt, 'Europe/Paris')
 
     # Calculate cancellation deadline
     cancellation_deadline = None
@@ -102,9 +87,8 @@ async def get_invitation_details(token: str):
     deadline_passed = False
 
     if start_dt and appointment.get('cancellation_deadline_hours'):
-        from datetime import timedelta
         cancellation_deadline_dt = start_dt - timedelta(hours=appointment['cancellation_deadline_hours'])
-        cancellation_deadline = format_datetime_fr(cancellation_deadline_dt)
+        cancellation_deadline = format_datetime_fr(cancellation_deadline_dt, 'Europe/Paris')
         
         # Check if participant can still cancel (deadline not passed)
         now = datetime.now(timezone.utc)
@@ -114,6 +98,9 @@ async def get_invitation_details(token: str):
         if participant.get('status') in ('accepted', 'accepted_guaranteed') and not deadline_passed:
             can_cancel = True
     
+    # Normalize start_datetime to UTC for consistent frontend display
+    utc_start = normalize_to_utc(appointment.get('start_datetime', ''))
+
     # Build response with limited, privacy-conscious data
     return {
         "invitation_token": token,
@@ -135,9 +122,10 @@ async def get_invitation_details(token: str):
             "appointment_type": appointment.get('appointment_type', ''),
             "location": appointment.get('location', ''),
             "meeting_provider": appointment.get('meeting_provider', ''),
-            "start_datetime": appointment.get('start_datetime', ''),
+            "start_datetime": utc_start,
             "formatted_date": formatted_date,
             "duration_minutes": appointment.get('duration_minutes', 60),
+            "tolerated_delay_minutes": appointment.get('tolerated_delay_minutes', 0),
             "status": appointment.get('status', '')
         },
         "organizer": {
@@ -212,11 +200,11 @@ async def respond_to_invitation(token: str, response: InvitationResponse, reques
         raise HTTPException(status_code=400, detail="Ce rendez-vous n'est plus actif")
     
     # Check if appointment hasn't started yet
-    start_dt = parse_datetime(appointment.get('start_datetime', ''))
+    start_dt = parse_iso_datetime(appointment.get('start_datetime', ''))
     if start_dt and datetime.now(timezone.utc) >= start_dt:
         raise HTTPException(status_code=400, detail="Ce rendez-vous a déjà commencé")
     
-    now = now_utc().isoformat()
+    now = now_utc_iso()
     
     if response.action == "accept":
         penalty_amount = appointment.get('penalty_amount', 0)
@@ -437,11 +425,10 @@ async def cancel_participation(token: str):
         raise HTTPException(status_code=400, detail="Ce rendez-vous n'est plus actif")
     
     # Calculate and check cancellation deadline
-    start_dt = parse_datetime(appointment.get('start_datetime', ''))
+    start_dt = parse_iso_datetime(appointment.get('start_datetime', ''))
     if not start_dt:
         raise HTTPException(status_code=400, detail="Date du rendez-vous invalide")
     
-    from datetime import timedelta
     cancellation_deadline_hours = appointment.get('cancellation_deadline_hours', 24)
     cancellation_deadline_dt = start_dt - timedelta(hours=cancellation_deadline_hours)
     
@@ -457,7 +444,7 @@ async def cancel_participation(token: str):
     if now >= start_dt:
         raise HTTPException(status_code=400, detail="Ce rendez-vous a déjà commencé")
     
-    now_str = now_utc().isoformat()
+    now_str = now_utc_iso()
     
     update_data = {
         "status": "cancelled_by_participant",

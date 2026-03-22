@@ -21,9 +21,8 @@ import logging
 import math
 import requests
 from datetime import datetime, timedelta, timezone
-from zoneinfo import ZoneInfo
 from pymongo import MongoClient
-from utils.date_utils import now_utc
+from utils.date_utils import now_utc, parse_iso_datetime
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +35,6 @@ QR_SECRET = os.environ.get('JWT_SECRET', 'nlyt_default_secret')
 QR_ROTATION_SECONDS = 60
 QR_TOLERANCE_WINDOWS = 2
 DEFAULT_GPS_RADIUS_METERS = 200
-DEFAULT_TIMEZONE = 'Europe/Paris'
 
 # --- Temporal windows ---
 CHECKIN_WINDOW_BEFORE_HOURS = 2    # Valid check-in starts 2h before RDV
@@ -136,22 +134,15 @@ def resolve_appointment_coordinates(appointment: dict) -> tuple:
 
 def _parse_appointment_start(appointment: dict) -> datetime:
     """
-    Parse appointment start_datetime, handling naive datetimes by applying
-    the correct timezone (stored or default Europe/Paris).
-    Returns timezone-aware UTC datetime.
+    Parse appointment start_datetime to a timezone-aware UTC datetime.
+    Uses the unified parse_iso_datetime which handles both UTC strings
+    and legacy naive strings (interpreted as Europe/Paris).
     """
     start_str = appointment.get('start_datetime', '')
-    tz_name = appointment.get('timezone', DEFAULT_TIMEZONE)
-
-    start_dt = datetime.fromisoformat(start_str.replace('Z', '+00:00'))
-
-    if start_dt.tzinfo is None:
-        # Naive datetime: interpret as local time in the appointment's timezone
-        local_tz = ZoneInfo(tz_name)
-        start_dt = start_dt.replace(tzinfo=local_tz)
-
-    # Convert to UTC for consistent comparison
-    return start_dt.astimezone(timezone.utc)
+    start_dt = parse_iso_datetime(start_str)
+    if start_dt is None:
+        raise ValueError(f"Cannot parse start_datetime: {start_str}")
+    return start_dt
 
 
 def assess_temporal_consistency(evidence_ts: datetime, appointment: dict) -> dict:

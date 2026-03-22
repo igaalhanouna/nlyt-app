@@ -6,7 +6,7 @@ import sys
 sys.path.append('/app/backend')
 from models.schemas import AppointmentCreate, AppointmentResponse
 from middleware.auth_middleware import get_current_user
-from utils.date_utils import now_utc
+from utils.date_utils import now_utc, normalize_to_utc, now_utc_iso
 from services.contract_service import ContractService
 
 # System constant — platform commission is NOT user-editable
@@ -86,6 +86,9 @@ async def create_appointment(appointment: AppointmentCreate, request: Request):
             "one_day_before": True
         }
     
+    # Normalize start_datetime to UTC ISO format
+    utc_start = normalize_to_utc(appointment.start_datetime)
+
     appointment_doc = {
         "appointment_id": appointment_id,
         "workspace_id": appointment.workspace_id,
@@ -97,7 +100,7 @@ async def create_appointment(appointment: AppointmentCreate, request: Request):
         "location_longitude": appointment.location_longitude,
         "location_place_id": appointment.location_place_id,
         "meeting_provider": appointment.meeting_provider,
-        "start_datetime": appointment.start_datetime,
+        "start_datetime": utc_start,
         "duration_minutes": appointment.duration_minutes,
         "tolerated_delay_minutes": appointment.tolerated_delay_minutes,
         "cancellation_deadline_hours": appointment.cancellation_deadline_hours,
@@ -113,8 +116,8 @@ async def create_appointment(appointment: AppointmentCreate, request: Request):
         "event_reminders": event_reminders_config,
         "event_reminders_sent": {},
         "status": "draft",
-        "created_at": now_utc().isoformat(),
-        "updated_at": now_utc().isoformat()
+        "created_at": now_utc_iso(),
+        "updated_at": now_utc_iso()
     }
     
     db.appointments.insert_one(appointment_doc)
@@ -221,6 +224,10 @@ async def list_appointments(workspace_id: str = None, request: Request = None):
     
     # Add participants with status to each appointment
     for apt in appointments:
+        # Normalize legacy naive datetimes to UTC
+        if apt.get('start_datetime'):
+            apt['start_datetime'] = normalize_to_utc(apt['start_datetime'])
+        
         participants = list(db.participants.find(
             {"appointment_id": apt['appointment_id']}, 
             {"_id": 0, "participant_id": 1, "email": 1, "name": 1, "first_name": 1, "last_name": 1, "role": 1, "status": 1, "accepted_at": 1, "declined_at": 1, "cancelled_at": 1, "invitation_token": 1}
@@ -259,6 +266,10 @@ async def get_appointment(appointment_id: str, request: Request):
     if not membership:
         raise HTTPException(status_code=403, detail="Accès refusé")
     
+    # Normalize legacy naive datetimes to UTC on read
+    if appointment.get('start_datetime'):
+        appointment['start_datetime'] = normalize_to_utc(appointment['start_datetime'])
+    
     return appointment
 
 @router.patch("/{appointment_id}")
@@ -292,9 +303,13 @@ async def update_appointment(appointment_id: str, update_data: dict, request: Re
     if not safe_data:
         raise HTTPException(status_code=400, detail="Aucun champ modifiable fourni")
     
+    # Normalize start_datetime to UTC if being updated
+    if 'start_datetime' in safe_data:
+        safe_data['start_datetime'] = normalize_to_utc(safe_data['start_datetime'])
+    
     # platform_commission_percent is NEVER user-editable
     safe_data.pop("platform_commission_percent", None)
-    safe_data['updated_at'] = now_utc().isoformat()
+    safe_data['updated_at'] = now_utc_iso()
     
     db.appointments.update_one(
         {"appointment_id": appointment_id},

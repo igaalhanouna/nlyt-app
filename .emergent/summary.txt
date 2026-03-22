@@ -1,46 +1,36 @@
-<analysis>**original_problem_statement**: 
-Tu reprends le développement de mon application SaaS NLYT. Le socle produit est maintenant solide (Garantie Stripe, Google/Outlook Calendar en auto-sync/auto-update, Invitations, etc.). 
-L'objectif actuel est de construire le moteur de détection de présence (DÉTECTION NO-SHOW / LATE / ON-TIME / MANUAL REVIEW).
-Règles strictes :
-- Détection conservatrice. Pas de capture Stripe automatique agressive pour l'instant.
-- En cas d'ambiguïté : toujours .
-- Statuts attendus : , , , , .
-- Si  (jamais répondu) → .
-- Distinguer annulation hors délai () d'un no-show pur.
+<analysis><problem_statement>
+Tu reprends le développement de mon application SaaS NLYT. L'objectif actuel est de construire le moteur de détection de présence (DÉTECTION NO-SHOW / LATE / ON-TIME / MANUAL REVIEW) et d'y intégrer la collecte de PREUVES PHYSIQUES (Check-in manuel, GPS, QR Code dynamique). 
+Le système doit être ultra-conservateur : aucune pénalité Stripe automatique sans preuve forte.
+Récemment, nous avons repéré un bug critique de Timezone : les pages organisateur et invitation affichent une heure de décalage pour le même RDV. Je veux unifier la gestion des dates : backend en UTC strict, frontend gère l'affichage selon le navigateur.
+</problem_statement>
 
-**User's preferred language**: French (INSTRUCT NEXT AGENT: You MUST automatically detect the user's primary language from their messages inside the <trajectory> tag and respond in French only).
+**User's preferred language**: French (INSTRUCT NEXT AGENT: You MUST automatically detect the user's primary language from their messages inside the <trajectory> tag and INSTRUCT next agent to respond in French only).
 
 **what currently exists?** 
-A fully functional appointment booking SaaS with financial guarantees (Stripe). It features complete OAuth integrations for both Google and Outlook calendars (including auto-sync and auto-update upon modification), automated email notifications (fully translated to French), workspace management, and participant invitations. 
+A fully functional appointment booking SaaS with financial guarantees (Stripe), auto-syncing calendars, a conservative post-appointment attendance evaluation engine (running via APScheduler), and a physical evidence collection system (Symmetric Check-in, GPS capture, Dynamic Neutral QR codes) with smart scoring based on temporal and geographic consistency.
 
 **Last working item**:
-    - Last item agent was working: Implementing the V1 of the post-appointment Attendance/No-Show detection engine ().
+    - Last item agent was working: Fixing a critical timezone discrepancy across the application. The agent identified that  was artificially appending 'Z' to naive datetimes (), causing a 1-hour display offset compared to . The session ended before the fix was applied.
     - Status: IN PROGRESS
-    - Agent Testing Done: N (Agent just created the  file before the session ended).
-    - Which testing method agent to use? Both (Backend testing agent for the APScheduler cron logic and classification rules; manual UI/Screenshot testing for the Reviewer dashboard/Appointment badges).
+    - Agent Testing Done: N
+    - Which testing method agent to use? Both (Frontend testing agent to verify UI display across all pages, manual backend curl to verify API responses).
     - User Testing Done: N
 
 **All Pending/In progress Issue list**: 
-  Issue 1: Implement Post-Appointment Attendance Engine (P0)
-     - Attempted fixes: Created . No actual logic written yet.
+  Issue 1: Critical Timezone Display Discrepancy (P0)
+     - Attempted fixes: Agent used  and identified the exact line in  causing the issue but hasn't fixed it yet.
      - Next debug checklist: 
-        1. Write the classification logic in  respecting user's strict rules (->,  tracking, fallback to ).
-        2. Create  for API access and manual trigger.
-        3. Wire an APScheduler job (every 10 mins) to process appointments that have ended (end_time + 30 mins grace window).
-        4. Update  to display attendance badges.
-     - Why fix this issue and what will be achieved with the fix? This is the core requirement requested by the user to prepare the system for financial penalty captures later.
+        1. Fix  line 368 (and anywhere else) where  is being wrongly appended or where naive strings are parsed incorrectly.
+        2. Audit the backend (e.g., , ) to enforce the user's strict new rule: Backend MUST store and return ALL dates in ISO UTC format. Currently, the backend stores naive local time strings (e.g., ). 
+        3. Audit frontend to ensure it always uses  to display the UTC dates in the user's local time.
+     - Why fix this issue and what will be achieved with the fix? It causes a 1-hour discrepancy between what the organizer sees and what the participant sees, destroying trust in the product.
      - Status: IN PROGRESS
-     - Is recurring issue? N
+     - Is recurring issue? Y (Timezone issues with naive datetimes have occurred twice this session).
      - Should Test frontend/backend/both after fix? Both
      - Blocked on other issue: None.
 
 **In progress Task List**: 
-  Task 1: Attendance Engine UI (P0)
-     - Where to resume: After backend engine is built, modify the UI to show the outcome.
-     - What will be achieved with this? Organizer can see who was on time, late, no-show, or needs manual review.
-     - Status: NOT STARTED
-     - Should Test frontend/backend/both after fix? Frontend
-     - Blocked on something: Needs backend logic and models first.
+  None (Focus entirely on Issue 1).
 
 **Upcoming and Future Tasks**
     - P2: Stripe Connect Implementation (Automated fund splits between participant, charity, and platform). *Note: User explicitly said do NOT touch this yet until No-show detection is perfect.*
@@ -48,91 +38,93 @@ A fully functional appointment booking SaaS with financial guarantees (Stripe). 
     - P3: Dashboard analytics organisateur.
 
 **Completed work in this session**
-- Outlook / Microsoft 365 OAuth Integration (DONE)
-- Multi-provider Calendar Auto-Sync V1 (Triggers on appointment creation) (DONE)
-- Calendar Auto-Update V1 (Updates events when calendar fields change, handles  status) (DONE)
-- Login Error UI bug fix (Axios 401 interceptor was reloading page) (DONE)
-- Outlook Timezone bug fix (Mapped IANA timezones to Windows Timezones for personal Microsoft accounts + browser timezone fallback) (DONE)
-- Added charity percentage and name to the Invitation UI (DONE)
-- Localized all email/notification dates to French via a new  (DONE)
+- Attendance Evaluation Engine V1 (Backend rules + APScheduler) (DONE)
+- Physical Evidence System (QR, GPS, Manual check-in endpoints) (DONE)
+- Smart Evidence Scoring V2 (Temporal & Geographic consistency, reverse geocoding via Nominatim) (DONE)
+- Participant Check-in UX (Standalone card with 4 temporal states on Invitation page) (DONE)
 
 **Earlier issues found/mentioned but not fixed**
 None.
 
 **Known issue recurrence from previous fork**
-  - Issue recurrence in previous fork: None.
-  - Recurrence count: 0
-  - Status: N/A
+  - Issue recurrence in previous fork: None, but Timezone/Naive datetime issues occurred twice within *this* session.
+  - Recurrence count: 2
+  - Status: IN PROGRESS
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
-Frontend: React.js, TailwindCSS, Shadcn UI
-Backend: FastAPI, Python, APScheduler 
+Frontend: React.js, TailwindCSS, 
+Backend: FastAPI, Python, APScheduler, , ,  (for Nominatim reverse geocoding)
 Database: MongoDB
-Integrations: Stripe (Checkout/Setup Intents), Resend (Emails), Google Calendar, Microsoft Graph API.
 
 **key DB schema**
-  - : {participant_id, appointment_id, status, guarantee_status, invitation_token}
-  - : {appointment_id, connection_id, external_event_id, sync_status, sync_source}
-  - : {user_id, provider, access_token, refresh_token, calendar_timezone}
+  - : {evidence_id, appointment_id, participant_id, source, source_timestamp, confidence_score, derived_facts, created_by}
+  - : {attendance_summary, start_datetime (currently stored as naive string, needs UTC refactoring)}
+  - : {status, accepted_at, etc.}
 
 **changes in tech stack**
-  - Introduced  for global French date formatting.
+  - Added  (Python) and  (React) for physical presence verification.
+  - Utilizing OpenStreetMap's Nominatim API (public rate-limited) for reverse geocoding GPS coordinates.
 
 **All files of reference** 
-  -  (Just created, to house the no-show logic)
-  -  (Created for datetime locale formatting)
-  -  (Updated with Windows timezone mapping)
-  -  (Updated logic for displaying auth errors)
-  -  (Heavily modified for auto-sync and auto-update)
+  -  (Contains the immediate timezone bug)
+  - 
+  -  (Handles temporal/geographic scoring)
+  -  (Where dates are initially created/stored)
+  - 
 
 **Areas that need refactoring**: 
-  -  is getting large (~800 lines). Might need splitting in future forks if more calendar logic is added.
+  - Backend datetime storage. The application currently stores naive datetime strings based on user input. The user explicitly requested a complete refactor: backend MUST store in UTC and return ISO UTC strings. Frontend handles local conversion.
 
 **key api endpoints**
-  -  (Passes  query param)
-  -  (Returns nested provider sync statuses)
-  - *Expected new endpoint:* 
+  - 
+  - 
+  - 
+  - 
 
 **Critical Info for New Agent** 
-1. **ATTENDANCE ENGINE STRICT RULES:** The user has provided EXPLICIT rules for the new attendance feature. Do NOT trigger auto-capture of Stripe funds. Be conservative.  goes to .  must be explicitly tracked as the decision basis. Ambiguous cases must go to . Read message #605 carefully.
-2. **Microsoft Graph API quirk:** Personal Microsoft accounts do NOT accept IANA timezones (e.g., ). They require Windows timezones (e.g., ). The agent implemented a mapper in the outlook adapter. Leave it intact.
-3. **Stripe Dev Mode Bypass:** The backend contains a bypass in  that auto-confirms guarantees if  is missing or set to . Ensure actual test keys are present if interacting with Stripe logic.
+1. **TIMEZONE REFACTORING:** The user's last message is a strict directive. The backend MUST NOT guess timezones. Dates must be saved in UTC, sent in UTC (), and the frontend MUST use browser timezones to display them. You will likely need to adjust how appointments are created and how existing naive strings are handled.
+2. **EVIDENCE SCORING:** The system now calculates distance between check-in GPS and appointment location using Haversine, and uses Nominatim for reverse geocoding. It degrades confidence if check-in is too early/late or too far. Leave this logic intact, but ensure datetimes used in calculations are UTC-safe.
+3. **DO NOT TOUCH STRIPE:** The user has reiterated not to trigger aggressive Stripe captures yet.
 
 **documents and test reports created in this job** 
+  -  (Updated extensively with Evidence rules)
   - 
   - 
   - 
   - 
 
 **Last 10 User Messages and any pending HUMAN messages** 
-1. (User) Reported bug: Production invitation bypasses Stripe.
-2. (User) Clarified Stripe test key is used in prod. Also noted dates on invitation UI are in English.
-3. (User) Asked to fix all notification/email dates to French system-wide.
-4. (User) Asked for a precise development summary before sleeping.
-5. (User) **Pending Task Request**: Kickstarted the No-Show Detection feature. Provided extensive business rules, emphasizing conservative classification, no automatic Stripe capture yet, and routing ambiguous cases to .
-6. (User) Validated the agent's proposed plan but added two strict overrides: 1)  status must NOT be classified as  (use ), and 2) Late cancellations must be tracked explicitly as  rather than a pure no-show.
+1. (User) Requested physical evidence collection (Check-in, GPS, QR code) and a neutral implementation.
+2. (User) Clarified logic: No participant validates another. QR belongs to the system. Fallback manual code required.
+3. (User) Asked to test the V2 evidence engine together on a live link.
+4. (User) Provided screenshot of successful check-in.
+5. (User) Requested Organizer UI upgrade to show exact date, time, GPS coords, distance, and reverse geocoding address for evidence.
+6. (User) Reported logic flaw: A check-in 3 days early in Paris for a meeting in Cannes was rated medium. Requested Smart Scoring (Temporal + Geographic consistency).
+7. (User) Noticed a timezone UTC/Local offset bug on their check-in time (stored as 22:54 UTC, but was 23:54 local).
+8. (User) Complained about Participant UX on InvitationPage. Check-in actions were buried. Requested a prominent 4-state block.
+9. (User) **PENDING HUMAN MESSAGE**: Reported a critical timezone bug. The Organizer page shows 01:04, the Invitation page shows 00:04. Demanded a strict architectural rule: Backend stores/sends UTC ONLY, Frontend converts to local browser timezone ONLY. Agent found the bug but session ended.
 
 **Project Health Check:**
-Healthy.
+Broken (Timezone display discrepancies across views).
 
 **3rd Party Integrations**
-  • Resend (Emails) — requires User API Key
   • Stripe (Payments) — requires User API Key
-  • Google Calendar API — requires User API Key
-  • Microsoft Graph API — requires User API Key
+  • Resend (Emails) — requires User API Key
+  • Google/Outlook Calendar — requires User API Key
+  • Nominatim (OpenStreetMap) — Public API (rate limited to 1 req/sec)
 
 **Testing status**
-  - Testing agent used after significant changes: YES (Iterations 9, 10, 11 used extensively)
+  - Testing agent used after significant changes: YES (Iterations 12, 13, 14, 15)
   - Troubleshoot agent used after agent stuck in loop: NO
-  - Test files created: None manually.
-  - Known regressions: None.
+  - Test files created: None
+  - Known regressions: Naive datetime handling causing 1-hour offsets on frontend.
 
 **Credentials to test flow:**
   - Standard Test User: 
   - Password: 
 
 **What agent forgot to execute**
-The agent just created the  file but did not write any logic before the session ended. The next agent must pick this up exactly from here.</analysis>
+The agent successfully pinpointed the cause of the UI timezone discrepancy ( line 368 appending 'Z' to a naive string) but the context window ran out before the agent could implement the fix and apply the user's new strict UTC backend / Local frontend architecture rule.</analysis>

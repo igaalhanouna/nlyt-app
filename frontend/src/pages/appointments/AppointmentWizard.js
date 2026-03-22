@@ -11,6 +11,8 @@ import { ArrowLeft, ArrowRight, Check, Calendar, MapPin, Video, DollarSign, Shie
 import { toast } from 'sonner';
 import AddressAutocomplete from '../../components/AddressAutocomplete';
 
+import { localInputToUTC, formatDateTimeFr } from '../../utils/dateFormat';
+
 const API_URL = process.env.REACT_APP_BACKEND_URL || '';
 
 export default function AppointmentWizard() {
@@ -252,6 +254,8 @@ export default function AppointmentWizard() {
       const validParticipants = participants.filter(p => p.email.trim() !== '');
       const payload = {
         ...formData,
+        // Convert local datetime to UTC for backend storage
+        start_datetime: localInputToUTC(formData.start_datetime),
         workspace_id: currentWorkspace.workspace_id,
         participants: validParticipants
       };
@@ -713,7 +717,7 @@ export default function AppointmentWizard() {
                 <div className="flex justify-between">
                   <span className="text-slate-600">Date et heure:</span>
                   <span className="font-medium text-slate-900">
-                    {formData.start_datetime ? new Date(formData.start_datetime).toLocaleString('fr-FR') : '-'}
+                    {formData.start_datetime ? formatDateTimeFr(formData.start_datetime) : '-'}
                   </span>
                 </div>
                 <div className="flex justify-between">

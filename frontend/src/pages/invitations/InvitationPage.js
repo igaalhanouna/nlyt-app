@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Calendar, MapPin, Clock, Users, AlertTriangle, Check, X, Loader2, Ban, Download, CreditCard, ShieldCheck, MapPinCheck, QrCode, ScanLine } from 'lucide-react';
 import QRCheckin from '../../components/QRCheckin';
+import { formatDateTimeFr, formatTimeFr, formatDateShortFr, formatEvidenceDateFr, formatActionDateFr, parseUTC } from '../../utils/dateFormat';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL || '';
 
@@ -361,12 +362,12 @@ export default function InvitationPage() {
   // Check-in section (shared between accepted states)
   const renderCheckinSection = () => {
     const isCheckedIn = checkinStatus?.checked_in;
-    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-    // Compute check-in window
+    // Parse UTC start datetime — backend always returns UTC (with 'Z')
     const startStr = appointment.start_datetime;
-    const startDate = new Date(startStr.includes('+') || startStr.includes('Z') ? startStr : startStr + 'Z');
-    // Adjust for local: if naive datetime, treat as Europe/Paris-ish (add offset manually not needed, browser handles display)
+    const startDate = parseUTC(startStr);
+    if (!startDate) return null;
+
     const durationMin = appointment.duration_minutes || 60;
     const toleratedDelay = appointment.tolerated_delay_minutes || engagement_rules?.tolerated_delay_minutes || 0;
     const WINDOW_BEFORE_MIN = 30;
@@ -390,8 +391,8 @@ export default function InvitationPage() {
       return `${mins} min`;
     };
 
-    const formatTime = (d) => d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: tz });
-    const formatDate = (d) => d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', timeZone: tz });
+    const formatTime = (d) => formatTimeFr(d.toISOString());
+    const formatDate = (d) => formatDateShortFr(d.toISOString());
 
     return (
       <div className="bg-white rounded-2xl border-2 border-slate-200 overflow-hidden mt-6" data-testid="checkin-section">
@@ -418,11 +419,7 @@ export default function InvitationPage() {
               <p className="font-semibold text-emerald-800 text-base">Présence enregistrée</p>
               {checkinStatus.earliest_checkin && (
                 <p className="text-sm text-emerald-600 mt-1">
-                  le {new Date(checkinStatus.earliest_checkin).toLocaleDateString('fr-FR', {
-                    weekday: 'long', day: 'numeric', month: 'long', timeZone: tz
-                  })} à {new Date(checkinStatus.earliest_checkin).toLocaleTimeString('fr-FR', {
-                    hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: tz
-                  })}
+                  le {formatEvidenceDateFr(checkinStatus.earliest_checkin)}
                 </p>
               )}
               <div className="flex items-center justify-center gap-4 mt-3">
@@ -560,7 +557,7 @@ export default function InvitationPage() {
                     : 'Ce rendez-vous a été supprimé par l\'organisateur.'}
                 </p>
                 <p className="text-sm text-slate-500">
-                  <strong>Prévu le :</strong> {appointment.formatted_date || appointment.start_datetime}
+                  <strong>Prévu le :</strong> {formatDateTimeFr(appointment.start_datetime)}
                 </p>
                 {appointment.location && (
                   <p className="text-sm text-slate-500">
@@ -604,7 +601,7 @@ export default function InvitationPage() {
             <div className="space-y-3">
               <div className="flex items-center gap-3 text-slate-600">
                 <Calendar className="w-5 h-5 text-slate-400" />
-                <span data-testid="appointment-date">{appointment.formatted_date || appointment.start_datetime}</span>
+                <span data-testid="appointment-date">{formatDateTimeFr(appointment.start_datetime)}</span>
               </div>
               
               <div className="flex items-center gap-3 text-slate-600">
@@ -710,9 +707,7 @@ export default function InvitationPage() {
                 </p>
                 {participant.guaranteed_at && (
                   <p className="text-xs text-slate-400 mt-2">
-                    Garanti le {new Date(participant.guaranteed_at).toLocaleDateString('fr-FR', {
-                      day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'
-                    })}
+                    Garanti le {formatActionDateFr(participant.guaranteed_at)}
                   </p>
                 )}
                 
@@ -775,9 +770,7 @@ export default function InvitationPage() {
                 <p className="text-slate-600">Vous avez accepté cette invitation.</p>
                 {participant.accepted_at && (
                   <p className="text-xs text-slate-400 mt-2">
-                    Accepté le {new Date(participant.accepted_at).toLocaleDateString('fr-FR', {
-                      day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'
-                    })}
+                    Accepté le {formatActionDateFr(participant.accepted_at)}
                   </p>
                 )}
                 
@@ -833,9 +826,7 @@ export default function InvitationPage() {
                 <p className="text-slate-600">Vous avez décliné cette invitation. L'organisateur en sera informé.</p>
                 {participant.declined_at && (
                   <p className="text-xs text-slate-400 mt-2">
-                    Décliné le {new Date(participant.declined_at).toLocaleDateString('fr-FR', {
-                      day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'
-                    })}
+                    Décliné le {formatActionDateFr(participant.declined_at)}
                   </p>
                 )}
               </div>
@@ -848,9 +839,7 @@ export default function InvitationPage() {
                 <p className="text-slate-600">Votre participation a bien été annulée. L'organisateur en sera informé.</p>
                 {participant.cancelled_at && (
                   <p className="text-xs text-slate-400 mt-2">
-                    Annulé le {new Date(participant.cancelled_at).toLocaleDateString('fr-FR', {
-                      day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'
-                    })}
+                    Annulé le {formatActionDateFr(participant.cancelled_at)}
                   </p>
                 )}
               </div>

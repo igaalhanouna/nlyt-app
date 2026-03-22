@@ -7,6 +7,7 @@ import { Label } from '../../components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../../components/ui/dialog';
 import { ArrowLeft, UserPlus, Mail, Trash2, RefreshCw, CheckCircle, Clock, XCircle, ShieldCheck, CreditCard } from 'lucide-react';
 import { toast } from 'sonner';
+import { formatDateTimeCompactFr } from '../../utils/dateFormat';
 
 export default function ParticipantManagement() {
   const { id } = useParams();
@@ -233,12 +234,12 @@ export default function ParticipantManagement() {
                       <p className="text-sm text-slate-600">{participant.email}</p>
                       {participant.invited_at && (
                         <p className="text-xs text-slate-500 mt-1">
-                          Invité le {new Date(participant.invited_at).toLocaleString('fr-FR')}
+                          Invité le {formatDateTimeCompactFr(participant.invited_at)}
                         </p>
                       )}
                       {participant.accepted_at && (
                         <p className="text-xs text-emerald-600 mt-1">
-                          Accepté le {new Date(participant.accepted_at).toLocaleString('fr-FR')}
+                          Accepté le {formatDateTimeCompactFr(participant.accepted_at)}
                         </p>
                       )}
                     </div>

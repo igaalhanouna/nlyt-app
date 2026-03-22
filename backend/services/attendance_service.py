@@ -76,9 +76,12 @@ def evaluate_participant(participant: dict, appointment: dict) -> dict:
             deadline_dt = start_utc - timedelta(hours=deadline_hours)
 
             if cancelled_at_str:
-                cancelled_at = datetime.fromisoformat(cancelled_at_str.replace('Z', '+00:00'))
-                if cancelled_at.tzinfo is None:
-                    cancelled_at = cancelled_at.replace(tzinfo=timezone.utc)
+                from utils.date_utils import parse_iso_datetime
+                cancelled_at = parse_iso_datetime(cancelled_at_str)
+                if cancelled_at is None:
+                    cancelled_at = datetime.fromisoformat(cancelled_at_str.replace('Z', '+00:00'))
+                    if cancelled_at.tzinfo is None:
+                        cancelled_at = cancelled_at.replace(tzinfo=timezone.utc)
 
                 if cancelled_at <= deadline_dt:
                     return {
@@ -319,10 +322,10 @@ def run_attendance_evaluation_job():
     evaluated_count = 0
     for apt in appointments:
         try:
-            start_str = apt.get('start_datetime', '')
-            start_dt = datetime.fromisoformat(start_str.replace('Z', '+00:00'))
-            if start_dt.tzinfo is None:
-                start_dt = start_dt.replace(tzinfo=timezone.utc)
+            from utils.date_utils import parse_iso_datetime
+            start_dt = parse_iso_datetime(apt.get('start_datetime', ''))
+            if start_dt is None:
+                continue
 
             duration = apt.get('duration_minutes', 60)
             end_dt = start_dt + timedelta(minutes=duration) + timedelta(minutes=GRACE_WINDOW_MINUTES)

@@ -4,6 +4,7 @@ import { appointmentAPI, participantAPI, calendarAPI, invitationAPI, attendanceA
 import { Button } from '../../components/ui/button';
 import { ArrowLeft, Calendar, MapPin, Video, Clock, Users, Ban, Check, X, AlertTriangle, Download, Heart, ShieldCheck, CreditCard, RefreshCw, Loader2, Zap, ClipboardCheck, Eye, UserX, UserCheck, HelpCircle, ChevronDown, ScanLine, QrCode, MapPinCheck, ExternalLink, Timer, Navigation } from 'lucide-react';
 import { toast } from 'sonner';
+import { formatDateTimeFr, formatTimeFr, formatEvidenceDateFr, parseUTC } from '../../utils/dateFormat';
 
 export default function AppointmentDetail() {
   const { id } = useParams();
@@ -230,7 +231,8 @@ export default function AppointmentDetail() {
   // Check if appointment has ended (for showing evaluate button)
   const isAppointmentEnded = () => {
     if (!appointment?.start_datetime) return false;
-    const start = new Date(appointment.start_datetime);
+    const start = parseUTC(appointment.start_datetime);
+    if (!start) return false;
     const end = new Date(start.getTime() + (appointment.duration_minutes || 60) * 60000);
     return new Date() > end;
   };
@@ -282,15 +284,7 @@ export default function AppointmentDetail() {
     return labels[source] || source;
   };
 
-  const formatEvidenceDate = (ts) => {
-    try {
-      const d = new Date(ts);
-      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      const dateStr = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: tz });
-      const timeStr = d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: tz });
-      return dateStr + ' à ' + timeStr;
-    } catch { return ts; }
-  };
+  const formatEvidenceDate = (ts) => formatEvidenceDateFr(ts);
 
   const getSourceIcon = (source) => {
     if (source === 'manual_checkin') return <MapPinCheck className="w-4 h-4 text-emerald-600" />;
@@ -508,10 +502,7 @@ export default function AppointmentDetail() {
                 <div>
                   <p className="text-sm font-medium text-slate-700">Date et heure</p>
                   <p className="text-slate-900">
-                    {new Date(appointment.start_datetime).toLocaleString('fr-FR', {
-                      dateStyle: 'full',
-                      timeStyle: 'short'
-                    })}
+                    {formatDateTimeFr(appointment.start_datetime)}
                   </p>
                   <p className="text-sm text-slate-500 mt-1">Durée : {appointment.duration_minutes} minutes</p>
                 </div>
@@ -855,7 +846,7 @@ export default function AppointmentDetail() {
                             {getStrengthBadge(pEvidence.aggregation.strength)}
                             {pEvidence.aggregation.earliest_evidence && (
                               <span className="text-xs text-slate-400">
-                                Check-in {new Date(pEvidence.aggregation.earliest_evidence).toLocaleString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                                Check-in {formatTimeFr(pEvidence.aggregation.earliest_evidence)}
                               </span>
                             )}
                           </div>
@@ -904,7 +895,7 @@ export default function AppointmentDetail() {
                 </div>
 
                 <p className="text-xs text-slate-400 mt-3">
-                  Évalué le {new Date(attendance.evaluated_at).toLocaleString('fr-FR')} — Décisions automatiques, modifiables par l'organisateur
+                  Évalué le {formatDateTimeFr(attendance.evaluated_at)} — Décisions automatiques, modifiables par l'organisateur
                 </p>
               </>
             ) : (

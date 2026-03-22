@@ -7,6 +7,7 @@ import { Button } from '../../components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/tabs';
 import { CalendarPlus, LogOut, Settings, Calendar, Users, MapPin, Video, Trash2, Check, X, Clock, Building2, ChevronDown, Plus, Ban, ShieldCheck, CreditCard, History, Play } from 'lucide-react';
 import { toast } from 'sonner';
+import { formatDateTimeCompactFr, parseUTC } from '../../utils/dateFormat';
 
 export default function OrganizerDashboard() {
   const { user, logout } = useAuth();
@@ -92,16 +93,17 @@ export default function OrganizerDashboard() {
     }
   };
 
-  // Compute end time: start + duration. Handles naive ISO strings (no TZ suffix)
-  // parsed as local time by the browser, which matches the user's input context.
+  // Compute end time: start + duration. Backend returns UTC ISO strings.
   const getEndTime = (appointment) => {
-    const start = new Date(appointment.start_datetime);
+    const start = parseUTC(appointment.start_datetime);
+    if (!start) return new Date();
     return new Date(start.getTime() + (appointment.duration_minutes || 0) * 60000);
   };
 
   const getAppointmentTemporalState = (appointment) => {
     const now = new Date();
-    const start = new Date(appointment.start_datetime);
+    const start = parseUTC(appointment.start_datetime);
+    if (!start) return 'past';
     const end = getEndTime(appointment);
     if (now < start) return 'upcoming';
     if (now >= start && now < end) return 'ongoing';
@@ -152,14 +154,7 @@ export default function OrganizerDashboard() {
                 {appointment.title}
               </h4>
               <p className="text-sm text-slate-600 mb-2">
-                {new Date(appointment.start_datetime).toLocaleString('fr-FR', {
-                  weekday: 'long',
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit'
-                })}
+                {formatDateTimeCompactFr(appointment.start_datetime)}
               </p>
               
               <div className="flex flex-wrap items-center gap-3 text-sm text-slate-500">
@@ -412,13 +407,17 @@ export default function OrganizerDashboard() {
             // "Passés" = ended (end_time < now)
             const upcoming = appointments
               .filter(a => {
-                const end = new Date(new Date(a.start_datetime).getTime() + (a.duration_minutes || 0) * 60000);
+                const start = parseUTC(a.start_datetime);
+                if (!start) return false;
+                const end = new Date(start.getTime() + (a.duration_minutes || 0) * 60000);
                 return end >= now;
               })
               .sort((a, b) => new Date(a.start_datetime) - new Date(b.start_datetime));
             const past = appointments
               .filter(a => {
-                const end = new Date(new Date(a.start_datetime).getTime() + (a.duration_minutes || 0) * 60000);
+                const start = parseUTC(a.start_datetime);
+                if (!start) return true;
+                const end = new Date(start.getTime() + (a.duration_minutes || 0) * 60000);
                 return end < now;
               })
               .sort((a, b) => new Date(b.start_datetime) - new Date(a.start_datetime));
