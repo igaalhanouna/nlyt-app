@@ -372,6 +372,116 @@ async def check_and_activate(appointment_id: str, request: Request):
     return {"status": "pending_organizer_guarantee", "guaranteed": False}
 
 
+@router.post("/{appointment_id}/retry-organizer-guarantee")
+async def retry_organizer_guarantee(appointment_id: str, request: Request):
+    """
+    Re-generate a Stripe Checkout session for an organizer whose appointment
+    is stuck in pending_organizer_guarantee.
+    If the user now has a default payment method, auto-guarantee + activate instead.
+    """
+    user = await get_current_user(request)
+
+    appointment = db.appointments.find_one({"appointment_id": appointment_id}, {"_id": 0})
+    if not appointment:
+        raise HTTPException(status_code=404, detail="Rendez-vous introuvable")
+
+    if appointment['organizer_id'] != user['user_id']:
+        raise HTTPException(status_code=403, detail="Accès refusé")
+
+    if appointment.get('status') != 'pending_organizer_guarantee':
+        return {"status": appointment.get('status'), "message": "Ce rendez-vous n'est pas en attente de garantie"}
+
+    # Find organizer participant
+    org_p = db.participants.find_one(
+        {"appointment_id": appointment_id, "is_organizer": True},
+        {"_id": 0}
+    )
+    if not org_p:
+        raise HTTPException(status_code=500, detail="Participant organisateur introuvable")
+
+    # Check if user NOW has a default payment method
+    user_doc = db.users.find_one({"user_id": user['user_id']}, {"_id": 0})
+    has_default_pm = (
+        user_doc.get('default_payment_method_id')
+        and user_doc.get('payment_method_consent')
+        and user_doc.get('stripe_customer_id')
+    )
+
+    if has_default_pm:
+        # Auto-guarantee with saved card
+        guarantee_id = str(uuid.uuid4())
+        guarantee_record = {
+            "guarantee_id": guarantee_id,
+            "participant_id": org_p['participant_id'],
+            "appointment_id": appointment_id,
+            "stripe_customer_id": user_doc['stripe_customer_id'],
+            "stripe_payment_method_id": user_doc['default_payment_method_id'],
+            "penalty_amount": float(appointment.get('penalty_amount', 0)),
+            "penalty_currency": appointment.get('penalty_currency', 'eur').lower(),
+            "status": "completed",
+            "source": "default_payment_method",
+            "created_at": now_utc_iso(),
+            "completed_at": now_utc_iso(),
+            "updated_at": now_utc_iso()
+        }
+        db.payment_guarantees.insert_one(guarantee_record)
+
+        db.participants.update_one(
+            {"participant_id": org_p['participant_id']},
+            {"$set": {
+                "status": "accepted_guaranteed",
+                "guarantee_id": guarantee_id,
+                "stripe_customer_id": user_doc['stripe_customer_id'],
+                "stripe_payment_method_id": user_doc['default_payment_method_id'],
+                "guaranteed_at": now_utc_iso(),
+                "updated_at": now_utc_iso()
+            }}
+        )
+
+        from services.appointment_lifecycle import activate_appointment
+        activation = await activate_appointment(appointment_id, user['user_id'])
+
+        return {
+            "status": "active",
+            "activated": True,
+            "message": "Garantie validée avec votre carte par défaut. Invitations envoyées.",
+            "meeting": activation.get("meeting_result")
+        }
+    else:
+        # Create a new Stripe Checkout session
+        from services.stripe_guarantee_service import StripeGuaranteeService
+        frontend_url = os.environ.get('FRONTEND_URL', '').rstrip('/') or str(request.base_url).rstrip('/')
+        org_name = f"{user_doc.get('first_name', '')} {user_doc.get('last_name', '')}".strip()
+
+        result = StripeGuaranteeService.create_guarantee_session(
+            participant_id=org_p['participant_id'],
+            appointment_id=appointment_id,
+            participant_email=user_doc.get('email', ''),
+            participant_name=org_name or 'Organisateur',
+            appointment_title=appointment.get('title', ''),
+            penalty_amount=float(appointment.get('penalty_amount', 0)),
+            penalty_currency=appointment.get('penalty_currency', 'eur').lower(),
+            frontend_url=frontend_url,
+            invitation_token=org_p.get('invitation_token', '')
+        )
+
+        if result.get('success'):
+            db.participants.update_one(
+                {"participant_id": org_p['participant_id']},
+                {"$set": {
+                    "guarantee_id": result['guarantee_id'],
+                    "stripe_session_id": result['session_id']
+                }}
+            )
+            return {
+                "status": "pending_organizer_guarantee",
+                "checkout_url": result['checkout_url'],
+                "message": "Redirigez vers Stripe pour valider votre garantie."
+            }
+        else:
+            raise HTTPException(status_code=500, detail=result.get('error', 'Erreur Stripe'))
+
+
 @router.get("/")
 async def list_appointments(workspace_id: str = None, request: Request = None):
     user = await get_current_user(request)

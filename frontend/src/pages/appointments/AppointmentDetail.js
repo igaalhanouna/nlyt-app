@@ -265,39 +265,27 @@ export default function AppointmentDetail() {
   const isCancelled = appointment.status === 'cancelled';
   const isPendingGuarantee = appointment.status === 'pending_organizer_guarantee';
 
-  // Resume organizer guarantee (get a new Stripe session)
+  // Resume organizer guarantee (get a new Stripe session or auto-activate)
   const handleResumeGuarantee = async () => {
     setResumingGuarantee(true);
     try {
-      // Check if user now has a default payment method
-      const pmRes = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/user-settings/me/payment-method`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      });
-      const pmData = await pmRes.json();
-
-      if (pmData.has_payment_method) {
-        // User set up a card since creating this appointment — check activation
-        const actRes = await appointmentAPI.checkActivation(id);
-        if (actRes.data.status === 'active' || actRes.data.activated) {
-          toast.success('Garantie validée ! Invitations envoyées.');
-          await loadData();
-          return;
-        }
+      const res = await appointmentAPI.retryGuarantee(id);
+      
+      if (res.data.status === 'active' && res.data.activated) {
+        // Auto-guaranteed with saved card
+        toast.success('Garantie validée ! Invitations envoyées.');
+        await loadData();
+      } else if (res.data.checkout_url) {
+        // Redirect to Stripe
+        toast.info('Redirection vers Stripe pour valider votre garantie...');
+        window.location.href = res.data.checkout_url;
+      } else {
+        toast.info(res.data.message || 'Statut mis à jour');
+        await loadData();
       }
-
-      // Find the organizer participant checkout URL
-      const orgP = participants.find(p => p.is_organizer);
-      if (orgP?.stripe_session_id) {
-        // Try to use the existing session — Stripe might have expired it
-        // Best approach: create a new guarantee session
-      }
-
-      // Create a new Stripe session via re-posting the appointment activate endpoint
-      // For now, redirect to settings to add card
-      toast.info('Configurez votre carte par défaut dans les paramètres pour activer ce rendez-vous.');
-      navigate('/settings/payment');
     } catch (error) {
-      toast.error('Erreur lors de la reprise de la garantie');
+      const msg = error.response?.data?.detail || 'Erreur lors de la reprise de la garantie';
+      toast.error(typeof msg === 'string' ? msg : JSON.stringify(msg));
     } finally {
       setResumingGuarantee(false);
     }
