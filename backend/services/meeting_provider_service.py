@@ -602,15 +602,89 @@ def fetch_attendance_for_appointment(appointment_id: str) -> dict:
             return {"error": "Rapport de présence Zoom non disponible (réunion pas encore terminée ?)"}
 
         elif provider in ("teams", "microsoft teams"):
-            if not _teams_client.is_configured():
-                return {"error": "Teams API non configurée"}
-            azure_user_id = _resolve_teams_user_id(appointment.get("organizer_id"))
-            if not azure_user_id:
-                return {"error": "Azure AD User ID introuvable"}
-            data = _teams_client.fetch_attendance(azure_user_id, meeting_id)
-            if data:
-                return {"success": True, "provider": "teams", "raw_payload": data}
-            return {"error": "Rapport de présence Teams non disponible"}
+            organizer_id = appointment.get("organizer_id")
+            metadata = appointment.get("meeting_provider_metadata") or {}
+            creation_mode = metadata.get("creation_mode", "")
+
+            # --- Priority 1: Delegated mode (user's own Outlook token) ---
+            # Only viable if user has OnlineMeetings.ReadWrite AND meeting was created in delegated mode
+            outlook_conn = db.calendar_connections.find_one(
+                {"user_id": organizer_id, "provider": "outlook", "status": "connected"},
+                {"_id": 0},
+            )
+            has_delegated = (
+                outlook_conn
+                and outlook_conn.get("has_online_meetings_scope") is True
+                and outlook_conn.get("access_token")
+            )
+
+            if has_delegated and creation_mode == "delegated":
+                try:
+                    access_token = outlook_conn["access_token"]
+                    refresh_token = outlook_conn.get("refresh_token")
+                    if refresh_token:
+                        from adapters.outlook_calendar_adapter import OutlookCalendarAdapter
+                        refreshed = OutlookCalendarAdapter.refresh_access_token(refresh_token)
+                        if refreshed:
+                            access_token = refreshed
+                            db.calendar_connections.update_one(
+                                {"user_id": organizer_id, "provider": "outlook"},
+                                {"$set": {"access_token": access_token}},
+                            )
+
+                    headers = {"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"}
+                    resp = requests.get(
+                        f"https://graph.microsoft.com/v1.0/me/onlineMeetings/{meeting_id}/attendanceReports",
+                        headers=headers, timeout=15,
+                    )
+                    resp.raise_for_status()
+                    reports = resp.json().get("value", [])
+                    if reports:
+                        report = reports[-1]
+                        report_id = report.get("id")
+                        records_resp = requests.get(
+                            f"https://graph.microsoft.com/v1.0/me/onlineMeetings/{meeting_id}/attendanceReports/{report_id}/attendanceRecords",
+                            headers=headers, timeout=15,
+                        )
+                        records_resp.raise_for_status()
+                        records = records_resp.json().get("value", [])
+                        data = {
+                            "meeting_id": meeting_id,
+                            "attendanceRecords": [
+                                {
+                                    "emailAddress": r.get("emailAddress"),
+                                    "identity": {"displayName": r.get("identity", {}).get("displayName")},
+                                    "totalAttendanceInSeconds": r.get("totalAttendanceInSeconds"),
+                                    "role": r.get("role"),
+                                    "attendanceIntervals": [
+                                        {"joinDateTime": i.get("joinDateTime"), "leaveDateTime": i.get("leaveDateTime"), "durationInSeconds": i.get("durationInSeconds")}
+                                        for i in r.get("attendanceIntervals", [])
+                                    ],
+                                }
+                                for r in records
+                            ],
+                        }
+                        return {"success": True, "provider": "teams", "raw_payload": data}
+                    return {"error": "Rapport de présence Teams non disponible (réunion pas encore terminée ou aucun rapport généré)"}
+                except requests.exceptions.HTTPError as e:
+                    status_code = e.response.status_code if e.response is not None else 0
+                    logger.warning(f"[MEETING] Teams delegated fetch_attendance failed (HTTP {status_code}): {e}")
+                    if status_code == 401:
+                        # Token expired and couldn't refresh — don't mark scope as revoked
+                        return {"error": "Token Outlook expiré. Reconnectez votre compte Outlook dans les paramètres d'intégration."}
+                    elif status_code == 403:
+                        return {"error": "Accès refusé. Reconnectez votre compte Outlook avec les permissions Teams dans les paramètres d'intégration."}
+                    return {"error": f"Erreur Teams ({status_code}). Réessayez après la fin de la réunion."}
+                except Exception as e:
+                    logger.warning(f"[MEETING] Teams delegated fetch_attendance error: {e}")
+                    return {"error": f"Erreur lors de la récupération des présences Teams: {str(e)}"}
+
+            # --- Legacy / application_fallback meetings ---
+            if creation_mode == "application_fallback":
+                return {"error": "Cette réunion a été créée en mode legacy (identité technique). Les rapports de présence ne sont pas accessibles dans ce mode. Créez une nouvelle réunion Teams pour bénéficier de la récupération automatique des présences."}
+
+            # --- No creation_mode set (old meetings before the feature) ---
+            return {"error": "Rapport de présence Teams non disponible. Créez une nouvelle réunion Teams depuis les paramètres d'intégration pour bénéficier de la récupération automatique."}
 
         elif provider in ("meet", "google meet"):
             return {"error": "Google Meet n'a pas d'API de présence standard. Utilisez l'import manuel."}
@@ -630,13 +704,13 @@ def _resolve_teams_user_id(nlyt_user_id: str) -> Optional[str]:
     settings = db.user_settings.find_one({"user_id": nlyt_user_id}, {"_id": 0})
     if settings and settings.get("azure_user_id"):
         return settings["azure_user_id"]
-    # Check calendar connections for Outlook (might have user email as ID)
+    # Check calendar connections for Outlook email (stored as outlook_email)
     connection = db.calendar_connections.find_one(
         {"user_id": nlyt_user_id, "provider": "outlook", "status": "connected"},
         {"_id": 0},
     )
-    if connection and connection.get("user_email"):
-        return connection["user_email"]
+    if connection and connection.get("outlook_email"):
+        return connection["outlook_email"]
     return None
 
 

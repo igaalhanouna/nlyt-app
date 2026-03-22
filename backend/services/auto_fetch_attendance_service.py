@@ -66,6 +66,11 @@ def run_auto_fetch_attendance_job():
         if provider not in AUTO_FETCH_PROVIDERS:
             continue
 
+        # Skip legacy (application_fallback) meetings — attendance not accessible via delegated token
+        metadata = apt.get("meeting_provider_metadata") or {}
+        if provider == "teams" and metadata.get("creation_mode") == "application_fallback":
+            continue
+
         # Calculate meeting end time
         start_str = apt.get("start_datetime")
         duration_min = apt.get("duration_minutes", 60)
