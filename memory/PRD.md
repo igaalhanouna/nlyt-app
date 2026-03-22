@@ -56,6 +56,7 @@ Email: Resend | Payments: Stripe | Video: Zoom API, Teams Graph API, Google Cale
 - iteration_32: 22/22 frontend + 12/13 backend (meeting auto-creation fix)
 - iteration_33: 7/7 frontend + 16/16 backend (host experience improvements)
 - iteration_34: all frontend + 11/11 backend (honest UX messaging)
+- iteration_35: 11/11 frontend + 6/6 backend (unified organizer identity block)
 - Credentials: testuser_audit@nlyt.app / Test1234!
 
 ## Completed (March 2026)
@@ -65,6 +66,7 @@ Email: Resend | Payments: Stripe | Video: Zoom API, Teams Graph API, Google Cale
 - **Meeting auto-creation regression fix** (March 22): Restored Microsoft Teams credentials, improved is_configured() guard, added error logging in lifecycle
 - **Host experience fix** (March 22): Teams lobby bypass (scope=everyone, allowedPresenters=organizer), Meet creator email hint in UI, Zoom host/participant URL distinction in frontend
 - **Honest UX messaging** (March 22): Provider-specific check-in messages (auto-fetch Zoom/Teams, manual import Meet), contextual evidence action bars, auto-fetch scheduler job (5min interval after meeting end)
+- **Unified organizer identity block** (March 22): "Connexion en tant qu'organisateur" for all providers — shows creator email (Google/Microsoft/Zoom), provider-specific guidance, only visible to organizer (not participants)
 
 ## Backlog (Prioritized)
 ### P1
