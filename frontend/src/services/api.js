@@ -158,6 +158,9 @@ export const proofAPI = {
 export const walletAPI = {
   get: () => api.get('/api/wallet'),
   getTransactions: (limit = 50, skip = 0) => api.get(`/api/wallet/transactions?limit=${limit}&skip=${skip}`),
+  getDistributions: (limit = 50, skip = 0) => api.get(`/api/wallet/distributions?limit=${limit}&skip=${skip}`),
+  getDistribution: (id) => api.get(`/api/wallet/distributions/${id}`),
+  contestDistribution: (id, reason) => api.post(`/api/wallet/distributions/${id}/contest`, { reason }),
 };
 
 export const connectAPI = {

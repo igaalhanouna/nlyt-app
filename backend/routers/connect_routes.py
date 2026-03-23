@@ -35,7 +35,9 @@ async def onboard_connect(request: Request):
 async def connect_status(request: Request):
     """Get current Stripe Connect status."""
     user = await get_current_user(request)
-    return get_connect_status(user["user_id"])
+    status = get_connect_status(user["user_id"])
+    status["user_id"] = user["user_id"]
+    return status
 
 
 @router.post("/dashboard")

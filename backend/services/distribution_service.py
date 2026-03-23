@@ -503,7 +503,25 @@ def get_distributions_for_user(user_id: str, limit: int = 50, skip: int = 0) -> 
         },
         {"_id": 0},
     ).sort("created_at", -1).skip(skip).limit(limit)
-    return list(cursor)
+    distributions = list(cursor)
+
+    # Enrich with appointment title
+    apt_ids = list({d["appointment_id"] for d in distributions if d.get("appointment_id")})
+    if apt_ids:
+        apts = {
+            a["appointment_id"]: a
+            for a in db.appointments.find(
+                {"appointment_id": {"$in": apt_ids}},
+                {"_id": 0, "appointment_id": 1, "title": 1, "start_datetime": 1},
+            )
+        }
+        for d in distributions:
+            apt = apts.get(d.get("appointment_id"))
+            if apt:
+                d["appointment_title"] = apt.get("title", "RDV")
+                d["appointment_date"] = apt.get("start_datetime")
+
+    return distributions
 
 
 def get_distributions_for_appointment(appointment_id: str) -> list:
