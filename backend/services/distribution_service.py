@@ -505,21 +505,36 @@ def get_distributions_for_user(user_id: str, limit: int = 50, skip: int = 0) -> 
     ).sort("created_at", -1).skip(skip).limit(limit)
     distributions = list(cursor)
 
-    # Enrich with appointment title
+    # Enrich with appointment title + charity association name
     apt_ids = list({d["appointment_id"] for d in distributions if d.get("appointment_id")})
     if apt_ids:
         apts = {
             a["appointment_id"]: a
             for a in db.appointments.find(
                 {"appointment_id": {"$in": apt_ids}},
-                {"_id": 0, "appointment_id": 1, "title": 1, "start_datetime": 1},
+                {"_id": 0, "appointment_id": 1, "title": 1, "start_datetime": 1,
+                 "charity_association_id": 1},
             )
         }
+        # Collect charity association IDs for name lookup
+        charity_ids = {a.get("charity_association_id") for a in apts.values() if a.get("charity_association_id")}
+        charity_names = {}
+        if charity_ids:
+            for ca in db.charity_associations.find(
+                {"association_id": {"$in": list(charity_ids)}},
+                {"_id": 0, "association_id": 1, "name": 1},
+            ):
+                charity_names[ca["association_id"]] = ca.get("name")
+
         for d in distributions:
             apt = apts.get(d.get("appointment_id"))
             if apt:
                 d["appointment_title"] = apt.get("title", "RDV")
                 d["appointment_date"] = apt.get("start_datetime")
+                cid = apt.get("charity_association_id")
+                if cid:
+                    d["charity_association_id"] = cid
+                    d["charity_association_name"] = charity_names.get(cid)
 
     return distributions
 
@@ -538,3 +553,98 @@ def get_distribution(distribution_id: str) -> dict | None:
         {"distribution_id": distribution_id},
         {"_id": 0},
     )
+
+
+def get_charity_impact(user_id: str) -> dict:
+    """
+    Compute charity impact for a user, aggregated from the distribution ledger.
+
+    Counts all distributions where the user is involved (beneficiary or no_show)
+    AND the distribution has a charity beneficiary with status != 'refunded'.
+
+    Returns auditable totals — not a fragile pre-computed field.
+    """
+    distributions = list(db.distributions.find(
+        {
+            "status": {"$nin": ["cancelled"]},
+            "$or": [
+                {"no_show_user_id": user_id},
+                {"beneficiaries.user_id": user_id},
+            ],
+        },
+        {"_id": 0, "distribution_id": 1, "appointment_id": 1, "beneficiaries": 1,
+         "capture_amount_cents": 1, "capture_currency": 1, "status": 1, "created_at": 1,
+         "distribution_rules": 1},
+    ))
+
+    total_charity_cents = 0
+    distributions_with_charity = 0
+    appointment_ids = set()
+    by_association = {}  # association_id → { total_cents, count }
+    contributions = []   # individual contribution records
+
+    for dist in distributions:
+        for b in dist.get("beneficiaries", []):
+            if b.get("role") != "charity":
+                continue
+            if b.get("status") == "refunded":
+                continue
+
+            amount = b.get("amount_cents", 0)
+            if amount <= 0:
+                continue
+
+            total_charity_cents += amount
+            distributions_with_charity += 1
+            apt_id = dist.get("appointment_id")
+            if apt_id:
+                appointment_ids.add(apt_id)
+
+            assoc_id = b.get("user_id", "unknown")
+            if assoc_id not in by_association:
+                by_association[assoc_id] = {"total_cents": 0, "count": 0}
+            by_association[assoc_id]["total_cents"] += amount
+            by_association[assoc_id]["count"] += 1
+
+            contributions.append({
+                "distribution_id": dist["distribution_id"],
+                "appointment_id": apt_id,
+                "amount_cents": amount,
+                "currency": dist.get("capture_currency", "eur"),
+                "status": dist.get("status"),
+                "created_at": dist.get("created_at"),
+            })
+
+    # Enrich with appointment titles
+    if appointment_ids:
+        apts = {
+            a["appointment_id"]: a.get("title", "RDV")
+            for a in db.appointments.find(
+                {"appointment_id": {"$in": list(appointment_ids)}},
+                {"_id": 0, "appointment_id": 1, "title": 1},
+            )
+        }
+        for c in contributions:
+            c["appointment_title"] = apts.get(c["appointment_id"], "RDV")
+
+    # Enrich association names (from charity_associations if they exist)
+    associations_list = []
+    for assoc_id, data in by_association.items():
+        assoc_doc = db.charity_associations.find_one(
+            {"association_id": assoc_id}, {"_id": 0, "name": 1}
+        )
+        associations_list.append({
+            "association_id": assoc_id,
+            "name": assoc_doc.get("name") if assoc_doc else None,
+            "total_cents": data["total_cents"],
+            "count": data["count"],
+        })
+
+    return {
+        "total_charity_cents": total_charity_cents,
+        "currency": "eur",
+        "distributions_count": distributions_with_charity,
+        "events_count": len(appointment_ids),
+        "by_association": associations_list,
+        "contributions": sorted(contributions, key=lambda x: x.get("created_at", ""), reverse=True),
+    }

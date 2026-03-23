@@ -6,7 +6,7 @@ import {
   ArrowLeft, Wallet, Loader2, ExternalLink, AlertTriangle,
   CheckCircle, Clock, XCircle, RefreshCw, ArrowUpRight, ArrowDownLeft,
   Banknote, ShieldAlert, ChevronDown, ChevronUp, Flag, Lock,
-  Info, Scale, CircleDot
+  Info, Scale, CircleDot, Heart
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -329,6 +329,98 @@ function DistributionsSection({ distributions, currentUserId, onContest, onRefre
   );
 }
 
+/* ─── Impact Section ────────────────────────────────────────── */
+
+function ImpactSection({ impact }) {
+  const [showDetail, setShowDetail] = useState(false);
+
+  if (!impact || impact.total_charity_cents === 0) return null;
+
+  return (
+    <div className="mb-8" data-testid="impact-section">
+      <div className="bg-gradient-to-br from-rose-50 to-amber-50 border border-rose-200 rounded-lg p-5">
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-9 h-9 rounded-full bg-rose-100 flex items-center justify-center flex-shrink-0">
+            <Heart className="w-4.5 h-4.5 text-rose-500" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-slate-900">Votre impact solidaire</p>
+            <p className="text-xs text-slate-500">Contributions aux associations via NLYT</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-3 gap-3 mb-4">
+          <div className="bg-white/70 rounded-lg p-3 text-center">
+            <p className="text-lg font-bold text-rose-600" data-testid="impact-total">
+              {fmt(impact.total_charity_cents, impact.currency)}
+            </p>
+            <p className="text-[10px] text-slate-500 uppercase tracking-wide">Total contribué</p>
+          </div>
+          <div className="bg-white/70 rounded-lg p-3 text-center">
+            <p className="text-lg font-bold text-slate-800" data-testid="impact-distributions">
+              {impact.distributions_count}
+            </p>
+            <p className="text-[10px] text-slate-500 uppercase tracking-wide">Distribution{impact.distributions_count > 1 ? 's' : ''}</p>
+          </div>
+          <div className="bg-white/70 rounded-lg p-3 text-center">
+            <p className="text-lg font-bold text-slate-800" data-testid="impact-events">
+              {impact.events_count}
+            </p>
+            <p className="text-[10px] text-slate-500 uppercase tracking-wide">Evénement{impact.events_count > 1 ? 's' : ''}</p>
+          </div>
+        </div>
+
+        {/* By association */}
+        {impact.by_association?.length > 0 && (
+          <div className="space-y-1.5 mb-3">
+            {impact.by_association.map((a) => (
+              <div key={a.association_id} className="flex items-center justify-between bg-white/50 rounded px-3 py-2" data-testid={`impact-assoc-${a.association_id}`}>
+                <div className="flex items-center gap-2">
+                  <Heart className="w-3 h-3 text-rose-400 flex-shrink-0" />
+                  <span className="text-xs text-slate-700">{a.name || `Association ${a.association_id.slice(0, 8)}`}</span>
+                </div>
+                <span className="text-xs font-semibold text-slate-900">{fmt(a.total_cents, impact.currency)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Detail toggle */}
+        {impact.contributions?.length > 0 && (
+          <>
+            <button
+              className="text-xs text-rose-600 hover:text-rose-700 font-medium flex items-center gap-1"
+              onClick={() => setShowDetail(!showDetail)}
+              data-testid="impact-detail-toggle"
+            >
+              {showDetail ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+              {showDetail ? 'Masquer le détail' : 'Voir le détail par événement'}
+            </button>
+            {showDetail && (
+              <div className="mt-3 space-y-1.5" data-testid="impact-contributions">
+                {impact.contributions.map((c, i) => (
+                  <div key={c.distribution_id + i} className="flex items-center justify-between bg-white/60 rounded px-3 py-2">
+                    <div className="min-w-0">
+                      <p className="text-xs text-slate-700 truncate">{c.appointment_title || 'RDV'}</p>
+                      <p className="text-[10px] text-slate-400">{fmtDateShort(c.created_at)}</p>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <span className="text-xs font-semibold text-rose-600">{fmt(c.amount_cents, c.currency)}</span>
+                      {c.status === 'pending_hold' && (
+                        <span className="text-[9px] px-1 py-0.5 rounded bg-blue-100 text-blue-600">en attente</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* ─── Connect Status Card ───────────────────────────────────── */
 
 function ConnectStatusCard({ connectStatus, onOnboard, onDashboard, onRefresh, onboarding }) {
@@ -427,23 +519,26 @@ export default function WalletPage() {
   const [transactions, setTransactions] = useState([]);
   const [txTotal, setTxTotal] = useState(0);
   const [distributions, setDistributions] = useState([]);
+  const [impact, setImpact] = useState(null);
   const [loading, setLoading] = useState(true);
   const [onboarding, setOnboarding] = useState(false);
   const [currentUserId, setCurrentUserId] = useState(null);
 
   const fetchData = useCallback(async () => {
     try {
-      const [walletRes, connectRes, txRes, distRes] = await Promise.all([
+      const [walletRes, connectRes, txRes, distRes, impactRes] = await Promise.all([
         walletAPI.get(),
         connectAPI.getStatus(),
         walletAPI.getTransactions(20, 0),
         walletAPI.getDistributions(50, 0),
+        walletAPI.getImpact(),
       ]);
       setWallet(walletRes.data);
       setConnectStatus(connectRes.data);
       setTransactions(txRes.data.transactions || []);
       setTxTotal(txRes.data.total || 0);
       setDistributions(distRes.data.distributions || []);
+      setImpact(impactRes.data);
 
       // Extract user_id from connect status or wallet
       if (connectRes.data?.user_id) setCurrentUserId(connectRes.data.user_id);
@@ -533,6 +628,8 @@ export default function WalletPage() {
           onContest={handleContest}
           onRefresh={fetchData}
         />
+
+        <ImpactSection impact={impact} />
 
         <ConnectStatusCard
           connectStatus={connectStatus}

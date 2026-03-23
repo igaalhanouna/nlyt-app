@@ -23,6 +23,7 @@ from services.distribution_service import (
     get_distributions_for_user,
     get_distribution,
     contest_distribution,
+    get_charity_impact,
 )
 
 router = APIRouter()
@@ -80,6 +81,13 @@ async def get_my_distributions(request: Request, limit: int = 50, skip: int = 0)
         limit = 100
     distributions = get_distributions_for_user(user["user_id"], limit=limit, skip=skip)
     return {"distributions": distributions, "total": len(distributions)}
+
+
+@router.get("/impact")
+async def get_my_impact(request: Request):
+    """Get charity impact summary for the current user."""
+    user = await get_current_user(request)
+    return get_charity_impact(user["user_id"])
 
 
 @router.get("/distributions/{distribution_id}")
