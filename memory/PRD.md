@@ -52,6 +52,7 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API (mode user)
 - iteration_45: 14/14 backend (Email confirmation idempotent — polling + webhook)
 - iteration_46: 11/11 backend + 3/3 frontend (ICS — lien invitation uniquement)
 - iteration_47: 14/14 backend (Notification check-in — idempotence + wording + routing)
+- iteration_48: 11/11 backend (Notification check-in — détails preuves GPS/vidéo enrichis)
 - Credentials: testuser_audit@nlyt.app / Test1234!
 
 ## Completed
@@ -91,6 +92,9 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API (mode user)
   - 4 hooks : manual, QR, GPS, NLYT Proof
   - Seuls les participants engagés (accepted/accepted_guaranteed) reçoivent
   - Auto-exclusion : le checker ne reçoit pas son propre email
+  - Détails de preuve dans l'email :
+    - Physique : coordonnées GPS + lien Google Maps + adresse + distance + méthode
+    - Vidéo : nom de connexion (display name) + heure + plateforme
 
 ## Roadmap
 ### P1
