@@ -383,56 +383,37 @@ export default function AppointmentWizard() {
 
   // Step 1: Participants
   const renderStep1 = () => (
-    <div className="space-y-6">
-      <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-        <p className="text-sm text-blue-900">
+    <div className="space-y-4">
+      <div className="p-3 bg-blue-50 border border-blue-100 rounded-lg">
+        <p className="text-sm text-blue-800">
           Ajoutez les personnes qui participeront à ce rendez-vous. Chaque participant recevra une invitation par email.
         </p>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-3">
         {participants.map((participant, index) => (
-          <div key={index} className="p-4 border border-slate-200 rounded-lg bg-slate-50">
-            <div className="flex justify-between items-center mb-3">
-              <span className="font-medium text-slate-700">Participant {index + 1}</span>
-              {participants.length > 1 && (
-                <button
-                  type="button"
-                  onClick={() => removeParticipant(index)}
-                  className="text-rose-600 hover:text-rose-800 p-1"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              )}
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div>
-                <Label htmlFor={`participant-firstname-${index}`}>Prénom *</Label>
+          <div key={index} className="group relative border border-slate-200 rounded-lg bg-white hover:border-slate-300 transition-colors" data-testid={`participant-block-${index}`}>
+            <div className="flex items-center gap-3 px-4 py-3">
+              <div className="flex items-center justify-center w-7 h-7 rounded-full bg-slate-900 text-white text-xs font-semibold flex-shrink-0">
+                {index + 1}
+              </div>
+              <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <Input
                   id={`participant-firstname-${index}`}
                   data-testid={`participant-firstname-${index}`}
                   value={participant.first_name}
                   onChange={(e) => updateParticipant(index, 'first_name', e.target.value)}
                   placeholder="Prénom"
-                  className="mt-1"
+                  className="h-9 text-sm"
                 />
-              </div>
-              
-              <div>
-                <Label htmlFor={`participant-lastname-${index}`}>Nom *</Label>
                 <Input
                   id={`participant-lastname-${index}`}
                   data-testid={`participant-lastname-${index}`}
                   value={participant.last_name}
                   onChange={(e) => updateParticipant(index, 'last_name', e.target.value)}
                   placeholder="Nom"
-                  className="mt-1"
+                  className="h-9 text-sm"
                 />
-              </div>
-
-              <div>
-                <Label htmlFor={`participant-email-${index}`}>Email *</Label>
                 <Input
                   id={`participant-email-${index}`}
                   type="email"
@@ -440,9 +421,19 @@ export default function AppointmentWizard() {
                   value={participant.email}
                   onChange={(e) => updateParticipant(index, 'email', e.target.value)}
                   placeholder="email@exemple.com"
-                  className="mt-1"
+                  className="h-9 text-sm"
                 />
               </div>
+              {participants.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => removeParticipant(index)}
+                  className="p-1.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-md transition-colors opacity-0 group-hover:opacity-100 flex-shrink-0"
+                  data-testid={`remove-participant-${index}`}
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
           </div>
         ))}
@@ -452,7 +443,7 @@ export default function AppointmentWizard() {
         type="button"
         variant="outline"
         onClick={addParticipant}
-        className="w-full"
+        className="w-full border-dashed"
         data-testid="add-participant-btn"
       >
         <Plus className="w-4 h-4 mr-2" />
