@@ -1638,8 +1638,8 @@ export default function AppointmentDetail() {
           </div>
         )}
 
-        {/* Live Evidence / Check-in Dashboard */}
-        {!isCancelled && evidenceData?.participants?.length > 0 && (
+        {/* Live Evidence / Check-in Dashboard — PHYSICAL appointments only */}
+        {!isCancelled && appointment.appointment_type !== 'video' && evidenceData?.participants?.length > 0 && (
           <div className="bg-white rounded-lg border border-slate-200 p-6 mt-6" data-testid="evidence-dashboard">
             <div className="flex items-center gap-2 mb-5">
               <ScanLine className="w-5 h-5 text-slate-700" />

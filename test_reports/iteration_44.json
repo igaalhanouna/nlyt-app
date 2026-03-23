@@ -1,0 +1,81 @@
+{
+  "summary": "Evidence Dashboard Visibility Fix - All tests passed. The 'Check-ins & Preuves' section (evidence-dashboard) is now correctly hidden for video appointments and shown only for physical appointments with evidence. Backend: 6/6 tests passed. Frontend: 3/3 UI tests passed via Playwright.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": {
+    "backend": [
+      "GET /api/health returns 200",
+      "Video appointment (4bc2d91a-fc0f-4b67-a1e1-61439772b504) returns appointment_type='video'",
+      "Physical appointment (06d1b01e-ec89-42f2-9dbe-a06a4877db43) returns appointment_type='physical'",
+      "Appointments list includes valid appointment_type field",
+      "Evidence endpoint works for physical appointment",
+      "Evidence endpoint works for video appointment"
+    ],
+    "frontend": [
+      "VIDEO appointment: evidence-dashboard NOT present (correct)",
+      "VIDEO appointment: proof-sessions-section IS present (correct)",
+      "VIDEO appointment: video-evidence-section IS present (correct)",
+      "PHYSICAL appointment (no evidence): evidence-dashboard NOT present (correct - no evidence)",
+      "PHYSICAL appointment (no evidence): proof-sessions-section NOT present (correct)",
+      "PHYSICAL appointment (no evidence): video-evidence-section NOT present (correct)",
+      "PHYSICAL appointment (with evidence): evidence-dashboard IS present (correct)",
+      "PHYSICAL appointment (with evidence): proof-sessions-section NOT present (correct)",
+      "PHYSICAL appointment (with evidence): video-evidence-section NOT present (correct)"
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_evidence_dashboard_visibility.py",
+    "/app/test_reports/pytest/pytest_evidence_dashboard_visibility.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_evidence_dashboard_visibility.py"
+  ],
+  "success_rate": {
+    "backend": "100% (6/6 passed)",
+    "frontend": "100% (9/9 UI checks passed)"
+  },
+  "test_credentials": {
+    "email": "testuser_audit@nlyt.app",
+    "password": "Test1234!"
+  },
+  "seed_data_creation": "None - used existing test appointments",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Evidence dashboard visibility fix verified. The condition at line 1642 in AppointmentDetail.js correctly hides evidence-dashboard for video appointments (appointment_type !== 'video'). Video appointments show proof-sessions-section and video-evidence-section. Physical appointments show evidence-dashboard only when evidence exists. Test file test_evidence_dashboard_visibility.py created for regression testing.",
+  "verified_features": {
+    "video_appointment_hides_evidence_dashboard": true,
+    "video_appointment_shows_proof_sessions_section": true,
+    "video_appointment_shows_video_evidence_section": true,
+    "physical_appointment_shows_evidence_dashboard_when_evidence_exists": true,
+    "physical_appointment_hides_proof_sessions_section": true,
+    "physical_appointment_hides_video_evidence_section": true,
+    "backend_returns_correct_appointment_type": true,
+    "health_endpoint_working": true
+  },
+  "test_appointments_used": {
+    "video": {
+      "id": "4bc2d91a-fc0f-4b67-a1e1-61439772b504",
+      "title": "test teams",
+      "type": "video"
+    },
+    "physical_no_evidence": {
+      "id": "35df4fb0-91ac-4d6a-a56b-cfd6e06b4111",
+      "title": "Rendez-vous test avec adresse autocomplete",
+      "type": "physical"
+    },
+    "physical_with_evidence": {
+      "id": "06d1b01e-ec89-42f2-9dbe-a06a4877db43",
+      "title": "Test GPS 2",
+      "type": "physical"
+    }
+  }
+}
