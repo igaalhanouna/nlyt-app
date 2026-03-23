@@ -136,6 +136,17 @@ Architecture complète documentée dans `/app/memory/STRIPE_CONNECT_ARCHITECTURE
 - [x] Section masquée si aucune contribution (total = 0)
 - [x] Tests: iteration_56 — 11/11 backend + 13/13 frontend (100%)
 
+### Page publique Impact NLYT (Fév 2026) ✅
+- [x] `GET /api/impact` — endpoint public (sans auth), retourne stats globales cachées
+- [x] `refresh_impact_stats()` — agrégation depuis le ledger distributions, écrit dans `impact_stats`
+- [x] Scheduler job toutes les 30 minutes pour rafraîchir le cache
+- [x] KPIs : total redistribué, total associations, événements, participants
+- [x] Liste associations triée par montant décroissant, avec nom / montant / distributions / événements
+- [x] Frontend `/impact` : Hero + 4 KPIs + Associations soutenues + Comment ça fonctionne + Footer
+- [x] Page publique accessible sans authentification
+- [x] Données vérifiées et auditables (badge + timestamp dernière MAJ)
+- [x] Tests: iteration_57 — 14/14 backend + 18/18 frontend (100%)
+
 ### Phase 4 — Payouts (à faire)
 - [ ] POST /api/wallet/payout
 - [ ] Stripe Transfer vers compte Connect
