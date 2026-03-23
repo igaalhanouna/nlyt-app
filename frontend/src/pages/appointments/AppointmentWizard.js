@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useWorkspace } from '../../contexts/WorkspaceContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -7,13 +7,25 @@ import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
-import { ArrowLeft, ArrowRight, Check, Calendar, MapPin, Video, DollarSign, Shield, Users, Plus, Trash2, Lock, Building2, ChevronDown, Loader2, Zap, Monitor, ExternalLink, AlertTriangle, CheckCircle, Settings2, Link2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, Calendar, MapPin, Video, DollarSign, Shield, Users, Plus, Trash2, Lock, Building2, ChevronDown, Loader2, Zap, Monitor, ExternalLink, AlertTriangle, CheckCircle, Settings2, Link2, Clock, Search, XCircle, Sparkles, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import AddressAutocomplete from '../../components/AddressAutocomplete';
 
 import { localInputToUTC, formatDateTimeFr, getUserTimezone } from '../../utils/dateFormat';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL || '';
+
+function formatSlotRange(startISO, endISO) {
+  const opts = { hour: '2-digit', minute: '2-digit' };
+  const dayOpts = { weekday: 'short', day: 'numeric', month: 'short' };
+  try {
+    const s = new Date(startISO);
+    const e = new Date(endISO);
+    return `${s.toLocaleDateString('fr-FR', dayOpts)} ${s.toLocaleTimeString('fr-FR', opts)} – ${e.toLocaleTimeString('fr-FR', opts)}`;
+  } catch (_) {
+    return '';
+  }
+}
 
 export default function AppointmentWizard() {
   const navigate = useNavigate();
@@ -62,6 +74,72 @@ export default function AppointmentWizard() {
     charity_percent: 0,
     charity_association_id: ''
   });
+
+  // Load user defaults and charity associations on mount
+  const [conflictResult, setConflictResult] = useState(null);
+  const [conflictLoading, setConflictLoading] = useState(false);
+  const conflictTimer = useRef(null);
+
+  const checkConflicts = useCallback(async (dt, dur) => {
+    if (!dt || !dur) { setConflictResult(null); return; }
+    setConflictLoading(true);
+    try {
+      const res = await appointmentAPI.checkConflicts({
+        start_datetime: localInputToUTC(dt),
+        duration_minutes: parseInt(dur, 10) || 60,
+      });
+      setConflictResult(res.data);
+    } catch (_) {
+      setConflictResult(null);
+    } finally {
+      setConflictLoading(false);
+    }
+  }, []);
+
+  const debouncedCheck = useCallback((dt, dur) => {
+    if (conflictTimer.current) clearTimeout(conflictTimer.current);
+    conflictTimer.current = setTimeout(() => checkConflicts(dt, dur), 500);
+  }, [checkConflicts]);
+
+  useEffect(() => {
+    if (formData.start_datetime && formData.duration_minutes) {
+      debouncedCheck(formData.start_datetime, formData.duration_minutes);
+    } else {
+      setConflictResult(null);
+    }
+  }, [formData.start_datetime, formData.duration_minutes, debouncedCheck]);
+
+  const applySuggestion = (isoStr) => {
+    const d = new Date(isoStr);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const h = String(d.getHours()).padStart(2, '0');
+    const mi = String(d.getMinutes()).padStart(2, '0');
+    setFormData(prev => ({ ...prev, start_datetime: `${y}-${m}-${day}T${h}:${mi}` }));
+  };
+
+  const handleFindBestSlot = async () => {
+    const dt = formData.start_datetime || new Date().toISOString().slice(0, 16);
+    setConflictLoading(true);
+    try {
+      const res = await appointmentAPI.checkConflicts({
+        start_datetime: localInputToUTC(dt),
+        duration_minutes: parseInt(formData.duration_minutes, 10) || 60,
+      });
+      if (res.data.suggestions?.length > 0) {
+        const best = res.data.suggestions.find(s => s.label === 'optimal') || res.data.suggestions[0];
+        applySuggestion(best.datetime_str);
+        toast.success('Meilleur créneau sélectionné');
+      } else {
+        toast.info('Aucun créneau alternatif trouvé');
+      }
+    } catch (_) {
+      toast.error('Erreur lors de la recherche');
+    } finally {
+      setConflictLoading(false);
+    }
+  };
 
   // Load user defaults and charity associations on mount
   useEffect(() => {
@@ -765,6 +843,117 @@ export default function AppointmentWizard() {
           className="mt-1"
         />
       </div>
+
+      {/* ── Conflict Detection Panel ── */}
+      {formData.start_datetime && (
+        <div data-testid="conflict-panel">
+          {conflictLoading ? (
+            <div className="flex items-center gap-2 text-sm text-slate-400 py-2">
+              <Loader2 className="w-4 h-4 animate-spin" /> Vérification de la disponibilité...
+            </div>
+          ) : conflictResult ? (
+            <div className="space-y-3">
+              {/* Status badge */}
+              {conflictResult.status === 'conflict' && (
+                <div className="border border-red-200 bg-red-50 rounded-lg p-3" data-testid="conflict-alert">
+                  <div className="flex items-start gap-2">
+                    <XCircle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm font-semibold text-red-700">Conflit détecté</p>
+                      <p className="text-xs text-red-600 mt-0.5">Vous avez déjà un engagement à ce moment</p>
+                      {conflictResult.conflicts?.map((c, i) => (
+                        <div key={i} className="mt-2 bg-white border border-red-100 rounded px-3 py-2">
+                          <p className="text-xs font-medium text-slate-800">{c.title}</p>
+                          <p className="text-[11px] text-slate-500">{formatSlotRange(c.start, c.end)}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+              {conflictResult.status === 'warning' && (
+                <div className="border border-amber-200 bg-amber-50 rounded-lg p-3" data-testid="warning-alert">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm font-semibold text-amber-700">Risque de retard</p>
+                      <p className="text-xs text-amber-600 mt-0.5">Un engagement est prévu à proximité (moins de 30 min)</p>
+                      {conflictResult.warnings?.map((w, i) => (
+                        <div key={i} className="mt-2 bg-white border border-amber-100 rounded px-3 py-2">
+                          <p className="text-xs font-medium text-slate-800">{w.title}</p>
+                          <p className="text-[11px] text-slate-500">{formatSlotRange(w.start, w.end)}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+              {conflictResult.status === 'available' && (
+                <div className="flex items-center gap-2 py-1" data-testid="available-badge">
+                  <CheckCircle className="w-4 h-4 text-emerald-500" />
+                  <span className="text-sm text-emerald-700 font-medium">Créneau libre</span>
+                  <span className="text-[11px] text-slate-400 ml-1">aucun engagement NLYT détecté</span>
+                </div>
+              )}
+
+              {/* Suggestions */}
+              {conflictResult.suggestions?.length > 0 && (
+                <div className="space-y-2" data-testid="suggestions-panel">
+                  <p className="text-xs font-medium text-slate-600">Créneaux alternatifs :</p>
+                  <div className="flex flex-wrap gap-2">
+                    {conflictResult.suggestions.map((s, i) => {
+                      const d = new Date(s.datetime_str);
+                      const dayLabel = d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
+                      const timeLabel = d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+                      const labelCfg = {
+                        optimal: { text: 'optimal', cls: 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100' },
+                        comfortable: { text: 'confort', cls: 'border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100' },
+                        tight: { text: 'serré', cls: 'border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100' },
+                      }[s.label] || { text: s.label, cls: 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100' };
+                      return (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => applySuggestion(s.datetime_str)}
+                          className={`px-3 py-1.5 rounded-md border text-xs font-medium transition-colors cursor-pointer ${labelCfg.cls}`}
+                          data-testid={`suggestion-${i}`}
+                        >
+                          {dayLabel} {timeLabel} <span className="opacity-60 ml-1">{labelCfg.text}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Confidence + transparency */}
+              <div className="flex items-center gap-2 pt-1">
+                <div className={`w-1.5 h-1.5 rounded-full ${conflictResult.confidence === 'high' ? 'bg-emerald-500' : 'bg-amber-400'}`} />
+                <span className="text-[11px] text-slate-400">
+                  {conflictResult.confidence === 'high' ? 'Fiabilité élevée' : 'Fiabilité partielle'} — vérifié uniquement sur vos engagements NLYT
+                </span>
+              </div>
+            </div>
+          ) : null}
+
+          {/* Smart find + V2 teaser */}
+          <div className="flex items-center justify-between mt-2">
+            <button
+              type="button"
+              onClick={handleFindBestSlot}
+              className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-800 transition-colors"
+              disabled={conflictLoading}
+              data-testid="find-best-slot-btn"
+            >
+              <Sparkles className="w-3.5 h-3.5" /> Trouver le meilleur créneau
+            </button>
+            <div className="flex items-center gap-1.5 text-[11px] text-slate-300">
+              <Info className="w-3 h-3" />
+              <span>Google Calendar / Outlook : bientôt</span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 

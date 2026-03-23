@@ -16,6 +16,204 @@ VALID_CURRENCIES = {"eur", "usd", "gbp", "chf"}
 router = APIRouter()
 
 
+from pydantic import BaseModel
+from typing import Optional, List
+from datetime import datetime, timedelta, timezone
+
+BUFFER_MINUTES = 30  # Warning threshold
+
+
+class ConflictCheckInput(BaseModel):
+    start_datetime: str
+    duration_minutes: int = 60
+
+
+class ConflictItem(BaseModel):
+    title: str
+    start: str
+    end: str
+
+
+class SuggestionItem(BaseModel):
+    datetime_str: str
+    label: str  # optimal | comfortable | tight
+
+
+class ConflictCheckOutput(BaseModel):
+    status: str  # conflict | warning | available
+    confidence: str  # high | medium
+    conflicts: List[ConflictItem] = []
+    warnings: List[ConflictItem] = []
+    suggestions: List[SuggestionItem] = []
+
+
+def _parse_dt(s: str) -> Optional[datetime]:
+    """Parse ISO datetime string to aware UTC datetime."""
+    if not s:
+        return None
+    try:
+        dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt
+    except Exception:
+        return None
+
+
+def _get_user_engagements(user_id: str) -> list:
+    """Return future NLYT engagements for a user (as organizer or participant)."""
+    now = now_utc_iso()
+    # Appointments where user is organizer
+    org_apts = list(db.appointments.find(
+        {"organizer_id": user_id, "status": {"$nin": ["cancelled", "deleted"]}, "start_datetime": {"$gte": now}},
+        {"_id": 0, "appointment_id": 1, "title": 1, "start_datetime": 1, "duration_minutes": 1},
+    ))
+    # Appointments where user is participant
+    participant_apt_ids = [
+        p["appointment_id"]
+        for p in db.participants.find(
+            {"user_id": user_id, "status": {"$nin": ["declined", "cancelled_by_participant"]}},
+            {"_id": 0, "appointment_id": 1},
+        )
+    ]
+    if participant_apt_ids:
+        part_apts = list(db.appointments.find(
+            {"appointment_id": {"$in": participant_apt_ids}, "status": {"$nin": ["cancelled", "deleted"]}, "start_datetime": {"$gte": now}},
+            {"_id": 0, "appointment_id": 1, "title": 1, "start_datetime": 1, "duration_minutes": 1},
+        ))
+        # Merge, deduplicate by appointment_id
+        seen = {a["appointment_id"] for a in org_apts}
+        for a in part_apts:
+            if a["appointment_id"] not in seen:
+                org_apts.append(a)
+                seen.add(a["appointment_id"])
+    return org_apts
+
+
+def _check_overlap(proposed_start: datetime, proposed_end: datetime, engagements: list):
+    """Check for conflicts and warnings against existing engagements."""
+    conflicts = []
+    warnings = []
+    for eng in engagements:
+        eng_start = _parse_dt(eng["start_datetime"])
+        if not eng_start:
+            continue
+        eng_dur = eng.get("duration_minutes", 60)
+        eng_end = eng_start + timedelta(minutes=eng_dur)
+
+        # Direct overlap?
+        if proposed_start < eng_end and proposed_end > eng_start:
+            conflicts.append(ConflictItem(
+                title=eng.get("title", "Engagement"),
+                start=eng["start_datetime"],
+                end=eng_end.isoformat(),
+            ))
+        # Buffer warning?
+        elif (
+            (proposed_start - eng_end).total_seconds() < BUFFER_MINUTES * 60 and proposed_start >= eng_end
+        ) or (
+            (eng_start - proposed_end).total_seconds() < BUFFER_MINUTES * 60 and eng_start >= proposed_end
+        ):
+            warnings.append(ConflictItem(
+                title=eng.get("title", "Engagement"),
+                start=eng["start_datetime"],
+                end=eng_end.isoformat(),
+            ))
+    return conflicts, warnings
+
+
+def _generate_suggestions(proposed_start: datetime, duration: int, engagements: list, count: int = 5) -> List[SuggestionItem]:
+    """Generate smart slot suggestions around the proposed date."""
+    suggestions = []
+    base_date = proposed_start.replace(hour=8, minute=0, second=0, microsecond=0)
+
+    # Build busy intervals for the day and next day
+    busy = []
+    for eng in engagements:
+        eng_start = _parse_dt(eng["start_datetime"])
+        if not eng_start:
+            continue
+        eng_end = eng_start + timedelta(minutes=eng.get("duration_minutes", 60))
+        # Only consider engagements within 2 days of proposed
+        if abs((eng_start - proposed_start).total_seconds()) < 172800:
+            busy.append((eng_start, eng_end))
+    busy.sort(key=lambda x: x[0])
+
+    # Scan 30-min slots from 8:00 to 20:00, today and tomorrow
+    now = datetime.now(timezone.utc)
+    for day_offset in range(3):
+        day_start = base_date + timedelta(days=day_offset)
+        slot = day_start
+        while slot.hour < 20:
+            slot_end = slot + timedelta(minutes=duration)
+            if slot_end <= now:
+                slot += timedelta(minutes=30)
+                continue
+
+            has_conflict = False
+            min_gap = float("inf")
+            for bs, be in busy:
+                if slot < be and slot_end > bs:
+                    has_conflict = True
+                    break
+                gap = min(abs((slot - be).total_seconds()), abs((bs - slot_end).total_seconds()))
+                min_gap = min(min_gap, gap)
+
+            if not has_conflict:
+                gap_min = min_gap / 60 if min_gap != float("inf") else 999
+                if gap_min >= 60:
+                    label = "optimal"
+                elif gap_min >= 30:
+                    label = "comfortable"
+                else:
+                    label = "tight"
+                suggestions.append(SuggestionItem(datetime_str=slot.isoformat(), label=label))
+                if len(suggestions) >= count:
+                    break
+            slot += timedelta(minutes=30)
+        if len(suggestions) >= count:
+            break
+
+    return suggestions
+
+
+@router.post("/check-conflicts")
+async def check_conflicts(data: ConflictCheckInput, request: Request):
+    """Check if a proposed slot conflicts with existing NLYT engagements."""
+    user = await get_current_user(request)
+
+    proposed_start = _parse_dt(data.start_datetime)
+    if not proposed_start:
+        raise HTTPException(status_code=400, detail="Date invalide")
+    proposed_end = proposed_start + timedelta(minutes=data.duration_minutes)
+
+    engagements = _get_user_engagements(user["user_id"])
+    conflicts, warnings = _check_overlap(proposed_start, proposed_end, engagements)
+
+    if conflicts:
+        status = "conflict"
+        confidence = "high"
+    elif warnings:
+        status = "warning"
+        confidence = "high"
+    else:
+        status = "available"
+        confidence = "medium"  # Only NLYT data, no external calendar
+
+    suggestions = []
+    if status != "available":
+        suggestions = _generate_suggestions(proposed_start, data.duration_minutes, engagements)
+
+    return ConflictCheckOutput(
+        status=status,
+        confidence=confidence,
+        conflicts=[c.model_dump() for c in conflicts],
+        warnings=[w.model_dump() for w in warnings],
+        suggestions=[s.model_dump() for s in suggestions],
+    )
+
+
+
 def get_frontend_url(request: Request) -> str:
     """Get FRONTEND_URL from env, fallback to request.base_url"""
     frontend_url = os.environ.get('FRONTEND_URL', '')

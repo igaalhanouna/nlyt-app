@@ -59,6 +59,7 @@ export const appointmentAPI = {
   list: (workspace_id) => api.get('/api/appointments/', { params: { workspace_id } }),
   get: (id) => api.get(`/api/appointments/${id}`),
   remind: (id) => api.post(`/api/appointments/${id}/remind`),
+  checkConflicts: (data) => api.post('/api/appointments/check-conflicts', data),
   update: (id, data) => api.patch(`/api/appointments/${id}`, data),
   delete: (id) => api.delete(`/api/appointments/${id}`),
   cancel: (id) => api.post(`/api/appointments/${id}/cancel`),
