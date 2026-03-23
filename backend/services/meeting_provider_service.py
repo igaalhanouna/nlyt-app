@@ -377,11 +377,11 @@ def create_meeting_for_appointment(
                 duration_minutes=duration_minutes,
                 timezone_str=timezone_str,
             )
-            # Enrich Zoom metadata with central mode info
+            # Enrich Zoom metadata with user mode info
             if result and result.get("metadata"):
-                result["metadata"]["creation_mode"] = "central"
+                result["metadata"]["creation_mode"] = "user"
                 result["metadata"]["creator_email"] = result["metadata"].get("host_email", "")
-                result["metadata"]["creator_name"] = "NLYT (Zoom)"
+                result["metadata"]["creator_name"] = ""
 
         elif provider_lower in ("teams", "microsoft teams", "microsoft_teams"):
             # Compute end time

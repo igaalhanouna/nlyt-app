@@ -218,7 +218,8 @@ class EmailService:
         ics_link: str = None,
         appointment_timezone: str = 'Europe/Paris',
         meeting_join_url: str = None,
-        meeting_provider: str = None
+        meeting_provider: str = None,
+        proof_link: str = None,
     ):
         """Send invitation email with full appointment details and ICS calendar link"""
         formatted_date = format_email_datetime(appointment_datetime, appointment_timezone)
@@ -268,11 +269,28 @@ class EmailService:
             calendar_section = f"""
                     <div style="text-align: center; margin-top: 15px; padding-top: 15px; border-top: 1px solid #E2E8F0;">
                         <a href="{ics_link}" style="display: inline-block; padding: 10px 20px; background: #64748B; color: white; text-decoration: none; border-radius: 6px; font-size: 13px;">
-                            📅 Ajouter au calendrier (ICS)
+                            Ajouter au calendrier (ICS)
                         </a>
                         <p style="color: #94A3B8; font-size: 11px; margin-top: 8px;">
                             Compatible Google Calendar, Outlook, Apple Calendar
                         </p>
+                    </div>
+            """
+
+        # Build NLYT Proof section
+        proof_section = ""
+        if proof_link:
+            proof_section = f"""
+                    <div style="background: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: center;">
+                        <p style="margin: 0 0 8px 0; color: #1E40AF; font-weight: bold; font-size: 14px;">
+                            Confirmer ma presence le jour J
+                        </p>
+                        <p style="margin: 0 0 12px 0; color: #3B82F6; font-size: 12px;">
+                            Le jour du rendez-vous, utilisez ce lien pour prouver votre presence. La visio s'ouvrira automatiquement.
+                        </p>
+                        <a href="{proof_link}" style="display: inline-block; padding: 12px 28px; background: #2563EB; color: white; text-decoration: none; border-radius: 8px; font-size: 14px; font-weight: bold;">
+                            Mon lien de presence NLYT
+                        </a>
                     </div>
             """
         
@@ -331,6 +349,7 @@ class EmailService:
                     </p>
                     
                     {calendar_section}
+                    {proof_section}
                 </div>
                 <div class="footer">
                     <p>© 2026 NLYT. Tous droits réservés.</p>

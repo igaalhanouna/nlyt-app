@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { appointmentAPI, participantAPI, calendarAPI, invitationAPI, attendanceAPI, checkinAPI, modificationAPI, videoEvidenceAPI, proofAPI } from '../../services/api';
 import { Button } from '../../components/ui/button';
-import { ArrowLeft, Calendar, MapPin, Video, Clock, Users, Ban, Check, X, AlertTriangle, Download, Heart, ShieldCheck, CreditCard, RefreshCw, Loader2, Zap, ClipboardCheck, Eye, UserX, UserCheck, HelpCircle, ChevronDown, ScanLine, QrCode, MapPinCheck, ExternalLink, Timer, Navigation, Pencil, Save, Send, FileEdit, Upload, Monitor, Shield, FileJson, Link2, UserCog, FileUp, PlayCircle, Settings2, DollarSign, CheckCircle, XCircle } from 'lucide-react';
+import { ArrowLeft, Calendar, MapPin, Video, Clock, Users, Ban, Check, X, AlertTriangle, Download, Heart, ShieldCheck, CreditCard, RefreshCw, Loader2, Zap, ClipboardCheck, Eye, UserX, UserCheck, HelpCircle, ChevronDown, ScanLine, QrCode, MapPinCheck, ExternalLink, Timer, Navigation, Pencil, Save, Send, FileEdit, Upload, Monitor, Shield, FileJson, Link2, UserCog, FileUp, PlayCircle, Settings2, DollarSign, CheckCircle, XCircle, Copy, Activity, Fingerprint } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDateTimeFr, formatTimeFr, formatEvidenceDateFr, parseUTC, utcToLocalInput, localInputToUTC } from '../../utils/dateFormat';
 import { Input } from '../../components/ui/input';
@@ -212,6 +212,30 @@ export default function AppointmentDetail() {
     } finally {
       setEvaluating(false);
     }
+  };
+
+  const handleValidateSession = async (sessionId, status) => {
+    setValidatingSession(sessionId);
+    try {
+      await proofAPI.validate(id, sessionId, status);
+      toast.success(`Session validée : ${status === 'present' ? 'Présent' : status === 'partial' ? 'Partiel' : 'Absent'}`);
+      const res = await proofAPI.getSessions(id);
+      setProofSessions(res.data?.sessions || []);
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Erreur lors de la validation");
+    } finally {
+      setValidatingSession(null);
+    }
+  };
+
+  const handleCopyProofLink = (participant) => {
+    const frontendUrl = window.location.origin;
+    const link = `${frontendUrl}/proof/${id}?token=${participant.invitation_token}`;
+    navigator.clipboard.writeText(link).then(() => {
+      toast.success(`Lien copié pour ${participant.first_name || participant.email}`);
+    }).catch(() => {
+      toast.error('Impossible de copier le lien');
+    });
   };
 
   const handleReevaluateAttendance = async () => {
@@ -1055,39 +1079,28 @@ export default function AppointmentDetail() {
                           return (
                             <div className="mt-3 space-y-3" data-testid="organizer-identity-block">
                               {/* Section 1: Account identity */}
-                              <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg">
-                                <p className="text-sm font-semibold text-slate-800 mb-1.5 flex items-center gap-2">
-                                  <UserCog className="w-4 h-4 text-slate-500" />
-                                  {metadata.creation_mode === 'central'
-                                    ? 'Réunion gérée par NLYT'
-                                    : 'Connexion en tant qu\'organisateur'
-                                  }
-                                </p>
-                                {metadata.creation_mode === 'central' ? (
-                                  <p className="text-sm text-slate-600" data-testid="zoom-central-mode-info">
-                                    Cette réunion {providerLabel} est gérée automatiquement par NLYT. Aucun compte {providerLabel} n'est requis pour les participants.
+                              {creatorEmail && (
+                                <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg">
+                                  <p className="text-sm font-semibold text-slate-800 mb-1.5 flex items-center gap-2">
+                                    <UserCog className="w-4 h-4 text-slate-500" />
+                                    Connexion en tant qu'organisateur
                                   </p>
-                                ) : (
-                                  <>
-                                    {creatorEmail && (
-                                      <p className="text-sm text-slate-600">
-                                        Réunion créée avec le compte {providerLabel} : <span className="font-semibold text-slate-900" data-testid="organizer-account-email">{creatorEmail}</span>
-                                        {creatorName && <span className="text-slate-400"> ({creatorName})</span>}
-                                      </p>
-                                    )}
-                                    {!(provider === 'zoom' && appointment.meeting_host_url) && creatorEmail && (
-                                      <p className="text-sm text-slate-500 mt-1.5" data-testid="organizer-identity-hint">
-                                        Rejoignez la réunion avec ce même compte pour être reconnu comme organisateur.
-                                      </p>
-                                    )}
-                                    {provider === 'zoom' && appointment.meeting_host_url && (
-                                      <p className="text-sm text-slate-500 mt-1.5" data-testid="organizer-identity-hint">
-                                        Utilisez le lien "Démarrer la réunion" ci-dessus pour être reconnu automatiquement.
-                                      </p>
-                                    )}
-                                  </>
-                                )}
-                              </div>
+                                  <p className="text-sm text-slate-600">
+                                    Réunion créée avec le compte {providerLabel} : <span className="font-semibold text-slate-900" data-testid="organizer-account-email">{creatorEmail}</span>
+                                    {creatorName && <span className="text-slate-400"> ({creatorName})</span>}
+                                  </p>
+                                  {!(provider === 'zoom' && appointment.meeting_host_url) && (
+                                    <p className="text-sm text-slate-500 mt-1.5" data-testid="organizer-identity-hint">
+                                      Rejoignez la réunion avec ce même compte pour être reconnu comme organisateur.
+                                    </p>
+                                  )}
+                                  {provider === 'zoom' && appointment.meeting_host_url && (
+                                    <p className="text-sm text-slate-500 mt-1.5" data-testid="organizer-identity-hint">
+                                      Utilisez le lien "Démarrer la réunion" ci-dessus pour être reconnu automatiquement.
+                                    </p>
+                                  )}
+                                </div>
+                              )}
 
                               {/* Teams: Creation mode indicator */}
                               {provider === 'teams' && metadata.creation_mode === 'application_fallback' && (
@@ -1135,36 +1148,44 @@ export default function AppointmentDetail() {
                                   <Shield className="w-4 h-4 text-slate-500" />
                                   Preuves de présence
                                 </p>
-                                {isMeetPersonal && (
-                                  <div className="flex items-start gap-2.5 p-3 bg-red-50 border border-red-200 rounded-lg" data-testid="proof-status-no-auto">
-                                    <XCircle className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" />
+                                <div className="flex items-start gap-2.5 p-3 bg-blue-50 border border-blue-200 rounded-lg" data-testid="proof-status-nlyt">
+                                  <CheckCircle className="w-5 h-5 text-blue-500 mt-0.5 flex-shrink-0" />
+                                  <div>
+                                    <p className="text-sm font-medium text-blue-900">Vérification NLYT Proof</p>
+                                    <p className="text-sm text-blue-700 mt-0.5">
+                                      Les participants utilisent leur lien NLYT personnel pour confirmer leur présence (check-in + heartbeat). C'est le mode principal de vérification.
+                                    </p>
+                                  </div>
+                                </div>
+                                {(provider === 'teams' || provider === 'zoom') && (
+                                  <div className="flex items-start gap-2.5 p-3 bg-emerald-50 border border-emerald-200 rounded-lg mt-2" data-testid="proof-status-auto">
+                                    <CheckCircle className="w-5 h-5 text-emerald-500 mt-0.5 flex-shrink-0" />
                                     <div>
-                                      <p className="text-sm font-medium text-red-900">Pas de récupération automatique</p>
-                                      <p className="text-sm text-red-700 mt-0.5">
-                                        Avec un compte Google personnel ({creatorEmail.split('@')[1]}), Google Meet ne fournit pas de rapport de présence exploitable.
-                                        Utilisez le check-in manuel ou importez une preuve alternative après la réunion.
+                                      <p className="text-sm font-medium text-emerald-900">Bonus : récupération API {providerLabel}</p>
+                                      <p className="text-sm text-emerald-700 mt-0.5">
+                                        Si votre compte {providerLabel} le permet, les présences seront aussi récupérées automatiquement après la fin de la réunion.
+                                      </p>
+                                    </div>
+                                  </div>
+                                )}
+                                {isMeetPersonal && (
+                                  <div className="flex items-start gap-2.5 p-3 bg-slate-100 border border-slate-200 rounded-lg mt-2" data-testid="proof-status-no-auto">
+                                    <HelpCircle className="w-5 h-5 text-slate-400 mt-0.5 flex-shrink-0" />
+                                    <div>
+                                      <p className="text-sm font-medium text-slate-700">Pas de récupération API Google Meet</p>
+                                      <p className="text-sm text-slate-500 mt-0.5">
+                                        Avec un compte Google personnel, la récupération API n'est pas disponible. NLYT Proof reste votre source de vérification principale.
                                       </p>
                                     </div>
                                   </div>
                                 )}
                                 {isMeetWorkspace && (
-                                  <div className="flex items-start gap-2.5 p-3 bg-amber-50 border border-amber-200 rounded-lg" data-testid="proof-status-manual-import">
+                                  <div className="flex items-start gap-2.5 p-3 bg-amber-50 border border-amber-200 rounded-lg mt-2" data-testid="proof-status-manual-import">
                                     <AlertTriangle className="w-5 h-5 text-amber-500 mt-0.5 flex-shrink-0" />
                                     <div>
-                                      <p className="text-sm font-medium text-amber-900">Import manuel requis</p>
+                                      <p className="text-sm font-medium text-amber-900">Import manuel Google Meet possible</p>
                                       <p className="text-sm text-amber-700 mt-0.5">
-                                        Après la réunion, exportez le rapport de présence depuis Google Meet et importez-le dans la section "Preuves de présence visio" ci-dessous.
-                                      </p>
-                                    </div>
-                                  </div>
-                                )}
-                                {(provider === 'teams' || provider === 'zoom') && (
-                                  <div className="flex items-start gap-2.5 p-3 bg-emerald-50 border border-emerald-200 rounded-lg" data-testid="proof-status-auto">
-                                    <CheckCircle className="w-5 h-5 text-emerald-500 mt-0.5 flex-shrink-0" />
-                                    <div>
-                                      <p className="text-sm font-medium text-emerald-900">Récupération automatique</p>
-                                      <p className="text-sm text-emerald-700 mt-0.5">
-                                        Les présences seront récupérées automatiquement depuis {providerLabel} après la fin de la réunion. Ce n'est pas une détection en temps réel.
+                                        Après la réunion, vous pouvez exporter le rapport de présence Google Meet et l'importer comme preuve complémentaire.
                                       </p>
                                     </div>
                                   </div>
@@ -2275,6 +2296,176 @@ export default function AppointmentDetail() {
                     </div>
                   ))}
                 </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* NLYT Proof Sessions Section */}
+        {!isCancelled && (
+          <div className="bg-white rounded-lg border border-slate-200 p-6 mt-6" data-testid="proof-sessions-section">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Fingerprint className="w-5 h-5 text-blue-600" />
+                <h2 className="text-lg font-semibold text-slate-900">NLYT Proof — Sessions de présence</h2>
+              </div>
+              <div className="flex items-center gap-2">
+                <Activity className="w-4 h-4 text-blue-500" />
+                <span className="text-sm text-slate-500">{proofSessions.length} session(s)</span>
+              </div>
+            </div>
+
+            {/* Proof links for participants */}
+            {participants.length > 0 && (
+              <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm font-semibold text-blue-900 mb-2">Liens de check-in NLYT</p>
+                <p className="text-xs text-blue-700 mb-3">Chaque participant a un lien unique. Ce lien est inclus dans l'email d'invitation.</p>
+                <div className="space-y-2">
+                  {participants.filter(p => !p.is_organizer).map(p => (
+                    <div key={p.participant_id} className="flex items-center justify-between gap-2 bg-white rounded-lg border border-blue-100 px-3 py-2">
+                      <div className="flex-1 min-w-0">
+                        <span className="text-sm font-medium text-slate-900">{p.first_name} {p.last_name}</span>
+                        <span className="text-xs text-slate-400 ml-2">{p.email}</span>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs gap-1 flex-shrink-0"
+                        onClick={() => handleCopyProofLink(p)}
+                        data-testid={`copy-proof-link-${p.participant_id}`}
+                      >
+                        <Copy className="w-3 h-3" />
+                        Copier le lien
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Sessions table */}
+            {proofSessions.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-200">
+                      <th className="text-left py-2 px-3 text-xs font-semibold text-slate-500 uppercase">Participant</th>
+                      <th className="text-left py-2 px-3 text-xs font-semibold text-slate-500 uppercase">Check-in</th>
+                      <th className="text-left py-2 px-3 text-xs font-semibold text-slate-500 uppercase">Durée</th>
+                      <th className="text-left py-2 px-3 text-xs font-semibold text-slate-500 uppercase">Heartbeats</th>
+                      <th className="text-left py-2 px-3 text-xs font-semibold text-slate-500 uppercase">Score</th>
+                      <th className="text-left py-2 px-3 text-xs font-semibold text-slate-500 uppercase">Niveau</th>
+                      <th className="text-left py-2 px-3 text-xs font-semibold text-slate-500 uppercase">Statut</th>
+                      <th className="text-right py-2 px-3 text-xs font-semibold text-slate-500 uppercase">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {proofSessions.map(session => {
+                      const levelColors = {
+                        strong: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                        medium: 'bg-amber-50 text-amber-700 border-amber-200',
+                        weak: 'bg-red-50 text-red-700 border-red-200',
+                      };
+                      const levelLabels = { strong: 'Fort', medium: 'Moyen', weak: 'Faible' };
+                      const statusLabels = { present: 'Présent', partial: 'Partiel', absent: 'Absent' };
+                      const statusColors = {
+                        present: 'bg-emerald-50 text-emerald-700',
+                        partial: 'bg-amber-50 text-amber-700',
+                        absent: 'bg-red-50 text-red-700',
+                      };
+                      const isActive = !session.checked_out_at;
+                      const durationMin = Math.round((session.active_duration_seconds || 0) / 60);
+                      const finalStatus = session.final_status || session.suggested_status;
+
+                      return (
+                        <tr key={session.session_id} className="border-b border-slate-100 hover:bg-slate-50" data-testid={`proof-session-row-${session.session_id}`}>
+                          <td className="py-2.5 px-3">
+                            <div className="font-medium text-slate-900">{session.participant_name || '—'}</div>
+                            <div className="text-xs text-slate-400">{session.participant_email}</div>
+                          </td>
+                          <td className="py-2.5 px-3 text-xs text-slate-600">
+                            {session.checked_in_at ? new Date(session.checked_in_at).toLocaleString('fr-FR', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' }) : '—'}
+                          </td>
+                          <td className="py-2.5 px-3">
+                            {isActive ? (
+                              <span className="inline-flex items-center gap-1 text-xs text-blue-600 font-medium">
+                                <Activity className="w-3 h-3 animate-pulse" /> En cours
+                              </span>
+                            ) : (
+                              <span className="text-sm text-slate-700">{durationMin} min</span>
+                            )}
+                          </td>
+                          <td className="py-2.5 px-3 font-mono text-sm text-slate-700">{session.heartbeat_count || 0}</td>
+                          <td className="py-2.5 px-3">
+                            <span className="text-sm font-bold text-slate-900">{session.score || 0}<span className="text-xs text-slate-400">/100</span></span>
+                          </td>
+                          <td className="py-2.5 px-3">
+                            <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium border ${levelColors[session.proof_level] || ''}`}>
+                              {levelLabels[session.proof_level] || session.proof_level}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-3">
+                            {session.final_status ? (
+                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[session.final_status]}`}>
+                                <CheckCircle className="w-3 h-3" />
+                                {statusLabels[session.final_status]}
+                              </span>
+                            ) : (
+                              <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[finalStatus] || 'bg-slate-50 text-slate-500'}`}>
+                                {statusLabels[finalStatus] || '—'} <span className="ml-1 text-slate-400">(suggéré)</span>
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-2.5 px-3 text-right">
+                            {!session.final_status && !isActive && (
+                              <div className="flex items-center gap-1 justify-end">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-6 text-xs px-2 text-emerald-700 border-emerald-200 hover:bg-emerald-50"
+                                  onClick={() => handleValidateSession(session.session_id, 'present')}
+                                  disabled={validatingSession === session.session_id}
+                                  data-testid={`validate-present-${session.session_id}`}
+                                >
+                                  {validatingSession === session.session_id ? <Loader2 className="w-3 h-3 animate-spin" /> : <UserCheck className="w-3 h-3" />}
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-6 text-xs px-2 text-amber-700 border-amber-200 hover:bg-amber-50"
+                                  onClick={() => handleValidateSession(session.session_id, 'partial')}
+                                  disabled={validatingSession === session.session_id}
+                                  data-testid={`validate-partial-${session.session_id}`}
+                                >
+                                  <AlertTriangle className="w-3 h-3" />
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-6 text-xs px-2 text-red-700 border-red-200 hover:bg-red-50"
+                                  onClick={() => handleValidateSession(session.session_id, 'absent')}
+                                  disabled={validatingSession === session.session_id}
+                                  data-testid={`validate-absent-${session.session_id}`}
+                                >
+                                  <UserX className="w-3 h-3" />
+                                </Button>
+                              </div>
+                            )}
+                            {session.final_status && (
+                              <span className="text-xs text-slate-400">Validé</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="text-center py-8 text-slate-500">
+                <Fingerprint className="w-8 h-8 mx-auto mb-2 text-slate-300" />
+                <p className="text-sm">Aucune session de preuve enregistrée.</p>
+                <p className="text-xs text-slate-400 mt-1">Les participants doivent utiliser leur lien de check-in NLYT pour démarrer une session.</p>
               </div>
             )}
           </div>

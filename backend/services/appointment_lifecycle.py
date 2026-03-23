@@ -77,6 +77,8 @@ async def activate_appointment(appointment_id: str, organizer_user_id: str) -> d
             if not p_name:
                 p_name = p.get('name') or p.get('email', '').split('@')[0]
 
+            proof_link = f"{frontend_url}/proof/{appointment_id}?token={p['invitation_token']}"
+
             await EmailService.send_invitation_email(
                 to_email=p['email'],
                 to_name=p_name,
@@ -92,7 +94,8 @@ async def activate_appointment(appointment_id: str, organizer_user_id: str) -> d
                 ics_link=ics_link,
                 appointment_timezone=appointment.get('appointment_timezone', 'Europe/Paris'),
                 meeting_join_url=appointment.get('meeting_join_url'),
-                meeting_provider=appointment.get('meeting_provider')
+                meeting_provider=appointment.get('meeting_provider'),
+                proof_link=proof_link,
             )
         except Exception as e:
             print(f"[ACTIVATE] Failed to send invitation to {p.get('email')}: {e}")
