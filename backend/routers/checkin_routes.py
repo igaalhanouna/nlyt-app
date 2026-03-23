@@ -4,7 +4,6 @@ Public endpoints (token-based auth via invitation_token) + authenticated endpoin
 """
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import Response
-from pymongo import MongoClient
 from pydantic import BaseModel
 from typing import Optional
 from slowapi import Limiter
@@ -15,6 +14,7 @@ import io
 import base64
 import logging
 
+from database import db
 logger = logging.getLogger(__name__)
 
 sys.path.append('/app/backend')
@@ -35,10 +35,6 @@ from rate_limiter import limiter
 
 router = APIRouter()
 
-MONGO_URL = os.environ.get('MONGO_URL')
-DB_NAME = os.environ.get('DB_NAME')
-client = MongoClient(MONGO_URL)
-db = client[DB_NAME]
 
 
 class ManualCheckinRequest(BaseModel):

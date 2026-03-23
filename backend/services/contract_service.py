@@ -1,5 +1,4 @@
 import os
-from pymongo import MongoClient
 from dotenv import load_dotenv
 import uuid
 import json
@@ -7,14 +6,11 @@ from datetime import datetime
 import sys
 sys.path.append('/app/backend')
 from utils.date_utils import now_utc
+from database import db
 
 load_dotenv()
 
-MONGO_URL = os.environ.get('MONGO_URL')
-DB_NAME = os.environ.get('DB_NAME')
 
-client = MongoClient(MONGO_URL)
-db = client[DB_NAME]
 
 class ContractService:
     @staticmethod

@@ -13,15 +13,11 @@ Logic:
 """
 import logging
 from datetime import datetime, timezone, timedelta
-from pymongo import MongoClient
 import os
 
+from database import db
 logger = logging.getLogger(__name__)
 
-MONGO_URL = os.environ.get('MONGO_URL')
-DB_NAME = os.environ.get('DB_NAME')
-client = MongoClient(MONGO_URL)
-db = client[DB_NAME]
 
 # Providers that support auto-fetch
 AUTO_FETCH_PROVIDERS = {"zoom", "teams", "microsoft teams"}

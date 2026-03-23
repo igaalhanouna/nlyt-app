@@ -6,24 +6,20 @@ import os
 import asyncio
 import logging
 from datetime import datetime, timedelta, timezone
-from pymongo import MongoClient
 from pathlib import Path
 from dotenv import load_dotenv
 from utils.date_utils import format_datetime_fr, parse_iso_datetime as _parse_dt
 from services.email_service import format_email_datetime
 
 # Load .env
+from database import db
 ROOT_DIR = Path(__file__).parent.parent
 load_dotenv(ROOT_DIR / '.env')
 
 logger = logging.getLogger(__name__)
 
-MONGO_URL = os.environ.get('MONGO_URL')
-DB_NAME = os.environ.get('DB_NAME')
 FRONTEND_URL = os.environ.get('FRONTEND_URL', '')
 
-client = MongoClient(MONGO_URL)
-db = client[DB_NAME]
 
 
 class ReminderService:

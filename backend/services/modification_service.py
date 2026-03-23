@@ -19,15 +19,11 @@ import uuid
 import logging
 import requests
 from datetime import datetime, timedelta, timezone
-from pymongo import MongoClient
 from utils.date_utils import now_utc, now_utc_iso, normalize_to_utc, parse_iso_datetime, format_datetime_fr
 
+from database import db
 logger = logging.getLogger(__name__)
 
-MONGO_URL = os.environ.get('MONGO_URL')
-DB_NAME = os.environ.get('DB_NAME')
-client = MongoClient(MONGO_URL)
-db = client[DB_NAME]
 
 PROPOSAL_TIMEOUT_HOURS = 24
 

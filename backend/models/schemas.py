@@ -17,7 +17,7 @@ class ParticipantStatus(str, Enum):
     INVITED = "invited"
     ACCEPTED_PENDING_GUARANTEE = "accepted_pending_guarantee"
     ACCEPTED_GUARANTEED = "accepted_guaranteed"
-    ACCEPTED = "accepted"  # Legacy support
+    ACCEPTED = "accepted"  # Participant without guarantee requirement
     DECLINED = "declined"
     CANCELLED_BY_PARTICIPANT = "cancelled_by_participant"
     ON_TIME = "on_time"
@@ -28,8 +28,6 @@ class ParticipantStatus(str, Enum):
 
 class GuaranteeMode(str, Enum):
     SETUP_ONLY = "setup_only"
-    AUTH_NOW = "auth_now"
-    AUTH_LATER = "auth_later"
 
 class GuaranteeStatus(str, Enum):
     NOT_STARTED = "not_started"

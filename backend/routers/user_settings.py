@@ -5,7 +5,6 @@ Manages user profile settings and default appointment parameters.
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, Field
 from typing import Optional
-from pymongo import MongoClient
 import os
 from datetime import datetime, timezone
 
@@ -14,12 +13,9 @@ sys.path.append('/app/backend')
 from middleware.auth_middleware import get_current_user
 from routers.charity_associations import is_valid_association
 
+from database import db
 router = APIRouter()
 
-MONGO_URL = os.environ.get('MONGO_URL')
-DB_NAME = os.environ.get('DB_NAME')
-client = MongoClient(MONGO_URL)
-db = client[DB_NAME]
 
 # System constant — must match appointments.py
 PLATFORM_COMMISSION_PERCENT = float(os.environ.get('PLATFORM_COMMISSION_PERCENT', '20'))

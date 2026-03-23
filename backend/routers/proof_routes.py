@@ -19,17 +19,14 @@ from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query, Depends
 from pydantic import BaseModel
-from pymongo import MongoClient
 
 from middleware.auth_middleware import get_current_user
 
+from database import db
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-MONGO_URL = os.environ.get("MONGO_URL")
 DB_NAME = os.environ.get("DB_NAME", "nlyt_db")
-mongo_client = MongoClient(MONGO_URL)
-db = mongo_client[DB_NAME]
 
 HEARTBEAT_INTERVAL_SECONDS = 30
 MAX_HEARTBEAT_GAP_SECONDS = 90  # If gap > 90s, user was inactive

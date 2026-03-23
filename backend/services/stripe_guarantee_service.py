@@ -7,21 +7,17 @@ to capture funds if needed (no-show, late cancellation).
 import os
 import stripe
 import uuid
-from pymongo import MongoClient
 from dotenv import load_dotenv
 from datetime import datetime, timezone
+from database import db
 
 load_dotenv()
 
-MONGO_URL = os.environ.get('MONGO_URL')
-DB_NAME = os.environ.get('DB_NAME')
 STRIPE_API_KEY = os.environ.get('STRIPE_API_KEY')
 
 # Initialize Stripe
 stripe.api_key = STRIPE_API_KEY
 
-client = MongoClient(MONGO_URL)
-db = client[DB_NAME]
 
 
 class StripeGuaranteeService:

@@ -9,20 +9,16 @@ import os
 import sys
 sys.path.append('/app/backend')
 from middleware.auth_middleware import get_current_user
+from database import db
 from services.modification_service import (
     create_proposal, respond_to_proposal, cancel_proposal,
     get_active_proposal, get_proposals_for_appointment
 )
 from utils.date_utils import now_utc_iso, format_datetime_fr, parse_iso_datetime
 from services.email_service import format_email_datetime
-from pymongo import MongoClient
 
 router = APIRouter()
 
-MONGO_URL = os.environ.get('MONGO_URL')
-DB_NAME = os.environ.get('DB_NAME')
-client = MongoClient(MONGO_URL)
-db = client[DB_NAME]
 
 
 class CreateProposalRequest(BaseModel):

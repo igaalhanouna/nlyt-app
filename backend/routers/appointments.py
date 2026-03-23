@@ -1,5 +1,4 @@
 from fastapi import APIRouter, HTTPException, Request
-from pymongo import MongoClient
 import os
 import uuid
 import sys
@@ -10,15 +9,12 @@ from utils.date_utils import now_utc, normalize_to_utc, now_utc_iso
 from services.contract_service import ContractService
 
 # System constant — platform commission is NOT user-editable
+from database import db
 PLATFORM_COMMISSION_PERCENT = float(os.environ.get('PLATFORM_COMMISSION_PERCENT', '20'))
 VALID_CURRENCIES = {"eur", "usd", "gbp", "chf"}
 
 router = APIRouter()
 
-MONGO_URL = os.environ.get('MONGO_URL')
-DB_NAME = os.environ.get('DB_NAME')
-client = MongoClient(MONGO_URL)
-db = client[DB_NAME]
 
 def get_frontend_url(request: Request) -> str:
     """Get FRONTEND_URL from env, fallback to request.base_url"""

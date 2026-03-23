@@ -4,12 +4,12 @@ import resend
 from dotenv import load_dotenv
 import logging
 from datetime import datetime, timezone
-from pymongo import MongoClient
 import uuid
 from pathlib import Path
 from utils.date_utils import format_datetime_fr, parse_iso_datetime
 
 
+from database import db
 def format_email_datetime(dt_string: str, tz_name: str = 'Europe/Paris') -> str:
     """
     Centralized datetime formatting for all emails.
@@ -42,10 +42,6 @@ SENDER_EMAIL = os.environ.get('SENDER_EMAIL', 'onboarding@resend.dev')
 resend.api_key = RESEND_API_KEY
 
 # MongoDB for tracking email attempts
-MONGO_URL = os.environ.get('MONGO_URL')
-DB_NAME = os.environ.get('DB_NAME')
-client = MongoClient(MONGO_URL)
-db = client[DB_NAME]
 
 class EmailService:
     @staticmethod

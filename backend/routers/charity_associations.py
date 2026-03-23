@@ -2,17 +2,13 @@
 Charity Associations - Liste des associations validées pour les dons caritatifs
 """
 from fastapi import APIRouter, HTTPException
-from pymongo import MongoClient
 import os
 import uuid
 from datetime import datetime, timezone
 
+from database import db
 router = APIRouter()
 
-MONGO_URL = os.environ.get('MONGO_URL')
-DB_NAME = os.environ.get('DB_NAME')
-client = MongoClient(MONGO_URL)
-db = client[DB_NAME]
 
 # Liste statique des associations validées pour le MVP
 # En production, cela pourrait être géré via une collection MongoDB avec admin panel

@@ -14,13 +14,8 @@ This service is shared between:
   - check-activation endpoint (frontend polling fallback)
 """
 import os
-from pymongo import MongoClient
 from utils.date_utils import now_utc_iso
 
-MONGO_URL = os.environ.get('MONGO_URL')
-DB_NAME = os.environ.get('DB_NAME')
-client = MongoClient(MONGO_URL)
-db = client[DB_NAME]
 
 
 def _get_frontend_url():
@@ -70,6 +65,7 @@ async def activate_appointment(appointment_id: str, organizer_user_id: str) -> d
     for p in participants:
         try:
             from services.email_service import EmailService
+from database import db
             invitation_link = f"{frontend_url}/invitation/{p['invitation_token']}"
 
             p_name = f"{p.get('first_name', '')} {p.get('last_name', '')}".strip()

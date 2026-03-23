@@ -20,14 +20,10 @@ import time
 import requests
 from datetime import datetime, timedelta, timezone
 from typing import Optional
-from pymongo import MongoClient
 
+from database import db
 logger = logging.getLogger(__name__)
 
-MONGO_URL = os.environ.get('MONGO_URL')
-DB_NAME = os.environ.get('DB_NAME')
-mongo_client = MongoClient(MONGO_URL)
-db = mongo_client[DB_NAME]
 
 # ============================================================
 #  ZOOM — Server-to-Server OAuth

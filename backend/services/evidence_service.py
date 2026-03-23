@@ -21,15 +21,11 @@ import logging
 import math
 import requests
 from datetime import datetime, timedelta, timezone
-from pymongo import MongoClient
 from utils.date_utils import now_utc, parse_iso_datetime
 
+from database import db
 logger = logging.getLogger(__name__)
 
-MONGO_URL = os.environ.get('MONGO_URL')
-DB_NAME = os.environ.get('DB_NAME')
-client = MongoClient(MONGO_URL)
-db = client[DB_NAME]
 
 QR_SECRET = os.environ.get('JWT_SECRET', 'nlyt_default_secret')
 QR_ROTATION_SECONDS = 60

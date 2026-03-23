@@ -1,5 +1,4 @@
 from fastapi import APIRouter, HTTPException, Request
-from pymongo import MongoClient
 import os
 import uuid
 import sys
@@ -8,12 +7,9 @@ from models.schemas import DisputeCreate
 from middleware.auth_middleware import get_current_user
 from utils.date_utils import now_utc
 
+from database import db
 router = APIRouter()
 
-MONGO_URL = os.environ.get('MONGO_URL')
-DB_NAME = os.environ.get('DB_NAME')
-client = MongoClient(MONGO_URL)
-db = client[DB_NAME]
 
 @router.post("/")
 async def create_dispute(dispute: DisputeCreate, request: Request):

@@ -38,7 +38,6 @@ import json
 import logging
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
-from pymongo import MongoClient
 
 from adapters.video_providers.base import VideoProviderAdapter, NormalizedAttendanceRecord
 from adapters.video_providers.zoom_adapter import ZoomAdapter
@@ -47,12 +46,9 @@ from adapters.video_providers.meet_adapter import MeetAdapter
 from services.evidence_service import create_evidence, assess_temporal_consistency
 from utils.date_utils import now_utc, parse_iso_datetime
 
+from database import db
 logger = logging.getLogger(__name__)
 
-MONGO_URL = os.environ.get('MONGO_URL')
-DB_NAME = os.environ.get('DB_NAME')
-client = MongoClient(MONGO_URL)
-db = client[DB_NAME]
 
 # Provider registry
 PROVIDER_ADAPTERS = {

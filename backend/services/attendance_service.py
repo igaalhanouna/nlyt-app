@@ -16,15 +16,11 @@ import os
 import uuid
 import logging
 from datetime import datetime, timedelta, timezone
-from pymongo import MongoClient
 from utils.date_utils import now_utc
 
+from database import db
 logger = logging.getLogger(__name__)
 
-MONGO_URL = os.environ.get('MONGO_URL')
-DB_NAME = os.environ.get('DB_NAME')
-client = MongoClient(MONGO_URL)
-db = client[DB_NAME]
 
 # Grace window after appointment end before evaluation (minutes)
 GRACE_WINDOW_MINUTES = 30

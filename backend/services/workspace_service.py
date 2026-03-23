@@ -1,11 +1,11 @@
 import os
 import uuid
 import logging
-from pymongo import MongoClient
 from pathlib import Path
 from dotenv import load_dotenv
 
 # Load .env from backend directory
+from database import db
 ROOT_DIR = Path(__file__).parent.parent
 load_dotenv(ROOT_DIR / '.env')
 
@@ -13,10 +13,6 @@ from utils.date_utils import now_utc
 
 logger = logging.getLogger(__name__)
 
-MONGO_URL = os.environ.get('MONGO_URL')
-DB_NAME = os.environ.get('DB_NAME')
-client = MongoClient(MONGO_URL)
-db = client[DB_NAME]
 
 class WorkspaceService:
     @staticmethod

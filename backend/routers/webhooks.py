@@ -1,5 +1,4 @@
 from fastapi import APIRouter, HTTPException, Request
-from pymongo import MongoClient
 import os
 import sys
 import json
@@ -8,17 +7,14 @@ sys.path.append('/app/backend')
 from services.stripe_guarantee_service import StripeGuaranteeService
 from datetime import datetime, timezone
 
+from database import db
 router = APIRouter()
 
-MONGO_URL = os.environ.get('MONGO_URL')
-DB_NAME = os.environ.get('DB_NAME')
 STRIPE_API_KEY = os.environ.get('STRIPE_API_KEY')
 STRIPE_WEBHOOK_SECRET = os.environ.get('STRIPE_WEBHOOK_SECRET', '')
 
 stripe.api_key = STRIPE_API_KEY
 
-client = MongoClient(MONGO_URL)
-db = client[DB_NAME]
 
 @router.post("/stripe")
 async def stripe_webhook(request: Request):

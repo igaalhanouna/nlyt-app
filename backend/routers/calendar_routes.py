@@ -1,6 +1,5 @@
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import Response, RedirectResponse
-from pymongo import MongoClient
 import os
 import uuid
 import json
@@ -13,14 +12,11 @@ from adapters.ics_generator import ICSGenerator
 from utils.date_utils import now_utc
 from datetime import datetime, timedelta
 
+from database import db
 router = APIRouter()
 
-MONGO_URL = os.environ.get('MONGO_URL')
-DB_NAME = os.environ.get('DB_NAME')
 FRONTEND_URL = os.environ.get('FRONTEND_URL', '').rstrip('/')
 
-client = MongoClient(MONGO_URL)
-db = client[DB_NAME]
 
 
 def _get_redirect_uri():

@@ -1,0 +1,79 @@
+{
+  "summary": "Code consolidation regression testing completed. Fixed critical bug in debug.py (infinite recursion). All 13 backend tests pass. Frontend loads correctly with all sub-components rendering properly.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": {
+    "backend": [
+      "Health check returns 200",
+      "Login endpoint works with testuser_audit@nlyt.app / Test1234!",
+      "Login fails with invalid credentials (401/404)",
+      "GET /api/appointments returns appointments list after auth",
+      "GET /api/appointments/{id} returns appointment details",
+      "POST /api/checkin/manual with invalid token returns 404",
+      "GET /api/invitations/{token} works for valid token",
+      "Debug endpoint /api/debug/email-attempts requires auth (401/403)",
+      "Debug endpoint /api/debug/users-debug requires auth (401/403)",
+      "Debug endpoint /api/debug/headers works without auth",
+      "Debug endpoint with auth returns 200 or 403 based on admin status",
+      "GET /api/workspaces works after auth",
+      "GET /api/participants?appointment_id=... works after auth"
+    ],
+    "frontend": [
+      "Landing page loads correctly",
+      "Login page renders with email/password fields",
+      "Login works with test credentials",
+      "Dashboard loads with appointments list (49 upcoming, 51 past)",
+      "Appointment detail page renders correctly",
+      "Appointment title with data-testid='appointment-title' present",
+      "Status badge with data-testid='appointment-status-badge' present",
+      "ProofSessionsPanel (data-testid='proof-sessions-section') renders",
+      "VideoEvidencePanel (data-testid='video-evidence-section') renders",
+      "Invitation page loads correctly for valid token"
+    ]
+  },
+  "bugs_fixed": {
+    "debug_py_infinite_recursion": {
+      "file": "/app/backend/routers/debug.py",
+      "line": 14,
+      "issue": "require_admin() called itself recursively instead of get_current_user()",
+      "fix": "Changed 'user = await require_admin(request)' to 'user = await get_current_user(request)'"
+    }
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_consolidation_regression.py",
+    "/app/test_reports/pytest/pytest_consolidation_regression.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "FIXED: debug.py line 14 had infinite recursion bug - require_admin called itself instead of get_current_user"
+  ],
+  "updated_files": [
+    "/app/backend/routers/debug.py",
+    "/app/backend/tests/test_consolidation_regression.py"
+  ],
+  "success_rate": {
+    "backend": "100% (13/13 passed)",
+    "frontend": "100% (10/10 verified)"
+  },
+  "test_credentials": {
+    "email": "testuser_audit@nlyt.app",
+    "password": "Test1234!"
+  },
+  "seed_data_creation": "None - used existing test data",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Code consolidation verified: (1) database.py centralized MongoClient works - all API endpoints using 'from database import db' function correctly, (2) AppointmentDetail.js split into 5 sub-components (ProofSessionsPanel, VideoEvidencePanel, AttendancePanel, ModificationProposals, EvidenceDashboard) - all render correctly, (3) debug.py protected with require_admin - non-admin users get 403, (4) Dead enums AUTH_NOW/AUTH_LATER removed from schemas.py. Note: AttendancePanel and EvidenceDashboard may not appear on all appointments - they show only when attendance has been evaluated or evidence exists.",
+  "verified_consolidation_changes": {
+    "database_py_centralization": "VERIFIED - All API endpoints work correctly with centralized MongoClient",
+    "appointment_detail_split": "VERIFIED - ProofSessionsPanel and VideoEvidencePanel render correctly",
+    "debug_py_protection": "VERIFIED - Endpoints require admin auth (403 for non-admin)",
+    "dead_enums_removed": "VERIFIED - GuaranteeMode only has SETUP_ONLY enum"
+  }
+}

@@ -3,7 +3,6 @@ Invitation Router
 Handles public invitation viewing and participant responses (accept/decline)
 """
 from fastapi import APIRouter, HTTPException, Request
-from pymongo import MongoClient
 from pydantic import BaseModel
 from typing import Optional
 from slowapi import Limiter
@@ -15,12 +14,9 @@ from utils.date_utils import now_utc, now_utc_iso, format_datetime_fr, parse_iso
 from datetime import datetime, timezone, timedelta
 from rate_limiter import limiter
 
+from database import db
 router = APIRouter()
 
-MONGO_URL = os.environ.get('MONGO_URL')
-DB_NAME = os.environ.get('DB_NAME')
-client = MongoClient(MONGO_URL)
-db = client[DB_NAME]
 
 
 async def send_confirmation_email_once(participant: dict, appointment: dict):

@@ -1,22 +1,28 @@
 from fastapi import APIRouter, HTTPException, Request, Depends
-from pymongo import MongoClient
 import os
 import sys
 sys.path.append('/app/backend')
 from middleware.auth_middleware import get_current_user
 from services.auth_service import AuthService
 
+from database import db
 router = APIRouter()
 
-MONGO_URL = os.environ.get('MONGO_URL')
-DB_NAME = os.environ.get('DB_NAME')
-client = MongoClient(MONGO_URL)
-db = client[DB_NAME]
+
+async def require_admin(request: Request):
+    """Middleware: only allow the workspace owner (admin) to access debug endpoints."""
+    user = await get_current_user(request)
+    # Check if user is a workspace owner in any workspace
+    workspace = db.workspaces.find_one({"owner_id": user["user_id"]}, {"_id": 0, "workspace_id": 1})
+    if not workspace:
+        raise HTTPException(status_code=403, detail="Accès réservé aux administrateurs")
+    return user
+
 
 @router.get("/email-attempts")
 async def get_email_attempts(limit: int = 50, request: Request = None):
     """Get all email send attempts for debugging"""
-    user = await get_current_user(request)
+    user = await require_admin(request)
     
     attempts = list(db.email_attempts.find(
         {},
@@ -28,7 +34,7 @@ async def get_email_attempts(limit: int = 50, request: Request = None):
 @router.get("/users-debug")
 async def get_users_debug(request: Request):
     """Get all users with verification status for debugging"""
-    user = await get_current_user(request)
+    user = await require_admin(request)
     
     users = list(db.users.find(
         {},
@@ -43,7 +49,7 @@ async def get_users_debug(request: Request):
 @router.post("/mark-verified/{email}")
 async def mark_user_verified(email: str, request: Request):
     """Mark a user as verified (debug only)"""
-    user = await get_current_user(request)
+    user = await require_admin(request)
     
     result = db.users.update_one(
         {"email": email},
@@ -57,7 +63,7 @@ async def mark_user_verified(email: str, request: Request):
 @router.delete("/delete-unverified/{email}")
 async def delete_unverified_user(email: str, request: Request):
     """Delete an unverified user (debug only)"""
-    user = await get_current_user(request)
+    user = await require_admin(request)
     
     # Only delete if not verified
     result = db.users.delete_one({"email": email, "is_verified": False})
@@ -69,7 +75,7 @@ async def delete_unverified_user(email: str, request: Request):
 @router.post("/force-resend/{email}")
 async def force_resend_verification(email: str, request: Request):
     """Force resend verification email bypassing rate limit"""
-    user = await get_current_user(request)
+    user = await require_admin(request)
     
     # Reset rate limit timestamp
     db.users.update_one(
@@ -112,7 +118,7 @@ async def cleanup_test_user(email: str, secret: str):
 @router.post("/trigger-reminders")
 async def trigger_reminders(request: Request):
     """Manually trigger the reminder job for testing"""
-    user = await get_current_user(request)
+    user = await require_admin(request)
     
     try:
         from services.reminder_service import run_reminder_job

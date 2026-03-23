@@ -1,5 +1,4 @@
 import os
-from pymongo import MongoClient
 from dotenv import load_dotenv
 import sys
 import logging
@@ -14,13 +13,10 @@ import uuid
 
 load_dotenv()
 
+from database import db
 logger = logging.getLogger(__name__)
 
-MONGO_URL = os.environ.get('MONGO_URL')
-DB_NAME = os.environ.get('DB_NAME')
 
-client = MongoClient(MONGO_URL)
-db = client[DB_NAME]
 
 RESEND_RATE_LIMIT_MINUTES = 2  # Minimum time between resend requests
 

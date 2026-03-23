@@ -1,16 +1,12 @@
 from fastapi import APIRouter, HTTPException, Request
-from pymongo import MongoClient
 import os
 import sys
 sys.path.append('/app/backend')
 from middleware.auth_middleware import get_current_user
 
+from database import db
 router = APIRouter()
 
-MONGO_URL = os.environ.get('MONGO_URL')
-DB_NAME = os.environ.get('DB_NAME')
-client = MongoClient(MONGO_URL)
-db = client[DB_NAME]
 
 @router.get("/cases/review")
 async def get_cases_for_review(request: Request):

@@ -3,13 +3,13 @@ Attendance Routes — Post-appointment presence detection API
 Endpoints for evaluating, viewing, and reclassifying attendance outcomes.
 """
 from fastapi import APIRouter, HTTPException, Request, Query
-from pymongo import MongoClient
 from pydantic import BaseModel
 from typing import Optional
 import os
 import sys
 sys.path.append('/app/backend')
 from middleware.auth_middleware import get_current_user
+from database import db
 from services.attendance_service import (
     evaluate_appointment,
     reevaluate_appointment,
@@ -19,10 +19,6 @@ from services.attendance_service import (
 
 router = APIRouter()
 
-MONGO_URL = os.environ.get('MONGO_URL')
-DB_NAME = os.environ.get('DB_NAME')
-client = MongoClient(MONGO_URL)
-db = client[DB_NAME]
 
 
 class ReclassifyRequest(BaseModel):

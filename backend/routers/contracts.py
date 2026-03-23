@@ -1,6 +1,5 @@
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse
-from pymongo import MongoClient
 import os
 import sys
 sys.path.append('/app/backend')
@@ -9,12 +8,9 @@ from middleware.auth_middleware import get_optional_user
 from utils.date_utils import now_utc
 from services.contract_service import ContractService
 
+from database import db
 router = APIRouter()
 
-MONGO_URL = os.environ.get('MONGO_URL')
-DB_NAME = os.environ.get('DB_NAME')
-client = MongoClient(MONGO_URL)
-db = client[DB_NAME]
 
 @router.get("/invitation/{invitation_token}")
 async def get_invitation_details(invitation_token: str):

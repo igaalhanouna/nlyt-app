@@ -13,7 +13,6 @@ Endpoints:
 - POST /api/video-evidence/webhook/{provider}        — Webhook endpoint (future)
 """
 from fastapi import APIRouter, HTTPException, Request, UploadFile, File, Form
-from pymongo import MongoClient
 from pydantic import BaseModel
 from typing import Optional
 import os
@@ -24,6 +23,7 @@ import json
 
 sys.path.append('/app/backend')
 from middleware.auth_middleware import get_current_user
+from database import db
 from services.video_evidence_service import (
     ingest_video_attendance,
     get_video_evidence_for_appointment,
@@ -37,10 +37,6 @@ from services.meeting_provider_service import (
 
 router = APIRouter()
 
-MONGO_URL = os.environ.get('MONGO_URL')
-DB_NAME = os.environ.get('DB_NAME')
-client = MongoClient(MONGO_URL)
-db = client[DB_NAME]
 
 
 class VideoIngestionRequest(BaseModel):

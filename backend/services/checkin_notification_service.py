@@ -3,14 +3,9 @@ Checkin Notification Helper
 Sends a one-time email to all other participants when someone checks in.
 Uses atomic flag `checkin_notification_sent` on participant doc for idempotence.
 """
-from pymongo import MongoClient
 from datetime import datetime, timezone
 import os
 
-MONGO_URL = os.environ.get('MONGO_URL')
-DB_NAME = os.environ.get('DB_NAME')
-client = MongoClient(MONGO_URL)
-db = client[DB_NAME]
 
 
 async def notify_checkin(
@@ -71,6 +66,7 @@ async def notify_checkin(
     try:
         from services.email_service import EmailService
 
+from database import db
         frontend_url = os.environ.get('FRONTEND_URL', '').rstrip('/')
 
         for recipient in recipients:
