@@ -39,6 +39,7 @@ MAX_HEARTBEAT_GAP_SECONDS = 90  # If gap > 90s, user was inactive
 
 class CheckinRequest(BaseModel):
     token: str  # invitation_token
+    video_display_name: str | None = None  # Nom utilisé dans la visio (optionnel)
 
 class HeartbeatRequest(BaseModel):
     session_id: str
@@ -217,6 +218,7 @@ async def checkin(appointment_id: str, req: CheckinRequest):
         "participant_id": participant["participant_id"],
         "participant_email": participant.get("email", ""),
         "participant_name": f"{participant.get('first_name', '')} {participant.get('last_name', '')}".strip(),
+        "video_display_name": (req.video_display_name or "").strip() or None,
         "role": participant.get("role", "participant"),
         "checked_in_at": now.isoformat(),
         "heartbeats": [now.isoformat()],
@@ -355,7 +357,11 @@ async def get_sessions(appointment_id: str, user=Depends(get_current_user)):
     for session in sessions:
         pid = session.get("participant_id")
         vn = video_names.get(pid, {})
-        session["video_display_name"] = vn.get("video_display_name")
+        # Priority: self-declared name (from check-in) > provider name (from evidence)
+        if not session.get("video_display_name"):
+            session["video_display_name"] = vn.get("video_display_name")
+        elif vn.get("video_display_name"):
+            session["video_display_name_provider"] = vn.get("video_display_name")
         session["video_email"] = vn.get("video_email")
         session["video_provider"] = vn.get("video_provider")
 

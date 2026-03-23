@@ -2397,21 +2397,15 @@ export default function AppointmentDetail() {
                           <td className="py-2.5 px-3">
                             <div className="font-medium text-slate-900">{session.participant_name || '—'}</div>
                             <div className="text-xs text-slate-400">{session.participant_email}</div>
-                            {session.video_display_name && (
+                            {(session.video_display_name || session.video_email) && (
                               <div className="flex items-center gap-1 mt-0.5" data-testid={`video-name-${session.session_id}`}>
                                 <Video className="w-3 h-3 text-blue-400 flex-shrink-0" />
-                                <span className="text-xs text-blue-600 font-medium truncate max-w-[180px]" title={session.video_display_name}>
-                                  {session.video_display_name}
+                                <span className="text-xs text-blue-600 font-medium truncate max-w-[180px]" title={session.video_display_name || session.video_email}>
+                                  {session.video_display_name || session.video_email}
                                 </span>
                                 {session.video_provider && (
                                   <span className="text-xs text-slate-300">({session.video_provider})</span>
                                 )}
-                              </div>
-                            )}
-                            {!session.video_display_name && session.video_email && (
-                              <div className="flex items-center gap-1 mt-0.5">
-                                <Video className="w-3 h-3 text-slate-300 flex-shrink-0" />
-                                <span className="text-xs text-slate-400 truncate max-w-[180px]">{session.video_email}</span>
                               </div>
                             )}
                           </td>

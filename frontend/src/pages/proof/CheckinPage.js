@@ -23,6 +23,7 @@ export default function CheckinPage() {
   const [elapsed, setElapsed] = useState(0);
   const [heartbeatOk, setHeartbeatOk] = useState(true);
   const [heartbeatCount, setHeartbeatCount] = useState(0);
+  const [videoDisplayName, setVideoDisplayName] = useState('');
   const heartbeatRef = useRef(null);
   const timerRef = useRef(null);
   const checkinTimeRef = useRef(null);
@@ -79,7 +80,11 @@ export default function CheckinPage() {
   const handleCheckin = async () => {
     setCheckingIn(true);
     try {
-      const res = await axios.post(`${API}/api/proof/${appointmentId}/checkin`, { token });
+      const payload = { token };
+      if (videoDisplayName.trim()) {
+        payload.video_display_name = videoDisplayName.trim();
+      }
+      const res = await axios.post(`${API}/api/proof/${appointmentId}/checkin`, payload);
       setSessionId(res.data.session_id);
       setSessionActive(true);
       checkinTimeRef.current = new Date(res.data.checked_in_at || Date.now());
@@ -303,6 +308,23 @@ export default function CheckinPage() {
           {error && (
             <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{error}</div>
           )}
+
+          {/* Video display name (optional) */}
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-slate-700" htmlFor="video-display-name">
+              Nom utilisé dans la visio <span className="text-slate-400 font-normal">(optionnel)</span>
+            </label>
+            <input
+              id="video-display-name"
+              type="text"
+              value={videoDisplayName}
+              onChange={(e) => setVideoDisplayName(e.target.value)}
+              placeholder='Ex: "iPhone de Paul", "Paul L.", votre nom Zoom/Teams'
+              className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder:text-slate-300"
+              data-testid="video-display-name-input"
+            />
+            <p className="text-xs text-slate-400">Aide l'organisateur à vous identifier dans la visio.</p>
+          </div>
 
           {/* Check-in button */}
           <Button
