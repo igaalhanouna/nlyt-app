@@ -1172,7 +1172,7 @@ export default function AppointmentWizard() {
         ) : (
           <>
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-slate-900 mb-2">Créer un rendez-vous</h1>
+          <h1 className="text-3xl font-bold text-slate-900 mb-2">Créer un rendez-vous avec engagement</h1>
           <p className="text-slate-600 mb-4">Définissez les conditions d'engagement pour votre rendez-vous</p>
           
           {/* Workspace Selector */}
