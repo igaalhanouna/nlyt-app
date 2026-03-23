@@ -123,6 +123,19 @@ Architecture complète documentée dans `/app/memory/STRIPE_CONNECT_ARCHITECTURE
 - [x] Statuts: En attente / Contestée / Finalisée / Annulée avec couleurs
 - [x] Tests: iteration_55 — 17/17 backend + 13/13 frontend (100%)
 
+### Charity Impact Tracking (Fév 2026) ✅
+- [x] `GET /api/wallet/impact` — agrégation fiable depuis le ledger (distributions.beneficiaries.role=charity)
+- [x] Totaux recalculables : total_charity_cents, distributions_count, events_count
+- [x] Ventilation par association (by_association[])
+- [x] Détail par événement (contributions[] avec appointment_title, amount, status)
+- [x] Exclut les distributions annulées et les bénéficiaires refunded
+- [x] Frontend : section "Votre impact solidaire" dans WalletPage
+- [x] 3 cartes stats : Total contribué / Distributions / Événements
+- [x] Ligne par association avec montant
+- [x] Détail expandable par événement avec badge statut (en attente / finalisé)
+- [x] Section masquée si aucune contribution (total = 0)
+- [x] Tests: iteration_56 — 11/11 backend + 13/13 frontend (100%)
+
 ### Phase 4 — Payouts (à faire)
 - [ ] POST /api/wallet/payout
 - [ ] Stripe Transfer vers compte Connect
