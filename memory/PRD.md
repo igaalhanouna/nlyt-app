@@ -51,6 +51,7 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API (mode user)
 - iteration_44: 6/6 backend + 9/9 frontend (Masquage evidence-dashboard pour vidéo)
 - iteration_45: 14/14 backend (Email confirmation idempotent — polling + webhook)
 - iteration_46: 11/11 backend + 3/3 frontend (ICS — lien invitation uniquement)
+- iteration_47: 14/14 backend (Notification check-in — idempotence + wording + routing)
 - Credentials: testuser_audit@nlyt.app / Test1234!
 
 ## Completed
@@ -84,6 +85,12 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API (mode user)
   - Frontend + email ICS links incluent le token
   - Aucun lien Zoom/Teams/Meet/Proof dans l'ICS
 - [x] Fix check-in GPS organisateur : source="gps" quand coordonnées fournies (au lieu de "manual_checkin")
+- [x] Notification check-in : email automatique aux autres participants quand quelqu'un check-in
+  - Physique : "est arrivé au rendez-vous" | Vidéo : "a confirmé sa présence"
+  - Flag atomique checkin_notification_sent (anti-doublon)
+  - 4 hooks : manual, QR, GPS, NLYT Proof
+  - Seuls les participants engagés (accepted/accepted_guaranteed) reçoivent
+  - Auto-exclusion : le checker ne reçoit pas son propre email
 
 ## Roadmap
 ### P1
