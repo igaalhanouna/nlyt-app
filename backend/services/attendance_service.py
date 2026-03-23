@@ -695,6 +695,23 @@ def _execute_capture_and_distribution(
     )
     logger.info(f"[FINANCIAL] Captured + distributed for guarantee {guarantee_id}")
 
+    # Send capture email to no-show user (non-blocking)
+    try:
+        from services.financial_emails import send_capture_email
+        dist_doc = db.distributions.find_one({"guarantee_id": guarantee_id}, {"_id": 0})
+        if dist_doc:
+            send_capture_email(
+                user_id=participant.get('user_id', ''),
+                appointment_title=appointment.get('title', 'RDV'),
+                appointment_date=appointment.get('start_datetime', ''),
+                capture_amount_cents=dist_doc['capture_amount_cents'],
+                distribution_id=dist_doc['distribution_id'],
+                beneficiaries=dist_doc.get('beneficiaries', []),
+                hold_expires_at=dist_doc.get('hold_expires_at', ''),
+            )
+    except Exception as e:
+        logger.warning(f"[FINANCIAL] Capture email error (non-blocking): {e}")
+
 
 def _execute_release(guarantee: dict):
     """Release a guarantee (participant was present)."""

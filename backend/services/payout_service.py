@@ -222,6 +222,19 @@ def _execute_stripe_transfer(payout: dict) -> dict:
 
         _fail_payout(payout_id, error_msg)
         logger.error(f"[PAYOUT] Stripe Transfer failed for {payout_id}: {e}")
+
+        # Send payout failed email (non-blocking)
+        try:
+            from services.financial_emails import send_payout_failed_email
+            send_payout_failed_email(
+                user_id=payout["user_id"],
+                amount_cents=payout["amount_cents"],
+                payout_id=payout_id,
+                failure_reason=error_msg,
+            )
+        except Exception as exc:
+            logger.warning(f"[PAYOUT] Failed email error (non-blocking): {exc}")
+
         return {"success": False, "error": f"Erreur Stripe: {error_msg}"}
 
 
@@ -251,6 +264,19 @@ def _execute_dev_payout(payout: dict) -> dict:
     )
 
     logger.info(f"[PAYOUT] [DEV MODE] Payout {payout_id} completed: {payout['amount_cents']}c")
+
+    # Send payout completed email (non-blocking)
+    try:
+        from services.financial_emails import send_payout_completed_email
+        send_payout_completed_email(
+            user_id=payout["user_id"],
+            amount_cents=payout["amount_cents"],
+            payout_id=payout_id,
+            stripe_transfer_id=f"tr_dev_{payout_id[:8]}",
+        )
+    except Exception as e:
+        logger.warning(f"[PAYOUT] Completed email error (non-blocking): {e}")
+
     return {
         "success": True,
         "payout_id": payout_id,
@@ -348,6 +374,19 @@ def handle_transfer_paid(transfer_data: dict) -> dict:
     )
 
     logger.info(f"[PAYOUT] Webhook: transfer.paid → payout {payout['payout_id']} completed")
+
+    # Send payout completed email (non-blocking)
+    try:
+        from services.financial_emails import send_payout_completed_email
+        send_payout_completed_email(
+            user_id=payout["user_id"],
+            amount_cents=payout["amount_cents"],
+            payout_id=payout["payout_id"],
+            stripe_transfer_id=transfer_id,
+        )
+    except Exception as e:
+        logger.warning(f"[PAYOUT] Completed email error (non-blocking): {e}")
+
     return {"success": True, "payout_id": payout["payout_id"]}
 
 
@@ -411,6 +450,19 @@ def handle_transfer_failed(transfer_data: dict) -> dict:
     )
 
     logger.info(f"[PAYOUT] Webhook: transfer failed → payout {payout['payout_id']} failed, wallet re-credited")
+
+    # Send payout failed email (non-blocking)
+    try:
+        from services.financial_emails import send_payout_failed_email
+        send_payout_failed_email(
+            user_id=payout["user_id"],
+            amount_cents=payout["amount_cents"],
+            payout_id=payout["payout_id"],
+            failure_reason=failure_reason,
+        )
+    except Exception as e:
+        logger.warning(f"[PAYOUT] Failed email error (non-blocking): {e}")
+
     return {"success": True, "payout_id": payout["payout_id"], "re_credited": True}
 
 

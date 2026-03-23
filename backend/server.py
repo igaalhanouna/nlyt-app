@@ -18,6 +18,14 @@ from rate_limiter import limiter
 async def lifespan(app: FastAPI):
     # Startup
     start_scheduler()
+    # Ensure idempotency index for financial emails
+    from database import db
+    db.sent_emails.create_index(
+        [("email_type", 1), ("reference_id", 1), ("user_id", 1)],
+        unique=True,
+        name="unique_email_idempotency",
+        background=True,
+    )
     yield
     # Shutdown
     stop_scheduler()

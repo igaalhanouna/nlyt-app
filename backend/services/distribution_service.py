@@ -309,6 +309,25 @@ def create_distribution(
         f"[DISTRIBUTION] Created {distribution_id} for guarantee {guarantee_id} "
         f"— {capture_amount_cents}c, {len(beneficiaries)} beneficiaries"
     )
+
+    # Send distribution created emails to human beneficiaries (non-blocking)
+    try:
+        from services.financial_emails import send_distribution_created_email
+        apt_date = appointment.get("start_datetime", "") if appointment else ""
+        for benef in beneficiaries:
+            if benef["role"] in ("organizer", "participant") and benef.get("status") == "credited_pending":
+                send_distribution_created_email(
+                    user_id=benef["user_id"],
+                    role=benef["role"],
+                    amount_cents=benef["amount_cents"],
+                    appointment_title=apt_title,
+                    appointment_date=apt_date,
+                    distribution_id=distribution_id,
+                    hold_expires_at=hold_expires,
+                )
+    except Exception as e:
+        logger.warning(f"[DISTRIBUTION] Email notification error (non-blocking): {e}")
+
     return {"success": True, "distribution_id": distribution_id, "beneficiaries_count": len(beneficiaries)}
 
 
@@ -401,6 +420,21 @@ def _finalize_single_distribution(dist: dict):
         {"$set": update},
     )
     logger.info(f"[DISTRIBUTION] {dist_id} → {final_status}")
+
+    # Send distribution available emails to human beneficiaries (non-blocking)
+    if final_status == "completed":
+        try:
+            from services.financial_emails import send_distribution_available_email
+            for benef in dist.get("beneficiaries", []):
+                if benef["role"] in ("organizer", "participant") and benef.get("status") == "credited_available":
+                    send_distribution_available_email(
+                        user_id=benef["user_id"],
+                        amount_cents=benef["amount_cents"],
+                        appointment_title=apt_title,
+                        distribution_id=dist_id,
+                    )
+        except Exception as e:
+            logger.warning(f"[DISTRIBUTION] Available email error (non-blocking): {e}")
 
 
 # ─── Cancel / Contest ────────────────────────────────────────────
