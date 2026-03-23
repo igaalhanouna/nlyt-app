@@ -19,6 +19,7 @@ from services.wallet_service import (
 router = APIRouter()
 
 
+@router.get("")
 @router.get("/")
 async def get_my_wallet(request: Request):
     """Get current user's wallet with balance summary."""

@@ -63,18 +63,50 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API (mode user)
 - [x] Fix P0 "Erreur réseau" GPS check-in (gestion GeolocationPositionError + mapping HTTP)
 - [x] Fix "body stream already read" (pattern `.text()` + `JSON.parse()` dans InvitationPage.js)
 - [x] Fix Azure Outlook OAuth (MICROSOFT_CLIENT_ID corrigé)
+- [x] Rééquilibrage scoring NLYT Proof (check-in 40pts, durée 30pts, flow bonus 10pts, API 20pts, seuil strong ≥ 55)
 - [x] Toutes les features listées dans ARCHITECTURE.md
 
+## Stripe Connect — Progression
+Architecture complète documentée dans `/app/memory/STRIPE_CONNECT_ARCHITECTURE.md`
+
+### Phase 1 — Wallet + Ledger ✅ (Fév 2026)
+- [x] `wallet_service.py` — CRUD wallet + ledger (credit_pending, confirm_available, debit_payout, debit_refund)
+- [x] `wallet_routes.py` — GET /api/wallet (solde) + GET /api/wallet/transactions (historique)
+- [x] Auto-création wallet à l'inscription (auth_service.py)
+- [x] Wallet idempotent via `ensure_wallet()`
+- [x] Montants en centimes (int), minimum payout 500c (5€)
+- [x] Collections MongoDB : `wallets`, `wallet_transactions`
+- [x] Tests : iteration_52 — 13/13 backend
+
+### Phase 2 — Stripe Connect Express (à faire)
+- [ ] Onboarding flow (stripe.Account.create type=express)
+- [ ] Webhook account.updated
+- [ ] Frontend page paramètres "Recevoir des fonds"
+
+### Phase 3 — Capture + Distribution (à faire)
+- [ ] distribution_service.py (calcul parts, symétrie organisateur)
+- [ ] Intégration post-évaluation assiduité
+- [ ] Scheduler job distribution différée (15j)
+
+### Phase 4 — Payouts (à faire)
+- [ ] POST /api/wallet/payout
+- [ ] Stripe Transfer vers compte Connect
+
+### Phase 5 — UI (à faire)
+- [ ] DistributionPanel.js (AppointmentDetail)
+- [ ] WalletSettings.js (page wallet)
+- [ ] Emails notifications (capture, distribution, payout)
+
 ## Roadmap
-### P1 — Prochaine étape
-- Stripe Connect (distribution automatique des fonds aux organisateurs/charités)
-- Calcul `video_api_points` (30pts bonus) dans le scoring NLYT Proof
+### P1 — En cours
+- Stripe Connect Phases 2-5
+- Calcul `video_api_points` (20pts bonus) dans le scoring NLYT Proof
 - Webhooks temps réel Zoom/Teams
 
 ### P2
 - Pagination endpoints de liste
 - Auto-update calendrier V2 (retry automatique)
-- Découpe InvitationPage.js (1409 lignes — même pattern que AppointmentDetail)
+- Découpe InvitationPage.js (1409 lignes)
 
 ### P3
 - Dashboard analytics organisateurs
