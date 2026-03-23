@@ -78,10 +78,16 @@ Architecture complète documentée dans `/app/memory/STRIPE_CONNECT_ARCHITECTURE
 - [x] Collections MongoDB : `wallets`, `wallet_transactions`
 - [x] Tests : iteration_52 — 13/13 backend
 
-### Phase 2 — Stripe Connect Express (à faire)
-- [ ] Onboarding flow (stripe.Account.create type=express)
-- [ ] Webhook account.updated
-- [ ] Frontend page paramètres "Recevoir des fonds"
+### Phase 2 — Stripe Connect Express (Fév 2026) ✅
+- [x] `connect_service.py` — Onboarding Express (create account, account link, dev mode fallback)
+- [x] `connect_routes.py` — POST /api/connect/onboard, GET /api/connect/status, POST /api/connect/dashboard
+- [x] Webhook handlers: `account.updated` + `account.application.deauthorized` dans `webhooks.py`
+- [x] Frontend `WalletPage.js` : solde, statut Connect, historique transactions
+- [x] Navigation Settings → Wallet
+- [x] Idempotence onboarding (réutilise account_id existant)
+- [x] 5 statuts normalisés: not_started, onboarding, restricted, active, disabled
+- [x] Dev mode: simulation automatique si Stripe Connect non activé
+- [x] Tests : iteration_53 — 12/12 backend + 100% frontend
 
 ### Phase 3 — Capture + Distribution (à faire)
 - [ ] distribution_service.py (calcul parts, symétrie organisateur)
@@ -99,7 +105,7 @@ Architecture complète documentée dans `/app/memory/STRIPE_CONNECT_ARCHITECTURE
 
 ## Roadmap
 ### P1 — En cours
-- Stripe Connect Phases 2-5
+- Stripe Connect Phases 3-5
 - Calcul `video_api_points` (20pts bonus) dans le scoring NLYT Proof
 - Webhooks temps réel Zoom/Teams
 
