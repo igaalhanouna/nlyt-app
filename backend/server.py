@@ -9,7 +9,7 @@ import os
 
 load_dotenv()
 
-from routers import auth, workspaces, appointments, participants, contracts, calendar_routes, disputes, admin, webhooks, debug, invitations, user_settings, charity_associations, attendance_routes, checkin_routes, modification_routes, video_evidence_routes, proof_routes
+from routers import auth, workspaces, appointments, participants, contracts, calendar_routes, disputes, admin, webhooks, debug, invitations, user_settings, charity_associations, attendance_routes, checkin_routes, modification_routes, video_evidence_routes, proof_routes, wallet_routes
 from scheduler import start_scheduler, stop_scheduler
 from rate_limiter import limiter
 
@@ -66,6 +66,7 @@ app.include_router(checkin_routes.router, prefix="/api/checkin", tags=["Check-in
 app.include_router(modification_routes.router, prefix="/api/modifications", tags=["Modifications"])
 app.include_router(video_evidence_routes.router, prefix="/api/video-evidence", tags=["Video Evidence"])
 app.include_router(proof_routes.router, prefix="/api/proof", tags=["Proof Sessions"])
+app.include_router(wallet_routes.router, prefix="/api/wallet", tags=["Wallet"])
 
 @app.get("/api/health")
 async def health_check():

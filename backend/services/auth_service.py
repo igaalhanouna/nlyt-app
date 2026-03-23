@@ -69,6 +69,11 @@ class AuthService:
             logger.info(f"[REGISTER] ✅ Default workspace created: {workspace['workspace_id']}")
         else:
             logger.warning(f"[REGISTER] ⚠️ Failed to create default workspace for user {user_id}")
+
+        # Auto-create wallet for the user
+        from services.wallet_service import create_wallet
+        wallet = create_wallet(user_id)
+        logger.info(f"[REGISTER] ✅ Wallet created: {wallet['wallet_id']}")
         
         # Generate token
         logger.info(f"[REGISTER] Generating verification token for {email}")
