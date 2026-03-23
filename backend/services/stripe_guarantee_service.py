@@ -263,13 +263,9 @@ class StripeGuaranteeService:
                 "processed_at": datetime.now(timezone.utc).isoformat()
             })
 
-            # Send confirmation email with ICS + proof link now that engagement is finalized
-            try:
-                import asyncio
-                loop = asyncio.get_event_loop()
-                loop.create_task(StripeGuaranteeService._send_engagement_confirmed_email(participant_id, appointment_id))
-            except Exception as email_err:
-                print(f"[WEBHOOK] Failed to schedule engagement confirmation email: {email_err}")
+            # NOTE: Confirmation email (with ICS + proof link) is sent by the
+            # webhook router (webhooks.py) which is async and can await
+            # EmailService directly. No email logic here.
             
             return {
                 "success": True,
@@ -282,46 +278,6 @@ class StripeGuaranteeService:
             print(f"[WEBHOOK_ERROR] {e}")
             return {"success": False, "error": str(e)}
     
-    @staticmethod
-    async def _send_engagement_confirmed_email(participant_id: str, appointment_id: str):
-        """Send confirmation email with ICS + proof link after engagement is finalized."""
-        from services.email_service import EmailService
-
-        participant = db.participants.find_one({"participant_id": participant_id}, {"_id": 0})
-        appointment = db.appointments.find_one({"appointment_id": appointment_id}, {"_id": 0})
-        if not participant or not appointment:
-            return
-
-        organizer = db.users.find_one({"user_id": appointment.get('organizer_id')}, {"_id": 0})
-        organizer_name = f"{organizer.get('first_name', '')} {organizer.get('last_name', '')}".strip() if organizer else "L'organisateur"
-
-        p_name = f"{participant.get('first_name', '')} {participant.get('last_name', '')}".strip()
-        if not p_name:
-            p_name = participant.get('email', '').split('@')[0]
-
-        frontend_url = os.environ.get('FRONTEND_URL', '').rstrip('/')
-        ics_link = f"{frontend_url}/api/calendar/export/ics/{appointment_id}"
-        invitation_link = f"{frontend_url}/invitation/{participant.get('invitation_token', '')}"
-        proof_link = None
-        if appointment.get('appointment_type') == 'video':
-            proof_link = f"{frontend_url}/proof/{appointment_id}?token={participant.get('invitation_token', '')}"
-
-        await EmailService.send_acceptance_confirmation_email(
-            to_email=participant.get('email', ''),
-            to_name=p_name,
-            organizer_name=organizer_name,
-            appointment_title=appointment.get('title', ''),
-            appointment_datetime=appointment.get('start_datetime', ''),
-            location=appointment.get('location') or appointment.get('meeting_provider'),
-            penalty_amount=appointment.get('penalty_amount'),
-            penalty_currency=appointment.get('penalty_currency', 'EUR'),
-            cancellation_deadline_hours=appointment.get('cancellation_deadline_hours'),
-            ics_link=ics_link,
-            invitation_link=invitation_link,
-            appointment_timezone=appointment.get('appointment_timezone', 'Europe/Paris'),
-            proof_link=proof_link,
-        )
-
     @staticmethod
     def get_guarantee_status(session_id: str) -> dict:
         """Check the status of a guarantee by session_id"""

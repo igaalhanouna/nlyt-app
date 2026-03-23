@@ -1,35 +1,45 @@
-<analysis>**original_problem_statement**: The user initially wanted to fix UI/UX issues with Teams integration banners, resolve Outlook OAuth bugs, and fix attendance fetching for Teams. The request then evolved to making Zoom the default, central Grand Public provider without requiring participants to have Zoom accounts. Most recently, the user requested a fundamental shift: decouple the Proof of Attendance from video provider APIs (which are unreliable or require paid plans) and build an internal NLYT Proof System featuring a Check-in button, a background Heartbeat (ping), and a scoring system. 
+<analysis>**original_problem_statement**: The user wants to decouple the NLYT Proof of Attendance system from 3rd-party Video APIs (Zoom/Teams), making NLYT the primary source of truth for video attendance via an internal check-in + heartbeat system. Furthermore, the user requested several strict product logic fixes: strict separation of proof methods between Physical (GPS/QR) and Video (Heartbeats), fixing short-notice meeting inconsistencies (retroactive reminders, absurd cancellation deadlines), unifying the visio entry point to prevent bypassing the proof system, and strictly locking meeting access (ICS and Visio links) until the participant's financial guarantee is successfully validated.
 
 PRODUCT REQUIREMENTS:
-- Zoom is the default video provider (centralized app credentials, no user Zoom account needed).
-- Teams and Meet are secondary/advanced providers.
-- NLYT Internal Proof System: Participants use a unique NLYT link to Check-in, which opens the video call in a new tab and keeps the NLYT tab open to send periodic heartbeats (e.g., every 30s) to prove attendance duration.
+- **Video Appointments**: NLYT Proof (check-in + heartbeat) is the primary attendance validator. 3rd-party APIs are secondary bonuses.
+- **Physical Appointments**: GPS/QR/Manual check-in only. Heartbeats are disabled.
+- **Short-Notice Meetings**: Reminders mapped in the past must be skipped. Cancellation deadlines cannot exceed the time left until the meeting.
+- **Access Control**: Participants cannot get the ICS file or the Visio/Proof link until they are in  (no guarantee) or  (guarantee paid) statuses.
 
 **User's preferred language**: French (INSTRUCT NEXT AGENT: You MUST respond in French only).
 
 **what currently exists?** 
-A functional attendance management SaaS. Microsoft Teams (Delegated & Legacy modes), Google Meet, and Zoom integrations are working. Zoom is set up as the default centralized provider using Server-to-Server OAuth. An auto-fetch scheduler runs in the background for video APIs. Because the user's Zoom account is on a free tier (blocking API attendance fetching), a graceful fallback to manual CSV upload is implemented. The foundational files for the new NLYT Internal Proof System (Check-in page, API routes, and Organizer view) have just been created.
+A mature attendance and guarantee management SaaS. The new NLYT Proof System for video meetings is built, tested, and fully integrated into the  decision engine. Short-notice logic and bypass prevention have been implemented. The app uses a React frontend, FastAPI backend, and MongoDB. The system relies heavily on Stripe for guarantees and APScheduler for background jobs.
 
 **Last working item**:
-    - Last item agent was working: Implementing the NLYT Internal Proof System (Check-in and Heartbeat mechanism). The agent created the backend routes (), frontend page (), added the route to , and was in the process of updating  to display the NLYT Proof Sessions to the organizer.
+    - Last item agent was working: Restricting access to meeting details (ICS and NLYT Proof links) until the participant's engagement is finalized. The agent removed links from the initial invitation email and was modifying  to send a new confirmation email (with links) upon successful Stripe payment ().
     - Status: IN PROGRESS
     - Agent Testing Done: N
-    - Which testing method agent to use? Both (Backend testing for heartbeat endpoints via curl/python, Frontend testing agent for the UI and heartbeat polling behavior).
+    - Which testing method agent to use? backend testing agent / manual testing by curl. <TESTING METHOD> Requires triggering a Stripe webhook simulation and checking if the email sends successfully without crashing the server.
     - User Testing Done: N
 
 **All Pending/In progress Issue list**: 
-  None explicitly reported. The focus is entirely on completing the new NLYT Internal Proof feature.
+  Issue 1: Sync/Async conflict in Stripe Webhook Handler (P0)
+     - Attempted fixes: The agent added a call to  inside , which is a synchronous function (, not ). This resulted in a . The agent tried to use  but got interrupted.
+     - Next debug checklist: 
+       -  line ~268.
+       - Ensure the email sending logic inside the synchronous Stripe webhook handler is properly dispatched to the event loop (e.g., using a background task queue, or ).
+     - Why fix this issue and what will be achieved with the fix? It currently breaks the Stripe webhook processing. Fixing it ensures users get their meeting links once their guarantee is paid.
+     - Status: IN PROGRESS
+     - Is recurring issue? N
+     - Should Test frontend/backend/both after fix? backend
 
-**In progress Task List**: 
-  Task 1: Complete and Test NLYT Internal Proof System (P0)
-     - Where to resume: Review the newly created  and . The agent just updated  to fetch and display these sessions. You need to ensure the backend logic correctly handles the 30s heartbeat, updates the session duration/score, and that the frontend E2E flow works (clicking participant link -> registering check-in -> starting heartbeat -> viewing results as Organizer).
-     - What will be achieved with this? NLYT will have its own independent, reliable proof-of-attendance tracking mechanism that doesn't rely on flaky or paid 3rd-party video APIs.
+**In progress Task List**:
+  Task 1: Complete and test Lock meeting access until Guarantee is validated (P0)
+     - Where to resume:  (fix the webhook async bug), , and  (verify UI conditionally renders check-in/ICS only for  or ).
+     - What will be achieved with this? Participants will no longer be able to grab the ICS file or the meeting link before validating their credit card hold.
      - Status: IN PROGRESS
      - Should Test frontend/backend/both after fix? Both
-     - Blocked on something: None
+     - Blocked on something: Issue 1 (Sync/Async conflict in webhook).
 
 **Upcoming and Future Tasks**
     - P1: Stripe Connect integration (Automatic distribution of funds to organizers/charities).
+    - P1: Calculate  (30pts bonus) in the NLYT Proof scoring logic when the Video API (Zoom/Teams) confirms attendance.
     - P1: Implement real-time webhooks for Zoom () and Teams.
     - P2: Pagination for list endpoints (Appointments, etc.).
     - P2: Auto-update calendar V2 (Retry automatically on failure).
@@ -37,92 +47,91 @@ A functional attendance management SaaS. Microsoft Teams (Delegated & Legacy mod
     - P3: Refactor MongoDB connection pooling (currently separate MongoClient instances).
 
 **Completed work in this session**
-- Fixed UX/Tailwind styling for Teams integration banners (DONE).
-- Fixed Outlook OAuth Login by correcting  and  in  (DONE).
-- Fixed Teams fetch attendance Azure AD User ID introuvable bug and added missing  Graph API scope (DONE).
-- Migrated Zoom to be the default central provider via Server-to-Server OAuth, stripping the confusing dual-link UX for centralized meetings (DONE).
-- Implemented Zoom fallback UI (Manual CSV upload) for free-tier accounts that block API attendance fetching (DONE).
-- Created scaffolding for NLYT Proof System (CheckinPage, proof_routes) (DONE).
+  - Refactored Visio provider model (abandoned central mode, switched to user-based connections) (DONE).
+  - Enforced strict physical/video separation: Proof system for video, GPS/QR for physical (DONE).
+  - Added GPS coordinate capture for Organizers doing manual check-in on physical meetings (DONE).
+  - Created Architecture synthesis document () (DONE).
+  - Integrated NLYT Proof sessions into  decision engine with defined thresholds (DONE).
+  - Added optional Visio Display Name capture field during NLYT check-in (DONE).
+  - Fixed Outlook OAuth Login by pointing to the correct Azure App ID (DONE).
+  - Fixed short-notice logic: Capped cancellation deadlines to , skipped retroactive reminders (DONE).
+  - Unified Video Entry Point: Replaced all direct  bypass links with  (DONE).
 
 **Earlier issues found/mentioned but not fixed**
 None.
 
 **Known issue recurrence from previous fork**
-  - Issue recurrence in previous fork: Microsoft Graph API token/scope confusion.
+  - Issue recurrence in previous fork: Azure App ID misconfiguration in .
   - Recurrence count: 1
-  - Status: RESOLVED (Agent properly segmented legacy fallback meetings vs delegated meetings and added exact required scopes).
+  - Status: RESOLVED (Agent replaced 'proof-tracking' with actual Azure Client ID).
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
-Frontend: React.js, TailwindCSS, Client-side polling (Heartbeat interval).
-Backend: FastAPI, Python, MongoDB, APScheduler.
-Integrations: Microsoft Graph API, Zoom Server-to-Server OAuth.
+Frontend: React.js, TailwindCSS.
+Backend: FastAPI, Python, MongoDB, APScheduler (for reminders and attendance eval), Stripe API.
+Logic: State machines for Participant statuses ( ->  -> ). 
 
 **key DB schema**
-  - : Stores provider metadata,  ('central', 'delegated', 'application_fallback').
-  -  (New/Implied): Needs to store participant check-in timestamps, last heartbeat, and calculated score/duration.
+  - :  (now dynamically capped at creation).
+  - :  tracks guarantee flow.
+  - : Now includes .
+  - : Used heavily by the  decision engine.
 
 **changes in tech stack**
-  - Introduction of frontend-to-backend interval polling (Heartbeats) for attendance verification.
+  - Architectural pivot documented in . NLYT Check-in/Heartbeat is now the primary arbiter of video attendance.
 
 **All files of reference** 
-  -  (New file handling Check-in and Heartbeat APIs)
-  -  (New participant-facing page to establish heartbeat)
-  -  (Updated to fetch and render proof sessions)
-  -  (Added )
-  -  (Added route for CheckinPage)
+  -  (Currently broken: sync/async bug on line 268)
+  -  (UI logic for hiding ICS/Checkin before guarantee)
+  -  (Updated to handle confirmation emails)
+  -  (Removed links from initial email)
 
 **Areas that need refactoring**: 
-  - MongoDB connection pooling (Performance).
+  - Sync vs Async handling in backend services, particularly Webhook endpoints calling internal async services.
 
 **key api endpoints**
-  -  (Expected)
-  -  (Expected)
-  -  (Expected to be in proof_routes or appointments)
+  -  (Failing currently due to async email call)
+  - 
 
 **Critical Info for New Agent** 
-- **Language:** You MUST reply in French.
-- **Current Context:** The user wants to break free from relying on Zoom/Teams APIs for proving attendance because the user currently has a Zoom Free plan (which blocks API reporting) and Microsoft Graph API can be complex. 
-- **Immediate Task:** The previous agent stopped exactly after injecting the UI code for NLYT Proof Sessions into . You need to pick up the development of the Check-in/Heartbeat system, ensure the backend logic is solid, and run a full End-to-End test of a participant checking in and sending heartbeats.
+- **LANGUAGE**: You must speak French with the user.
+- **IMMEDIATE FIX**: The previous agent left the codebase in a broken state regarding Stripe webhooks. In ,  is a synchronous method, but it tries to call . You must fix this  immediately so the server functions properly.
+- **PRODUCT RULES**: Remember that NLYT Proof is for Video *only*. GPS is for Physical *only*. Participants must pay their guarantee *before* getting meeting access.
 
 **documents and test reports created in this job** 
-  -  (Updated)
+  -  (Crucial new document summarizing product rules)
+  - 
   - 
   - 
 
 **Last 10 User Messages and any pending HUMAN messages** 
-1. (User) Found missing scope causing 403 error on Teams fetch.
-2. (Agent) Identified  missing, instructed user to add to Azure.
-3. (User) Asked how to respond to Azure consent prompt.
-4. (Agent) Guided user through consent.
-5. (User) Requested to make Zoom the default Grand public provider while keeping Teams/Meet.
-6. (Agent) Implemented Zoom as default (central mode) and updated UI wizard.
-7. (User) Provided Zoom Credentials. Agent activated them.
-8. (User) Asked to verify Zoom fetch attendance. Agent found a 400 error because the Zoom account is on a Free Plan.
-9. (User) Instructed to build a fallback CSV import for Zoom Free Plan, but also plans to upgrade to Pro later. Agent built the fallback UX.
-10. (User) **PENDING INTENT:** Concluded that Video APIs are too unreliable/restrictive. Requested a fundamental architectural shift: build NLYT's own internal Check-in & Heartbeat Proof system to act as the primary attendance validator, demoting Video APIs to a secondary bonus feature.
+1. (User) Requested fixing a bug where Organizer check-in lacked GPS capture for physical meetings.
+2. (Agent) Fixed Organizer GPS logic.
+3. (User) Requested a synthesized Architecture Document () documenting all recent pivots.
+4. (Agent) Created and saved the architecture document.
+5. (User) Requested integrating NLYT Proof into the actual decision engine ().
+6. (Agent) Implemented decision logic (Score >=60 = present), created tests, verified.
+7. (User) Clarified what happens if a user connects via Zoom but lacks an NLYT Proof session. Agent confirmed it falls back safely to .
+8. (User) Requested adding a text field to capture the Visio Display Name during NLYT Check-in. Agent added it.
+9. (User) Reported Outlook login failed. Agent fixed  variables.
+10. (User) **PENDING INTENT:** Highlighted that participants get the ICS file and Visio entry link *before* paying their Stripe guarantee. Requested locking down all access (UI and emails) until . (Agent started this but failed on the Stripe Webhook sync/async implementation).
 
 **Project Health Check:**
-Healthy. Compiles successfully. The new proof system is partially implemented but untested.
+BROKEN. The FastAPI backend will likely fail to start or crash during Stripe Webhooks due to  in .
 
 **3rd Party Integrations** 
-  • Stripe (Payments) — requires User API Key
-  • Google/Outlook Calendar — requires User API Key
-  • Microsoft Teams API — requires User API Key (Delegated & Legacy modes active)
-  • Zoom API — requires User API Key (Server-to-Server OAuth active, currently on Free Plan limit)
-  • Resend (Emails) — requires User API Key
+	 • Stripe (Payments) — requires User API Key
+	 • Microsoft Graph API (Outlook/Teams) — requires User API Key
+	 • Zoom API — requires User API Key
+	 • Resend (Emails) — requires User API Key
 
 **Testing status**
-  - Testing agent used after significant changes: YES (For Zoom/Teams changes)
+  - Testing agent used after significant changes: YES (Earlier in the session)
   - Troubleshoot agent used after agent stuck in loop: NO
-  - Test files created: None new.
-  - Known regressions: None currently.
-
-**Credentials to test flow:**
-  -  / 
-  - Workspace ID: 
+  - Test files created: , 
+  - Known regressions:  is broken due to async/await syntax error.
 
 **What agent forgot to execute**
-The agent was in the middle of creating the NLYT Internal Proof System. It created the files and updated  but did not finish testing or validating the Check-in and Heartbeat mechanism before the context ran out. The E2E flow of this new feature must be completed and tested.</analysis>
+The agent forgot to properly test the compilation/startup of the backend after making the final  change to . The agent realized it, attempted a regex replace, but the context window ended before a successful fix was applied.</analysis>

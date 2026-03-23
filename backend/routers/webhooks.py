@@ -117,7 +117,7 @@ async def stripe_webhook(request: Request):
                                 except Exception as act_err:
                                     print(f"[WEBHOOK] Activation error: {act_err}")
                             else:
-                                # Regular participant — send confirmation email
+                                # Regular participant — send confirmation email with ICS + proof link
                                 try:
                                     from services.email_service import EmailService
                                     
@@ -135,6 +135,11 @@ async def stripe_webhook(request: Request):
                                     ics_link = f"{frontend_url}/api/calendar/export/ics/{appointment['appointment_id']}"
                                     invitation_link = f"{frontend_url}/invitation/{participant.get('invitation_token')}"
                                     
+                                    # Build proof link for video appointments only
+                                    proof_link = None
+                                    if appointment.get('appointment_type') == 'video':
+                                        proof_link = f"{frontend_url}/proof/{appointment['appointment_id']}?token={participant.get('invitation_token', '')}"
+                                    
                                     await EmailService.send_acceptance_confirmation_email(
                                         to_email=participant.get('email', ''),
                                         to_name=participant_name,
@@ -146,7 +151,9 @@ async def stripe_webhook(request: Request):
                                         penalty_currency=appointment.get('penalty_currency', 'EUR'),
                                         cancellation_deadline_hours=appointment.get('cancellation_deadline_hours'),
                                         ics_link=ics_link,
-                                        invitation_link=invitation_link
+                                        invitation_link=invitation_link,
+                                        appointment_timezone=appointment.get('appointment_timezone', 'Europe/Paris'),
+                                        proof_link=proof_link,
                                     )
                                 except Exception as email_error:
                                     print(f"[WEBHOOK] Email error: {email_error}")

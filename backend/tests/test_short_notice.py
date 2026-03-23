@@ -12,7 +12,7 @@ MONGO_URL = "mongodb://localhost:27017"
 DB_NAME = "test_database"
 os.environ['MONGO_URL'] = MONGO_URL
 os.environ['DB_NAME'] = DB_NAME
-os.environ['FRONTEND_URL'] = 'https://proof-tracking.preview.emergentagent.com'
+os.environ['FRONTEND_URL'] = 'https://payment-access-1.preview.emergentagent.com'
 
 sys.path.insert(0, '/app/backend')
 

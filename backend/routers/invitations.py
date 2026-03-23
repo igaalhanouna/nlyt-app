@@ -121,6 +121,11 @@ async def get_invitation_details(request: Request, token: str):
                 "guarantee_status": guarantee.get('status')
             }
 
+    # ACCESS CONTROL: Only expose meeting details once engagement is finalized.
+    # 'accepted' = no guarantee required; 'accepted_guaranteed' = guarantee paid.
+    participant_status = participant.get('status', 'invited')
+    is_engagement_finalized = participant_status in ('accepted', 'accepted_guaranteed')
+
     # Build response with limited, privacy-conscious data
     return {
         "invitation_token": token,
@@ -129,7 +134,7 @@ async def get_invitation_details(request: Request, token: str):
             "first_name": participant.get('first_name', ''),
             "last_name": participant.get('last_name', ''),
             "email": participant.get('email', ''),
-            "status": participant.get('status', 'invited'),
+            "status": participant_status,
             "accepted_at": participant.get('accepted_at'),
             "declined_at": participant.get('declined_at'),
             "cancelled_at": participant.get('cancelled_at'),
@@ -142,7 +147,7 @@ async def get_invitation_details(request: Request, token: str):
             "appointment_type": appointment.get('appointment_type', ''),
             "location": appointment.get('location', ''),
             "meeting_provider": appointment.get('meeting_provider', ''),
-            "meeting_join_url": appointment.get('meeting_join_url', ''),
+            "meeting_join_url": appointment.get('meeting_join_url', '') if is_engagement_finalized else '',
             "start_datetime": utc_start,
             "formatted_date": formatted_date,
             "duration_minutes": appointment.get('duration_minutes', 60),
