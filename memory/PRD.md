@@ -109,6 +109,20 @@ Architecture complète documentée dans `/app/memory/STRIPE_CONNECT_ARCHITECTURE
 - [x] GET /api/appointments/:id/distributions (vue organisateur)
 - [x] Tests: iteration_54 — 42/42 backend (100%)
 
+### Phase 3b — WalletPage enrichie (Fév 2026) ✅
+- [x] 3 cartes de solde pédagogiques: En attente / Disponible / Retirable
+- [x] Distinction claire entre fonds en hold, fonds disponibles, fonds retirables
+- [x] Section "Distributions en cours" (pending_hold + contested)
+- [x] Section "Distributions passées" (completed + cancelled)
+- [x] Cartes expandables: explication contextuelle + répartition détaillée
+- [x] Breakdown: NLYT (commission) / Association / Organisateur / Participant(s)
+- [x] Badge "(vous)" sur la ligne du bénéficiaire courant
+- [x] Date de disponibilité (hold expiry) affichée
+- [x] Contestation MVP: bouton visible uniquement pour le no_show pendant le hold
+- [x] Formulaire de signalement: motif + soumission tracée
+- [x] Statuts: En attente / Contestée / Finalisée / Annulée avec couleurs
+- [x] Tests: iteration_55 — 17/17 backend + 13/13 frontend (100%)
+
 ### Phase 4 — Payouts (à faire)
 - [ ] POST /api/wallet/payout
 - [ ] Stripe Transfer vers compte Connect
