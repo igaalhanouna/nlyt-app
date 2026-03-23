@@ -668,12 +668,23 @@ def fetch_attendance_for_appointment(appointment_id: str) -> dict:
                     return {"error": "Rapport de présence Teams non disponible (réunion pas encore terminée ou aucun rapport généré)"}
                 except requests.exceptions.HTTPError as e:
                     status_code = e.response.status_code if e.response is not None else 0
-                    logger.warning(f"[MEETING] Teams delegated fetch_attendance failed (HTTP {status_code}): {e}")
+                    error_body = ""
+                    try:
+                        error_body = e.response.json().get("error", {}).get("code", "")
+                    except Exception:
+                        pass
+                    logger.warning(f"[MEETING] Teams delegated fetch_attendance failed (HTTP {status_code}, code={error_body}): {e}")
                     if status_code == 401:
-                        # Token expired and couldn't refresh — don't mark scope as revoked
                         return {"error": "Token Outlook expiré. Reconnectez votre compte Outlook dans les paramètres d'intégration."}
                     elif status_code == 403:
-                        return {"error": "Accès refusé. Reconnectez votre compte Outlook avec les permissions Teams dans les paramètres d'intégration."}
+                        # Check granted_scopes to give precise guidance
+                        granted = outlook_conn.get("granted_scopes") or []
+                        has_artifact_scope = "OnlineMeetingArtifact.Read.All" in granted
+                        if not has_artifact_scope:
+                            return {"error": "Permission manquante : le scope 'OnlineMeetingArtifact.Read.All' est requis pour récupérer les présences Teams. Ajoutez cette permission dans Azure Portal (API permissions) puis reconnectez votre compte Outlook."}
+                        return {"error": "Accès refusé par Microsoft Graph. Vérifiez que l'administrateur Azure AD a approuvé les permissions pour votre application."}
+                    elif status_code == 404:
+                        return {"error": "Rapport de présence Teams non trouvé. La réunion doit être terminée et avoir eu au moins 1 participant."}
                     return {"error": f"Erreur Teams ({status_code}). Réessayez après la fin de la réunion."}
                 except Exception as e:
                     logger.warning(f"[MEETING] Teams delegated fetch_attendance error: {e}")
