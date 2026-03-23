@@ -89,10 +89,25 @@ Architecture complète documentée dans `/app/memory/STRIPE_CONNECT_ARCHITECTURE
 - [x] Dev mode: simulation automatique si Stripe Connect non activé
 - [x] Tests : iteration_53 — 12/12 backend + 100% frontend
 
-### Phase 3 — Capture + Distribution (à faire)
-- [ ] distribution_service.py (calcul parts, symétrie organisateur)
-- [ ] Intégration post-évaluation assiduité
-- [ ] Scheduler job distribution différée (15j)
+### Phase 3 — Capture + Distribution (Fév 2026) ✅
+- [x] `distribution_service.py` — Moteur de calcul pur (compute_distribution) + create/finalize/cancel/contest
+- [x] Invariant strict: sum(beneficiaries) == capture_amount_cents toujours (centimes int, jamais float)
+- [x] Symétrie: organisateur no_show → sa compensation répartie entre participants présents, jamais à lui-même
+- [x] Symétrie: charité + plateforme inchangées même en cas de no_show organisateur
+- [x] Wallet platform (type=platform, user_id=__nlyt_platform__) crédité automatiquement
+- [x] Wallet charity (type=charity) créé par association configurée
+- [x] Hook post-évaluation: no_show haute confiance → capture + distribution automatique
+- [x] Hook post-évaluation: on_time/late haute confiance → release automatique
+- [x] Hook post-reclassification: manual_review→no_show → capture + distribution
+- [x] Hook post-reclassification: no_show→on_time → cancel distribution + release
+- [x] Scheduler job finalize_expired_holds() toutes les 15 minutes
+- [x] Hold 15 jours: pending_balance → available_balance après expiration
+- [x] Contestation bloque la finalisation (status=contested)
+- [x] Annulation: refund via debit_refund() sur chaque wallet crédité
+- [x] Idempotence stricte sur guarantee_id
+- [x] Endpoints API: GET /distributions, GET /distributions/:id, POST /distributions/:id/contest
+- [x] GET /api/appointments/:id/distributions (vue organisateur)
+- [x] Tests: iteration_54 — 42/42 backend (100%)
 
 ### Phase 4 — Payouts (à faire)
 - [ ] POST /api/wallet/payout
@@ -105,7 +120,7 @@ Architecture complète documentée dans `/app/memory/STRIPE_CONNECT_ARCHITECTURE
 
 ## Roadmap
 ### P1 — En cours
-- Stripe Connect Phases 3-5
+- Stripe Connect Phases 4-5
 - Calcul `video_api_points` (20pts bonus) dans le scoring NLYT Proof
 - Webhooks temps réel Zoom/Teams
 
