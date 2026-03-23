@@ -169,6 +169,23 @@ class ReminderService:
             if not reminder_time:
                 continue
             
+            # SHORT NOTICE RULE: Skip if the reminder time was already past
+            # when the appointment was activated
+            activated_at = ReminderService.parse_datetime(
+                apt.get('activated_at') or apt.get('created_at', '')
+            )
+            if activated_at and reminder_time < activated_at:
+                db.appointments.update_one(
+                    {"appointment_id": apt['appointment_id']},
+                    {"$set": {
+                        "reminder_sent": True,
+                        "reminder_skipped": True,
+                        "reminder_skip_reason": "short_notice",
+                    }}
+                )
+                logger.info(f"[REMINDER] ⏭️ Skipped deadline reminder for {apt['appointment_id']} (short notice)")
+                continue
+            
             # Check if it's time to send the reminder
             if now >= reminder_time:
                 # Check if the appointment hasn't already started

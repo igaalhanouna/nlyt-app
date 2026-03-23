@@ -950,6 +950,11 @@ export default function AppointmentDetail() {
               <div>
                 <p className="text-2xl font-bold text-slate-900">{appointment.cancellation_deadline_hours}h</p>
                 <p className="text-sm text-slate-600">Délai d'annulation</p>
+                {appointment.cancellation_deadline_hours_original && appointment.cancellation_deadline_hours_original !== appointment.cancellation_deadline_hours && (
+                  <p className="text-xs text-amber-600 mt-0.5" data-testid="deadline-adjusted-note">
+                    Ajusté de {appointment.cancellation_deadline_hours_original}h (short notice)
+                  </p>
+                )}
               </div>
             </div>
             <div className="text-xs text-slate-500">Avant pénalité</div>

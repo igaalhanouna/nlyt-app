@@ -181,6 +181,25 @@ class EventReminderService:
                 # Calculate when this reminder should be sent
                 reminder_time = start_dt - timedelta(minutes=config['minutes'])
                 
+                # SHORT NOTICE RULE: Skip reminders whose time was already past
+                # when the appointment was activated. This prevents a cascade of
+                # stale reminders firing all at once for short-notice meetings.
+                activated_at = EventReminderService.parse_datetime(
+                    apt.get('activated_at') or apt.get('created_at', '')
+                )
+                if activated_at and reminder_time < activated_at:
+                    # Mark as skipped so we don't check again
+                    db.appointments.update_one(
+                        {"appointment_id": apt['appointment_id']},
+                        {"$set": {
+                            f"event_reminders_sent.{sent_key}": True,
+                            f"event_reminders_sent.{reminder_type}_skipped": True,
+                            f"event_reminders_sent.{reminder_type}_skip_reason": "short_notice",
+                        }}
+                    )
+                    logger.info(f"[EVENT_REMINDER] ⏭️ Skipped {reminder_type} for {apt['appointment_id']} (short notice: reminder_time {reminder_time.isoformat()} < activated_at {activated_at.isoformat()})")
+                    continue
+                
                 # Check if it's time to send
                 if now >= reminder_time:
                     # Get participants

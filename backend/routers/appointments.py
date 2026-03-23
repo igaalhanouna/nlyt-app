@@ -95,6 +95,12 @@ async def create_appointment(appointment: AppointmentCreate, request: Request):
     if start_dt and start_dt <= now_utc():
         raise HTTPException(status_code=400, detail="Impossible de créer un rendez-vous dans le passé")
 
+    # SHORT NOTICE: Cap cancellation_deadline_hours to actual time until appointment
+    hours_until_start = (start_dt - now_utc()).total_seconds() / 3600 if start_dt else None
+    effective_cancellation_hours = appointment.cancellation_deadline_hours
+    if hours_until_start is not None and effective_cancellation_hours > hours_until_start:
+        effective_cancellation_hours = max(0, int(hours_until_start))
+
     appointment_doc = {
         "appointment_id": appointment_id,
         "workspace_id": appointment.workspace_id,
@@ -111,7 +117,8 @@ async def create_appointment(appointment: AppointmentCreate, request: Request):
         "start_datetime": utc_start,
         "duration_minutes": appointment.duration_minutes,
         "tolerated_delay_minutes": appointment.tolerated_delay_minutes,
-        "cancellation_deadline_hours": appointment.cancellation_deadline_hours,
+        "cancellation_deadline_hours": effective_cancellation_hours,
+        "cancellation_deadline_hours_original": appointment.cancellation_deadline_hours,
         "penalty_amount": appointment.penalty_amount,
         "penalty_currency": appointment.penalty_currency.lower(),
         "affected_compensation_percent": appointment.affected_compensation_percent,

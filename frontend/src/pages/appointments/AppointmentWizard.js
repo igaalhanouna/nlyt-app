@@ -826,10 +826,30 @@ export default function AppointmentWizard() {
           type="number"
           data-testid="appointment-cancellation-input"
           value={formData.cancellation_deadline_hours}
-          onChange={(e) => setFormData({ ...formData, cancellation_deadline_hours: parseInt(e.target.value) })}
-          min="1"
+          onChange={(e) => setFormData({ ...formData, cancellation_deadline_hours: parseInt(e.target.value) || 0 })}
+          min="0"
           className="mt-1"
         />
+        {(() => {
+          if (!formData.start_datetime) return null;
+          const now = new Date();
+          const start = new Date(formData.start_datetime);
+          const hoursUntil = Math.max(0, (start - now) / 3600000);
+          const configured = formData.cancellation_deadline_hours || 0;
+          if (configured > hoursUntil && hoursUntil > 0) {
+            const effective = Math.floor(hoursUntil);
+            return (
+              <div className="flex items-start gap-2 mt-2 p-2.5 bg-amber-50 border border-amber-200 rounded-lg" data-testid="short-notice-warning">
+                <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                <p className="text-xs text-amber-700">
+                  Le rendez-vous est dans <strong>{hoursUntil < 1 ? `${Math.round(hoursUntil * 60)} min` : `${hoursUntil.toFixed(1)}h`}</strong>.
+                  Le délai d'annulation sera automatiquement réduit à <strong>{effective}h</strong> (au lieu de {configured}h).
+                </p>
+              </div>
+            );
+          }
+          return null;
+        })()}
         <p className="text-sm text-slate-500 mt-1">
           Délai minimum pour annuler sans pénalité
         </p>
