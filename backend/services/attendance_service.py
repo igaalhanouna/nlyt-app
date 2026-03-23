@@ -196,10 +196,10 @@ def evaluate_participant(participant: dict, appointment: dict) -> dict:
                     "video_bonus": video_bonus,
                 }
 
-                # NLYT PROOF THRESHOLDS
-                # Strong (≥ 60): clear presence proof
-                if score >= 60:
-                    is_on_time = checkin_points >= 25  # 30=on_time, 15=slightly late
+                # NLYT PROOF THRESHOLDS (rebalanced Feb 2026)
+                # Strong (≥ 55): clear presence proof
+                if score >= 55:
+                    is_on_time = checkin_points >= 30  # 40=on_time, 20=slightly late
                     confidence = "high"
                     # Video API confirmation elevates confidence
                     if video_bonus and video_outcome in ("joined_on_time", "joined_late"):
@@ -214,7 +214,7 @@ def evaluate_participant(participant: dict, appointment: dict) -> dict:
                         "proof_context": proof_context,
                     }
 
-                # Medium (30-59): presence detected but ambiguous
+                # Medium (30-54): presence detected but ambiguous
                 if score >= 30:
                     confidence = "medium"
                     if video_bonus and video_outcome in ("joined_on_time", "joined_late"):

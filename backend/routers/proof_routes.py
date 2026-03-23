@@ -71,10 +71,28 @@ def _compute_active_duration(heartbeats: list) -> int:
 
 
 def _compute_score(session: dict, appointment: dict) -> dict:
-    """Compute proof score (0-100) from session data."""
-    score_breakdown = {"checkin_points": 0, "duration_points": 0, "video_api_points": 0}
+    """
+    Compute proof score (0-100) from session data.
 
-    # 1. Check-in on time (+30 pts)
+    Scoring breakdown (rebalanced Feb 2026):
+      - Check-in timing:       40 pts (active signal — used correct NLYT entry point at the right time)
+      - Duration / heartbeats: 30 pts (passive signal — proportional to meeting attendance)
+      - NLYT flow bonus:       10 pts (respected the NLYT Proof entry flow)
+      - Video API bonus:       20 pts (external confirmation from Zoom/Teams/Meet API)
+
+    Thresholds:
+      - strong (≥ 55): clear presence proof → suggested "present"
+      - medium (30–54): ambiguous → suggested "partial"
+      - weak   (< 30): insufficient → suggested "absent"
+    """
+    score_breakdown = {
+        "checkin_points": 0,
+        "duration_points": 0,
+        "flow_bonus": 0,
+        "video_api_points": 0,
+    }
+
+    # 1. Check-in timing (+40 pts max) — active, intentional signal
     start_str = appointment.get("start_datetime", "")
     tolerated = appointment.get("tolerated_delay_minutes", 10)
     try:
@@ -86,26 +104,33 @@ def _compute_score(session: dict, appointment: dict) -> dict:
         checkin_time = datetime.fromisoformat(session["checked_in_at"])
         delay_minutes = (checkin_time - apt_start).total_seconds() / 60
         if delay_minutes <= tolerated:
-            score_breakdown["checkin_points"] = 30
+            score_breakdown["checkin_points"] = 40   # On time or early
         elif delay_minutes <= tolerated * 2:
-            score_breakdown["checkin_points"] = 15
+            score_breakdown["checkin_points"] = 20   # Slightly late
         else:
-            score_breakdown["checkin_points"] = 5  # Late but present
+            score_breakdown["checkin_points"] = 5    # Very late but showed up
 
-    # 2. Duration ratio (+40 pts)
+    # 2. Duration / heartbeats (+30 pts max) — passive, proportional
     expected = appointment.get("duration_minutes", 30) * 60
     actual = session.get("active_duration_seconds", 0)
     if expected > 0:
         ratio = min(actual / expected, 1.0)
-        score_breakdown["duration_points"] = int(ratio * 40)
+        score_breakdown["duration_points"] = int(ratio * 30)
 
-    # 3. Video API confirmation (+30 pts) — extensible, always 0 for now
-    # Future: check if video_evidence confirms this participant
+    # 3. NLYT flow bonus (+10 pts) — participant used the correct NLYT Proof entry point
+    #    Every session in proof_sessions was created via /proof/{id}/checkin,
+    #    so existence = correct flow. Award bonus if check-in happened.
+    if session.get("checked_in_at"):
+        score_breakdown["flow_bonus"] = 10
+
+    # 4. Video API confirmation (+20 pts) — external provider confirmation
+    #    TODO: cross-reference video_evidence for this participant
+    #    score_breakdown["video_api_points"] = 20 when confirmed
 
     total = sum(score_breakdown.values())
 
-    # Determine proof level
-    if total >= 60:
+    # Determine proof level (rebalanced thresholds)
+    if total >= 55:
         proof_level = "strong"
         suggested = "present"
     elif total >= 30:
@@ -233,7 +258,7 @@ async def checkin(appointment_id: str, req: CheckinRequest):
         "checked_out_at": None,
         "active_duration_seconds": 0,
         "score": 0,
-        "score_breakdown": {"checkin_points": 0, "duration_points": 0, "video_api_points": 0},
+        "score_breakdown": {"checkin_points": 0, "duration_points": 0, "flow_bonus": 0, "video_api_points": 0},
         "proof_level": "weak",
         "suggested_status": "absent",
         "final_status": None,

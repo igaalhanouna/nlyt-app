@@ -1,0 +1,70 @@
+{
+  "summary": "NLYT Proof scoring rebalance testing completed. All 16 backend tests pass. Frontend loads correctly with proof sessions and video evidence panels rendering properly.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": {
+    "backend": [
+      "Health check returns 200",
+      "On-time check-in with 0 heartbeats = 50 pts (medium, not strong)",
+      "On-time check-in with 5 min heartbeats on 30 min meeting = 55 pts (strong)",
+      "Very late check-in (+25min) with 20 min heartbeats = 35 pts (medium)",
+      "On-time check-in with full 30 min session = 80 pts (strong)",
+      "score_breakdown includes flow_bonus key (4 keys total)",
+      "No check-in = no flow_bonus (0 pts)",
+      "Slightly late check-in gets 20 pts",
+      "Threshold 55 is strong",
+      "Threshold 54 is medium",
+      "attendance_service: score >= 55 triggers on_time with review_required=false",
+      "attendance_service: score 30-54 triggers manual_review with review_required=true",
+      "attendance_service: score < 30 triggers no_show with review_required=true",
+      "Session doc template includes flow_bonus in score_breakdown",
+      "Duration capped at 100% (30 pts max)",
+      "Early check-in gets full 40 pts"
+    ],
+    "frontend": [
+      "Login page loads and works with test credentials",
+      "Dashboard loads with 49 upcoming appointments",
+      "Appointment detail page loads correctly",
+      "Appointment title displays correctly",
+      "Status badge (data-testid='appointment-status-badge') shows 'Actif'",
+      "Proof sessions panel (data-testid='proof-sessions-section') renders",
+      "Video evidence panel (data-testid='video-evidence-section') renders"
+    ]
+  },
+  "verified_scoring_changes": {
+    "checkin_points_max": "40 pts (was 30)",
+    "duration_points_max": "30 pts (was 40)",
+    "flow_bonus": "10 pts (new)",
+    "video_api_points_max": "20 pts (was 30, still always 0)",
+    "strong_threshold": "55 (was 60)",
+    "is_on_time_check": "checkin_points >= 30 (was >= 25)"
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_proof_scoring_rebalance.py",
+    "/app/test_reports/pytest/pytest_proof_scoring_rebalance.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_proof_scoring_rebalance.py"
+  ],
+  "success_rate": {
+    "backend": "100% (16/16 passed)",
+    "frontend": "100% (7/7 verified)"
+  },
+  "test_credentials": {
+    "email": "testuser_audit@nlyt.app",
+    "password": "Test1234!"
+  },
+  "seed_data_creation": "None - used existing test data",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "NLYT Proof scoring rebalanced: (1) _compute_score in proof_routes.py now uses 40/30/10/20 weights instead of 30/40/0/30, (2) score_breakdown has 4 keys: checkin_points, duration_points, flow_bonus, video_api_points, (3) strong threshold lowered to 55 (was 60), (4) attendance_service.py uses score >= 55 for strong and checkin_points >= 30 for on_time. All tests pass."
+}
