@@ -518,6 +518,28 @@ export default function InvitationPage() {
 
     return (
       <div className="bg-white rounded-2xl border-2 border-slate-200 overflow-hidden mt-6" data-testid="checkin-section">
+        {(() => {
+          const effectiveStatus = responseStatus || participant?.status;
+          const isEngaged = effectiveStatus === 'accepted' || effectiveStatus === 'accepted_guaranteed';
+          
+          if (!isEngaged) {
+            return (
+              <div className="p-5 text-center">
+                <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <Clock className="w-6 h-6 text-slate-400" />
+                </div>
+                <p className="text-sm font-semibold text-slate-700">Accès au rendez-vous verrouillé</p>
+                <p className="text-xs text-slate-500 mt-1">
+                  {effectiveStatus === 'accepted_pending_guarantee'
+                    ? 'Finalisez votre garantie pour débloquer l\'accès au rendez-vous, au calendrier et à la visio.'
+                    : 'Acceptez l\'invitation pour accéder au rendez-vous.'}
+                </p>
+              </div>
+            );
+          }
+
+          return (
+            <>
         {/* Header band */}
         <div className={`px-5 py-3 text-center font-semibold text-sm ${
           isCheckedIn ? 'bg-emerald-600 text-white' :
@@ -730,6 +752,9 @@ export default function InvitationPage() {
             </div>
           )}
         </div>
+            </>
+          );
+        })()}
       </div>
     );
   };

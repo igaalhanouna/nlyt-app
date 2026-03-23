@@ -71,14 +71,14 @@ async def activate_appointment(appointment_id: str, organizer_user_id: str) -> d
         try:
             from services.email_service import EmailService
             invitation_link = f"{frontend_url}/invitation/{p['invitation_token']}"
-            ics_link = f"{frontend_url}/api/calendar/export/ics/{appointment_id}"
 
             p_name = f"{p.get('first_name', '')} {p.get('last_name', '')}".strip()
             if not p_name:
                 p_name = p.get('name') or p.get('email', '').split('@')[0]
 
-            proof_link = f"{frontend_url}/proof/{appointment_id}?token={p['invitation_token']}" if appointment.get('appointment_type') == 'video' else None
-
+            # RULE: Initial invitation email does NOT include ICS, proof_link, or meeting link.
+            # These are sent in the confirmation email after the participant has fully engaged
+            # (accepted + guarantee validated if required).
             await EmailService.send_invitation_email(
                 to_email=p['email'],
                 to_name=p_name,
@@ -91,11 +91,11 @@ async def activate_appointment(appointment_id: str, organizer_user_id: str) -> d
                 penalty_currency=appointment.get('penalty_currency', 'eur'),
                 cancellation_deadline_hours=appointment.get('cancellation_deadline_hours'),
                 appointment_id=appointment_id,
-                ics_link=ics_link,
+                ics_link=None,
                 appointment_timezone=appointment.get('appointment_timezone', 'Europe/Paris'),
-                meeting_join_url=appointment.get('meeting_join_url'),
+                meeting_join_url=None,
                 meeting_provider=appointment.get('meeting_provider'),
-                proof_link=proof_link,
+                proof_link=None,
             )
         except Exception as e:
             print(f"[ACTIVATE] Failed to send invitation to {p.get('email')}: {e}")

@@ -343,6 +343,9 @@ async def respond_to_invitation(request: Request, token: str, response: Invitati
             frontend_url = os.environ.get('FRONTEND_URL', '').rstrip('/')
             ics_link = f"{frontend_url}/api/calendar/export/ics/{appointment['appointment_id']}"
             invitation_link = f"{frontend_url}/invitation/{token}"
+            proof_link = None
+            if appointment.get('appointment_type') == 'video':
+                proof_link = f"{frontend_url}/proof/{appointment['appointment_id']}?token={token}"
             
             await EmailService.send_acceptance_confirmation_email(
                 to_email=participant.get('email', ''),
@@ -356,7 +359,8 @@ async def respond_to_invitation(request: Request, token: str, response: Invitati
                 cancellation_deadline_hours=appointment.get('cancellation_deadline_hours'),
                 ics_link=ics_link,
                 invitation_link=invitation_link,
-                appointment_timezone=appointment.get('appointment_timezone', 'Europe/Paris')
+                appointment_timezone=appointment.get('appointment_timezone', 'Europe/Paris'),
+                proof_link=proof_link,
             )
         except Exception as e:
             # Log error but don't fail the acceptance

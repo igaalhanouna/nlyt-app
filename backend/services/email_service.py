@@ -384,7 +384,8 @@ class EmailService:
         cancellation_deadline_hours: int = None,
         ics_link: str = None,
         invitation_link: str = None,
-        appointment_timezone: str = 'Europe/Paris'
+        appointment_timezone: str = 'Europe/Paris',
+        proof_link: str = None,
     ):
         """Send confirmation email after participant accepts invitation, with ICS download link"""
         formatted_date = format_email_datetime(appointment_datetime, appointment_timezone)
@@ -428,6 +429,23 @@ class EmailService:
                         </a>
                     </p>
             """
+
+        # NLYT Proof section (video appointments only)
+        proof_section_confirm = ""
+        if proof_link:
+            proof_section_confirm = f"""
+                    <div style="background: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: center;">
+                        <p style="margin: 0 0 8px 0; color: #1E40AF; font-weight: bold; font-size: 14px;">
+                            Confirmer ma presence le jour J
+                        </p>
+                        <p style="margin: 0 0 12px 0; color: #3B82F6; font-size: 12px;">
+                            Le jour du rendez-vous, utilisez ce lien pour confirmer votre presence et rejoindre la reunion.
+                        </p>
+                        <a href="{proof_link}" style="display: inline-block; padding: 12px 28px; background: #2563EB; color: white; text-decoration: none; border-radius: 8px; font-size: 14px; font-weight: bold;">
+                            Mon lien de presence NLYT
+                        </a>
+                    </div>
+            """
         
         subject = f"✅ Confirmation - {appointment_title}"
         html_content = f"""
@@ -469,6 +487,8 @@ class EmailService:
                     {penalty_reminder}
                     
                     {ics_button}
+                    
+                    {proof_section_confirm}
                     
                     {view_link}
                 </div>
