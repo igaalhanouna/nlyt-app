@@ -1,51 +1,51 @@
 # NLYT — Product Requirements Document
 
 ## Vision
-SaaS de gestion d'assiduité avec garanties financières. NLYT vérifie la présence des participants via des preuves indépendantes, sans dépendance critique à un provider vidéo.
+SaaS de gestion d'assiduité avec garanties financières. NLYT vérifie la présence des participants via des preuves indépendantes.
 
 ## Core Requirements
-1. Création de RDV (physique + vidéo) avec paramètres de pénalité
-2. Invitation par email avec liens sécurisés + lien NLYT Proof (visio uniquement)
+1. Création d'engagements (physique + vidéo) avec paramètres de pénalité
+2. Invitation par email avec liens sécurisés
 3. Workflow contractuel de modification unanime
-4. Garantie financière Stripe (setup mode, guarantee-first architecture)
-5. Preuves physiques : GPS, QR, check-in (organisateur inclus avec GPS)
-6. NLYT Proof System : check-in + heartbeat 30s + scoring 0-100 + validation organisateur
-7. Import de présences : API auto-fetch + CSV/JSON (bonus)
+4. Garantie financière Stripe (setup mode, guarantee-first)
+5. Preuves physiques : GPS, QR, check-in
+6. NLYT Proof System : check-in + heartbeat + scoring
+7. Import de présences : API auto-fetch
 8. Moteur de décision d'assiduité conservateur
 9. Page Intégrations (Calendriers + Visioconférence)
-10. Emails transactionnels avec gestion correcte des timezones
+10. Emails transactionnels
 11. Synchronisation calendrier (Google/Outlook)
-12. Verrouillage d'accès RDV jusqu'à validation garantie (ICS, visio, proof)
+12. Verrouillage d'accès jusqu'à validation garantie
 
 ## Technical Stack
 Frontend: React + TailwindCSS + Shadcn/UI
 Backend: FastAPI + Python + MongoDB + slowapi
-Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API (mode user)
+Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API
 
 ## Testing
 - iteration_59: 25/25 backend (Financial Email Notifications)
-- iteration_60: 27/27 backend+frontend (Workspace inline edit)
-- Credentials: testuser_audit@nlyt.app / Test1234!
+- iteration_60: 27/27 (Workspace inline edit)
+- iteration_61: 23/23 (Dashboard UX overhaul + remind endpoint)
 
 ## Completed — Stripe Connect (All Phases)
-- Phase 1: Wallet + Ledger ✅
-- Phase 2: Stripe Connect Express ✅
-- Phase 3: Capture + Distribution ✅
-- Phase 3b: WalletPage enrichie ✅
-- Charity Impact Tracking ✅
-- Page publique Impact NLYT ✅
-- Phase 4: Payouts réels ✅
+- Phase 1-4: Wallet, Connect, Distribution, Payouts ✅
 - Phase 5: Notifications email financières ✅
 
 ## Completed — UX Cleanup (Mars 2026)
 - [x] Suppression /policies et /analytics (placeholders vides)
 - [x] Refonte bloc Connect → "Compte bancaire" (zéro mention Stripe visible)
-- [x] Bug fix: lien "Modifier mon compte bancaire" inerte en dev mode → toast informatif
-- [x] Édition inline workspace : icône crayon, input nom + textarea description, Enter/Escape, sauvegarde PUT, "Ajouter une description" cliquable
+- [x] Bug fix: lien "Modifier mon compte bancaire" inerte en dev mode
+- [x] Édition inline workspace (crayon, Enter/Escape, PUT API)
+- [x] **Dashboard UX overhaul** — Interface de décision :
+  - Header : "Bonjour [Name]" + stats (X engagements | X à risque | €Y engagés)
+  - Financial summary : € sécurisé / € à risque
+  - Section priorité "À traiter maintenant" (risque élevé <24h)
+  - Cartes engagement : titre, date, type, durée, pénalité, barre de progression participants, risk badges (Sécurisé/À surveiller/Risque élevé)
+  - Actions par carte : "Voir détails" + "Relancer" (participants en attente)
+  - CTA : "Créer un engagement"
+  - Backend : POST /api/appointments/{id}/remind (relance email participants pending)
 
 ## Roadmap
-### P1
-- Webhooks temps réel Zoom/Teams
 
 ### P2
 - Pagination endpoints de liste (API + UI)
@@ -58,3 +58,4 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API (mode user)
 - Templates email externalisés (fichiers HTML)
 - Pages dédiées par association + Partage social + leaderboard
 - Index MongoDB (performance)
+- Webhooks temps réel Zoom/Teams (conditionnel, pas de dépendance)
