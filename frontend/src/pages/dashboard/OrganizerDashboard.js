@@ -1,13 +1,268 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useWorkspace } from '../../contexts/WorkspaceContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { appointmentAPI } from '../../services/api';
 import { Button } from '../../components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/tabs';
-import { CalendarPlus, LogOut, Settings, Calendar, Users, MapPin, Video, Trash2, Check, X, Clock, Building2, ChevronDown, Plus, Ban, ShieldCheck, CreditCard, History, Play } from 'lucide-react';
+import {
+  CalendarPlus, LogOut, Settings, Calendar, Users, MapPin, Video,
+  Trash2, Check, X, Clock, Building2, ChevronDown, Plus, Ban,
+  ShieldCheck, CreditCard, History, Play, AlertTriangle, Bell,
+  ArrowRight, Flame, Shield, Euro, Eye
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDateTimeCompactFr, parseUTC } from '../../utils/dateFormat';
+
+// ── Helpers ──
+
+const ACCEPTED_STATUSES = new Set(['accepted', 'accepted_guaranteed']);
+const PENDING_STATUSES = new Set(['invited', 'accepted_pending_guarantee']);
+
+function getParticipantCounts(appointment) {
+  const participants = appointment.participants || [];
+  const total = participants.length;
+  const accepted = participants.filter(p => ACCEPTED_STATUSES.has(p.status)).length;
+  const pending = participants.filter(p => PENDING_STATUSES.has(p.status)).length;
+  return { total, accepted, pending };
+}
+
+function getRisk(appointment, now) {
+  const start = parseUTC(appointment.start_datetime);
+  if (!start) return 'secured';
+  const { total, accepted, pending } = getParticipantCounts(appointment);
+  if (total === 0) return 'secured';
+  const hoursUntil = (start - now) / 3600000;
+  if (hoursUntil <= 0) return 'secured'; // already started/past
+
+  if (accepted === total) return 'secured';
+  if (hoursUntil <= 24 && pending > 0) return 'high';
+  if (hoursUntil <= 48 || pending > 0) return 'medium';
+  return 'secured';
+}
+
+const RISK_CONFIG = {
+  high:     { label: 'Risque élevé', className: 'bg-red-100 text-red-700 border-red-200', dot: 'bg-red-500', icon: AlertTriangle },
+  medium:   { label: 'À surveiller', className: 'bg-amber-50 text-amber-700 border-amber-200', dot: 'bg-amber-500', icon: Clock },
+  secured:  { label: 'Sécurisé', className: 'bg-emerald-50 text-emerald-700 border-emerald-200', dot: 'bg-emerald-500', icon: Shield },
+};
+
+function fmtEuro(amount) {
+  return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', minimumFractionDigits: 0 }).format(amount || 0);
+}
+
+// ── Sub-components ──
+
+function HeaderStats({ user, stats }) {
+  return (
+    <div className="mb-8">
+      <h2 className="text-2xl font-bold text-slate-900 mb-1" data-testid="dashboard-title">
+        Bonjour, {user?.first_name}
+      </h2>
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-slate-500 mt-1" data-testid="dashboard-stats">
+        <span><span className="font-semibold text-slate-700">{stats.upcoming}</span> engagement{stats.upcoming !== 1 ? 's' : ''}</span>
+        <span className="text-slate-300">|</span>
+        <span><span className="font-semibold text-red-600">{stats.atRisk}</span> à risque</span>
+        <span className="text-slate-300">|</span>
+        <span><span className="font-semibold text-slate-700">{fmtEuro(stats.totalEngaged)}</span> engagé{stats.totalEngaged !== 1 ? 's' : ''}</span>
+      </div>
+    </div>
+  );
+}
+
+function FinancialSummary({ secured, atRisk }) {
+  return (
+    <div className="grid grid-cols-2 gap-4 mb-6" data-testid="financial-summary">
+      <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+        <div className="flex items-center gap-2 mb-1">
+          <Shield className="w-4 h-4 text-emerald-600" />
+          <span className="text-xs font-medium text-emerald-600 uppercase tracking-wide">Sécurisé</span>
+        </div>
+        <p className="text-2xl font-bold text-emerald-700" data-testid="secured-amount">{fmtEuro(secured)}</p>
+      </div>
+      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+        <div className="flex items-center gap-2 mb-1">
+          <AlertTriangle className="w-4 h-4 text-red-500" />
+          <span className="text-xs font-medium text-red-500 uppercase tracking-wide">À risque</span>
+        </div>
+        <p className="text-2xl font-bold text-red-600" data-testid="at-risk-amount">{fmtEuro(atRisk)}</p>
+      </div>
+    </div>
+  );
+}
+
+function PrioritySection({ items, onRemind }) {
+  if (items.length === 0) return null;
+  return (
+    <div className="mb-6 bg-red-50/60 border border-red-200 rounded-lg p-5" data-testid="priority-section">
+      <div className="flex items-center gap-2 mb-4">
+        <Flame className="w-5 h-5 text-red-500" />
+        <h3 className="text-base font-semibold text-red-700">À traiter maintenant</h3>
+        <span className="ml-auto text-xs text-red-400 font-medium">{items.length} engagement{items.length > 1 ? 's' : ''}</span>
+      </div>
+      <div className="space-y-3">
+        {items.slice(0, 5).map(a => (
+          <PriorityCard key={a.appointment_id} appointment={a} onRemind={onRemind} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function PriorityCard({ appointment, onRemind }) {
+  const { total, accepted, pending } = getParticipantCounts(appointment);
+  return (
+    <div className="flex items-center gap-4 bg-white border border-red-100 rounded-lg p-3" data-testid={`priority-card-${appointment.appointment_id}`}>
+      <div className="flex-1 min-w-0">
+        <p className="font-semibold text-sm text-slate-900 truncate">{appointment.title}</p>
+        <p className="text-xs text-slate-500">{formatDateTimeCompactFr(appointment.start_datetime)} · {appointment.duration_minutes} min</p>
+      </div>
+      <div className="text-xs text-right whitespace-nowrap">
+        <span className="text-red-600 font-semibold">{pending} en attente</span>
+        <span className="text-slate-400"> / {total}</span>
+      </div>
+      <div className="flex items-center gap-1.5">
+        <Button size="sm" variant="outline" className="h-7 text-xs border-red-200 text-red-600 hover:bg-red-50" onClick={(e) => { e.stopPropagation(); onRemind(appointment); }} data-testid={`remind-priority-${appointment.appointment_id}`}>
+          <Bell className="w-3 h-3 mr-1" /> Relancer
+        </Button>
+        <Link to={`/appointments/${appointment.appointment_id}`}>
+          <Button size="sm" variant="ghost" className="h-7 text-xs" data-testid={`view-priority-${appointment.appointment_id}`}>
+            <Eye className="w-3 h-3 mr-1" /> Voir
+          </Button>
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+function EngagementCard({ appointment, isPast, onDelete, onRemind, now }) {
+  const risk = isPast ? 'secured' : getRisk(appointment, now);
+  const riskCfg = RISK_CONFIG[risk];
+  const RiskIcon = riskCfg.icon;
+  const { total, accepted, pending } = getParticipantCounts(appointment);
+  const progressPct = total > 0 ? Math.round((accepted / total) * 100) : 100;
+  const badge = getTemporalBadge(appointment, now);
+  const isOngoing = badge.key === 'ongoing';
+
+  return (
+    <div
+      className={`relative border rounded-lg transition-all ${
+        isOngoing ? 'border-blue-300 bg-blue-50/30 ring-1 ring-blue-200'
+          : isPast ? 'border-slate-150 bg-slate-50/50 hover:border-slate-300'
+          : 'border-slate-200 hover:border-slate-300 hover:shadow-sm'
+      }`}
+      data-testid={`appointment-card-${appointment.appointment_id}`}
+    >
+      <Link to={`/appointments/${appointment.appointment_id}`} className="block p-4">
+        {/* Row 1: Title + Risk badge */}
+        <div className="flex items-start justify-between gap-3 mb-2">
+          <h4 className={`font-semibold text-sm leading-tight ${isPast && !isOngoing ? 'text-slate-500' : 'text-slate-900'}`}>
+            {isOngoing && <Play className="w-3.5 h-3.5 inline mr-1 text-blue-600" />}
+            {appointment.title}
+          </h4>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {!isPast && (
+              <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium rounded-full border ${riskCfg.className}`} data-testid={`risk-badge-${appointment.appointment_id}`}>
+                <RiskIcon className="w-3 h-3" />
+                {riskCfg.label}
+              </span>
+            )}
+            <span className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${badge.className}`}>
+              {badge.label}
+            </span>
+          </div>
+        </div>
+
+        {/* Row 2: Meta */}
+        <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 mb-3">
+          <span>{formatDateTimeCompactFr(appointment.start_datetime)}</span>
+          <span className="text-slate-300">·</span>
+          <span>{appointment.duration_minutes} min</span>
+          <span className="text-slate-300">·</span>
+          <span className="flex items-center gap-1">
+            {appointment.appointment_type === 'physical'
+              ? <><MapPin className="w-3 h-3" /> Physique</>
+              : <><Video className="w-3 h-3" /> {appointment.meeting_provider || 'Visio'}</>
+            }
+          </span>
+          {appointment.penalty_amount > 0 && (
+            <>
+              <span className="text-slate-300">·</span>
+              <span className="flex items-center gap-1 text-slate-600 font-medium">
+                <Euro className="w-3 h-3" /> {fmtEuro(appointment.penalty_amount)}
+              </span>
+            </>
+          )}
+        </div>
+
+        {/* Row 3: Participants + Progress */}
+        {total > 0 && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-slate-600 flex items-center gap-1.5">
+                <Users className="w-3.5 h-3.5" />
+                <span className="font-medium">{accepted}</span>/{total} confirmé{accepted !== 1 ? 's' : ''}
+                {pending > 0 && <span className="text-amber-600 ml-1">({pending} en attente)</span>}
+              </span>
+              <span className="text-slate-400 font-medium">{progressPct}%</span>
+            </div>
+            <div className="w-full bg-slate-100 rounded-full h-1.5">
+              <div
+                className={`h-1.5 rounded-full transition-all ${
+                  progressPct === 100 ? 'bg-emerald-500' : progressPct >= 50 ? 'bg-amber-400' : 'bg-red-400'
+                }`}
+                style={{ width: `${progressPct}%` }}
+                data-testid={`progress-bar-${appointment.appointment_id}`}
+              />
+            </div>
+          </div>
+        )}
+      </Link>
+
+      {/* Actions row */}
+      <div className="flex items-center gap-2 px-4 pb-3 pt-1">
+        <Link to={`/appointments/${appointment.appointment_id}`}>
+          <Button size="sm" variant="outline" className="h-7 text-xs" data-testid={`view-details-${appointment.appointment_id}`}>
+            <Eye className="w-3 h-3 mr-1" /> Voir détails
+          </Button>
+        </Link>
+        {!isPast && pending > 0 && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 text-xs border-amber-200 text-amber-700 hover:bg-amber-50"
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onRemind(appointment); }}
+            data-testid={`remind-btn-${appointment.appointment_id}`}
+          >
+            <Bell className="w-3 h-3 mr-1" /> Relancer
+          </Button>
+        )}
+        <button
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDelete(appointment); }}
+          className="ml-auto p-1.5 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors"
+          title="Supprimer"
+          data-testid={`delete-appointment-${appointment.appointment_id}`}
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function getTemporalBadge(appointment, now) {
+  if (appointment.status === 'cancelled') return { key: 'cancelled', label: 'Annulé', className: 'bg-red-100 text-red-800' };
+  if (appointment.status === 'pending_organizer_guarantee') return { key: 'pending_guarantee', label: 'Garantie en attente', className: 'bg-amber-100 text-amber-800' };
+  if (appointment.status === 'draft') return { key: 'draft', label: 'Brouillon', className: 'bg-slate-100 text-slate-800' };
+  const start = parseUTC(appointment.start_datetime);
+  if (!start) return { key: 'past', label: 'Terminé', className: 'bg-slate-100 text-slate-600' };
+  const end = new Date(start.getTime() + (appointment.duration_minutes || 0) * 60000);
+  if (now >= start && now < end) return { key: 'ongoing', label: 'En cours', className: 'bg-blue-100 text-blue-800' };
+  if (end < now) return { key: 'past', label: 'Terminé', className: 'bg-slate-100 text-slate-600' };
+  return { key: 'active', label: 'Actif', className: 'bg-emerald-100 text-emerald-800' };
+}
+
+// ── Main Dashboard ──
 
 export default function OrganizerDashboard() {
   const { user, logout } = useAuth();
@@ -20,9 +275,7 @@ export default function OrganizerDashboard() {
   const [workspaceDropdownOpen, setWorkspaceDropdownOpen] = useState(false);
 
   useEffect(() => {
-    if (currentWorkspace) {
-      loadAppointments();
-    }
+    if (currentWorkspace) loadAppointments();
   }, [currentWorkspace]);
 
   const loadAppointments = async () => {
@@ -30,245 +283,103 @@ export default function OrganizerDashboard() {
       const response = await appointmentAPI.list(currentWorkspace.workspace_id);
       setAppointments(response.data.appointments || []);
     } catch (error) {
-      toast.error('Erreur lors du chargement des rendez-vous');
+      toast.error('Erreur lors du chargement des engagements');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDeleteClick = (e, appointment) => {
-    e.preventDefault(); // Prevent navigation to appointment detail
-    e.stopPropagation();
+  const handleDeleteClick = (appointment) => {
     setDeleteModal({ open: true, appointment });
   };
 
   const handleConfirmDelete = async () => {
     if (!deleteModal.appointment) return;
-    
     setDeleting(true);
     try {
       await appointmentAPI.delete(deleteModal.appointment.appointment_id);
-      // Optimistic UI update - remove from list immediately
       setAppointments(prev => prev.filter(a => a.appointment_id !== deleteModal.appointment.appointment_id));
-      toast.success('Rendez-vous supprimé avec succès');
+      toast.success('Engagement supprimé');
       setDeleteModal({ open: false, appointment: null });
     } catch (error) {
-      console.error('Delete error:', error);
-      toast.error('Erreur lors de la suppression du rendez-vous');
+      toast.error('Erreur lors de la suppression');
     } finally {
       setDeleting(false);
     }
   };
 
-  const handleCancelDelete = () => {
-    setDeleteModal({ open: false, appointment: null });
+  const handleRemind = async (appointment) => {
+    try {
+      await appointmentAPI.remind(appointment.appointment_id);
+      toast.success('Relance envoyée aux participants en attente');
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Erreur lors de la relance');
+    }
   };
 
   const handleSelectWorkspace = (workspace) => {
     selectWorkspace(workspace);
     setWorkspaceDropdownOpen(false);
     setLoading(true);
-    // Appointments will reload via useEffect when currentWorkspace changes
   };
 
-  const handleCreateWorkspace = () => {
-    setWorkspaceDropdownOpen(false);
-    navigate('/workspace/create');
-  };
-
-  const getStatusInfo = (s) => {
-    switch(s) {
-      case 'accepted_guaranteed':
-        return { label: 'Garanti', icon: ShieldCheck, className: 'bg-green-100 text-green-800' };
-      case 'accepted_pending_guarantee':
-        return { label: 'Garantie en cours', icon: CreditCard, className: 'bg-amber-100 text-amber-800' };
-      case 'accepted':
-        return { label: 'Accepté', icon: Check, className: 'bg-green-100 text-green-800' };
-      case 'declined':
-        return { label: 'Refusé', icon: X, className: 'bg-red-100 text-red-800' };
-      case 'cancelled_by_participant':
-        return { label: 'Annulé', icon: Ban, className: 'bg-orange-100 text-orange-800' };
-      default:
-        return { label: 'En attente', icon: Clock, className: 'bg-slate-100 text-slate-800' };
-    }
-  };
-
-  // Compute end time: start + duration. Backend returns UTC ISO strings.
-  const getEndTime = (appointment) => {
-    const start = parseUTC(appointment.start_datetime);
-    if (!start) return new Date();
-    return new Date(start.getTime() + (appointment.duration_minutes || 0) * 60000);
-  };
-
-  const getAppointmentTemporalState = (appointment) => {
+  // ── Computed data ──
+  const computed = useMemo(() => {
     const now = new Date();
-    const start = parseUTC(appointment.start_datetime);
-    if (!start) return 'past';
-    const end = getEndTime(appointment);
-    if (now < start) return 'upcoming';
-    if (now >= start && now < end) return 'ongoing';
-    return 'past';
-  };
+    const upcoming = appointments
+      .filter(a => {
+        const start = parseUTC(a.start_datetime);
+        if (!start) return false;
+        const end = new Date(start.getTime() + (a.duration_minutes || 0) * 60000);
+        return end >= now;
+      })
+      .sort((a, b) => new Date(a.start_datetime) - new Date(b.start_datetime));
 
-  const getAppointmentStatusBadge = (appointment) => {
-    if (appointment.status === 'cancelled') {
-      return { label: 'Annulé', className: 'bg-red-100 text-red-800' };
-    }
-    if (appointment.status === 'pending_organizer_guarantee') {
-      return { label: 'En attente de garantie', className: 'bg-amber-100 text-amber-800' };
-    }
-    if (appointment.status === 'draft') {
-      return { label: 'Brouillon', className: 'bg-slate-100 text-slate-800' };
-    }
-    const temporal = getAppointmentTemporalState(appointment);
-    if (temporal === 'ongoing') {
-      return { label: 'En cours', className: 'bg-blue-100 text-blue-800' };
-    }
-    if (temporal === 'past') {
-      return { label: 'Terminé', className: 'bg-slate-100 text-slate-600' };
-    }
-    return { label: 'Actif', className: 'bg-emerald-100 text-emerald-800' };
-  };
+    const past = appointments
+      .filter(a => {
+        const start = parseUTC(a.start_datetime);
+        if (!start) return true;
+        const end = new Date(start.getTime() + (a.duration_minutes || 0) * 60000);
+        return end < now;
+      })
+      .sort((a, b) => new Date(b.start_datetime) - new Date(a.start_datetime));
 
-  const renderAppointmentCard = (appointment, isPast = false) => {
-    const badge = getAppointmentStatusBadge(appointment);
-    const isOngoing = getAppointmentTemporalState(appointment) === 'ongoing';
+    // Risk computation
+    let secured = 0, atRisk = 0, atRiskCount = 0;
+    const priorityItems = [];
 
-    return (
-      <div
-        key={appointment.appointment_id}
-        className={`relative p-4 border rounded-lg transition-all ${
-          isOngoing
-            ? 'border-blue-300 bg-blue-50/30 ring-1 ring-blue-200'
-            : isPast
-              ? 'border-slate-150 bg-slate-50/50 hover:border-slate-300'
-              : 'border-slate-200 hover:border-slate-300 hover:shadow-sm'
-        }`}
-        data-testid={`appointment-card-${appointment.appointment_id}`}
-      >
-        <Link
-          to={`/appointments/${appointment.appointment_id}`}
-          className="block"
-        >
-          <div className="flex items-start justify-between pr-10">
-            <div className="flex-1">
-              <h4 className={`font-semibold mb-1 ${isPast && !isOngoing ? 'text-slate-600' : 'text-slate-900'}`}>
-                {isOngoing && <Play className="w-4 h-4 inline mr-1.5 text-blue-600" />}
-                {appointment.title}
-              </h4>
-              <p className="text-sm text-slate-600 mb-2">
-                {formatDateTimeCompactFr(appointment.start_datetime)}
-              </p>
-              
-              <div className="flex flex-wrap items-center gap-3 text-sm text-slate-500">
-                <span className="flex items-center gap-1">
-                  {appointment.appointment_type === 'physical' ? (
-                    <><MapPin className="w-4 h-4" /> {appointment.location}</>
-                  ) : (
-                    <><Video className="w-4 h-4" /> {appointment.meeting_provider}</>
-                  )}
-                </span>
-                <span>• {appointment.duration_minutes} min</span>
-              </div>
+    upcoming.forEach(a => {
+      const risk = getRisk(a, now);
+      const penalty = a.penalty_amount || 0;
+      if (risk === 'secured') {
+        secured += penalty;
+      } else {
+        atRisk += penalty;
+        atRiskCount++;
+      }
+      if (risk === 'high') priorityItems.push(a);
+    });
 
-              {appointment.participants && appointment.participants.length > 0 && (
-                <div className="mt-3 pt-3 border-t border-slate-100">
-                  <div className="flex items-center gap-2 text-sm text-slate-600 mb-2">
-                    <Users className="w-4 h-4" />
-                    <span className="font-medium">{appointment.participants.length} participant{appointment.participants.length > 1 ? 's' : ''}</span>
-                    {appointment.participants_status_summary && (
-                      <span className="text-xs text-slate-500">
-                        ({appointment.participants_status_summary.accepted || 0} accepté{(appointment.participants_status_summary.accepted || 0) > 1 ? 's' : ''},
-                        {' '}{appointment.participants_status_summary.invited || 0} en attente)
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {appointment.participants.slice(0, 5).map((p, idx) => {
-                      const name = p.first_name && p.last_name 
-                        ? `${p.first_name} ${p.last_name}`
-                        : p.name || p.email.split('@')[0];
-                      const statusInfo = getStatusInfo(p.status || 'invited');
-                      const StatusIcon = statusInfo.icon;
-                      return (
-                        <span 
-                          key={idx}
-                          className={`inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full ${statusInfo.className}`}
-                          title={`${name} - ${statusInfo.label}`}
-                        >
-                          <StatusIcon className="w-3 h-3" />
-                          {name}
-                        </span>
-                      );
-                    })}
-                    {appointment.participants.length > 5 && (
-                      <span className="inline-flex items-center px-2 py-1 bg-slate-200 text-slate-600 text-xs rounded-full">
-                        +{appointment.participants.length - 5} autres
-                      </span>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-            
-            <span className={`ml-4 px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${badge.className}`}>
-              {badge.label}
-            </span>
-          </div>
-        </Link>
-        
-        <button
-          onClick={(e) => handleDeleteClick(e, appointment)}
-          className="absolute top-4 right-4 p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-          title="Supprimer le rendez-vous"
-          data-testid={`delete-appointment-${appointment.appointment_id}`}
-        >
-          <Trash2 className="w-4 h-4" />
-        </button>
-      </div>
-    );
-  };
+    return { now, upcoming, past, secured, atRisk, atRiskCount, priorityItems, totalEngaged: secured + atRisk };
+  }, [appointments]);
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Delete Confirmation Modal */}
+      {/* Delete Modal */}
       {deleteModal.open && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={handleCancelDelete}>
-          <div 
-            className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6"
-            onClick={e => e.stopPropagation()}
-          >
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setDeleteModal({ open: false, appointment: null })}>
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6" onClick={e => e.stopPropagation()}>
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-full bg-rose-100 flex items-center justify-center">
                 <Trash2 className="w-5 h-5 text-rose-600" />
               </div>
-              <h3 className="text-lg font-semibold text-slate-900">Supprimer le rendez-vous</h3>
+              <h3 className="text-lg font-semibold text-slate-900">Supprimer cet engagement</h3>
             </div>
-            
-            <p className="text-slate-600 mb-2">
-              Voulez-vous vraiment supprimer ce rendez-vous ?
-            </p>
-            <p className="text-sm text-slate-500 mb-6">
-              <strong>"{deleteModal.appointment?.title}"</strong>
-              <br />
-              Cette action est irréversible.
-            </p>
-            
+            <p className="text-slate-600 mb-1">Voulez-vous vraiment supprimer cet engagement ?</p>
+            <p className="text-sm text-slate-500 mb-6"><strong>"{deleteModal.appointment?.title}"</strong><br />Cette action est irréversible.</p>
             <div className="flex gap-3 justify-end">
-              <Button 
-                variant="outline" 
-                onClick={handleCancelDelete}
-                disabled={deleting}
-              >
-                Annuler
-              </Button>
-              <Button 
-                variant="destructive"
-                onClick={handleConfirmDelete}
-                disabled={deleting}
-                className="bg-rose-600 hover:bg-rose-700 text-white"
-                data-testid="confirm-delete-btn"
-              >
+              <Button variant="outline" onClick={() => setDeleteModal({ open: false, appointment: null })} disabled={deleting}>Annuler</Button>
+              <Button variant="destructive" onClick={handleConfirmDelete} disabled={deleting} className="bg-rose-600 hover:bg-rose-700 text-white" data-testid="confirm-delete-btn">
                 {deleting ? 'Suppression...' : 'Supprimer'}
               </Button>
             </div>
@@ -276,39 +387,27 @@ export default function OrganizerDashboard() {
         </div>
       )}
 
+      {/* Nav */}
       <nav className="bg-white border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-8">
             <h1 className="text-2xl font-bold text-slate-900">NLYT</h1>
             <div className="flex items-center gap-6">
-              <Link to="/dashboard" className="text-sm font-medium text-slate-900">
-                Tableau de bord
-              </Link>
+              <Link to="/dashboard" className="text-sm font-medium text-slate-900">Tableau de bord</Link>
             </div>
           </div>
           <div className="flex items-center gap-4">
-            <Link to="/settings">
-              <Button variant="ghost" size="sm">
-                <Settings className="w-4 h-4 mr-2" />
-                Paramètres
-              </Button>
-            </Link>
-            <Button variant="ghost" size="sm" onClick={logout} data-testid="logout-btn">
-              <LogOut className="w-4 h-4 mr-2" />
-              Déconnexion
-            </Button>
+            <Link to="/settings"><Button variant="ghost" size="sm"><Settings className="w-4 h-4 mr-2" />Paramètres</Button></Link>
+            <Button variant="ghost" size="sm" onClick={logout} data-testid="logout-btn"><LogOut className="w-4 h-4 mr-2" />Déconnexion</Button>
           </div>
         </div>
       </nav>
 
       <div className="max-w-7xl mx-auto px-6 py-8">
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold text-slate-900 mb-2" data-testid="dashboard-title">
-            Bonjour, {user?.first_name}
-          </h2>
-          
-          {/* Workspace Switcher */}
-          <div className="relative inline-block">
+        {/* Header + Workspace Switcher */}
+        <div className="flex items-start justify-between mb-2">
+          <HeaderStats user={user} stats={{ upcoming: computed.upcoming.length, atRisk: computed.atRiskCount, totalEngaged: computed.totalEngaged }} />
+          <div className="relative flex-shrink-0">
             <button
               onClick={() => setWorkspaceDropdownOpen(!workspaceDropdownOpen)}
               className="flex items-center gap-2 px-3 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors text-sm"
@@ -318,49 +417,31 @@ export default function OrganizerDashboard() {
               <span className="font-medium text-slate-800">{currentWorkspace?.name}</span>
               <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform ${workspaceDropdownOpen ? 'rotate-180' : ''}`} />
             </button>
-            
-            {/* Dropdown */}
             {workspaceDropdownOpen && (
               <>
-                {/* Backdrop */}
-                <div 
-                  className="fixed inset-0 z-10" 
-                  onClick={() => setWorkspaceDropdownOpen(false)}
-                />
-                
-                {/* Dropdown Menu */}
-                <div className="absolute left-0 top-full mt-2 w-72 bg-white rounded-lg shadow-lg border border-slate-200 z-20" data-testid="workspace-dropdown">
+                <div className="fixed inset-0 z-10" onClick={() => setWorkspaceDropdownOpen(false)} />
+                <div className="absolute right-0 top-full mt-2 w-72 bg-white rounded-lg shadow-lg border border-slate-200 z-20" data-testid="workspace-dropdown">
                   <div className="p-2">
                     <p className="text-xs font-medium text-slate-500 uppercase px-2 py-1">Vos workspaces</p>
-                    
-                    {workspaces.map((workspace) => (
+                    {workspaces.map(ws => (
                       <button
-                        key={workspace.workspace_id}
-                        onClick={() => handleSelectWorkspace(workspace)}
-                        className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-left transition-colors ${
-                          workspace.workspace_id === currentWorkspace?.workspace_id
-                            ? 'bg-slate-100 text-slate-900'
-                            : 'hover:bg-slate-50 text-slate-700'
-                        }`}
-                        data-testid={`workspace-option-${workspace.workspace_id}`}
+                        key={ws.workspace_id}
+                        onClick={() => handleSelectWorkspace(ws)}
+                        className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-left transition-colors ${ws.workspace_id === currentWorkspace?.workspace_id ? 'bg-slate-100 text-slate-900' : 'hover:bg-slate-50 text-slate-700'}`}
+                        data-testid={`workspace-option-${ws.workspace_id}`}
                       >
                         <Building2 className="w-4 h-4 text-slate-500" />
                         <div className="flex-1 min-w-0">
-                          <p className="font-medium truncate">{workspace.name}</p>
-                          {workspace.description && (
-                            <p className="text-xs text-slate-500 truncate">{workspace.description}</p>
-                          )}
+                          <p className="font-medium truncate">{ws.name}</p>
+                          {ws.description && <p className="text-xs text-slate-500 truncate">{ws.description}</p>}
                         </div>
-                        {workspace.workspace_id === currentWorkspace?.workspace_id && (
-                          <Check className="w-4 h-4 text-green-600" />
-                        )}
+                        {ws.workspace_id === currentWorkspace?.workspace_id && <Check className="w-4 h-4 text-green-600" />}
                       </button>
                     ))}
                   </div>
-                  
                   <div className="border-t border-slate-100 p-2">
                     <button
-                      onClick={handleCreateWorkspace}
+                      onClick={() => { setWorkspaceDropdownOpen(false); navigate('/workspace/create'); }}
                       className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-left hover:bg-slate-50 text-slate-700 transition-colors"
                       data-testid="create-new-workspace-btn"
                     >
@@ -374,18 +455,27 @@ export default function OrganizerDashboard() {
           </div>
         </div>
 
-        <div className="mb-8">
+        {/* Financial Summary + CTA */}
+        {!loading && appointments.length > 0 && (
+          <FinancialSummary secured={computed.secured} atRisk={computed.atRisk} />
+        )}
+
+        <div className="mb-6">
           <Link to="/appointments/create">
             <Button size="lg" data-testid="create-appointment-btn">
               <CalendarPlus className="w-5 h-5 mr-2" />
-              Créer un rendez-vous
+              Créer un engagement
             </Button>
           </Link>
         </div>
 
+        {/* Priority Section */}
+        {!loading && <PrioritySection items={computed.priorityItems} onRemind={handleRemind} />}
+
+        {/* Main list */}
         <div className="bg-white rounded-lg border border-slate-200 p-6">
-          <h3 className="text-xl font-semibold text-slate-900 mb-4">Mes rendez-vous</h3>
-          
+          <h3 className="text-lg font-semibold text-slate-900 mb-4">Engagements</h3>
+
           {loading ? (
             <div className="text-center py-12">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900 mx-auto"></div>
@@ -393,86 +483,60 @@ export default function OrganizerDashboard() {
           ) : appointments.length === 0 ? (
             <div className="text-center py-12">
               <Calendar className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-              <p className="text-slate-600 mb-4">Aucun rendez-vous pour le moment</p>
-              <Link to="/appointments/create">
-                <Button variant="outline">Créer votre premier rendez-vous</Button>
-              </Link>
+              <p className="text-slate-600 mb-4">Aucun engagement pour le moment</p>
+              <Link to="/appointments/create"><Button variant="outline">Créer votre premier engagement</Button></Link>
             </div>
-          ) : (() => {
-            const now = new Date();
-            // "À venir" = not yet ended (upcoming + ongoing)
-            // "Passés" = ended (end_time < now)
-            const upcoming = appointments
-              .filter(a => {
-                const start = parseUTC(a.start_datetime);
-                if (!start) return false;
-                const end = new Date(start.getTime() + (a.duration_minutes || 0) * 60000);
-                return end >= now;
-              })
-              .sort((a, b) => new Date(a.start_datetime) - new Date(b.start_datetime));
-            const past = appointments
-              .filter(a => {
-                const start = parseUTC(a.start_datetime);
-                if (!start) return true;
-                const end = new Date(start.getTime() + (a.duration_minutes || 0) * 60000);
-                return end < now;
-              })
-              .sort((a, b) => new Date(b.start_datetime) - new Date(a.start_datetime));
-
-            return (
-              <Tabs defaultValue="upcoming">
-                <TabsList className="mb-6">
-                  <TabsTrigger value="upcoming" data-testid="tab-upcoming">
-                    <Calendar className="w-4 h-4 mr-2" />
-                    À venir
-                    {upcoming.length > 0 && (
-                      <span className="ml-2 px-2 py-0.5 text-xs font-semibold bg-slate-900 text-white rounded-full">
-                        {upcoming.length}
-                      </span>
-                    )}
-                  </TabsTrigger>
-                  <TabsTrigger value="past" data-testid="tab-past">
-                    <History className="w-4 h-4 mr-2" />
-                    Passés
-                    {past.length > 0 && (
-                      <span className="ml-2 px-2 py-0.5 text-xs font-semibold bg-slate-200 text-slate-600 rounded-full">
-                        {past.length}
-                      </span>
-                    )}
-                  </TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="upcoming">
-                  {upcoming.length === 0 ? (
-                    <div className="text-center py-12">
-                      <Calendar className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-                      <p className="text-slate-500">Aucun rendez-vous à venir</p>
-                      <Link to="/appointments/create" className="mt-3 inline-block">
-                        <Button variant="outline" size="sm">Planifier un rendez-vous</Button>
-                      </Link>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {upcoming.map((appointment) => renderAppointmentCard(appointment))}
-                    </div>
+          ) : (
+            <Tabs defaultValue="upcoming">
+              <TabsList className="mb-6">
+                <TabsTrigger value="upcoming" data-testid="tab-upcoming">
+                  <Calendar className="w-4 h-4 mr-2" />
+                  À venir
+                  {computed.upcoming.length > 0 && (
+                    <span className="ml-2 px-2 py-0.5 text-xs font-semibold bg-slate-900 text-white rounded-full">{computed.upcoming.length}</span>
                   )}
-                </TabsContent>
-
-                <TabsContent value="past">
-                  {past.length === 0 ? (
-                    <div className="text-center py-12">
-                      <History className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-                      <p className="text-slate-500">Aucun rendez-vous passé</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {past.map((appointment) => renderAppointmentCard(appointment, true))}
-                    </div>
+                </TabsTrigger>
+                <TabsTrigger value="past" data-testid="tab-past">
+                  <History className="w-4 h-4 mr-2" />
+                  Passés
+                  {computed.past.length > 0 && (
+                    <span className="ml-2 px-2 py-0.5 text-xs font-semibold bg-slate-200 text-slate-600 rounded-full">{computed.past.length}</span>
                   )}
-                </TabsContent>
-              </Tabs>
-            );
-          })()}
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="upcoming">
+                {computed.upcoming.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Calendar className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                    <p className="text-slate-500">Aucun engagement à venir</p>
+                    <Link to="/appointments/create" className="mt-3 inline-block"><Button variant="outline" size="sm">Planifier un engagement</Button></Link>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {computed.upcoming.map(a => (
+                      <EngagementCard key={a.appointment_id} appointment={a} isPast={false} onDelete={handleDeleteClick} onRemind={handleRemind} now={computed.now} />
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="past">
+                {computed.past.length === 0 ? (
+                  <div className="text-center py-12">
+                    <History className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                    <p className="text-slate-500">Aucun engagement passé</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {computed.past.map(a => (
+                      <EngagementCard key={a.appointment_id} appointment={a} isPast={true} onDelete={handleDeleteClick} onRemind={handleRemind} now={computed.now} />
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
+          )}
         </div>
       </div>
     </div>

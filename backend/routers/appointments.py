@@ -849,3 +849,59 @@ async def get_appointment_distributions(appointment_id: str, request: Request):
     from services.distribution_service import get_distributions_for_appointment
     distributions = get_distributions_for_appointment(appointment_id)
     return {"distributions": distributions}
+
+
+@router.post("/{appointment_id}/remind")
+async def remind_participants(appointment_id: str, request: Request):
+    """Send reminder to pending participants."""
+    user = await get_current_user(request)
+
+    appointment = db.appointments.find_one({"appointment_id": appointment_id}, {"_id": 0})
+    if not appointment:
+        raise HTTPException(status_code=404, detail="Engagement introuvable")
+    if appointment.get("organizer_id") != user["user_id"]:
+        raise HTTPException(status_code=403, detail="Seul l'organisateur peut relancer")
+
+    # Fetch participants from separate collection (not embedded in appointment doc)
+    participants = list(db.participants.find(
+        {"appointment_id": appointment_id},
+        {"_id": 0, "participant_id": 1, "email": 1, "first_name": 1, "last_name": 1, 
+         "status": 1, "invitation_token": 1, "is_organizer": 1}
+    ))
+    
+    pending_statuses = {"invited", "accepted_pending_guarantee"}
+    # Exclude organizer from reminders
+    pending = [p for p in participants if p.get("status") in pending_statuses and not p.get("is_organizer")]
+
+    if not pending:
+        raise HTTPException(status_code=400, detail="Aucun participant en attente")
+
+    frontend_url = get_frontend_url(request)
+    from services.email_service import EmailService
+    organizer = db.users.find_one({"user_id": user["user_id"]}, {"_id": 0})
+    organizer_name = f"{organizer.get('first_name', '')} {organizer.get('last_name', '')}".strip() if organizer else "L'organisateur"
+    sent = 0
+
+    for p in pending:
+        try:
+            invitation_link = f"{frontend_url}/invitation/{p.get('invitation_token', '')}"
+            name = f"{p.get('first_name', '')} {p.get('last_name', '')}".strip() or p.get("email", "").split("@")[0]
+            await EmailService.send_invitation_email(
+                to_email=p["email"],
+                to_name=name,
+                organizer_name=organizer_name,
+                appointment_title=appointment.get("title", ""),
+                appointment_datetime=appointment.get("start_datetime", ""),
+                invitation_link=invitation_link,
+                location=appointment.get("location"),
+                penalty_amount=appointment.get("penalty_amount"),
+                penalty_currency=appointment.get("penalty_currency", "EUR"),
+                cancellation_deadline_hours=appointment.get("cancellation_deadline_hours"),
+                appointment_id=appointment_id,
+            )
+            sent += 1
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"Remind email failed for {p.get('email')}: {e}")
+
+    return {"success": True, "reminded": sent, "total_pending": len(pending)}
