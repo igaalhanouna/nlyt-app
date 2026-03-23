@@ -1,0 +1,69 @@
+{
+  "summary": "ICS Content Changes - All 11 tests passed. ICS files now contain ONLY the NLYT invitation page link (no direct visio/proof links). The endpoint /api/calendar/export/ics/{id} accepts optional ?token= query param. When provided, it resolves the participant and includes their invitation link in DESCRIPTION. Without token, no link is included. Frontend and email ICS links now include the token. Cancelled appointments show ANNULE message with no links.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": {
+    "backend": [
+      "GET /api/health returns 200",
+      "GET /api/calendar/export/ics/{apt_id}?token={valid_token} returns ICS with invitation link in DESCRIPTION",
+      "GET /api/calendar/export/ics/{apt_id} (no token) returns ICS WITHOUT invitation link in DESCRIPTION",
+      "ICS DESCRIPTION contains NO direct visio links (zoom/teams/meet/proof URLs)",
+      "ICS DESCRIPTION for cancelled appointment shows ANNULE message (no links)",
+      "Email ICS link (in send_confirmation_email_once helper) includes ?token= parameter",
+      "Frontend InvitationPage ICS download links include ?token= parameter (2 instances at lines 1134 and 1197)",
+      "ICS without token still contains basic appointment info (SUMMARY, DESCRIPTION, etc.)",
+      "Cancelled appointment ICS has STATUS:CANCELLED",
+      "LOCATION field shows 'Visio - {provider}' for video appointments (label, not clickable link)",
+      "ICS DESCRIPTION uses escaped newlines (\\n in ICS format)"
+    ],
+    "frontend": [
+      "InvitationPage loads correctly",
+      "ICS download button (data-testid=download-ics-btn) visible for accepted invitations",
+      "ICS download button href includes ?token= parameter with correct appointment ID and token"
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_ics_content.py",
+    "/app/test_reports/pytest/pytest_ics_content.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_ics_content.py"
+  ],
+  "success_rate": {
+    "backend": "100% (11/11 passed)",
+    "frontend": "100% (3/3 passed)"
+  },
+  "test_credentials": {
+    "email": "testuser_audit@nlyt.app",
+    "password": "Test1234!",
+    "active_appointment_id": "a860bab5-c885-4787-a73e-3779529d3b8a",
+    "valid_token": "17b556f4-876f-44c1-86b9-0203dced05d3",
+    "cancelled_appointment_id": "3250f725-9daf-4911-bedc-b001f733c4d7"
+  },
+  "seed_data_creation": "Used existing test data from previous iterations",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "ICS content changes verified. The export_appointment_ics endpoint at line 760 in calendar_routes.py now accepts optional token query param. When token is provided, it looks up the participant and includes their invitation link (frontend_url/invitation/{token}) in the DESCRIPTION. Without token, no link is included. Cancelled appointments show [ANNULE] in title and 'CE RENDEZ-VOUS A ETE ANNULE' message with no links. Email ICS link at line 66 in invitations.py includes ?token=. Frontend ICS links at lines 1134 and 1197 in InvitationPage.js include ?token=${token}. LOCATION field shows 'Visio - {provider}' as a label (not a clickable link) for video appointments.",
+  "verified_features": {
+    "ics_with_token_includes_invitation_link": true,
+    "ics_without_token_no_invitation_link": true,
+    "ics_no_direct_visio_links": true,
+    "ics_no_proof_links": true,
+    "cancelled_ics_shows_annule": true,
+    "cancelled_ics_no_links": true,
+    "email_ics_link_includes_token": true,
+    "frontend_ics_links_include_token": true,
+    "ics_location_shows_visio_label": true,
+    "ics_uses_escaped_newlines": true,
+    "health_endpoint_working": true
+  }
+}

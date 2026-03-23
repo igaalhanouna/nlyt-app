@@ -758,8 +758,9 @@ async def unsync_appointment_from_calendar(appointment_id: str, request: Request
 # ── ICS Export (unchanged, public) ──────────────────────────
 
 @router.get("/export/ics/{appointment_id}")
-async def export_appointment_ics(appointment_id: str):
-    """Generate and download ICS file for an appointment (public, no auth)."""
+async def export_appointment_ics(appointment_id: str, token: str = None):
+    """Generate and download ICS file for an appointment.
+    If token (invitation_token) is provided, includes participant-specific invitation link."""
     appointment = db.appointments.find_one({"appointment_id": appointment_id}, {"_id": 0})
 
     if not appointment:
@@ -775,27 +776,46 @@ async def export_appointment_ics(appointment_id: str):
     if organizer:
         organizer_name = f"{organizer.get('first_name', '')} {organizer.get('last_name', '')}".strip() or "L'organisateur"
 
+    frontend_url = os.environ.get('FRONTEND_URL', '').rstrip('/')
+
     if is_cancelled:
         description_lines = [
             "CE RENDEZ-VOUS A ETE ANNULE",
             "",
-            f"Rendez-vous initialement organisé par {organizer_name}.",
+            f"Rendez-vous initialement organise par {organizer_name}.",
             "---",
-            "Généré par NLYT"
+            "Genere par NLYT"
         ]
     else:
+        # Build invitation link if token provided
+        invitation_link = ""
+        if token:
+            participant = db.participants.find_one(
+                {"appointment_id": appointment_id, "invitation_token": token},
+                {"_id": 0, "invitation_token": 1}
+            )
+            if participant:
+                invitation_link = f"{frontend_url}/invitation/{token}"
+
         description_lines = [
-            f"Rendez-vous organisé via NLYT par {organizer_name}.",
+            f"Rendez-vous organise via NLYT par {organizer_name}.",
             "",
-            "=== REGLES D'ENGAGEMENT ===",
-            f"Délai d'annulation : {appointment.get('cancellation_deadline_hours', 24)}h avant le rendez-vous",
-            f"Retard toléré : {appointment.get('tolerated_delay_minutes', 0)} minute(s)",
-            f"Pénalité en cas d'absence : {appointment.get('penalty_amount', 0)} {appointment.get('penalty_currency', 'EUR').upper()}",
-            "",
-            "En acceptant ce rendez-vous, vous vous engagez à respecter ces conditions.",
-            "---",
-            "Généré par NLYT"
         ]
+
+        if invitation_link:
+            description_lines.extend([
+                "Acceder au rendez-vous et confirmer votre presence :",
+                invitation_link,
+                "",
+            ])
+
+        description_lines.extend([
+            f"Delai d'annulation : {appointment.get('cancellation_deadline_hours', 24)}h avant le rendez-vous",
+            f"Retard tolere : {appointment.get('tolerated_delay_minutes', 0)} minute(s)",
+            f"Penalite en cas d'absence : {appointment.get('penalty_amount', 0)} {appointment.get('penalty_currency', 'EUR').upper()}",
+            "---",
+            "Genere par NLYT"
+        ])
     description = "\\n".join(description_lines)
 
     location = appointment.get('location', '')

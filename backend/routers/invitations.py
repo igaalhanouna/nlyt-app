@@ -63,7 +63,7 @@ async def send_confirmation_email_once(participant: dict, appointment: dict):
         apt_id = appointment['appointment_id']
         token = participant.get('invitation_token', '')
 
-        ics_link = f"{frontend_url}/api/calendar/export/ics/{apt_id}"
+        ics_link = f"{frontend_url}/api/calendar/export/ics/{apt_id}?token={token}"
         invitation_link = f"{frontend_url}/invitation/{token}"
 
         # Proof link for video, invitation link (with check-in anchor) for physical

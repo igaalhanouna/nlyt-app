@@ -214,9 +214,9 @@ class ICSGenerator:
                 
                 # Description
                 if is_cancelled:
-                    desc = "Ce rendez-vous a été annulé."
+                    desc = "Ce rendez-vous a ete annule."
                 else:
-                    desc = f"Rendez-vous NLYT. Pénalité: {apt.get('penalty_amount', 0)} {apt.get('penalty_currency', 'EUR').upper()}"
+                    desc = f"Rendez-vous NLYT organise via nlyt.app. Penalite: {apt.get('penalty_amount', 0)} {apt.get('penalty_currency', 'EUR').upper()}"
                 desc = ICSGenerator.escape_ics_text(desc)
                 
                 lines.append("BEGIN:VEVENT")

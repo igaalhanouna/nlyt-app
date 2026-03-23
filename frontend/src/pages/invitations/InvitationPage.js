@@ -1131,7 +1131,7 @@ export default function InvitationPage() {
                 {/* Add to calendar button */}
                 <div className="mt-6 pt-4 border-t border-slate-200">
                   <a
-                    href={`${API_URL}/api/calendar/export/ics/${appointment.appointment_id}`}
+                    href={`${API_URL}/api/calendar/export/ics/${appointment.appointment_id}?token=${token}`}
                     download
                     className="inline-flex items-center gap-2 px-6 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition-colors font-medium"
                     data-testid="download-ics-btn"
@@ -1194,7 +1194,7 @@ export default function InvitationPage() {
                 {/* Add to calendar button */}
                 <div className="mt-6 pt-4 border-t border-slate-200">
                   <a
-                    href={`${API_URL}/api/calendar/export/ics/${appointment.appointment_id}`}
+                    href={`${API_URL}/api/calendar/export/ics/${appointment.appointment_id}?token=${token}`}
                     download
                     className="inline-flex items-center gap-2 px-6 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition-colors font-medium"
                     data-testid="download-ics-btn"
