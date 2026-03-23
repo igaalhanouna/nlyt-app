@@ -16,7 +16,7 @@ const CONNECT_STATUS_CONFIG = {
   not_started: { label: 'Compte bancaire non configuré', description: 'Vous devez lier votre compte bancaire pour retirer vos fonds.', icon: AlertTriangle, color: 'text-amber-600', bg: 'bg-amber-50 border-amber-200', actionLabel: 'Lier mon compte bancaire' },
   onboarding: { label: 'Vérification en cours', description: 'Votre compte bancaire est en cours de vérification.', icon: Clock, color: 'text-blue-600', bg: 'bg-blue-50 border-blue-200', actionLabel: 'Reprendre la vérification' },
   restricted: { label: 'Informations requises', description: 'Des informations complémentaires sont nécessaires pour finaliser la liaison.', icon: ShieldAlert, color: 'text-orange-600', bg: 'bg-orange-50 border-orange-200', actionLabel: 'Compléter la vérification' },
-  active: { label: 'Compte bancaire', description: 'Votre compte bancaire est lié. Vous pouvez retirer vos fonds à tout moment.', icon: CheckCircle, color: 'text-emerald-600', bg: 'bg-emerald-50 border-emerald-200', actionLabel: 'Modifier mes informations bancaires' },
+  active: { label: 'Votre compte bancaire', description: 'Votre compte bancaire est lié. Vous pouvez retirer vos fonds à tout moment.', icon: CheckCircle, color: 'text-emerald-600', bg: 'bg-emerald-50 border-emerald-200', actionLabel: 'Modifier mon compte bancaire' },
   disabled: { label: 'Compte bancaire désactivé', description: 'Contactez le support pour plus d\'informations.', icon: XCircle, color: 'text-red-600', bg: 'bg-red-50 border-red-200', actionLabel: 'Reconfigurer' },
 };
 
@@ -79,7 +79,7 @@ function BalanceCards({ wallet, onPayout, payoutLoading }) {
       <div className="bg-white border border-slate-200 rounded-lg p-4">
         <div className="flex items-center gap-2 mb-1">
           <Banknote className="w-3.5 h-3.5 text-slate-400" />
-          <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Retirable</p>
+          <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Retirable vers votre banque</p>
         </div>
         <p className="text-xl font-bold text-slate-500" data-testid="withdrawable-balance">
           {wallet.can_payout ? fmt(wallet.available_balance, wallet.currency) : fmt(0, wallet.currency)}
@@ -436,7 +436,7 @@ function ImpactSection({ impact }) {
 
 /* ─── Connect Status Card ───────────────────────────────────── */
 
-function ConnectStatusCard({ connectStatus, onOnboard, onDashboard, onRefresh, onboarding }) {
+function ConnectStatusCard({ connectStatus, onOnboard, onDashboard, onRefresh, onboarding, onPayout, canPayout }) {
   const status = connectStatus?.connect_status || 'not_started';
   const cfg = CONNECT_STATUS_CONFIG[status] || CONNECT_STATUS_CONFIG.not_started;
   const StatusIcon = cfg.icon;
@@ -453,13 +453,25 @@ function ConnectStatusCard({ connectStatus, onOnboard, onDashboard, onRefresh, o
           )}
           <div className="mt-3 flex items-center gap-3">
             {status === 'active' ? (
-              <button
-                onClick={onDashboard}
-                className="text-xs text-slate-500 hover:text-slate-700 underline underline-offset-2 transition-colors"
-                data-testid="stripe-dashboard-btn"
-              >
-                {cfg.actionLabel} →
-              </button>
+              <>
+                <Button
+                  size="sm"
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs"
+                  onClick={canPayout ? onPayout : undefined}
+                  disabled={!canPayout}
+                  data-testid="connect-payout-btn"
+                >
+                  <ArrowUpRight className="w-3.5 h-3.5 mr-1.5" />
+                  Retirer mes fonds
+                </Button>
+                <button
+                  onClick={onDashboard}
+                  className="text-xs text-slate-500 hover:text-slate-700 underline underline-offset-2 transition-colors"
+                  data-testid="stripe-dashboard-btn"
+                >
+                  {cfg.actionLabel} →
+                </button>
+              </>
             ) : (
               <Button size="sm" onClick={onOnboard} disabled={onboarding} data-testid="connect-onboard-btn">
                 {onboarding ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <Banknote className="w-3.5 h-3.5 mr-1.5" />}
@@ -708,6 +720,8 @@ export default function WalletPage() {
           onDashboard={handleDashboard}
           onRefresh={fetchData}
           onboarding={onboarding}
+          onPayout={() => setShowPayoutConfirm(true)}
+          canPayout={wallet?.can_payout}
         />
 
         {/* Payout Confirmation Modal */}
