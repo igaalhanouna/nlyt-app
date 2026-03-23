@@ -1017,26 +1017,7 @@ export default function AppointmentDetail() {
                     </div>
                     {appointment.meeting_join_url ? (
                       <div className="flex flex-col gap-2 mt-1.5">
-                        {/* Meeting links — Central mode (Zoom): single join link for everyone */}
                         {(() => {
-                          const metadata = appointment.meeting_provider_metadata || {};
-                          const isCentralMode = metadata.creation_mode === 'central';
-                          
-                          if (isCentralMode) {
-                            return (
-                              <a
-                                href={appointment.meeting_join_url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1.5 text-sm font-semibold text-blue-600 hover:text-blue-800 hover:underline"
-                                data-testid="meeting-join-url"
-                              >
-                                <Link2 className="w-3.5 h-3.5" />
-                                Rejoindre la réunion
-                              </a>
-                            );
-                          }
-                          
                           if (appointment.meeting_host_url) {
                             return (
                               <div className="flex flex-col gap-1.5">
@@ -1050,31 +1031,31 @@ export default function AppointmentDetail() {
                                   <Link2 className="w-3.5 h-3.5" />
                                   Démarrer la réunion (organisateur)
                                 </a>
-                                <a
-                                  href={appointment.meeting_join_url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700 hover:underline"
-                                  data-testid="meeting-join-url"
-                                >
-                                  <ExternalLink className="w-3 h-3" />
-                                  Lien participant
-                                </a>
+                                <p className="text-xs text-slate-400 flex items-center gap-1">
+                                  <Fingerprint className="w-3 h-3" />
+                                  Les participants accèdent via leur lien NLYT Proof personnel
+                                </p>
                               </div>
                             );
                           }
                           
                           return (
-                            <a
-                              href={appointment.meeting_join_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline"
-                              data-testid="meeting-join-url"
-                            >
-                              <Link2 className="w-3.5 h-3.5" />
-                              Rejoindre la réunion
-                            </a>
+                            <div className="flex flex-col gap-1.5">
+                              <a
+                                href={appointment.meeting_join_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline"
+                                data-testid="meeting-join-url"
+                              >
+                                <Link2 className="w-3.5 h-3.5" />
+                                Rejoindre la réunion (organisateur)
+                              </a>
+                              <p className="text-xs text-slate-400 flex items-center gap-1">
+                                <Fingerprint className="w-3 h-3" />
+                                Les participants accèdent via leur lien NLYT Proof personnel
+                              </p>
+                            </div>
                           );
                         })()}
 

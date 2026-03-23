@@ -251,16 +251,25 @@ class EmailService:
             provider_label = {"zoom": "Zoom", "teams": "Microsoft Teams", "meet": "Google Meet"}.get(
                 (meeting_provider or "").lower(), meeting_provider or "Visioconférence"
             )
-            meeting_section = f"""
+            if proof_link:
+                # Video with NLYT Proof: show provider info only, no direct link (proof link is the entry point)
+                meeting_section = f"""
                         <p style="margin: 8px 0; color: #64748B;">
-                            <strong>🖥️ Visioconférence :</strong> {provider_label}
+                            <strong>Visioconference :</strong> {provider_label}
+                        </p>
+                """
+            else:
+                # Fallback: no proof link (shouldn't happen for video, but safety net)
+                meeting_section = f"""
+                        <p style="margin: 8px 0; color: #64748B;">
+                            <strong>Visioconference :</strong> {provider_label}
                         </p>
                         <div style="text-align: center; margin: 12px 0;">
                             <a href="{meeting_join_url}" style="display: inline-block; padding: 10px 24px; background: #6366F1; color: white; text-decoration: none; border-radius: 6px; font-size: 14px; font-weight: bold;">
-                                Rejoindre la réunion {provider_label}
+                                Rejoindre la reunion {provider_label}
                             </a>
                         </div>
-            """
+                """
             location_display = f"En ligne ({provider_label})"
         
         # Build ICS calendar link section

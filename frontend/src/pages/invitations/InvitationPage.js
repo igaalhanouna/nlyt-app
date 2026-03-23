@@ -624,34 +624,30 @@ export default function InvitationPage() {
                 </p>
               </div>
 
-              {/* ─── VIDEO APPOINTMENT: video connection is primary proof ─── */}
+              {/* ─── VIDEO APPOINTMENT: NLYT Proof is the unique entry point ─── */}
               {appointment.appointment_type === 'video' ? (
                 <div>
-                  {/* Primary: join the meeting */}
+                  {/* Primary: NLYT Proof link */}
                   <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4 text-center" data-testid="video-primary-proof">
                     <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
                       <Video className="w-6 h-6 text-blue-600" />
                     </div>
                     <p className="text-sm font-semibold text-blue-900 mb-1">
-                      Rejoignez la réunion pour confirmer votre présence
+                      Confirmez votre présence et rejoignez la réunion
                     </p>
                     <p className="text-xs text-blue-700 mb-3">
-                      Votre présence sera vérifiée après la réunion via le rapport du provider.
+                      Ce lien enregistre votre présence puis ouvre la visio automatiquement.
                     </p>
-                    {appointment.meeting_join_url && (
-                      <a
-                        href={appointment.meeting_join_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-2 px-5 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 active:scale-[0.98] transition-all font-semibold text-sm"
-                        data-testid="join-meeting-btn"
-                      >
-                        <Video className="w-4 h-4" />
-                        Rejoindre la réunion
-                      </a>
-                    )}
+                    <a
+                      href={`/proof/${appointment.appointment_id}?token=${token}`}
+                      className="inline-flex items-center gap-2 px-5 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 active:scale-[0.98] transition-all font-semibold text-sm"
+                      data-testid="join-meeting-btn"
+                    >
+                      <Video className="w-4 h-4" />
+                      Confirmer ma présence
+                    </a>
                     {!appointment.meeting_join_url && appointment.meeting_provider && (
-                      <p className="text-xs text-blue-600 italic">
+                      <p className="text-xs text-blue-600 italic mt-2">
                         Le lien de réunion sera disponible prochainement via {appointment.meeting_provider}.
                       </p>
                     )}
