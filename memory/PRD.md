@@ -44,144 +44,70 @@ Backend: FastAPI + Python + MongoDB + slowapi
 Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API (mode user)
 
 ## Testing
-- iteration_50: 13/13 backend + 10/10 frontend (Consolidation non-régression)
+- iteration_59: 25/25 backend (Financial Email Notifications)
 - Credentials: testuser_audit@nlyt.app / Test1234!
 
 ## Completed — Consolidation Phase (Fév 2026)
 - [x] **Centralisation MongoClient** : 64 instances dispersées -> 1 instance unique dans `database.py`. 32 fichiers migrés.
-- [x] **Découpe AppointmentDetail.js** : 2701 -> 1592 lignes. 5 sous-composants extraits :
-  - `ProofSessionsPanel.js` (181L) — Sessions NLYT Proof
-  - `VideoEvidencePanel.js` (453L) — Preuves vidéo (ingest, fetch, CSV, logs)
-  - `AttendancePanel.js` (139L) — Détection de présence + reclassification
-  - `ModificationProposals.js` (224L) — Propositions de modification
-  - `EvidenceDashboard.js` (111L) — Dashboard check-ins physiques
+- [x] **Découpe AppointmentDetail.js** : 2701 -> 1592 lignes. 5 sous-composants extraits
 - [x] **Nettoyage enums mortes** : `GuaranteeMode.AUTH_NOW` et `AUTH_LATER` supprimés
-- [x] **Protection debug.py** : Endpoints protégés par `require_admin` (workspace owner uniquement)
-- [x] **Clarification statut** : `accepted` = sans garantie (actif), `accepted_guaranteed` = avec garantie (actif)
+- [x] **Protection debug.py** : Endpoints protégés par `require_admin`
+- [x] **Clarification statut** : `accepted` = sans garantie, `accepted_guaranteed` = avec garantie
 
 ## Completed — Earlier
-- [x] Fix P0 "Erreur réseau" GPS check-in (gestion GeolocationPositionError + mapping HTTP)
-- [x] Fix "body stream already read" (pattern `.text()` + `JSON.parse()` dans InvitationPage.js)
-- [x] Fix Azure Outlook OAuth (MICROSOFT_CLIENT_ID corrigé)
-- [x] Rééquilibrage scoring NLYT Proof (check-in 40pts, durée 30pts, flow bonus 10pts, API 20pts, seuil strong ≥ 55)
+- [x] Fix P0 "Erreur réseau" GPS check-in
+- [x] Fix "body stream already read"
+- [x] Fix Azure Outlook OAuth
+- [x] Rééquilibrage scoring NLYT Proof
 - [x] Toutes les features listées dans ARCHITECTURE.md
 
 ## Stripe Connect — Progression
-Architecture complète documentée dans `/app/memory/STRIPE_CONNECT_ARCHITECTURE.md`
 
-### Phase 1 — Wallet + Ledger ✅ (Fév 2026)
-- [x] `wallet_service.py` — CRUD wallet + ledger (credit_pending, confirm_available, debit_payout, debit_refund)
-- [x] `wallet_routes.py` — GET /api/wallet (solde) + GET /api/wallet/transactions (historique)
-- [x] Auto-création wallet à l'inscription (auth_service.py)
-- [x] Wallet idempotent via `ensure_wallet()`
-- [x] Montants en centimes (int), minimum payout 500c (5€)
-- [x] Collections MongoDB : `wallets`, `wallet_transactions`
-- [x] Tests : iteration_52 — 13/13 backend
+### Phase 1 — Wallet + Ledger ✅
+- [x] wallet_service.py, wallet_routes.py, auto-création wallet, montants en centimes
 
-### Phase 2 — Stripe Connect Express (Fév 2026) ✅
-- [x] `connect_service.py` — Onboarding Express (create account, account link, dev mode fallback)
-- [x] `connect_routes.py` — POST /api/connect/onboard, GET /api/connect/status, POST /api/connect/dashboard
-- [x] Webhook handlers: `account.updated` + `account.application.deauthorized` dans `webhooks.py`
-- [x] Frontend `WalletPage.js` : solde, statut Connect, historique transactions
-- [x] Navigation Settings → Wallet
-- [x] Idempotence onboarding (réutilise account_id existant)
-- [x] 5 statuts normalisés: not_started, onboarding, restricted, active, disabled
-- [x] Dev mode: simulation automatique si Stripe Connect non activé
-- [x] Tests : iteration_53 — 12/12 backend + 100% frontend
+### Phase 2 — Stripe Connect Express ✅
+- [x] connect_service.py, connect_routes.py, webhooks, WalletPage UI, dev mode
 
-### Phase 3 — Capture + Distribution (Fév 2026) ✅
-- [x] `distribution_service.py` — Moteur de calcul pur (compute_distribution) + create/finalize/cancel/contest
-- [x] Invariant strict: sum(beneficiaries) == capture_amount_cents toujours (centimes int, jamais float)
-- [x] Symétrie: organisateur no_show → sa compensation répartie entre participants présents, jamais à lui-même
-- [x] Symétrie: charité + plateforme inchangées même en cas de no_show organisateur
-- [x] Wallet platform (type=platform, user_id=__nlyt_platform__) crédité automatiquement
-- [x] Wallet charity (type=charity) créé par association configurée
-- [x] Hook post-évaluation: no_show haute confiance → capture + distribution automatique
-- [x] Hook post-évaluation: on_time/late haute confiance → release automatique
-- [x] Hook post-reclassification: manual_review→no_show → capture + distribution
-- [x] Hook post-reclassification: no_show→on_time → cancel distribution + release
-- [x] Scheduler job finalize_expired_holds() toutes les 15 minutes
-- [x] Hold 15 jours: pending_balance → available_balance après expiration
-- [x] Contestation bloque la finalisation (status=contested)
-- [x] Annulation: refund via debit_refund() sur chaque wallet crédité
-- [x] Idempotence stricte sur guarantee_id
-- [x] Endpoints API: GET /distributions, GET /distributions/:id, POST /distributions/:id/contest
-- [x] GET /api/appointments/:id/distributions (vue organisateur)
-- [x] Tests: iteration_54 — 42/42 backend (100%)
+### Phase 3 — Capture + Distribution ✅
+- [x] distribution_service.py, symétrie organisateur no-show, hold 15 jours, contestation
 
-### Phase 3b — WalletPage enrichie (Fév 2026) ✅
-- [x] 3 cartes de solde pédagogiques: En attente / Disponible / Retirable
-- [x] Distinction claire entre fonds en hold, fonds disponibles, fonds retirables
-- [x] Section "Distributions en cours" (pending_hold + contested)
-- [x] Section "Distributions passées" (completed + cancelled)
-- [x] Cartes expandables: explication contextuelle + répartition détaillée
-- [x] Breakdown: NLYT (commission) / Association / Organisateur / Participant(s)
-- [x] Badge "(vous)" sur la ligne du bénéficiaire courant
-- [x] Date de disponibilité (hold expiry) affichée
-- [x] Contestation MVP: bouton visible uniquement pour le no_show pendant le hold
-- [x] Formulaire de signalement: motif + soumission tracée
-- [x] Statuts: En attente / Contestée / Finalisée / Annulée avec couleurs
-- [x] Tests: iteration_55 — 17/17 backend + 13/13 frontend (100%)
+### Phase 3b — WalletPage enrichie ✅
+- [x] 3 cartes solde, distributions en cours/passées, contestation MVP
 
-### Charity Impact Tracking (Fév 2026) ✅
-- [x] `GET /api/wallet/impact` — agrégation fiable depuis le ledger (distributions.beneficiaries.role=charity)
-- [x] Totaux recalculables : total_charity_cents, distributions_count, events_count
-- [x] Ventilation par association (by_association[])
-- [x] Détail par événement (contributions[] avec appointment_title, amount, status)
-- [x] Exclut les distributions annulées et les bénéficiaires refunded
-- [x] Frontend : section "Votre impact solidaire" dans WalletPage
-- [x] 3 cartes stats : Total contribué / Distributions / Événements
-- [x] Ligne par association avec montant
-- [x] Détail expandable par événement avec badge statut (en attente / finalisé)
-- [x] Section masquée si aucune contribution (total = 0)
-- [x] Tests: iteration_56 — 11/11 backend + 13/13 frontend (100%)
+### Charity Impact Tracking ✅
+- [x] GET /api/wallet/impact, agrégation ledger, ventilation par association, UI WalletPage
 
-### Page publique Impact NLYT (Fév 2026) ✅
-- [x] `GET /api/impact` — endpoint public (sans auth), retourne stats globales cachées
-- [x] `refresh_impact_stats()` — agrégation depuis le ledger distributions, écrit dans `impact_stats`
-- [x] Scheduler job toutes les 30 minutes pour rafraîchir le cache
-- [x] KPIs : total redistribué, total associations, événements, participants
-- [x] Liste associations triée par montant décroissant, avec nom / montant / distributions / événements
-- [x] Frontend `/impact` : Hero + 4 KPIs + Associations soutenues + Comment ça fonctionne + Footer
-- [x] Page publique accessible sans authentification
-- [x] Données vérifiées et auditables (badge + timestamp dernière MAJ)
-- [x] Tests: iteration_57 — 14/14 backend + 18/18 frontend (100%)
+### Page publique Impact NLYT ✅
+- [x] GET /api/impact, cache scheduler, KPIs globaux, associations, UI /impact
 
-### Phase 4 — Payouts réels (Fév 2026) ✅
-- [x] `payout_service.py` — Flux complet : verify → create pending → Stripe Transfer → atomic debit → processing/completed
-- [x] Order of operations sécurisé : wallet débité APRÈS succès Stripe (pas avant)
-- [x] Débit atomique MongoDB ($inc avec guard available_balance >= amount)
-- [x] Vérification double : wallet interne ET balance Stripe plateforme (skip en dev mode)
-- [x] Verrou anti-doublon : un seul payout pending/processing par user
-- [x] Guards : minimum 5€, connect active, solde suffisant, pas de payout en cours
-- [x] Dev mode : acct_dev_* → payout complété immédiatement, tr_dev_ prefix
-- [x] Webhooks : transfer.paid → completed, transfer.failed/reversed → re-crédit wallet (idempotent)
-- [x] Endpoints : POST /api/wallet/payout, GET /api/wallet/payouts, GET /api/wallet/payouts/:id
-- [x] Frontend : bouton "Retirer vers mon compte", modal confirmation, section Retraits, historique ledger
-- [x] Reversal Stripe automatique si débit wallet échoue après Transfer success
-- [x] Tests: iteration_58 — 15/15 backend + 10/10 frontend (100%)
+### Phase 4 — Payouts réels ✅
+- [x] payout_service.py, Stripe Transfer, débit atomique, webhooks, UI modal payout
 
-### Phase 4 — Payouts (à faire)
-- [ ] POST /api/wallet/payout
-- [ ] Stripe Transfer vers compte Connect
-
-### Phase 5 — UI (à faire)
-- [ ] DistributionPanel.js (AppointmentDetail)
-- [ ] WalletSettings.js (page wallet)
-- [ ] Emails notifications (capture, distribution, payout)
+### Phase 5 — Notifications email financières ✅ (Fév 2026)
+- [x] `financial_emails.py` — Module complet avec 5 types d'emails
+- [x] Idempotence via `sent_emails` collection + index unique composite (email_type + reference_id + user_id)
+- [x] Non-bloquant via daemon threads (`_send_async`)
+- [x] Hook 1: `send_capture_email` → attendance_service._execute_capture_and_distribution
+- [x] Hook 2: `send_distribution_created_email` → distribution_service.create_distribution (organizer/participant uniquement)
+- [x] Hook 3: `send_distribution_available_email` → distribution_service._finalize_single_distribution (sur completed)
+- [x] Hook 4: `send_payout_completed_email` → payout_service._execute_dev_payout + handle_transfer_paid
+- [x] Hook 5: `send_payout_failed_email` → payout_service._execute_stripe_transfer + handle_transfer_failed
+- [x] Wording correct : "crédit en attente enregistré" (jamais "vous avez reçu")
+- [x] Tests: iteration_59 — 25/25 backend (100%)
 
 ## Roadmap
-### P1 — En cours
-- Stripe Connect Phase 5 (Notifications email capture/distribution/payout)
-- Calcul `video_api_points` (20pts bonus) dans le scoring NLYT Proof
+### P1
 - Webhooks temps réel Zoom/Teams
 
 ### P2
-- Pagination endpoints de liste
+- Pagination endpoints de liste (API + UI)
 - Auto-update calendrier V2 (retry automatique)
 - Découpe InvitationPage.js (1409 lignes)
 
 ### P3
+- Payout charité vers les associations
 - Dashboard analytics organisateurs
 - Templates email externalisés (fichiers HTML)
+- Pages dédiées par association + Partage social + leaderboard
 - Index MongoDB (performance)
