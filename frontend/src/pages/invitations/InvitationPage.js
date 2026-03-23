@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Calendar, MapPin, Clock, Users, AlertTriangle, Check, X, Loader2, Ban, Download, CreditCard, ShieldCheck, MapPinCheck, QrCode, ScanLine, FileEdit, Send, Pencil, Video } from 'lucide-react';
 import QRCheckin from '../../components/QRCheckin';
+import { toast } from 'sonner';
 import { formatDateTimeFr, formatTimeFr, formatDateShortFr, formatEvidenceDateFr, formatActionDateFr, parseUTC, utcToLocalInput, localInputToUTC } from '../../utils/dateFormat';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL || '';
@@ -283,18 +284,33 @@ export default function InvitationPage() {
     try {
       const payload = { invitation_token: token, device_info: navigator.userAgent };
 
-      // Ask for GPS if available
+      // Try GPS — handle each browser error explicitly
       if (navigator.geolocation) {
         try {
+          console.log('[CHECKIN] Requesting GPS position...');
           const pos = await new Promise((resolve, reject) =>
-            navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000, enableHighAccuracy: true })
+            navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 8000, enableHighAccuracy: true })
           );
           payload.latitude = pos.coords.latitude;
           payload.longitude = pos.coords.longitude;
           payload.gps_consent = true;
-        } catch (e) { /* GPS not available, continue without */ }
+          console.log(`[CHECKIN] GPS acquired: lat=${pos.coords.latitude}, lon=${pos.coords.longitude}, accuracy=${pos.coords.accuracy}m`);
+        } catch (geoErr) {
+          console.warn(`[CHECKIN] GPS error: code=${geoErr.code}, message=${geoErr.message}`);
+          if (geoErr.code === 1) {
+            toast.warning('Localisation refusée. Le check-in sera enregistré sans coordonnées GPS. Vous pouvez autoriser la localisation dans les paramètres de votre navigateur.');
+          } else if (geoErr.code === 2) {
+            toast.warning('Position GPS indisponible. Le check-in continuera sans coordonnées.');
+          } else if (geoErr.code === 3) {
+            toast.warning('Délai GPS dépassé. Le check-in continuera sans coordonnées.');
+          }
+          // Continue without GPS — not a blocker
+        }
+      } else {
+        console.warn('[CHECKIN] navigator.geolocation not available');
       }
 
+      console.log(`[CHECKIN] Sending manual check-in: hasGPS=${!!payload.latitude}`);
       const res = await fetch(`${API_URL}/api/checkin/manual`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -302,15 +318,24 @@ export default function InvitationPage() {
       });
       const data = await res.json();
       if (!res.ok) {
+        console.error(`[CHECKIN] Backend error: status=${res.status}`, data);
         if (res.status === 409) {
-          // Already checked in
+          toast.info('Check-in déjà effectué. Votre présence est enregistrée.');
+        } else if (res.status === 400) {
+          toast.error(data.detail || 'Impossible d\'effectuer le check-in. Vérifiez que votre invitation est bien acceptée.');
+        } else if (res.status === 404) {
+          toast.error(data.detail || 'Invitation introuvable.');
         } else {
-          alert(data.detail || 'Erreur');
+          toast.error(data.detail || 'Erreur lors du check-in.');
         }
+      } else {
+        console.log('[CHECKIN] Success:', data);
+        toast.success('Présence enregistrée avec succès !');
       }
       loadCheckinStatus();
     } catch (e) {
-      alert('Erreur réseau');
+      console.error('[CHECKIN] Network/fetch error:', e);
+      toast.error('Impossible de contacter le serveur. Vérifiez votre connexion internet et réessayez.');
     } finally {
       setCheckingIn(false);
     }

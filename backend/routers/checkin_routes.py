@@ -13,6 +13,9 @@ import os
 import sys
 import io
 import base64
+import logging
+
+logger = logging.getLogger(__name__)
 
 sys.path.append('/app/backend')
 from middleware.auth_middleware import get_current_user
@@ -88,6 +91,8 @@ async def manual_checkin(request: Request, body: ManualCheckinRequest):
     """Participant manual check-in: 'Je suis arrivé'"""
     participant, appointment = _resolve_participant(body.invitation_token)
 
+    logger.info(f"[CHECKIN:MANUAL] participant={participant['participant_id'][:8]} apt={appointment['appointment_id'][:8]} gps_consent={body.gps_consent} lat={body.latitude} lon={body.longitude}")
+
     kwargs = {
         "appointment_id": appointment['appointment_id'],
         "participant_id": participant['participant_id'],
@@ -101,7 +106,12 @@ async def manual_checkin(request: Request, body: ManualCheckinRequest):
 
     if result.get('error'):
         status = 409 if result.get('already_checked_in') else 400
+        logger.warning(f"[CHECKIN:MANUAL] Error for participant={participant['participant_id'][:8]}: {result['error']} (status={status})")
         raise HTTPException(status_code=status, detail=result['error'])
+
+    ev = result.get('evidence', {})
+    facts = ev.get('derived_facts', {})
+    logger.info(f"[CHECKIN:MANUAL] Success participant={participant['participant_id'][:8]} source={ev.get('source')} distance_km={facts.get('distance_km')} confidence={ev.get('confidence_score')}")
 
     # Notify other participants (non-blocking, idempotent)
     from services.checkin_notification_service import notify_checkin
@@ -151,6 +161,8 @@ async def gps_checkin(request: Request, body: GPSCheckinRequest):
     """Submit GPS evidence (complementary proof)."""
     participant, appointment = _resolve_participant(body.invitation_token)
 
+    logger.info(f"[CHECKIN:GPS] participant={participant['participant_id'][:8]} apt={appointment['appointment_id'][:8]} lat={body.latitude} lon={body.longitude}")
+
     result = process_gps_checkin(
         appointment_id=appointment['appointment_id'],
         participant_id=participant['participant_id'],
@@ -160,6 +172,7 @@ async def gps_checkin(request: Request, body: GPSCheckinRequest):
 
     if result.get('error'):
         status = 409 if result.get('already_checked_in') else 400
+        logger.warning(f"[CHECKIN:GPS] Error for participant={participant['participant_id'][:8]}: {result['error']} (status={status})")
         raise HTTPException(status_code=status, detail=result['error'])
 
     # Notify other participants
@@ -167,6 +180,7 @@ async def gps_checkin(request: Request, body: GPSCheckinRequest):
     ev = result.get('evidence', {})
     checkin_time = ev.get('source_timestamp')
     facts = ev.get('derived_facts', {})
+    logger.info(f"[CHECKIN:GPS] Success participant={participant['participant_id'][:8]} distance_km={facts.get('distance_km')} confidence={ev.get('confidence_score')}")
     evidence_details = {
         'source': 'gps',
         'latitude': facts.get('latitude') or body.latitude,

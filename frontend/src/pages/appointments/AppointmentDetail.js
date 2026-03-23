@@ -135,25 +135,52 @@ export default function AppointmentDetail() {
         device_info: navigator.userAgent,
       };
 
-      // Request GPS for physical appointments
+      // Request GPS for physical appointments — handle each browser error explicitly
       if (appointment.appointment_type === 'physical' && navigator.geolocation) {
         try {
+          console.log('[CHECKIN:ORG] Requesting GPS position...');
           const pos = await new Promise((resolve, reject) =>
-            navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000, enableHighAccuracy: true })
+            navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 8000, enableHighAccuracy: true })
           );
           payload.latitude = pos.coords.latitude;
           payload.longitude = pos.coords.longitude;
           payload.gps_consent = true;
-        } catch (e) { /* GPS not available, continue without */ }
+          console.log(`[CHECKIN:ORG] GPS acquired: lat=${pos.coords.latitude}, lon=${pos.coords.longitude}, accuracy=${pos.coords.accuracy}m`);
+        } catch (geoErr) {
+          console.warn(`[CHECKIN:ORG] GPS error: code=${geoErr.code}, message=${geoErr.message}`);
+          if (geoErr.code === 1) {
+            toast.warning('Localisation refusée. Le check-in sera enregistré sans coordonnées GPS. Vous pouvez autoriser la localisation dans les paramètres de votre navigateur.');
+          } else if (geoErr.code === 2) {
+            toast.warning('Position GPS indisponible. Le check-in continuera sans coordonnées.');
+          } else if (geoErr.code === 3) {
+            toast.warning('Délai GPS dépassé. Le check-in continuera sans coordonnées.');
+          }
+          // Continue without GPS — not a blocker
+        }
       }
 
+      console.log(`[CHECKIN:ORG] Sending organizer check-in: hasGPS=${!!payload.latitude}`);
       await checkinAPI.manual(payload);
+      console.log('[CHECKIN:ORG] Success');
       setOrganizerCheckinDone(true);
       toast.success('Check-in organisateur enregistré');
       loadData();
     } catch (error) {
-      const msg = error.response?.data?.detail || 'Erreur lors du check-in';
-      toast.error(msg);
+      console.error('[CHECKIN:ORG] Error:', error.response?.status, error.response?.data);
+      const status = error.response?.status;
+      const detail = error.response?.data?.detail;
+      if (status === 409) {
+        toast.info('Check-in déjà effectué. Votre présence est enregistrée.');
+        setOrganizerCheckinDone(true);
+      } else if (status === 400) {
+        toast.error(detail || 'Impossible d\'effectuer le check-in. Vérifiez que l\'invitation est bien acceptée.');
+      } else if (status === 404) {
+        toast.error(detail || 'Invitation introuvable.');
+      } else if (!error.response) {
+        toast.error('Impossible de contacter le serveur. Vérifiez votre connexion internet et réessayez.');
+      } else {
+        toast.error(detail || 'Erreur lors du check-in.');
+      }
     } finally {
       setCheckingIn(false);
     }
