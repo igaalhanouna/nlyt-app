@@ -654,9 +654,14 @@ export default function WalletPage() {
   const handleDashboard = async () => {
     try {
       const res = await connectAPI.getDashboard();
-      if (res.data.dashboard_url) window.open(res.data.dashboard_url, '_blank');
+      const url = res.data.dashboard_url;
+      if (url && url.includes('dev_dashboard=true')) {
+        toast.info("Gestion du compte bancaire non disponible en mode développement");
+        return;
+      }
+      if (url) window.open(url, '_blank');
     } catch (err) {
-      toast.error(err.response?.data?.detail || "Erreur lors de l'accès au dashboard");
+      toast.error(err.response?.data?.detail || "Erreur lors de l'accès à la gestion du compte");
     }
   };
 
