@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ShieldCheck, CalendarClock, Handshake, CreditCard, Gavel, ArrowRight } from 'lucide-react';
+import { ShieldCheck, CalendarClock, Handshake, CreditCard, Gavel, ArrowRight, Heart } from 'lucide-react';
 import { Button } from '../components/ui/button';
 
 export default function LandingPage() {
@@ -10,6 +10,9 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-6 lg:px-8 py-4 flex items-center justify-between">
           <div className="text-2xl font-bold text-slate-900">NLYT</div>
           <div className="flex items-center gap-4">
+            <Link to="/impact">
+              <Button variant="ghost" data-testid="nav-impact-btn"><Heart className="w-4 h-4 mr-1.5 text-rose-500" />Impact</Button>
+            </Link>
             <Link to="/signin">
               <Button variant="ghost" data-testid="nav-signin-btn">Connexion</Button>
             </Link>
