@@ -49,6 +49,7 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API (mode user)
 - iteration_42: 8/8 backend + 6/6 frontend (Organisateur proof bypass fix)
 - iteration_43: 15/15 backend (Email confirmation 4 cas — contenu vérifié)
 - iteration_44: 6/6 backend + 9/9 frontend (Masquage evidence-dashboard pour vidéo)
+- iteration_45: 14/14 backend (Email confirmation idempotent — polling + webhook)
 - Credentials: testuser_audit@nlyt.app / Test1234!
 
 ## Completed
@@ -72,6 +73,11 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API (mode user)
   - Physique: instructions GPS/QR, adresse, ICS, timezone
   - Mention "confirmation d'accès définitive" dans chaque email
 - [x] Section "Check-ins & Preuves" masquée pour les RDV vidéo (NLYT Proof = source unique)
+- [x] Email confirmation : envoi garanti après validation garantie Stripe (polling + webhook)
+  - Helper idempotent send_confirmation_email_once (flag confirmation_email_sent)
+  - Vidéo : bouton "Confirmer ma présence et rejoindre" → proof link
+  - Physique : bouton "Je suis arrivé — confirmer ma présence" → page invitation
+  - ICS dans les deux cas, timezone, note "définitive"
 
 ## Roadmap
 ### P1
