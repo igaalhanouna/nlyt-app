@@ -24,7 +24,7 @@ import os
 import json
 from datetime import datetime, timedelta
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://teams-identity-fix.preview.emergentagent.com')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://proof-tracking.preview.emergentagent.com')
 
 # Test credentials
 TEST_EMAIL = "testuser_audit@nlyt.app"

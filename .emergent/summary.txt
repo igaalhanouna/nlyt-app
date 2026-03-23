@@ -1,104 +1,91 @@
-<analysis>original_problem_statement: The user wants to fundamentally change the Stripe guarantee logic for the Organizer. The Organizer must commit financially *before* engaging others (implemented). Also requested: Rate Limiting, CORS restriction (implemented), and proper UX for Video vs Physical appointments (implemented). 
-**Current Pending Issue**: A regression was introduced during the lifecycle refactoring. Auto-generation of video meeting links (Teams, Google Meet, Zoom) is failing or not being saved/displayed. The UI incorrectly shows a manual Créer le lien de réunion button for normal video appointments.
+<analysis>**original_problem_statement**: The user initially wanted to fix UI/UX issues with Teams integration banners, resolve Outlook OAuth bugs, and fix attendance fetching for Teams. The request then evolved to making Zoom the default, central Grand Public provider without requiring participants to have Zoom accounts. Most recently, the user requested a fundamental shift: decouple the Proof of Attendance from video provider APIs (which are unreliable or require paid plans) and build an internal NLYT Proof System featuring a Check-in button, a background Heartbeat (ping), and a scoring system. 
+
+PRODUCT REQUIREMENTS:
+- Zoom is the default video provider (centralized app credentials, no user Zoom account needed).
+- Teams and Meet are secondary/advanced providers.
+- NLYT Internal Proof System: Participants use a unique NLYT link to Check-in, which opens the video call in a new tab and keeps the NLYT tab open to send periodic heartbeats (e.g., every 30s) to prove attendance duration.
 
 **User's preferred language**: French (INSTRUCT NEXT AGENT: You MUST respond in French only).
 
 **what currently exists?** 
-A functional SaaS MVP for attendance management. Organizers must provide an upfront Stripe guarantee (via saved PaymentMethod or Checkout) before invitations are dispatched ( state). The platform includes CORS restrictions,  rate limiting on sensitive endpoints, and distinct UX/scoring for video vs. physical check-ins. A regression currently prevents auto-generation of meeting links upon appointment activation.
+A functional attendance management SaaS. Microsoft Teams (Delegated & Legacy modes), Google Meet, and Zoom integrations are working. Zoom is set up as the default centralized provider using Server-to-Server OAuth. An auto-fetch scheduler runs in the background for video APIs. Because the user's Zoom account is on a free tier (blocking API attendance fetching), a graceful fallback to manual CSV upload is implemented. The foundational files for the new NLYT Internal Proof System (Check-in page, API routes, and Organizer view) have just been created.
 
 **Last working item**:
-    - Last item agent was working: Auditing the meeting auto-creation flow ( and ) to fix the regression where video meeting links () are no longer automatically generated/saved when an appointment becomes active.
+    - Last item agent was working: Implementing the NLYT Internal Proof System (Check-in and Heartbeat mechanism). The agent created the backend routes (), frontend page (), added the route to , and was in the process of updating  to display the NLYT Proof Sessions to the organizer.
     - Status: IN PROGRESS
     - Agent Testing Done: N
-    - Which testing method agent to use? Both (Backend curl testing to ensure  is generated/saved, and Frontend testing agent to verify UI correctly displays Rejoindre la réunion).
+    - Which testing method agent to use? Both (Backend testing for heartbeat endpoints via curl/python, Frontend testing agent for the UI and heartbeat polling behavior).
     - User Testing Done: N
 
 **All Pending/In progress Issue list**: 
-  Issue 1: Video Meeting Link Auto-Generation Regression (P0)
-     - Attempted fixes: Agent viewed  and  to trace  execution. Stopped before making code changes.
-     - Next debug checklist: 
-       - Check  in  (lines 83-131). The function is called, but is the  properly propagated and saved to the MongoDB  collection?
-       - Review  to see if API errors (like Teams Forbidden or missing Zoom keys) are failing silently without fallback handling.
-       - Check  to ensure the manual Créer le lien de réunion button ONLY appears if  or if the auto-creation actually failed, not just because the DB field is missing due to a lifecycle bug.
-     - Why fix this issue and what will be achieved with the fix? Video appointments without automatic links break the core product flow. The link must be generated and visible immediately.
-     - Status: IN PROGRESS
-     - Is recurring issue? N
-     - Should Test frontend/backend/both after fix? Both
-     - Blocked on other issue: None
+  None explicitly reported. The focus is entirely on completing the new NLYT Internal Proof feature.
 
 **In progress Task List**: 
-  Task 1: Restore Meeting Auto-creation Flow
-     - Where to resume: Debug why  in  is not updating the appointment document with  (or why the frontend isn't receiving it).
-     - What will be achieved with this? Complete the expected behavior where video appointments automatically generate a link when transitioning from  to .
+  Task 1: Complete and Test NLYT Internal Proof System (P0)
+     - Where to resume: Review the newly created  and . The agent just updated  to fetch and display these sessions. You need to ensure the backend logic correctly handles the 30s heartbeat, updates the session duration/score, and that the frontend E2E flow works (clicking participant link -> registering check-in -> starting heartbeat -> viewing results as Organizer).
+     - What will be achieved with this? NLYT will have its own independent, reliable proof-of-attendance tracking mechanism that doesn't rely on flaky or paid 3rd-party video APIs.
      - Status: IN PROGRESS
      - Should Test frontend/backend/both after fix? Both
      - Blocked on something: None
 
 **Upcoming and Future Tasks**
     - P1: Stripe Connect integration (Automatic distribution of funds to organizers/charities).
-    - P1: Zoom real API keys configuration (User needs to add them to ).
     - P1: Implement real-time webhooks for Zoom () and Teams.
     - P2: Pagination for list endpoints (Appointments, etc.).
     - P2: Auto-update calendar V2 (Retry automatically on failure).
     - P3: Dashboard analytics for organizers.
-    - P3: Refactor MongoDB connection pooling (currently 12+ separate MongoClient instances).
-    - P3: Extract inline HTML templates from .
+    - P3: Refactor MongoDB connection pooling (currently separate MongoClient instances).
 
 **Completed work in this session**
-- Organizer Stripe Guarantee Upfront Flow ( status, auto-activation via saved card or Stripe redirect) (DONE)
-- Added  to fix localStorage  bug and allow Stripe session resumption (DONE)
-- P0 Security: CORS restriction () and SlowAPI Rate Limiting implementation using  (DONE)
-- UX/Logic fix: Relegated manual check-in to a fallback for Video appointments, prioritized Rejoindre la réunion (DONE)
+- Fixed UX/Tailwind styling for Teams integration banners (DONE).
+- Fixed Outlook OAuth Login by correcting  and  in  (DONE).
+- Fixed Teams fetch attendance Azure AD User ID introuvable bug and added missing  Graph API scope (DONE).
+- Migrated Zoom to be the default central provider via Server-to-Server OAuth, stripping the confusing dual-link UX for centralized meetings (DONE).
+- Implemented Zoom fallback UI (Manual CSV upload) for free-tier accounts that block API attendance fetching (DONE).
+- Created scaffolding for NLYT Proof System (CheckinPage, proof_routes) (DONE).
 
 **Earlier issues found/mentioned but not fixed**
-   - Issue 1: Microsoft Teams Auto-creation Forbidden Error
-   - Debug checklist: Ensure the Azure Application Access Policy has fully propagated. Check backend logs when testing Teams meeting creation.
-   - Why to solve this issue and what will be achieved with this? Allows seamless Teams link generation without manual intervention.
-   - Should Test frontend/backend/both after fix: Backend
-   - Is recurring issue? Y
+None.
 
 **Known issue recurrence from previous fork**
-  - Issue recurrence in previous fork: Microsoft Teams Auto-creation Forbidden Error (might be causing the current regression silently)
+  - Issue recurrence in previous fork: Microsoft Graph API token/scope confusion.
   - Recurrence count: 1
-  - Status: IN PROGRESS
+  - Status: RESOLVED (Agent properly segmented legacy fallback meetings vs delegated meetings and added exact required scopes).
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
-Frontend: React.js, TailwindCSS
-Backend: FastAPI, Python, MongoDB (No  in responses), SlowAPI (Rate Limiting)
-Paiement: Stripe Checkout (SetupIntent mode for off-session PaymentMethod guarantees)
-Logic: Appointment activation is deferred to an  service. It only switches from  to  once the organizer has paid/used default card.
+Frontend: React.js, TailwindCSS, Client-side polling (Heartbeat interval).
+Backend: FastAPI, Python, MongoDB, APScheduler.
+Integrations: Microsoft Graph API, Zoom Server-to-Server OAuth.
 
 **key DB schema**
-  - : Contains , , .
-  - : Now handles . Includes .
+  - : Stores provider metadata,  ('central', 'delegated', 'application_fallback').
+  -  (New/Implied): Needs to store participant check-in timestamps, last heartbeat, and calculated score/duration.
 
 **changes in tech stack**
-  - Added  to backend  for Rate Limiting.
+  - Introduction of frontend-to-backend interval polling (Heartbeats) for attendance verification.
 
 **All files of reference** 
-  -  (Created this session. Core logic for moving appointments to active, dispatching emails, and creating meetings)
-  -  (Handles provider integration for meetings)
-  -  (Modified to defer activation)
-  -  (Created this session for SlowAPI)
-  -  (Modified for Visio check-in UI)
-  -  (Modified for pending status banner and fallback buttons)
+  -  (New file handling Check-in and Heartbeat APIs)
+  -  (New participant-facing page to establish heartbeat)
+  -  (Updated to fetch and render proof sessions)
+  -  (Added )
+  -  (Added route for CheckinPage)
 
 **Areas that need refactoring**: 
   - MongoDB connection pooling (Performance).
-  - Extract inline HTML templates from  to separate files.
 
 **key api endpoints**
-  -  (Creates as draft/pending)
-  -  (Resumes Stripe flow)
-  -  (Saves default card)
+  -  (Expected)
+  -  (Expected)
+  -  (Expected to be in proof_routes or appointments)
 
 **Critical Info for New Agent** 
-- **DO NOT jump straight to fixing without tracing.** The user's main complaint is that video appointments are no longer auto-generating . Trace  inside  to ensure it successfully updates the MongoDB document with the .
-- Remember to use  via the shared  module if adding rate limits to new endpoints.
-- Return responses in French.
+- **Language:** You MUST reply in French.
+- **Current Context:** The user wants to break free from relying on Zoom/Teams APIs for proving attendance because the user currently has a Zoom Free plan (which blocks API reporting) and Microsoft Graph API can be complex. 
+- **Immediate Task:** The previous agent stopped exactly after injecting the UI code for NLYT Proof Sessions into . You need to pick up the development of the Check-in/Heartbeat system, ensure the backend logic is solid, and run a full End-to-End test of a participant checking in and sending heartbeats.
 
 **documents and test reports created in this job** 
   -  (Updated)
@@ -106,36 +93,36 @@ Logic: Appointment activation is deferred to an  service. It only switches from 
   - 
 
 **Last 10 User Messages and any pending HUMAN messages** 
-1. (User) Asked to enforce Organizer upfront guarantee logic (Option A/B).
-2. (Agent) Proposed architecture and asked for confirmation.
-3. (User) Validated architecture with strict rules on Stripe flow and state management.
-4. (Agent) Implemented backend and frontend logic, ran testing agent.
-5. (User) Reported bug: compléter ma garantie button shows an error.
-6. (Agent) Fixed bug (wrong localStorage key  and added retry endpoint).
-7. (User) Reported duplicate UI banners. Agent removed the old one.
-8. (User) Requested audit of tests and initiation of P0 Security task (CORS + Rate Limiting).
-9. (Agent) Audited scenarios successfully, implemented SlowAPI and CORS, tested securely.
-10. (User) Reported UX logic issue: Visio manual check-in shouldn't be the primary option. Agent fixed it.
-11. (User) **PENDING HUMAN MESSAGE**: Reported a regression on Video appointments. Auto-generation of the meeting link is failing, and the UI displays a manual creation button instead. Requires audit, root-cause analysis, and robust fix.
+1. (User) Found missing scope causing 403 error on Teams fetch.
+2. (Agent) Identified  missing, instructed user to add to Azure.
+3. (User) Asked how to respond to Azure consent prompt.
+4. (Agent) Guided user through consent.
+5. (User) Requested to make Zoom the default Grand public provider while keeping Teams/Meet.
+6. (Agent) Implemented Zoom as default (central mode) and updated UI wizard.
+7. (User) Provided Zoom Credentials. Agent activated them.
+8. (User) Asked to verify Zoom fetch attendance. Agent found a 400 error because the Zoom account is on a Free Plan.
+9. (User) Instructed to build a fallback CSV import for Zoom Free Plan, but also plans to upgrade to Pro later. Agent built the fallback UX.
+10. (User) **PENDING INTENT:** Concluded that Video APIs are too unreliable/restrictive. Requested a fundamental architectural shift: build NLYT's own internal Check-in & Heartbeat Proof system to act as the primary attendance validator, demoting Video APIs to a secondary bonus feature.
 
 **Project Health Check:**
-Broken: Video meeting auto-generation flow during appointment activation.
+Healthy. Compiles successfully. The new proof system is partially implemented but untested.
 
 **3rd Party Integrations** 
-  • Stripe (Payments) — requires User API Key (Active)
-  • Google/Outlook Calendar — requires User API Key (Active)
-  • Microsoft Teams API — requires User API Key (Credentials active, policy might still be propagating)
-  • Zoom API — requires User API Key (Missing keys in )
-  • Resend (Emails) — requires User API Key (Active)
+  • Stripe (Payments) — requires User API Key
+  • Google/Outlook Calendar — requires User API Key
+  • Microsoft Teams API — requires User API Key (Delegated & Legacy modes active)
+  • Zoom API — requires User API Key (Server-to-Server OAuth active, currently on Free Plan limit)
+  • Resend (Emails) — requires User API Key
 
 **Testing status**
-  - Testing agent used after significant changes: YES
+  - Testing agent used after significant changes: YES (For Zoom/Teams changes)
   - Troubleshoot agent used after agent stuck in loop: NO
-  - Test files created: None
-  - Known regressions: Video meeting auto-generation failing.
+  - Test files created: None new.
+  - Known regressions: None currently.
 
 **Credentials to test flow:**
   -  / 
+  - Workspace ID: 
 
 **What agent forgot to execute**
-The agent started viewing files to debug the  regression but hit the context limit before tracing the issue, fixing it, and verifying with the user. The next agent must immediately resolve this meeting generation regression.</analysis>
+The agent was in the middle of creating the NLYT Internal Proof System. It created the files and updated  but did not finish testing or validating the Check-in and Heartbeat mechanism before the context ran out. The E2E flow of this new feature must be completed and tested.</analysis>
