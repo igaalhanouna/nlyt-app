@@ -147,6 +147,10 @@ async def get_proof_info(appointment_id: str, token: str = Query(...)):
     if not appointment:
         raise HTTPException(status_code=404, detail="Rendez-vous introuvable")
 
+    # NLYT Proof is only for video appointments
+    if appointment.get("appointment_type") != "video":
+        raise HTTPException(status_code=400, detail="Le système de preuve NLYT Proof est réservé aux rendez-vous en visioconférence")
+
     # Check if session already exists
     existing = db.proof_sessions.find_one(
         {"appointment_id": appointment_id, "participant_id": participant["participant_id"], "checked_out_at": None},
@@ -188,6 +192,10 @@ async def checkin(appointment_id: str, req: CheckinRequest):
     appointment = db.appointments.find_one({"appointment_id": appointment_id}, {"_id": 0})
     if not appointment:
         raise HTTPException(status_code=404, detail="Rendez-vous introuvable")
+
+    # NLYT Proof is only for video appointments
+    if appointment.get("appointment_type") != "video":
+        raise HTTPException(status_code=400, detail="Le système de preuve NLYT Proof est réservé aux rendez-vous en visioconférence")
 
     if appointment.get("status") == "cancelled":
         raise HTTPException(status_code=400, detail="Ce rendez-vous a été annulé")

@@ -2301,8 +2301,8 @@ export default function AppointmentDetail() {
           </div>
         )}
 
-        {/* NLYT Proof Sessions Section */}
-        {!isCancelled && (
+        {/* NLYT Proof Sessions Section — video appointments only */}
+        {!isCancelled && appointment.appointment_type === 'video' && (
           <div className="bg-white rounded-lg border border-slate-200 p-6 mt-6" data-testid="proof-sessions-section">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">

@@ -77,7 +77,7 @@ async def activate_appointment(appointment_id: str, organizer_user_id: str) -> d
             if not p_name:
                 p_name = p.get('name') or p.get('email', '').split('@')[0]
 
-            proof_link = f"{frontend_url}/proof/{appointment_id}?token={p['invitation_token']}"
+            proof_link = f"{frontend_url}/proof/{appointment_id}?token={p['invitation_token']}" if appointment.get('appointment_type') == 'video' else None
 
             await EmailService.send_invitation_email(
                 to_email=p['email'],
