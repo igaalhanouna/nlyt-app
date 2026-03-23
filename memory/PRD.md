@@ -147,6 +147,20 @@ Architecture complète documentée dans `/app/memory/STRIPE_CONNECT_ARCHITECTURE
 - [x] Données vérifiées et auditables (badge + timestamp dernière MAJ)
 - [x] Tests: iteration_57 — 14/14 backend + 18/18 frontend (100%)
 
+### Phase 4 — Payouts réels (Fév 2026) ✅
+- [x] `payout_service.py` — Flux complet : verify → create pending → Stripe Transfer → atomic debit → processing/completed
+- [x] Order of operations sécurisé : wallet débité APRÈS succès Stripe (pas avant)
+- [x] Débit atomique MongoDB ($inc avec guard available_balance >= amount)
+- [x] Vérification double : wallet interne ET balance Stripe plateforme (skip en dev mode)
+- [x] Verrou anti-doublon : un seul payout pending/processing par user
+- [x] Guards : minimum 5€, connect active, solde suffisant, pas de payout en cours
+- [x] Dev mode : acct_dev_* → payout complété immédiatement, tr_dev_ prefix
+- [x] Webhooks : transfer.paid → completed, transfer.failed/reversed → re-crédit wallet (idempotent)
+- [x] Endpoints : POST /api/wallet/payout, GET /api/wallet/payouts, GET /api/wallet/payouts/:id
+- [x] Frontend : bouton "Retirer vers mon compte", modal confirmation, section Retraits, historique ledger
+- [x] Reversal Stripe automatique si débit wallet échoue après Transfer success
+- [x] Tests: iteration_58 — 15/15 backend + 10/10 frontend (100%)
+
 ### Phase 4 — Payouts (à faire)
 - [ ] POST /api/wallet/payout
 - [ ] Stripe Transfer vers compte Connect
@@ -158,7 +172,7 @@ Architecture complète documentée dans `/app/memory/STRIPE_CONNECT_ARCHITECTURE
 
 ## Roadmap
 ### P1 — En cours
-- Stripe Connect Phases 4-5
+- Stripe Connect Phase 5 (Notifications email capture/distribution/payout)
 - Calcul `video_api_points` (20pts bonus) dans le scoring NLYT Proof
 - Webhooks temps réel Zoom/Teams
 
