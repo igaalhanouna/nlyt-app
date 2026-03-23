@@ -46,6 +46,7 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API (mode user)
 ## Testing
 - iteration_40: 22/22 backend + 15/15 frontend (NLYT Proof + Provider mode)
 - iteration_41: 8/8 backend + 9/9 frontend (Stripe webhook fix + Access control)
+- iteration_42: 8/8 backend + 6/6 frontend (Organisateur proof bypass fix)
 - Credentials: testuser_audit@nlyt.app / Test1234!
 
 ## Completed
@@ -57,11 +58,13 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API (mode user)
 - [x] Champ "Visio Display Name" au check-in
 - [x] Fix Outlook OAuth (Azure App ID)
 - [x] Logique short-notice (cap deadlines, skip reminders)
-- [x] Point d'entrée Visio unifié
+- [x] Point d'entrée Visio unifié (participants + organisateur via NLYT Proof)
 - [x] Fix bug sync/async webhook Stripe (P0)
 - [x] Verrouillage accès RDV (ICS/visio/proof) jusqu'à garantie validée (P0)
 - [x] API: meeting_join_url masqué pour participants non engagés
 - [x] Email confirmation avec proof_link + appointment_timezone après webhook Stripe
+- [x] Organisateur passe par NLYT Proof (suppression bypass direct visio)
+- [x] Backend proof: retour meeting_host_url pour organisateur, join_url pour participant
 
 ## Roadmap
 ### P1
