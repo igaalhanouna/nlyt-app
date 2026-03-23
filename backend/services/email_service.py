@@ -386,68 +386,127 @@ class EmailService:
         invitation_link: str = None,
         appointment_timezone: str = 'Europe/Paris',
         proof_link: str = None,
+        appointment_type: str = 'physical',
+        meeting_provider: str = None,
     ):
-        """Send confirmation email after participant accepts invitation, with ICS download link"""
+        """
+        Send the DEFINITIVE confirmation email after engagement is finalized.
+        This is the participant's reference email with all actionable links.
+        Triggered after:
+          - Direct acceptance (no guarantee)
+          - Stripe webhook confirmation (with guarantee)
+        """
         formatted_date = format_email_datetime(appointment_datetime, appointment_timezone)
-        
-        location_display = location if location else "Non spécifié"
-        
-        # Build penalty reminder
+
+        is_video = appointment_type == 'video'
+        provider_label = {
+            'zoom': 'Zoom', 'teams': 'Microsoft Teams', 'meet': 'Google Meet'
+        }.get((meeting_provider or '').lower(), meeting_provider or 'Visioconférence')
+
+        # ── Location display ──
+        if is_video:
+            location_display = f"En ligne — {provider_label}"
+        else:
+            location_display = location if location else "Non spécifié"
+
+        # ── Penalty reminder ──
         penalty_reminder = ""
         if penalty_amount and penalty_amount > 0:
+            cancel_note = f" Vous pouvez annuler sans pénalité jusqu'à {cancellation_deadline_hours}h avant le rendez-vous." if cancellation_deadline_hours else ""
             penalty_reminder = f"""
-            <div style="background: #FEF3C7; border-left: 4px solid #F59E0B; padding: 15px; margin: 20px 0;">
-                <p style="margin: 0; color: #92400E;">
-                    <strong>Rappel d'engagement :</strong> Une pénalité de {penalty_amount} {penalty_currency.upper()} 
-                    s'appliquera en cas d'absence ou de retard excessif.
-                    {f"Vous pouvez annuler sans pénalité jusqu'à {cancellation_deadline_hours}h avant le rendez-vous." if cancellation_deadline_hours else ""}
-                </p>
-            </div>
+                    <div style="background: #FEF3C7; border-left: 4px solid #F59E0B; padding: 15px; margin: 20px 0;">
+                        <p style="margin: 0; color: #92400E;">
+                            <strong>Rappel d'engagement :</strong> Une pénalité de {penalty_amount} {penalty_currency.upper()}
+                            s'appliquera en cas d'absence ou de retard excessif.{cancel_note}
+                        </p>
+                    </div>
             """
-        
-        # ICS button
+
+        # ── ICS calendar button ──
         ics_button = ""
         if ics_link:
             ics_button = f"""
                     <div style="text-align: center; margin: 25px 0;">
-                        <a href="{ics_link}" style="display: inline-block; padding: 14px 28px; background: #3B82F6; color: white; text-decoration: none; border-radius: 8px; font-weight: bold;">
-                            📅 Ajouter à mon calendrier
+                        <a href="{ics_link}" style="display: inline-block; padding: 14px 28px; background: #3B82F6; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 15px;">
+                            Ajouter a mon calendrier
                         </a>
                         <p style="color: #94A3B8; font-size: 12px; margin-top: 10px;">
-                            Téléchargez le fichier .ics pour l'ajouter à Google Calendar, Outlook ou Apple Calendar
+                            Telechargez le fichier .ics — compatible Google Calendar, Outlook, Apple Calendar
                         </p>
                     </div>
             """
-        
-        # View invitation link
+
+        # ── View invitation link ──
         view_link = ""
         if invitation_link:
             view_link = f"""
                     <p style="text-align: center; margin-top: 20px;">
-                        <a href="{invitation_link}" style="color: #3B82F6; text-decoration: underline;">
-                            Voir les détails du rendez-vous
+                        <a href="{invitation_link}" style="color: #3B82F6; text-decoration: underline; font-size: 13px;">
+                            Voir tous les details du rendez-vous
                         </a>
                     </p>
             """
 
-        # NLYT Proof section (video appointments only)
-        proof_section_confirm = ""
-        if proof_link:
-            proof_section_confirm = f"""
-                    <div style="background: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: center;">
-                        <p style="margin: 0 0 8px 0; color: #1E40AF; font-weight: bold; font-size: 14px;">
-                            Confirmer ma presence le jour J
+        # ── Timezone note ──
+        tz_note = ""
+        if appointment_timezone and appointment_timezone != 'UTC':
+            tz_display = appointment_timezone.replace('_', ' ').split('/')[-1]
+            tz_note = f"""
+                        <p style="margin: 4px 0 0 0; color: #94A3B8; font-size: 11px;">
+                            Fuseau horaire : {appointment_timezone} ({tz_display})
                         </p>
-                        <p style="margin: 0 0 12px 0; color: #3B82F6; font-size: 12px;">
-                            Le jour du rendez-vous, utilisez ce lien pour confirmer votre presence et rejoindre la reunion.
+            """
+
+        # ── MAIN SECTION: different content for video vs physical ──
+        access_section = ""
+        if is_video and proof_link:
+            # VIDEO: NLYT Proof is the unique entry point
+            access_section = f"""
+                    <div style="background: #EFF6FF; border: 2px solid #BFDBFE; border-radius: 10px; padding: 24px; margin: 24px 0; text-align: center;">
+                        <p style="margin: 0 0 6px 0; color: #1E40AF; font-weight: bold; font-size: 16px;">
+                            Votre lien de reunion
                         </p>
-                        <a href="{proof_link}" style="display: inline-block; padding: 12px 28px; background: #2563EB; color: white; text-decoration: none; border-radius: 8px; font-size: 14px; font-weight: bold;">
-                            Mon lien de presence NLYT
+                        <p style="margin: 0 0 16px 0; color: #3B82F6; font-size: 13px; line-height: 1.5;">
+                            Le jour du rendez-vous, cliquez sur ce bouton pour :<br/>
+                            1. Confirmer votre presence<br/>
+                            2. Ouvrir automatiquement la visio {provider_label}
+                        </p>
+                        <a href="{proof_link}" style="display: inline-block; padding: 14px 32px; background: #2563EB; color: white; text-decoration: none; border-radius: 10px; font-size: 15px; font-weight: bold;">
+                            Confirmer ma presence et rejoindre
                         </a>
+                        <p style="margin: 12px 0 0 0; color: #64748B; font-size: 11px;">
+                            Ce lien est votre point d'entree unique. Il sera actif 30 minutes avant le debut.
+                            <br/>Conservez cet email — c'est votre reference pour le jour J.
+                        </p>
                     </div>
             """
-        
-        subject = f"✅ Confirmation - {appointment_title}"
+        elif not is_video:
+            # PHYSICAL: GPS / QR check-in info
+            loc_text = f"a l'adresse : <strong>{location_display}</strong>" if location else ""
+            access_section = f"""
+                    <div style="background: #F0FDF4; border: 2px solid #BBF7D0; border-radius: 10px; padding: 24px; margin: 24px 0;">
+                        <p style="margin: 0 0 8px 0; color: #166534; font-weight: bold; font-size: 15px;">
+                            Comment confirmer votre presence
+                        </p>
+                        <p style="margin: 0 0 12px 0; color: #15803D; font-size: 13px; line-height: 1.5;">
+                            Le jour du rendez-vous {loc_text}, confirmez votre arrivee via :
+                        </p>
+                        <ul style="margin: 0; padding-left: 20px; color: #15803D; font-size: 13px; line-height: 1.8;">
+                            <li>Le bouton <strong>"Je suis arrive"</strong> sur votre page d'invitation</li>
+                            <li>Le <strong>scan du QR code</strong> fourni par l'organisateur</li>
+                        </ul>
+                        <p style="margin: 12px 0 0 0; color: #64748B; font-size: 11px;">
+                            La position GPS sera capturee automatiquement si autorisee. Le check-in est disponible 30 min avant le debut.
+                        </p>
+                    </div>
+            """
+
+        # ── Subject ──
+        subject = f"Confirmation d'acces — {appointment_title}"
+
+        # ── Header subtitle ──
+        header_subtitle = f"Visioconference {provider_label}" if is_video else "Rendez-vous confirme"
+
         html_content = f"""
         <!DOCTYPE html>
         <html>
@@ -457,43 +516,52 @@ class EmailService:
                 .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
                 .header {{ background: #059669; color: white; padding: 30px; text-align: center; }}
                 .content {{ background: #ffffff; padding: 30px; border: 1px solid #E2E8F0; }}
-                .info-box {{ background: #F0FDF4; padding: 20px; border-radius: 8px; border: 1px solid #BBF7D0; margin: 20px 0; }}
+                .info-box {{ background: #F8FAFC; padding: 20px; border-radius: 8px; border: 1px solid #E2E8F0; margin: 20px 0; }}
                 .footer {{ text-align: center; color: #64748B; font-size: 14px; padding: 20px; }}
             </style>
         </head>
         <body>
             <div class="container">
                 <div class="header">
-                    <h1 style="margin: 0;">✅ Rendez-vous confirmé</h1>
-                    <p style="margin: 10px 0 0 0; opacity: 0.9;">NLYT</p>
+                    <h1 style="margin: 0; font-size: 22px;">Votre acces est confirme</h1>
+                    <p style="margin: 10px 0 0 0; opacity: 0.9; font-size: 14px;">{header_subtitle} — NLYT</p>
                 </div>
                 <div class="content">
-                    <h2 style="color: #1E293B;">Bonjour {to_name},</h2>
+                    <h2 style="color: #1E293B; margin-top: 0;">Bonjour {to_name},</h2>
                     <p style="color: #475569;">
-                        Vous avez accepté l'invitation de <strong>{organizer_name}</strong>. 
-                        Le rendez-vous est maintenant confirmé.
+                        Votre participation au rendez-vous de <strong>{organizer_name}</strong> est maintenant
+                        <strong>entierement confirmee</strong>. Vous trouverez ci-dessous toutes les informations
+                        necessaires pour le jour J.
                     </p>
-                    
+
                     <div class="info-box">
-                        <h3 style="margin: 0 0 15px 0; color: #1E293B;">📋 {appointment_title}</h3>
-                        <p style="margin: 8px 0; color: #64748B;">
-                            <strong>📅 Date :</strong> {formatted_date}
+                        <h3 style="margin: 0 0 15px 0; color: #1E293B;">{appointment_title}</h3>
+                        <p style="margin: 8px 0; color: #334155;">
+                            <strong>Date :</strong> {formatted_date}
                         </p>
-                        <p style="margin: 8px 0; color: #64748B;">
-                            <strong>📍 Lieu :</strong> {location_display}
+                        {tz_note}
+                        <p style="margin: 8px 0; color: #334155;">
+                            <strong>{'Reunion' if is_video else 'Lieu'} :</strong> {location_display}
                         </p>
                     </div>
-                    
+
+                    {access_section}
+
                     {penalty_reminder}
-                    
+
                     {ics_button}
-                    
-                    {proof_section_confirm}
-                    
+
                     {view_link}
+
+                    <div style="background: #F1F5F9; border-radius: 8px; padding: 16px; margin-top: 24px; text-align: center;">
+                        <p style="margin: 0; color: #64748B; font-size: 12px;">
+                            Cet email est votre <strong>confirmation d'acces definitive</strong>.
+                            Conservez-le pour retrouver facilement vos liens le jour du rendez-vous.
+                        </p>
+                    </div>
                 </div>
                 <div class="footer">
-                    <p>© 2026 NLYT. Tous droits réservés.</p>
+                    <p>&copy; 2026 NLYT. Tous droits reserves.</p>
                 </div>
             </div>
         </body>

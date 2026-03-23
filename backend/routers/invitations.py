@@ -358,7 +358,7 @@ async def respond_to_invitation(request: Request, token: str, response: Invitati
                 organizer_name=organizer_name,
                 appointment_title=appointment.get('title', ''),
                 appointment_datetime=appointment.get('start_datetime', ''),
-                location=appointment.get('location') or appointment.get('meeting_provider'),
+                location=appointment.get('location'),
                 penalty_amount=appointment.get('penalty_amount'),
                 penalty_currency=appointment.get('penalty_currency', 'EUR'),
                 cancellation_deadline_hours=appointment.get('cancellation_deadline_hours'),
@@ -366,6 +366,8 @@ async def respond_to_invitation(request: Request, token: str, response: Invitati
                 invitation_link=invitation_link,
                 appointment_timezone=appointment.get('appointment_timezone', 'Europe/Paris'),
                 proof_link=proof_link,
+                appointment_type=appointment.get('appointment_type', 'physical'),
+                meeting_provider=appointment.get('meeting_provider'),
             )
         except Exception as e:
             # Log error but don't fail the acceptance

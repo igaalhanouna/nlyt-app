@@ -146,7 +146,7 @@ async def stripe_webhook(request: Request):
                                         organizer_name=organizer_name,
                                         appointment_title=appointment.get('title', ''),
                                         appointment_datetime=appointment.get('start_datetime', ''),
-                                        location=appointment.get('location') or appointment.get('meeting_provider'),
+                                        location=appointment.get('location'),
                                         penalty_amount=appointment.get('penalty_amount'),
                                         penalty_currency=appointment.get('penalty_currency', 'EUR'),
                                         cancellation_deadline_hours=appointment.get('cancellation_deadline_hours'),
@@ -154,6 +154,8 @@ async def stripe_webhook(request: Request):
                                         invitation_link=invitation_link,
                                         appointment_timezone=appointment.get('appointment_timezone', 'Europe/Paris'),
                                         proof_link=proof_link,
+                                        appointment_type=appointment.get('appointment_type', 'physical'),
+                                        meeting_provider=appointment.get('meeting_provider'),
                                     )
                                 except Exception as email_error:
                                     print(f"[WEBHOOK] Email error: {email_error}")
