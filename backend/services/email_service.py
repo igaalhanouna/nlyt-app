@@ -481,8 +481,19 @@ class EmailService:
                     </div>
             """
         elif not is_video:
-            # PHYSICAL: GPS / QR check-in info
+            # PHYSICAL: GPS / QR check-in info with direct action link
             loc_text = f"a l'adresse : <strong>{location_display}</strong>" if location else ""
+            # Build the check-in action link (invitation page is the check-in entry point)
+            checkin_link = invitation_link if invitation_link else ""
+            checkin_button = ""
+            if checkin_link:
+                checkin_button = f"""
+                        <div style="text-align: center; margin-top: 16px;">
+                            <a href="{checkin_link}" style="display: inline-block; padding: 14px 32px; background: #16A34A; color: white; text-decoration: none; border-radius: 10px; font-size: 15px; font-weight: bold;">
+                                Je suis arrive — confirmer ma presence
+                            </a>
+                        </div>
+                """
             access_section = f"""
                     <div style="background: #F0FDF4; border: 2px solid #BBF7D0; border-radius: 10px; padding: 24px; margin: 24px 0;">
                         <p style="margin: 0 0 8px 0; color: #166534; font-weight: bold; font-size: 15px;">
@@ -492,11 +503,13 @@ class EmailService:
                             Le jour du rendez-vous {loc_text}, confirmez votre arrivee via :
                         </p>
                         <ul style="margin: 0; padding-left: 20px; color: #15803D; font-size: 13px; line-height: 1.8;">
-                            <li>Le bouton <strong>"Je suis arrive"</strong> sur votre page d'invitation</li>
+                            <li>Le bouton ci-dessous <strong>"Je suis arrive"</strong></li>
                             <li>Le <strong>scan du QR code</strong> fourni par l'organisateur</li>
                         </ul>
+                        {checkin_button}
                         <p style="margin: 12px 0 0 0; color: #64748B; font-size: 11px;">
                             La position GPS sera capturee automatiquement si autorisee. Le check-in est disponible 30 min avant le debut.
+                            <br/>Conservez cet email — c'est votre reference pour le jour J.
                         </p>
                     </div>
             """

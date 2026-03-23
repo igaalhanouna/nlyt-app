@@ -117,48 +117,9 @@ async def stripe_webhook(request: Request):
                                 except Exception as act_err:
                                     print(f"[WEBHOOK] Activation error: {act_err}")
                             else:
-                                # Regular participant — send confirmation email with ICS + proof link
-                                try:
-                                    from services.email_service import EmailService
-                                    
-                                    organizer = db.users.find_one(
-                                        {"user_id": appointment.get('organizer_id')},
-                                        {"_id": 0}
-                                    )
-                                    organizer_name = f"{organizer.get('first_name', '')} {organizer.get('last_name', '')}".strip() if organizer else "L'organisateur"
-                                    
-                                    participant_name = f"{participant.get('first_name', '')} {participant.get('last_name', '')}".strip()
-                                    if not participant_name:
-                                        participant_name = participant.get('email', '').split('@')[0]
-                                    
-                                    frontend_url = os.environ.get('FRONTEND_URL', '').rstrip('/')
-                                    ics_link = f"{frontend_url}/api/calendar/export/ics/{appointment['appointment_id']}"
-                                    invitation_link = f"{frontend_url}/invitation/{participant.get('invitation_token')}"
-                                    
-                                    # Build proof link for video appointments only
-                                    proof_link = None
-                                    if appointment.get('appointment_type') == 'video':
-                                        proof_link = f"{frontend_url}/proof/{appointment['appointment_id']}?token={participant.get('invitation_token', '')}"
-                                    
-                                    await EmailService.send_acceptance_confirmation_email(
-                                        to_email=participant.get('email', ''),
-                                        to_name=participant_name,
-                                        organizer_name=organizer_name,
-                                        appointment_title=appointment.get('title', ''),
-                                        appointment_datetime=appointment.get('start_datetime', ''),
-                                        location=appointment.get('location'),
-                                        penalty_amount=appointment.get('penalty_amount'),
-                                        penalty_currency=appointment.get('penalty_currency', 'EUR'),
-                                        cancellation_deadline_hours=appointment.get('cancellation_deadline_hours'),
-                                        ics_link=ics_link,
-                                        invitation_link=invitation_link,
-                                        appointment_timezone=appointment.get('appointment_timezone', 'Europe/Paris'),
-                                        proof_link=proof_link,
-                                        appointment_type=appointment.get('appointment_type', 'physical'),
-                                        meeting_provider=appointment.get('meeting_provider'),
-                                    )
-                                except Exception as email_error:
-                                    print(f"[WEBHOOK] Email error: {email_error}")
+                                # Regular participant — send confirmation email (idempotent)
+                                from routers.invitations import send_confirmation_email_once
+                                await send_confirmation_email_once(participant, appointment)
                 
                 return {"status": "success", "event_type": event_type, "result": result}
         

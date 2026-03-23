@@ -23,6 +23,83 @@ client = MongoClient(MONGO_URL)
 db = client[DB_NAME]
 
 
+async def send_confirmation_email_once(participant: dict, appointment: dict):
+    """
+    Send the definitive confirmation email exactly ONCE after engagement is finalized.
+    Uses 'confirmation_email_sent' flag on participant for idempotence.
+    Called from both the webhook path and the polling-fallback path.
+    """
+    pid = participant.get('participant_id')
+
+    # Idempotence: skip if already sent
+    if participant.get('confirmation_email_sent'):
+        return False
+
+    # Atomic flag: set confirmation_email_sent=True BEFORE sending
+    # so a concurrent call won't send a duplicate
+    result = db.participants.update_one(
+        {"participant_id": pid, "confirmation_email_sent": {"$ne": True}},
+        {"$set": {"confirmation_email_sent": True, "confirmation_email_sent_at": now_utc_iso()}}
+    )
+    if result.modified_count == 0:
+        return False  # Another path already claimed it
+
+    try:
+        from services.email_service import EmailService
+
+        organizer = db.users.find_one(
+            {"user_id": appointment.get('organizer_id')}, {"_id": 0}
+        )
+        organizer_name = (
+            f"{organizer.get('first_name', '')} {organizer.get('last_name', '')}".strip()
+            if organizer else "L'organisateur"
+        )
+
+        p_name = f"{participant.get('first_name', '')} {participant.get('last_name', '')}".strip()
+        if not p_name:
+            p_name = participant.get('email', '').split('@')[0]
+
+        frontend_url = os.environ.get('FRONTEND_URL', '').rstrip('/')
+        apt_id = appointment['appointment_id']
+        token = participant.get('invitation_token', '')
+
+        ics_link = f"{frontend_url}/api/calendar/export/ics/{apt_id}"
+        invitation_link = f"{frontend_url}/invitation/{token}"
+
+        # Proof link for video, invitation link (with check-in anchor) for physical
+        proof_link = None
+        if appointment.get('appointment_type') == 'video':
+            proof_link = f"{frontend_url}/proof/{apt_id}?token={token}"
+
+        await EmailService.send_acceptance_confirmation_email(
+            to_email=participant.get('email', ''),
+            to_name=p_name,
+            organizer_name=organizer_name,
+            appointment_title=appointment.get('title', ''),
+            appointment_datetime=appointment.get('start_datetime', ''),
+            location=appointment.get('location'),
+            penalty_amount=appointment.get('penalty_amount'),
+            penalty_currency=appointment.get('penalty_currency', 'EUR'),
+            cancellation_deadline_hours=appointment.get('cancellation_deadline_hours'),
+            ics_link=ics_link,
+            invitation_link=invitation_link,
+            appointment_timezone=appointment.get('appointment_timezone', 'Europe/Paris'),
+            proof_link=proof_link,
+            appointment_type=appointment.get('appointment_type', 'physical'),
+            meeting_provider=appointment.get('meeting_provider'),
+        )
+        print(f"[EMAIL] Confirmation email sent to {participant.get('email')} for appointment {apt_id}")
+        return True
+    except Exception as e:
+        print(f"[EMAIL] Failed to send confirmation email to {participant.get('email')}: {e}")
+        # Roll back the flag so the other path can retry
+        db.participants.update_one(
+            {"participant_id": pid},
+            {"$unset": {"confirmation_email_sent": "", "confirmation_email_sent_at": ""}}
+        )
+        return False
+
+
 class InvitationResponse(BaseModel):
     action: str  # "accept" or "decline"
 
@@ -330,48 +407,11 @@ async def respond_to_invitation(request: Request, token: str, response: Invitati
         {"_id": 0}
     )
     
-    # Send confirmation email if accepted
+    # Send confirmation email if accepted (idempotent helper)
     if response.action == "accept":
-        try:
-            from services.email_service import EmailService
-            
-            # Get organizer info
-            organizer = db.users.find_one({"user_id": appointment.get('organizer_id')}, {"_id": 0})
-            organizer_name = f"{organizer.get('first_name', '')} {organizer.get('last_name', '')}".strip() if organizer else "L'organisateur"
-            
-            # Build participant name
-            participant_name = f"{participant.get('first_name', '')} {participant.get('last_name', '')}".strip()
-            if not participant_name:
-                participant_name = participant.get('email', '').split('@')[0]
-            
-            # Build URLs
-            frontend_url = os.environ.get('FRONTEND_URL', '').rstrip('/')
-            ics_link = f"{frontend_url}/api/calendar/export/ics/{appointment['appointment_id']}"
-            invitation_link = f"{frontend_url}/invitation/{token}"
-            proof_link = None
-            if appointment.get('appointment_type') == 'video':
-                proof_link = f"{frontend_url}/proof/{appointment['appointment_id']}?token={token}"
-            
-            await EmailService.send_acceptance_confirmation_email(
-                to_email=participant.get('email', ''),
-                to_name=participant_name,
-                organizer_name=organizer_name,
-                appointment_title=appointment.get('title', ''),
-                appointment_datetime=appointment.get('start_datetime', ''),
-                location=appointment.get('location'),
-                penalty_amount=appointment.get('penalty_amount'),
-                penalty_currency=appointment.get('penalty_currency', 'EUR'),
-                cancellation_deadline_hours=appointment.get('cancellation_deadline_hours'),
-                ics_link=ics_link,
-                invitation_link=invitation_link,
-                appointment_timezone=appointment.get('appointment_timezone', 'Europe/Paris'),
-                proof_link=proof_link,
-                appointment_type=appointment.get('appointment_type', 'physical'),
-                meeting_provider=appointment.get('meeting_provider'),
-            )
-        except Exception as e:
-            # Log error but don't fail the acceptance
-            print(f"Failed to send confirmation email: {e}")
+        # For direct accept (no guarantee), only send if status is 'accepted' (not pending_guarantee)
+        if updated_participant.get('status') == 'accepted':
+            await send_confirmation_email_once(updated_participant, appointment)
     
     return {
         "success": True,
@@ -414,6 +454,17 @@ async def check_guarantee_status(request: Request, token: str, session_id: str =
         
         if result.get('success') and result.get('status') == 'completed':
             status = 'accepted_guaranteed'
+
+            # Send confirmation email (idempotent — only sends once)
+            fresh_participant = db.participants.find_one(
+                {"invitation_token": token}, {"_id": 0}
+            )
+            if fresh_participant and not fresh_participant.get('confirmation_email_sent'):
+                appointment = db.appointments.find_one(
+                    {"appointment_id": fresh_participant.get('appointment_id')}, {"_id": 0}
+                )
+                if appointment:
+                    await send_confirmation_email_once(fresh_participant, appointment)
     
     return {
         "status": status,

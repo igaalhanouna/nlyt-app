@@ -1,0 +1,68 @@
+{
+  "summary": "Confirmation Email Idempotence Fix - All 14 tests passed. The critical bug fix ensures confirmation emails are now sent from BOTH the webhook path AND the polling fallback path. The send_confirmation_email_once() helper uses MongoDB atomic update with $ne True for exactly-once delivery. Video emails have 'Confirmer ma presence et rejoindre' button with proof_link. Physical emails have 'Je suis arrive' CTA button.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": {
+    "backend": [
+      "GET /api/health returns 200",
+      "send_confirmation_email_once is importable from routers.invitations",
+      "webhooks.py imports send_confirmation_email_once",
+      "Idempotence: calling twice sends email only once (confirmation_email_sent flag)",
+      "MongoDB atomic update with $ne True prevents race condition duplicates",
+      "Video email: proof_link present, 'Confirmer ma presence et rejoindre' button present, ICS button present",
+      "Physical email: 'Je suis arrive' button present, NO proof_link, ICS button present",
+      "GET /api/invitations/{token}/guarantee-status returns correct status and is_guaranteed fields",
+      "POST /api/invitations/{token}/respond works (no regression)",
+      "Webhook path imports and calls send_confirmation_email_once",
+      "Polling path (check_guarantee_status) calls send_confirmation_email_once",
+      "Direct accept path (respond_to_invitation) calls send_confirmation_email_once",
+      "Helper returns False when confirmation_email_sent is already True",
+      "Helper rolls back flag on email failure so other path can retry"
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_confirmation_email_idempotence.py",
+    "/app/test_reports/pytest/pytest_confirmation_email_idempotence.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_confirmation_email_idempotence.py"
+  ],
+  "success_rate": {
+    "backend": "100% (14/14 passed)"
+  },
+  "test_credentials": {
+    "email": "testuser_audit@nlyt.app",
+    "password": "Test1234!"
+  },
+  "seed_data_creation": "Created temporary test participants and appointments for idempotence testing (cleaned up after tests)",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Confirmation email idempotence fix verified. The send_confirmation_email_once() helper at line 26-100 in invitations.py is called from: (1) webhook path in webhooks.py line 121, (2) polling path in check_guarantee_status line 467, (3) direct accept path in respond_to_invitation line 414. The helper uses MongoDB atomic update with $ne True condition on confirmation_email_sent field for concurrency safety. On email failure, the flag is rolled back ($unset) so the other path can retry. Video emails have proof_link and 'Confirmer ma presence et rejoindre' button. Physical emails have 'Je suis arrive' CTA button with invitation_link for check-in.",
+  "verified_features": {
+    "send_confirmation_email_once_helper_exists": true,
+    "helper_is_importable_from_routers_invitations": true,
+    "idempotence_sends_email_only_once": true,
+    "atomic_update_prevents_duplicates": true,
+    "video_email_has_proof_link": true,
+    "video_email_has_confirmer_ma_presence_button": true,
+    "physical_email_has_je_suis_arrive_button": true,
+    "physical_email_no_proof_link": true,
+    "ics_button_in_both_email_types": true,
+    "webhook_path_calls_helper": true,
+    "polling_path_calls_helper": true,
+    "direct_accept_path_calls_helper": true,
+    "helper_rollback_on_failure": true,
+    "polling_endpoint_returns_correct_fields": true,
+    "respond_endpoint_no_regression": true,
+    "health_endpoint_working": true
+  }
+}
