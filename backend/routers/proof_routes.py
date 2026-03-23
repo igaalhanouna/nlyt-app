@@ -329,6 +329,36 @@ async def get_sessions(appointment_id: str, user=Depends(get_current_user)):
         {"_id": 0, "heartbeats": 0},
     ))
 
+    # Enrich with video provider display names from evidence
+    participant_ids = list({s["participant_id"] for s in sessions})
+    video_names = {}
+    if participant_ids:
+        video_evidence = list(db.evidence.find(
+            {
+                "appointment_id": appointment_id,
+                "participant_id": {"$in": participant_ids},
+                "source": "video_conference",
+            },
+            {"_id": 0, "participant_id": 1, "derived_facts": 1, "source_timestamp": 1},
+        ).sort("source_timestamp", -1))
+
+        for ev in video_evidence:
+            pid = ev.get("participant_id")
+            if pid not in video_names:
+                facts = ev.get("derived_facts", {})
+                video_names[pid] = {
+                    "video_display_name": facts.get("participant_name_from_provider"),
+                    "video_email": facts.get("participant_email_from_provider"),
+                    "video_provider": facts.get("provider"),
+                }
+
+    for session in sessions:
+        pid = session.get("participant_id")
+        vn = video_names.get(pid, {})
+        session["video_display_name"] = vn.get("video_display_name")
+        session["video_email"] = vn.get("video_email")
+        session["video_provider"] = vn.get("video_provider")
+
     return {"sessions": sessions, "count": len(sessions)}
 
 
