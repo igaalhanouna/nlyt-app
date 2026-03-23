@@ -22,7 +22,7 @@ import json
 import uuid
 from datetime import datetime, timedelta, timezone
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://payment-access-1.preview.emergentagent.com')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://gps-checkin-fix.preview.emergentagent.com')
 
 # Test credentials
 TEST_EMAIL = "testuser_audit@nlyt.app"
