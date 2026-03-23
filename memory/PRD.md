@@ -50,6 +50,7 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API (mode user)
 - iteration_43: 15/15 backend (Email confirmation 4 cas — contenu vérifié)
 - iteration_44: 6/6 backend + 9/9 frontend (Masquage evidence-dashboard pour vidéo)
 - iteration_45: 14/14 backend (Email confirmation idempotent — polling + webhook)
+- iteration_46: 11/11 backend + 3/3 frontend (ICS — lien invitation uniquement)
 - Credentials: testuser_audit@nlyt.app / Test1234!
 
 ## Completed
@@ -78,6 +79,10 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API (mode user)
   - Vidéo : bouton "Confirmer ma présence et rejoindre" → proof link
   - Physique : bouton "Je suis arrivé — confirmer ma présence" → page invitation
   - ICS dans les deux cas, timezone, note "définitive"
+- [x] ICS : lien invitation NLYT uniquement (pas de visio/proof directs)
+  - Endpoint accepte ?token= pour lien participant-specific
+  - Frontend + email ICS links incluent le token
+  - Aucun lien Zoom/Teams/Meet/Proof dans l'ICS
 
 ## Roadmap
 ### P1
