@@ -105,8 +105,17 @@ async def manual_checkin(request: Request, body: ManualCheckinRequest):
 
     # Notify other participants (non-blocking, idempotent)
     from services.checkin_notification_service import notify_checkin
-    checkin_time = result.get('evidence', {}).get('source_timestamp')
-    await notify_checkin(participant['participant_id'], appointment['appointment_id'], checkin_time)
+    ev = result.get('evidence', {})
+    checkin_time = ev.get('source_timestamp')
+    facts = ev.get('derived_facts', {})
+    evidence_details = {
+        'source': ev.get('source', 'manual_checkin'),
+        'latitude': facts.get('latitude'),
+        'longitude': facts.get('longitude'),
+        'address_label': facts.get('address_label'),
+        'distance_km': facts.get('distance_km'),
+    }
+    await notify_checkin(participant['participant_id'], appointment['appointment_id'], checkin_time, evidence_details)
 
     return result
 
@@ -128,8 +137,10 @@ async def qr_verify(request: Request, body: QRVerifyRequest):
 
     # Notify other participants
     from services.checkin_notification_service import notify_checkin
-    checkin_time = result.get('evidence', {}).get('source_timestamp')
-    await notify_checkin(participant['participant_id'], appointment['appointment_id'], checkin_time)
+    ev = result.get('evidence', {})
+    checkin_time = ev.get('source_timestamp')
+    evidence_details = {'source': 'qr'}
+    await notify_checkin(participant['participant_id'], appointment['appointment_id'], checkin_time, evidence_details)
 
     return result
 
@@ -153,8 +164,17 @@ async def gps_checkin(request: Request, body: GPSCheckinRequest):
 
     # Notify other participants
     from services.checkin_notification_service import notify_checkin
-    checkin_time = result.get('evidence', {}).get('source_timestamp')
-    await notify_checkin(participant['participant_id'], appointment['appointment_id'], checkin_time)
+    ev = result.get('evidence', {})
+    checkin_time = ev.get('source_timestamp')
+    facts = ev.get('derived_facts', {})
+    evidence_details = {
+        'source': 'gps',
+        'latitude': facts.get('latitude') or body.latitude,
+        'longitude': facts.get('longitude') or body.longitude,
+        'address_label': facts.get('address_label'),
+        'distance_km': facts.get('distance_km'),
+    }
+    await notify_checkin(participant['participant_id'], appointment['appointment_id'], checkin_time, evidence_details)
 
     return result
 

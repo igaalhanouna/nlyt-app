@@ -251,7 +251,10 @@ async def checkin(appointment_id: str, req: CheckinRequest):
 
     # Notify other participants (non-blocking, idempotent)
     from services.checkin_notification_service import notify_checkin
-    await notify_checkin(participant["participant_id"], appointment_id, now.isoformat())
+    evidence_details = {
+        'video_display_name': req.video_display_name or '',
+    }
+    await notify_checkin(participant["participant_id"], appointment_id, now.isoformat(), evidence_details)
 
     # Organizer gets host URL; participant gets join URL
     visio_url = (appointment.get("meeting_host_url") or appointment.get("meeting_join_url", "")) if is_organizer else appointment.get("meeting_join_url", "")

@@ -17,6 +17,7 @@ async def notify_checkin(
     participant_id: str,
     appointment_id: str,
     checkin_time: str = None,
+    evidence_details: dict = None,
 ):
     """
     Send check-in notification to all OTHER participants (+ organizer if the checker is not the organizer).
@@ -93,6 +94,7 @@ async def notify_checkin(
                     checkin_time=checkin_time or datetime.now(timezone.utc).isoformat(),
                     appointment_link=appointment_link,
                     appointment_timezone=appointment.get('appointment_timezone', 'Europe/Paris'),
+                    evidence_details=evidence_details,
                 )
             except Exception as e:
                 print(f"[CHECKIN_NOTIFY] Failed to send to {recipient.get('email')}: {e}")

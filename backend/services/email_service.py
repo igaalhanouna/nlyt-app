@@ -596,13 +596,17 @@ class EmailService:
         checkin_time: str = None,
         appointment_link: str = None,
         appointment_timezone: str = 'Europe/Paris',
+        evidence_details: dict = None,
     ):
         """
         Notify others when someone checks in.
-        Sent once per participant per appointment (idempotent at caller level).
+        evidence_details may contain:
+          Physical: latitude, longitude, address_label, distance_km, source
+          Video: video_display_name, checkin_time
         """
         formatted_date = format_email_datetime(appointment_datetime, appointment_timezone)
         is_video = appointment_type == 'video'
+        details = evidence_details or {}
 
         provider_label = {
             'zoom': 'Zoom', 'teams': 'Microsoft Teams', 'meet': 'Google Meet'
@@ -628,7 +632,7 @@ class EmailService:
         checkin_display = ""
         if checkin_time:
             try:
-                from datetime import datetime as dt, timezone as tz
+                from datetime import datetime as dt
                 import pytz
                 ct = dt.fromisoformat(checkin_time.replace('Z', '+00:00'))
                 local_tz = pytz.timezone(appointment_timezone)
@@ -638,6 +642,51 @@ class EmailService:
                 checkin_display = ""
 
         time_line = f"<p style='margin: 4px 0 0 0; color: #64748B; font-size: 12px;'>Check-in a {checkin_display}</p>" if checkin_display else ""
+
+        # ── Evidence details section ──
+        evidence_section = ""
+        if is_video:
+            # Video: display name + connection time
+            display_name = details.get('video_display_name')
+            rows = []
+            if display_name:
+                rows.append(f"<tr><td style='color:#64748B;padding:3px 8px 3px 0;font-size:12px;'>Nom de connexion</td><td style='color:#1E293B;padding:3px 0;font-size:12px;font-weight:600;'>{display_name}</td></tr>")
+            if checkin_display:
+                rows.append(f"<tr><td style='color:#64748B;padding:3px 8px 3px 0;font-size:12px;'>Heure de connexion</td><td style='color:#1E293B;padding:3px 0;font-size:12px;font-weight:600;'>{checkin_display}</td></tr>")
+            rows.append(f"<tr><td style='color:#64748B;padding:3px 8px 3px 0;font-size:12px;'>Plateforme</td><td style='color:#1E293B;padding:3px 0;font-size:12px;font-weight:600;'>{provider_label}</td></tr>")
+            if rows:
+                evidence_section = f"""
+                    <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;padding:14px 16px;margin:16px 0;">
+                        <p style="margin:0 0 8px 0;color:#1E40AF;font-weight:bold;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Details de connexion</p>
+                        <table style="border-collapse:collapse;">{''.join(rows)}</table>
+                    </div>
+                """
+        else:
+            # Physical: GPS coordinates + address + distance + source
+            rows = []
+            source_label = {'gps': 'GPS', 'qr': 'QR Code', 'manual_checkin': 'Check-in manuel'}.get(details.get('source', ''), details.get('source', ''))
+            if source_label:
+                rows.append(f"<tr><td style='color:#64748B;padding:3px 8px 3px 0;font-size:12px;'>Methode</td><td style='color:#1E293B;padding:3px 0;font-size:12px;font-weight:600;'>{source_label}</td></tr>")
+            if checkin_display:
+                rows.append(f"<tr><td style='color:#64748B;padding:3px 8px 3px 0;font-size:12px;'>Heure d'arrivee</td><td style='color:#1E293B;padding:3px 0;font-size:12px;font-weight:600;'>{checkin_display}</td></tr>")
+            addr = details.get('address_label')
+            if addr:
+                rows.append(f"<tr><td style='color:#64748B;padding:3px 8px 3px 0;font-size:12px;vertical-align:top;'>Localisation</td><td style='color:#1E293B;padding:3px 0;font-size:12px;font-weight:600;'>{addr}</td></tr>")
+            lat = details.get('latitude')
+            lon = details.get('longitude')
+            if lat is not None and lon is not None:
+                maps_url = f"https://www.google.com/maps?q={lat},{lon}"
+                rows.append(f"<tr><td style='color:#64748B;padding:3px 8px 3px 0;font-size:12px;'>Coordonnees</td><td style='padding:3px 0;font-size:12px;'><a href='{maps_url}' style='color:#2563EB;text-decoration:underline;'>{lat:.5f}, {lon:.5f}</a></td></tr>")
+            dist = details.get('distance_km')
+            if dist is not None:
+                rows.append(f"<tr><td style='color:#64748B;padding:3px 8px 3px 0;font-size:12px;'>Distance au lieu</td><td style='color:#1E293B;padding:3px 0;font-size:12px;font-weight:600;'>{dist:.1f} km</td></tr>")
+            if rows:
+                evidence_section = f"""
+                    <div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;padding:14px 16px;margin:16px 0;">
+                        <p style="margin:0 0 8px 0;color:#166534;font-weight:bold;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Preuves de presence</p>
+                        <table style="border-collapse:collapse;">{''.join(rows)}</table>
+                    </div>
+                """
 
         link_section = ""
         if appointment_link:
@@ -678,6 +727,8 @@ class EmailService:
                         </p>
                         {time_line}
                     </div>
+
+                    {evidence_section}
 
                     <div style="background: #F8FAFC; padding: 16px; border-radius: 8px; border: 1px solid #E2E8F0; margin: 20px 0;">
                         <p style="margin: 0 0 6px 0; color: #1E293B; font-weight: bold;">{appointment_title}</p>
