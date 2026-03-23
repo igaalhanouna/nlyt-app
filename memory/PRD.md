@@ -3,25 +3,6 @@
 ## Vision
 SaaS de gestion d'assiduité avec garanties financières. NLYT vérifie la présence des participants via des preuves indépendantes, sans dépendance critique à un provider vidéo.
 
-## Architecture cible
-Voir **`/app/memory/ARCHITECTURE.md`** pour le document complet post-pivots (Mars 2026).
-
-## Modèle produit (résumé)
-
-### Deux systèmes distincts, jamais mélangés
-- **Physique** (`appointment_type: "physical"`) : GPS / QR / Check-in manuel
-- **Visio** (`appointment_type: "video"`) : NLYT Proof (check-in + heartbeat + scoring)
-
-### Provider vidéo = support, pas source de vérité
-- L'utilisateur gère sa propre visio (coller un lien OU connecter Zoom/Teams/Meet)
-- NLYT ne crée pas de réunion centralisée
-- Les APIs vidéo sont un bonus secondaire
-
-### Verrouillage d'accès (Guarantee-First Architecture)
-- Les participants NE PEUVENT PAS accéder au fichier ICS, au lien de visio, ni au lien NLYT Proof tant qu'ils n'ont pas finalisé leur engagement
-- Statuts finalisés : `accepted` (sans garantie) ou `accepted_guaranteed` (garantie payée)
-- `accepted_pending_guarantee` = verrouillé
-
 ## Core Requirements
 1. Création de RDV (physique + vidéo) avec paramètres de pénalité
 2. Invitation par email avec liens sécurisés + lien NLYT Proof (visio uniquement)
@@ -43,23 +24,24 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API (mode user)
 
 ## Testing
 - iteration_59: 25/25 backend (Financial Email Notifications)
+- iteration_60: 27/27 backend+frontend (Workspace inline edit)
 - Credentials: testuser_audit@nlyt.app / Test1234!
 
 ## Completed — Stripe Connect (All Phases)
-
-### Phase 1 — Wallet + Ledger ✅
-### Phase 2 — Stripe Connect Express ✅
-### Phase 3 — Capture + Distribution ✅
-### Phase 3b — WalletPage enrichie ✅
-### Charity Impact Tracking ✅
-### Page publique Impact NLYT ✅
-### Phase 4 — Payouts réels ✅
-### Phase 5 — Notifications email financières ✅
+- Phase 1: Wallet + Ledger ✅
+- Phase 2: Stripe Connect Express ✅
+- Phase 3: Capture + Distribution ✅
+- Phase 3b: WalletPage enrichie ✅
+- Charity Impact Tracking ✅
+- Page publique Impact NLYT ✅
+- Phase 4: Payouts réels ✅
+- Phase 5: Notifications email financières ✅
 
 ## Completed — UX Cleanup (Mars 2026)
-- [x] Suppression /policies (placeholder vide, pas dans la roadmap)
-- [x] Suppression /analytics (placeholder vide, backend inexistant)
-- [x] Refonte bloc Connect → "Compte bancaire" : zéro mention Stripe visible, phrase explicative wallet vs banque, lien secondaire discret, bloc remonté après soldes
+- [x] Suppression /policies et /analytics (placeholders vides)
+- [x] Refonte bloc Connect → "Compte bancaire" (zéro mention Stripe visible)
+- [x] Bug fix: lien "Modifier mon compte bancaire" inerte en dev mode → toast informatif
+- [x] Édition inline workspace : icône crayon, input nom + textarea description, Enter/Escape, sauvegarde PUT, "Ajouter une description" cliquable
 
 ## Roadmap
 ### P1
