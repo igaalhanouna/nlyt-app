@@ -40,6 +40,7 @@ import WorkspaceSettings from './pages/settings/WorkspaceSettings';
 import Integrations from './pages/settings/Integrations';
 import PaymentSettings from './pages/settings/PaymentSettings';
 import WalletPage from './pages/settings/WalletPage';
+import ImpactPage from './pages/ImpactPage';
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth();
@@ -70,6 +71,7 @@ function App() {
               
               <Route path="/invitation/:token" element={<InvitationPage />} />
               <Route path="/proof/:appointmentId" element={<CheckinPage />} />
+              <Route path="/impact" element={<ImpactPage />} />
               
               <Route path="/workspace/select" element={<PrivateRoute><SelectWorkspace /></PrivateRoute>} />
               <Route path="/workspace/create" element={<PrivateRoute><CreateWorkspace /></PrivateRoute>} />

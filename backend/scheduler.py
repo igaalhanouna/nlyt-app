@@ -63,6 +63,15 @@ async def distribution_hold_expiry_job():
         logger.error(f"[SCHEDULER] Distribution hold expiry job failed: {str(e)}")
 
 
+async def impact_stats_refresh_job():
+    """Job to refresh cached public impact statistics"""
+    try:
+        from services.distribution_service import refresh_impact_stats
+        refresh_impact_stats()
+    except Exception as e:
+        logger.error(f"[SCHEDULER] Impact stats refresh job failed: {str(e)}")
+
+
 async def proposal_expiration_job():
     """Job to expire stale modification proposals (24h timeout)"""
     try:
@@ -128,6 +137,15 @@ def start_scheduler():
         replace_existing=True
     )
 
+    # Job 7: Impact stats refresh (every 30 minutes)
+    scheduler.add_job(
+        impact_stats_refresh_job,
+        trigger=IntervalTrigger(minutes=30),
+        id='impact_stats_refresh_job',
+        name='Refresh public impact statistics cache',
+        replace_existing=True
+    )
+
     scheduler.start()
     logger.info("[SCHEDULER] Background scheduler started")
     logger.info("[SCHEDULER]    - Cancellation deadline reminders: every 5 minutes")
@@ -135,6 +153,7 @@ def start_scheduler():
     logger.info("[SCHEDULER]    - Attendance evaluation: every 10 minutes")
     logger.info("[SCHEDULER]    - Auto-fetch video attendance (Zoom/Teams): every 5 minutes")
     logger.info("[SCHEDULER]    - Distribution hold expiry: every 15 minutes")
+    logger.info("[SCHEDULER]    - Impact stats refresh: every 30 minutes")
 
 
 def stop_scheduler():

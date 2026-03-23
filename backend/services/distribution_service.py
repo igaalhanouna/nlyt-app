@@ -648,3 +648,125 @@ def get_charity_impact(user_id: str) -> dict:
         "by_association": associations_list,
         "contributions": sorted(contributions, key=lambda x: x.get("created_at", ""), reverse=True),
     }
+
+
+# ─── Public Impact Stats (cached aggregation) ───────────────
+
+
+def refresh_impact_stats() -> dict:
+    """
+    Aggregate global impact stats from the distributions ledger.
+    Writes result to impact_stats collection (single doc, upserted).
+    Called periodically by scheduler — never in hot path.
+    """
+    now_iso = datetime.now(timezone.utc).isoformat()
+
+    # All non-cancelled distributions
+    pipeline_totals = [
+        {"$match": {"status": {"$nin": ["cancelled"]}}},
+        {"$group": {
+            "_id": None,
+            "total_captured_cents": {"$sum": "$capture_amount_cents"},
+            "distributions_count": {"$sum": 1},
+            "appointment_ids": {"$addToSet": "$appointment_id"},
+        }},
+    ]
+    totals_result = list(db.distributions.aggregate(pipeline_totals))
+    totals = totals_result[0] if totals_result else {
+        "total_captured_cents": 0, "distributions_count": 0, "appointment_ids": []
+    }
+
+    # Charity totals per association (unwind beneficiaries, filter role=charity)
+    pipeline_charity = [
+        {"$match": {"status": {"$nin": ["cancelled"]}}},
+        {"$unwind": "$beneficiaries"},
+        {"$match": {"beneficiaries.role": "charity", "beneficiaries.status": {"$ne": "refunded"}}},
+        {"$group": {
+            "_id": "$beneficiaries.user_id",
+            "total_cents": {"$sum": "$beneficiaries.amount_cents"},
+            "count": {"$sum": 1},
+            "appointment_ids": {"$addToSet": "$appointment_id"},
+        }},
+        {"$sort": {"total_cents": -1}},
+    ]
+    charity_results = list(db.distributions.aggregate(pipeline_charity))
+
+    total_charity_cents = sum(c["total_cents"] for c in charity_results)
+
+    # Total distributed to all beneficiaries (platform + charity + compensation)
+    pipeline_distributed = [
+        {"$match": {"status": {"$nin": ["cancelled"]}}},
+        {"$unwind": "$beneficiaries"},
+        {"$match": {"beneficiaries.status": {"$ne": "refunded"}}},
+        {"$group": {"_id": None, "total": {"$sum": "$beneficiaries.amount_cents"}}},
+    ]
+    dist_result = list(db.distributions.aggregate(pipeline_distributed))
+    total_distributed_cents = dist_result[0]["total"] if dist_result else 0
+
+    # Unique participants count
+    pipeline_participants = [
+        {"$match": {"status": {"$nin": ["cancelled"]}}},
+        {"$unwind": "$beneficiaries"},
+        {"$match": {"beneficiaries.role": {"$in": ["organizer", "participant"]}}},
+        {"$group": {"_id": None, "user_ids": {"$addToSet": "$beneficiaries.user_id"}}},
+    ]
+    part_result = list(db.distributions.aggregate(pipeline_participants))
+    unique_participants = len(part_result[0]["user_ids"]) if part_result else 0
+
+    # Also count no_show users as participants
+    pipeline_noshow = [
+        {"$match": {"status": {"$nin": ["cancelled"]}}},
+        {"$group": {"_id": None, "user_ids": {"$addToSet": "$no_show_user_id"}}},
+    ]
+    noshow_result = list(db.distributions.aggregate(pipeline_noshow))
+    noshow_ids = set(noshow_result[0]["user_ids"]) if noshow_result else set()
+    benef_ids = set(part_result[0]["user_ids"]) if part_result else set()
+    total_participants = len(noshow_ids | benef_ids)
+
+    # Enrich association names
+    assoc_ids = [c["_id"] for c in charity_results if c["_id"]]
+    assoc_names = {}
+    if assoc_ids:
+        for a in db.charity_associations.find(
+            {"association_id": {"$in": assoc_ids}}, {"_id": 0, "association_id": 1, "name": 1}
+        ):
+            assoc_names[a["association_id"]] = a.get("name")
+
+    associations = []
+    for c in charity_results:
+        associations.append({
+            "association_id": c["_id"],
+            "name": assoc_names.get(c["_id"]),
+            "total_cents": c["total_cents"],
+            "distributions_count": c["count"],
+            "events_count": len(c["appointment_ids"]),
+        })
+
+    stats = {
+        "stats_id": "global",
+        "total_captured_cents": totals["total_captured_cents"],
+        "total_distributed_cents": total_distributed_cents,
+        "total_charity_cents": total_charity_cents,
+        "distributions_count": totals["distributions_count"],
+        "events_count": len(totals["appointment_ids"]),
+        "participants_count": total_participants,
+        "currency": "eur",
+        "associations": associations,
+        "refreshed_at": now_iso,
+    }
+
+    db.impact_stats.replace_one({"stats_id": "global"}, stats, upsert=True)
+    logger.info(
+        f"[IMPACT] Stats refreshed: {total_distributed_cents}c distributed, "
+        f"{total_charity_cents}c charity, {len(associations)} associations"
+    )
+    return stats
+
+
+def get_public_impact() -> dict:
+    """Read cached impact stats. Returns empty defaults if not yet computed."""
+    stats = db.impact_stats.find_one({"stats_id": "global"}, {"_id": 0})
+    if stats:
+        return stats
+    # First call before scheduler runs — compute now
+    return refresh_impact_stats()
