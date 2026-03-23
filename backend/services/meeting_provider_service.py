@@ -601,10 +601,26 @@ def fetch_attendance_for_appointment(appointment_id: str) -> dict:
         if provider == "zoom":
             if not _zoom_client.is_configured():
                 return {"error": "Zoom API non configurée"}
-            data = _zoom_client.fetch_attendance(meeting_id)
-            if data:
-                return {"success": True, "provider": "zoom", "raw_payload": data}
-            return {"error": "Rapport de présence Zoom non disponible (réunion pas encore terminée ?)"}
+            try:
+                data = _zoom_client.fetch_attendance(meeting_id)
+                if data:
+                    return {"success": True, "provider": "zoom", "raw_payload": data}
+                return {"error": "Rapport de présence Zoom non disponible. La réunion doit être terminée depuis au moins 15 minutes."}
+            except requests.exceptions.HTTPError as e:
+                status_code = e.response.status_code if e.response is not None else 0
+                error_body = ""
+                try:
+                    error_body = e.response.json().get("message", "")
+                except Exception:
+                    pass
+                logger.warning(f"[MEETING] Zoom fetch_attendance failed (HTTP {status_code}): {error_body}")
+                if "Paid" in error_body or "paid" in error_body:
+                    return {"error": "Plan Zoom Pro requis pour la récupération automatique des présences. Utilisez l'import manuel (CSV) en attendant la mise à niveau du plan Zoom."}
+                if status_code == 404:
+                    return {"error": "Rapport de présence Zoom non disponible. La réunion doit être terminée depuis au moins 15 minutes."}
+                if "scope" in error_body.lower():
+                    return {"error": f"Scopes Zoom manquants : {error_body}"}
+                return {"error": f"Erreur Zoom ({status_code}): {error_body or 'Réessayez après la fin de la réunion.'}"}
 
         elif provider in ("teams", "microsoft teams"):
             organizer_id = appointment.get("organizer_id")

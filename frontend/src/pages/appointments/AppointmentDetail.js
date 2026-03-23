@@ -48,6 +48,7 @@ export default function AppointmentDetail() {
   const [videoIngestionLogs, setVideoIngestionLogs] = useState([]);
   const [creatingMeeting, setCreatingMeeting] = useState(false);
   const [fetchingAttendance, setFetchingAttendance] = useState(false);
+  const [fetchAttendanceError, setFetchAttendanceError] = useState(null);
   const [ingestMode, setIngestMode] = useState('file'); // 'file' or 'json'
   const [selectedFile, setSelectedFile] = useState(null);
   const [csvPreview, setCsvPreview] = useState(null);
@@ -593,6 +594,7 @@ export default function AppointmentDetail() {
 
   const handleFetchAttendance = async () => {
     setFetchingAttendance(true);
+    setFetchAttendanceError(null);
     try {
       const res = await videoEvidenceAPI.fetchAttendance(id);
       const data = res.data;
@@ -604,7 +606,13 @@ export default function AppointmentDetail() {
       }
       loadData();
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Erreur lors de la récupération des présences');
+      const detail = err.response?.data?.detail || 'Erreur lors de la récupération des présences';
+      const isPlanError = detail.toLowerCase().includes('paid') || detail.toLowerCase().includes('plan');
+      const isLegacyError = detail.toLowerCase().includes('legacy');
+      setFetchAttendanceError({ message: detail, isPlanError, isLegacyError });
+      if (!isPlanError) {
+        toast.error(detail);
+      }
     } finally {
       setFetchingAttendance(false);
     }
@@ -1864,6 +1872,42 @@ export default function AppointmentDetail() {
                           </Button>
                         </div>
                       </div>
+
+                      {/* Fallback banner — shown after fetch failure */}
+                      {fetchAttendanceError && !hasEvidence && (
+                        <div className={`mt-3 p-3.5 rounded-lg border ${fetchAttendanceError.isPlanError ? 'bg-amber-50 border-amber-300' : 'bg-orange-50 border-orange-200'}`} data-testid="fetch-error-fallback-banner">
+                          <div className="flex items-start gap-3">
+                            <AlertTriangle className={`w-5 h-5 mt-0.5 flex-shrink-0 ${fetchAttendanceError.isPlanError ? 'text-amber-600' : 'text-orange-600'}`} />
+                            <div className="flex-1 min-w-0">
+                              <p className={`text-sm font-semibold ${fetchAttendanceError.isPlanError ? 'text-amber-900' : 'text-orange-900'}`}>
+                                {fetchAttendanceError.isPlanError ? 'Plan Zoom Pro requis' : 'Récupération automatique indisponible'}
+                              </p>
+                              <p className={`text-sm mt-1 ${fetchAttendanceError.isPlanError ? 'text-amber-800' : 'text-orange-800'}`}>
+                                {fetchAttendanceError.isPlanError
+                                  ? 'La récupération automatique nécessite un plan Zoom Pro. En attendant, utilisez l\'import manuel :'
+                                  : fetchAttendanceError.message
+                                }
+                              </p>
+                              {fetchAttendanceError.isPlanError && (
+                                <div className="mt-2.5 flex items-center gap-2 flex-wrap">
+                                  <Button
+                                    size="sm"
+                                    className="h-8 text-sm bg-amber-600 hover:bg-amber-700 text-white"
+                                    onClick={() => { setShowVideoIngest(true); setFetchAttendanceError(null); }}
+                                    data-testid="fallback-import-csv-btn"
+                                  >
+                                    <Upload className="w-4 h-4 mr-1.5" />
+                                    Importer le rapport CSV Zoom
+                                  </Button>
+                                  <span className="text-xs text-amber-600">
+                                    Zoom {'>'} Reports {'>'} Meeting {'>'} Participants {'>'} Export
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ) : (
                     /* Google Meet: manual import is the primary action */
