@@ -13,11 +13,11 @@ import { toast } from 'sonner';
 /* ─── Config & Helpers ──────────────────────────────────────── */
 
 const CONNECT_STATUS_CONFIG = {
-  not_started: { label: 'Non configuré', description: 'Configurez votre compte pour retirer vos fonds.', icon: AlertTriangle, color: 'text-amber-600', bg: 'bg-amber-50 border-amber-200', actionLabel: 'Configurer mon compte' },
-  onboarding: { label: 'Vérification en cours', description: 'Votre compte est en cours de vérification par Stripe.', icon: Clock, color: 'text-blue-600', bg: 'bg-blue-50 border-blue-200', actionLabel: 'Reprendre la vérification' },
-  restricted: { label: 'Informations requises', description: 'Stripe nécessite des informations complémentaires.', icon: ShieldAlert, color: 'text-orange-600', bg: 'bg-orange-50 border-orange-200', actionLabel: 'Compléter la vérification' },
-  active: { label: 'Compte vérifié', description: 'Votre compte est actif. Vous pourrez retirer vos fonds.', icon: CheckCircle, color: 'text-emerald-600', bg: 'bg-emerald-50 border-emerald-200', actionLabel: 'Dashboard Stripe' },
-  disabled: { label: 'Compte désactivé', description: 'Contactez le support pour plus d\'informations.', icon: XCircle, color: 'text-red-600', bg: 'bg-red-50 border-red-200', actionLabel: 'Reconfigurer' },
+  not_started: { label: 'Compte bancaire non configuré', description: 'Vous devez lier votre compte bancaire pour retirer vos fonds.', icon: AlertTriangle, color: 'text-amber-600', bg: 'bg-amber-50 border-amber-200', actionLabel: 'Lier mon compte bancaire' },
+  onboarding: { label: 'Vérification en cours', description: 'Votre compte bancaire est en cours de vérification.', icon: Clock, color: 'text-blue-600', bg: 'bg-blue-50 border-blue-200', actionLabel: 'Reprendre la vérification' },
+  restricted: { label: 'Informations requises', description: 'Des informations complémentaires sont nécessaires pour finaliser la liaison.', icon: ShieldAlert, color: 'text-orange-600', bg: 'bg-orange-50 border-orange-200', actionLabel: 'Compléter la vérification' },
+  active: { label: 'Compte bancaire', description: 'Votre compte bancaire est lié. Vous pouvez retirer vos fonds à tout moment.', icon: CheckCircle, color: 'text-emerald-600', bg: 'bg-emerald-50 border-emerald-200', actionLabel: 'Modifier mes informations bancaires' },
+  disabled: { label: 'Compte bancaire désactivé', description: 'Contactez le support pour plus d\'informations.', icon: XCircle, color: 'text-red-600', bg: 'bg-red-50 border-red-200', actionLabel: 'Reconfigurer' },
 };
 
 const DIST_STATUS = {
@@ -98,7 +98,7 @@ function BalanceCards({ wallet, onPayout, payoutLoading }) {
         ) : (
           <p className="text-[11px] text-slate-400 mt-1">
             {wallet.stripe_connect_status !== 'active'
-              ? 'Activez Stripe Connect pour retirer'
+              ? 'Liez votre compte bancaire pour retirer'
               : wallet.available_balance < wallet.minimum_payout
                 ? `Min. ${fmt(wallet.minimum_payout, wallet.currency)} pour retirer`
                 : 'Aucun fonds retirable'}
@@ -446,16 +446,20 @@ function ConnectStatusCard({ connectStatus, onOnboard, onDashboard, onRefresh, o
       <div className="flex items-start gap-3">
         <StatusIcon className={`w-5 h-5 mt-0.5 flex-shrink-0 ${cfg.color}`} />
         <div className="flex-1">
-          <div className="flex items-center justify-between">
-            <h3 className={`text-sm font-semibold ${cfg.color}`} data-testid="connect-status-label">{cfg.label}</h3>
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/60 font-mono" data-testid="connect-status-badge">{status}</span>
-          </div>
+          <h3 className={`text-sm font-semibold ${cfg.color}`} data-testid="connect-status-label">{cfg.label}</h3>
           <p className="text-xs mt-1 opacity-80">{cfg.description}</p>
-          <div className="mt-3 flex gap-2">
+          {status === 'active' && (
+            <p className="text-[11px] text-slate-400 mt-1">Votre argent est stocké dans votre wallet NLYT. Ce compte vous permet de le transférer vers votre banque.</p>
+          )}
+          <div className="mt-3 flex items-center gap-3">
             {status === 'active' ? (
-              <Button size="sm" variant="outline" onClick={onDashboard} data-testid="stripe-dashboard-btn">
-                <ExternalLink className="w-3.5 h-3.5 mr-1.5" />{cfg.actionLabel}
-              </Button>
+              <button
+                onClick={onDashboard}
+                className="text-xs text-slate-500 hover:text-slate-700 underline underline-offset-2 transition-colors"
+                data-testid="stripe-dashboard-btn"
+              >
+                {cfg.actionLabel} →
+              </button>
             ) : (
               <Button size="sm" onClick={onOnboard} disabled={onboarding} data-testid="connect-onboard-btn">
                 {onboarding ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <Banknote className="w-3.5 h-3.5 mr-1.5" />}
@@ -495,7 +499,7 @@ function PayoutHistory({ payouts }) {
                   <ArrowUpRight className="w-3.5 h-3.5 text-slate-500" />
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-slate-900">Retrait vers Stripe Connect</p>
+                  <p className="text-xs font-medium text-slate-900">Retrait vers compte bancaire</p>
                   <p className="text-[10px] text-slate-400">{fmtDateShort(p.requested_at)}{p.dev_mode ? ' · DEV' : ''}</p>
                 </div>
               </div>
@@ -698,12 +702,20 @@ export default function WalletPage() {
 
         <BalanceCards wallet={wallet} onPayout={() => setShowPayoutConfirm(true)} payoutLoading={payoutLoading} />
 
+        <ConnectStatusCard
+          connectStatus={connectStatus}
+          onOnboard={handleOnboard}
+          onDashboard={handleDashboard}
+          onRefresh={fetchData}
+          onboarding={onboarding}
+        />
+
         {/* Payout Confirmation Modal */}
         {showPayoutConfirm && wallet && (
           <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 rounded-lg" data-testid="payout-confirm-modal">
             <p className="text-sm font-medium text-emerald-900 mb-2">Confirmer le retrait</p>
             <p className="text-xs text-emerald-700 mb-3">
-              Vous allez retirer <span className="font-bold">{fmt(wallet.available_balance, wallet.currency)}</span> vers votre compte Stripe Connect.
+              Vous allez retirer <span className="font-bold">{fmt(wallet.available_balance, wallet.currency)}</span> vers votre compte bancaire.
               Ce transfert est irréversible.
             </p>
             <div className="flex gap-2">
@@ -730,14 +742,6 @@ export default function WalletPage() {
         />
 
         <ImpactSection impact={impact} />
-
-        <ConnectStatusCard
-          connectStatus={connectStatus}
-          onOnboard={handleOnboard}
-          onDashboard={handleDashboard}
-          onRefresh={fetchData}
-          onboarding={onboarding}
-        />
 
         <PayoutHistory payouts={payouts} />
 
