@@ -64,7 +64,9 @@ export default function InvitationPage() {
 
     try {
       const response = await fetch(`${API_URL}/api/invitations/${token}/guarantee-status?session_id=${sessionId}`);
-      const data = await response.json();
+      const text = await response.text();
+      let data;
+      try { data = JSON.parse(text); } catch { data = {}; }
 
       if (data.is_guaranteed) {
         setResponseStatus('accepted_guaranteed');
@@ -88,12 +90,19 @@ export default function InvitationPage() {
       setLoading(true);
       const response = await fetch(`${API_URL}/api/invitations/${token}`);
       
+      // Read body once as text to avoid "body stream already read" errors
+      const text = await response.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        throw new Error('Réponse invalide du serveur');
+      }
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Invitation non trouvée');
+        throw new Error(data.detail || 'Invitation non trouvée');
       }
       
-      const data = await response.json();
       setInvitation(data);
       
       // Check guarantee revalidation status
@@ -138,12 +147,13 @@ export default function InvitationPage() {
         body: JSON.stringify({ action }),
       });
       
+      const text = await response.text();
+      let data;
+      try { data = JSON.parse(text); } catch { data = {}; }
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Erreur lors de la réponse');
+        throw new Error(data.detail || 'Erreur lors de la réponse');
       }
-      
-      const data = await response.json();
       
       // Check if Stripe redirect is required
       if (data.requires_guarantee && data.checkout_url) {
@@ -189,11 +199,12 @@ export default function InvitationPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action, invitation_token: token })
       });
+      const text = await res.text();
+      let data;
+      try { data = JSON.parse(text); } catch { data = {}; }
       if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.detail || 'Erreur');
+        throw new Error(data.detail || 'Erreur');
       }
-      const data = await res.json();
       setActiveProposal(data.status === 'pending' ? data : null);
       if (data.status === 'accepted') {
         fetchInvitation(); // Reload to reflect applied changes
@@ -228,8 +239,10 @@ export default function InvitationPage() {
           changes
         })
       });
-      if (!res.ok) { const err = await res.json(); throw new Error(err.detail || 'Erreur'); }
-      const data = await res.json();
+      const text = await res.text();
+      let data;
+      try { data = JSON.parse(text); } catch { data = {}; }
+      if (!res.ok) { throw new Error(data.detail || 'Erreur'); }
       setActiveProposal(data);
       setShowProposeForm(false);
     } catch (err) {
@@ -247,7 +260,9 @@ export default function InvitationPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
       });
-      const data = await res.json();
+      const text = await res.text();
+      let data;
+      try { data = JSON.parse(text); } catch { data = {}; }
       if (!res.ok) {
         throw new Error(data.detail || 'Erreur lors de la reconfirmation');
       }
@@ -383,12 +398,13 @@ export default function InvitationPage() {
         },
       });
       
+      const text = await response.text();
+      let data;
+      try { data = JSON.parse(text); } catch { data = {}; }
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Erreur lors de l\'annulation');
+        throw new Error(data.detail || 'Erreur lors de l\'annulation');
       }
-      
-      const data = await response.json();
       setResponseStatus(data.status);
       
       // Update invitation data
