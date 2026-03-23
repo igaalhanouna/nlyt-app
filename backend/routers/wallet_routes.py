@@ -6,12 +6,16 @@ GET  /api/wallet/transactions                → Historique du ledger
 GET  /api/wallet/distributions               → Distributions de l'utilisateur
 GET  /api/wallet/distributions/:id           → Détail d'une distribution
 POST /api/wallet/distributions/:id/contest   → Contester une distribution
+GET  /api/wallet/impact                      → Impact solidaire
+POST /api/wallet/payout                      → Demander un retrait
+GET  /api/wallet/payouts                     → Historique des retraits
 """
 import sys
 sys.path.append('/app/backend')
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
+from typing import Optional
 from middleware.auth_middleware import get_current_user
 from services.wallet_service import (
     ensure_wallet,
@@ -24,6 +28,12 @@ from services.distribution_service import (
     get_distribution,
     contest_distribution,
     get_charity_impact,
+)
+from services.payout_service import (
+    request_payout,
+    get_payouts_for_user,
+    get_payout,
+    get_payout_count,
 )
 
 router = APIRouter()
@@ -122,3 +132,41 @@ async def contest_dist(distribution_id: str, body: ContestRequest, request: Requ
     if not result.get("success"):
         raise HTTPException(status_code=400, detail=result.get("error", "Erreur contestation"))
     return result
+
+
+
+class PayoutRequest(BaseModel):
+    amount_cents: Optional[int] = None
+
+
+@router.post("/payout")
+async def create_payout(body: PayoutRequest, request: Request):
+    """Request a payout from NLYT wallet to Stripe Connect account."""
+    user = await get_current_user(request)
+    result = request_payout(user["user_id"], body.amount_cents)
+    if not result.get("success"):
+        raise HTTPException(status_code=400, detail=result.get("error", "Erreur retrait"))
+    return result
+
+
+@router.get("/payouts")
+async def get_my_payouts(request: Request, limit: int = 50, skip: int = 0):
+    """Get payout history for the current user."""
+    user = await get_current_user(request)
+    if limit > 100:
+        limit = 100
+    payouts = get_payouts_for_user(user["user_id"], limit=limit, skip=skip)
+    total = get_payout_count(user["user_id"])
+    return {"payouts": payouts, "total": total, "limit": limit, "skip": skip}
+
+
+@router.get("/payouts/{payout_id}")
+async def get_payout_detail(payout_id: str, request: Request):
+    """Get details of a specific payout."""
+    user = await get_current_user(request)
+    p = get_payout(payout_id)
+    if not p:
+        raise HTTPException(status_code=404, detail="Retrait introuvable")
+    if p["user_id"] != user["user_id"]:
+        raise HTTPException(status_code=403, detail="Accès non autorisé")
+    return p

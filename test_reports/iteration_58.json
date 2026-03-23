@@ -1,0 +1,109 @@
+{
+  "summary": "Phase 4 Payouts fully tested. All 15 backend tests pass. All 9 frontend UI checks pass. Payout flow works correctly in dev mode: request → confirmation modal → completed → history updated → transaction ledger updated.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": {
+    "backend": [
+      "POST /api/wallet/payout succeeds when conditions met (dev mode, returns completed)",
+      "POST /api/wallet/payout fails when available_balance insufficient (400 error)",
+      "POST /api/wallet/payout fails when amount < MINIMUM_PAYOUT_CENTS 500 (400 error)",
+      "POST /api/wallet/payout fails when stripe_connect_status != active (400 error)",
+      "POST /api/wallet/payout is idempotent (rejects when balance is 0 after first payout)",
+      "POST /api/wallet/payout debits wallet atomically (available_balance decremented, total_withdrawn incremented)",
+      "POST /api/wallet/payout creates debit_payout transaction in ledger",
+      "POST /api/wallet/payout in dev mode marks payout as completed immediately with tr_dev_ prefix",
+      "GET /api/wallet/payouts returns payout history with correct structure",
+      "GET /api/wallet/payouts/:id returns payout detail",
+      "GET /api/wallet/payouts/:id returns 404 for non-existent payout (access control)",
+      "Webhook handler handle_transfer_paid marks payout as completed",
+      "Webhook handler handle_transfer_failed re-credits wallet and marks payout as failed",
+      "Webhook handlers are idempotent (skip already processed payouts)",
+      "Full payout flow end-to-end: request → completed → history → ledger"
+    ],
+    "frontend": [
+      "Wallet page loads with balance cards (EN ATTENTE, DISPONIBLE, RETIRABLE)",
+      "Payout button visible when can_payout=true (balance >= 500c and connect active)",
+      "Payout button shows 'Retirer vers mon compte' text",
+      "Payout confirmation modal appears on button click",
+      "Confirmation modal shows amount (25,00 €) and irreversibility warning",
+      "Confirm button triggers payout API call",
+      "After payout: balance updates to 0,00 €",
+      "After payout: payout button hidden (shows 'Min. 5,00 € pour retirer')",
+      "Payout history section shows completed payout with 'Effectué' status and 'DEV' tag",
+      "Transaction history shows 'Retrait' entry with -25,00 €"
+    ]
+  },
+  "verified_features": {
+    "payout_api": {
+      "endpoint": "POST /api/wallet/payout",
+      "request_body": {"amount_cents": "int | null (null = full withdrawal)"},
+      "response_success": {
+        "success": true,
+        "payout_id": "uuid",
+        "amount_cents": 2500,
+        "status": "completed",
+        "dev_mode": true,
+        "stripe_transfer_id": "tr_dev_xxxxxxxx"
+      },
+      "validations": [
+        "amount_cents > 0",
+        "available_balance >= amount_cents",
+        "amount_cents >= MINIMUM_PAYOUT_CENTS (500)",
+        "stripe_connect_status == 'active'",
+        "no pending/processing payout exists"
+      ]
+    },
+    "payout_history_api": {
+      "endpoint": "GET /api/wallet/payouts",
+      "response": {"payouts": [], "total": 0, "limit": 50, "skip": 0}
+    },
+    "payout_detail_api": {
+      "endpoint": "GET /api/wallet/payouts/:id",
+      "access_control": "user_id must match"
+    },
+    "webhook_handlers": {
+      "transfer.paid": "marks payout as completed (idempotent)",
+      "transfer.failed": "re-credits wallet, marks payout as failed (idempotent)",
+      "transfer.reversed": "same as transfer.failed"
+    },
+    "frontend_wallet_page": {
+      "balance_cards": "EN ATTENTE (pending), DISPONIBLE (available), RETIRABLE (withdrawable)",
+      "payout_button": "visible when can_payout=true, data-testid='payout-btn'",
+      "confirmation_modal": "data-testid='payout-confirm-modal', shows amount and confirm/cancel",
+      "payout_history": "data-testid='payout-history', shows status badge (Effectué/En cours/Échoué)",
+      "transaction_history": "data-testid='transaction-history', shows debit_payout as 'Retrait'"
+    }
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_payout_phase4.py",
+    "/app/test_reports/pytest/pytest_payout_phase4.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_payout_phase4.py"
+  ],
+  "success_rate": {
+    "backend": "100% (15/15 passed)",
+    "frontend": "100% (10/10 UI checks passed)"
+  },
+  "test_credentials": "testuser_audit@nlyt.app / Test1234! (user_id: d13498f9-9c0d-47d4-b48f-9e327e866127)",
+  "seed_data_creation": "Reset wallet to available_balance=2500, deleted existing payouts and payout transactions before testing",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Phase 4 Payouts fully implemented and tested. Key components: (1) POST /api/wallet/payout validates conditions (balance, minimum 500c, connect active, no pending payout) then creates payout record. (2) Dev mode (acct_dev_* accounts) completes immediately with tr_dev_ prefix. (3) Real mode creates Stripe Transfer, debits wallet atomically, sets status to 'processing'. (4) Webhook handlers: transfer.paid → completed, transfer.failed → re-credit wallet + failed. (5) Frontend: WalletPage.js shows payout button when can_payout=true, confirmation modal, PayoutHistory section, debit_payout in TransactionHistory. (6) data-testid attributes: payout-btn, payout-confirm-modal, payout-confirm-btn, payout-history, payout-{id}. (7) MOCKED: Stripe Transfer is simulated in dev mode for acct_dev_* accounts.",
+  "mocked_apis": {
+    "has_mocked_apis": true,
+    "mocked_apis_list": [
+      "Stripe Transfer create (dev mode for acct_dev_* accounts)",
+      "Stripe Balance retrieve (skipped for dev accounts)"
+    ]
+  }
+}

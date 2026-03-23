@@ -6,6 +6,7 @@ import stripe
 sys.path.append('/app/backend')
 from services.stripe_guarantee_service import StripeGuaranteeService
 from services.connect_service import handle_account_updated, handle_account_deauthorized
+from services.payout_service import handle_transfer_paid, handle_transfer_failed
 from datetime import datetime, timezone
 
 from database import db
@@ -145,6 +146,16 @@ async def stripe_webhook(request: Request):
             if account_id:
                 result = handle_account_deauthorized(account_id)
                 return {"status": "success", "event_type": event_type, "result": result}
+        
+        # Handle Stripe Transfer paid (payout completed)
+        elif event_type == "transfer.paid":
+            result = handle_transfer_paid(event_data)
+            return {"status": "success", "event_type": event_type, "result": result}
+        
+        # Handle Stripe Transfer failed/reversed (payout failed)
+        elif event_type in ("transfer.failed", "transfer.reversed"):
+            result = handle_transfer_failed(event_data)
+            return {"status": "success", "event_type": event_type, "result": result}
         
         return {"status": "success", "event_type": event_type}
     

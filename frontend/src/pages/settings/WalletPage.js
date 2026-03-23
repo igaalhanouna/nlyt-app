@@ -51,7 +51,7 @@ function fmtDateShort(iso) {
 
 /* ─── Balance Cards ─────────────────────────────────────────── */
 
-function BalanceCards({ wallet }) {
+function BalanceCards({ wallet, onPayout, payoutLoading }) {
   if (!wallet) return null;
 
   return (
@@ -84,13 +84,26 @@ function BalanceCards({ wallet }) {
         <p className="text-xl font-bold text-slate-500" data-testid="withdrawable-balance">
           {wallet.can_payout ? fmt(wallet.available_balance, wallet.currency) : fmt(0, wallet.currency)}
         </p>
-        <p className="text-[11px] text-slate-400 mt-1">
-          {!wallet.can_payout && wallet.stripe_connect_status !== 'active'
-            ? 'Activez Stripe Connect pour retirer'
-            : wallet.available_balance < wallet.minimum_payout
-              ? `Min. ${fmt(wallet.minimum_payout, wallet.currency)} pour retirer`
-              : 'Retrait disponible prochainement (Phase 4)'}
-        </p>
+        {wallet.can_payout ? (
+          <Button
+            size="sm"
+            className="mt-2 w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs"
+            onClick={onPayout}
+            disabled={payoutLoading}
+            data-testid="payout-btn"
+          >
+            {payoutLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <ArrowUpRight className="w-3.5 h-3.5 mr-1.5" />}
+            Retirer vers mon compte
+          </Button>
+        ) : (
+          <p className="text-[11px] text-slate-400 mt-1">
+            {wallet.stripe_connect_status !== 'active'
+              ? 'Activez Stripe Connect pour retirer'
+              : wallet.available_balance < wallet.minimum_payout
+                ? `Min. ${fmt(wallet.minimum_payout, wallet.currency)} pour retirer`
+                : 'Aucun fonds retirable'}
+          </p>
+        )}
       </div>
     </div>
   );
@@ -457,6 +470,47 @@ function ConnectStatusCard({ connectStatus, onOnboard, onDashboard, onRefresh, o
   );
 }
 
+/* ─── Payout Section ────────────────────────────────────────── */
+
+const PAYOUT_STATUS = {
+  pending: { label: 'En attente', color: 'bg-yellow-100 text-yellow-700' },
+  processing: { label: 'En cours', color: 'bg-blue-100 text-blue-700' },
+  completed: { label: 'Effectué', color: 'bg-emerald-100 text-emerald-700' },
+  failed: { label: 'Échoué', color: 'bg-red-100 text-red-700' },
+};
+
+function PayoutHistory({ payouts }) {
+  if (!payouts || payouts.length === 0) return null;
+
+  return (
+    <div className="mb-8" data-testid="payout-history">
+      <h2 className="text-base font-semibold text-slate-900 mb-3">Retraits</h2>
+      <div className="bg-white border border-slate-200 rounded-lg divide-y divide-slate-100">
+        {payouts.map((p) => {
+          const sCfg = PAYOUT_STATUS[p.status] || PAYOUT_STATUS.pending;
+          return (
+            <div key={p.payout_id} className="p-3 flex items-center justify-between" data-testid={`payout-${p.payout_id}`}>
+              <div className="flex items-center gap-3">
+                <div className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center flex-shrink-0">
+                  <ArrowUpRight className="w-3.5 h-3.5 text-slate-500" />
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-slate-900">Retrait vers Stripe Connect</p>
+                  <p className="text-[10px] text-slate-400">{fmtDateShort(p.requested_at)}{p.dev_mode ? ' · DEV' : ''}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <p className="text-xs font-semibold text-slate-900">{fmt(p.amount_cents, p.currency)}</p>
+                <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded ${sCfg.color}`}>{sCfg.label}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 /* ─── Transaction History ───────────────────────────────────── */
 
 const TX_TYPE_LABELS = {
@@ -520,18 +574,22 @@ export default function WalletPage() {
   const [txTotal, setTxTotal] = useState(0);
   const [distributions, setDistributions] = useState([]);
   const [impact, setImpact] = useState(null);
+  const [payouts, setPayouts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [onboarding, setOnboarding] = useState(false);
   const [currentUserId, setCurrentUserId] = useState(null);
+  const [payoutLoading, setPayoutLoading] = useState(false);
+  const [showPayoutConfirm, setShowPayoutConfirm] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
-      const [walletRes, connectRes, txRes, distRes, impactRes] = await Promise.all([
+      const [walletRes, connectRes, txRes, distRes, impactRes, payoutsRes] = await Promise.all([
         walletAPI.get(),
         connectAPI.getStatus(),
         walletAPI.getTransactions(20, 0),
         walletAPI.getDistributions(50, 0),
         walletAPI.getImpact(),
+        walletAPI.getPayouts(20, 0),
       ]);
       setWallet(walletRes.data);
       setConnectStatus(connectRes.data);
@@ -539,6 +597,7 @@ export default function WalletPage() {
       setTxTotal(txRes.data.total || 0);
       setDistributions(distRes.data.distributions || []);
       setImpact(impactRes.data);
+      setPayouts(payoutsRes.data.payouts || []);
 
       // Extract user_id from connect status or wallet
       if (connectRes.data?.user_id) setCurrentUserId(connectRes.data.user_id);
@@ -595,6 +654,23 @@ export default function WalletPage() {
     }
   };
 
+  const handlePayout = async () => {
+    setPayoutLoading(true);
+    setShowPayoutConfirm(false);
+    try {
+      const res = await walletAPI.requestPayout(null); // Full withdrawal
+      const msg = res.data.dev_mode
+        ? `[DEV] Retrait simulé : ${fmt(res.data.amount_cents)}`
+        : `Retrait de ${fmt(res.data.amount_cents)} en cours`;
+      toast.success(msg);
+      await fetchData();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || "Erreur lors du retrait");
+    } finally {
+      setPayoutLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background p-4 sm:p-8">
@@ -620,7 +696,31 @@ export default function WalletPage() {
         </div>
         <p className="text-xs text-slate-500 mb-6">Vos fonds internes, distributions reçues et compte de paiement</p>
 
-        <BalanceCards wallet={wallet} />
+        <BalanceCards wallet={wallet} onPayout={() => setShowPayoutConfirm(true)} payoutLoading={payoutLoading} />
+
+        {/* Payout Confirmation Modal */}
+        {showPayoutConfirm && wallet && (
+          <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 rounded-lg" data-testid="payout-confirm-modal">
+            <p className="text-sm font-medium text-emerald-900 mb-2">Confirmer le retrait</p>
+            <p className="text-xs text-emerald-700 mb-3">
+              Vous allez retirer <span className="font-bold">{fmt(wallet.available_balance, wallet.currency)}</span> vers votre compte Stripe Connect.
+              Ce transfert est irréversible.
+            </p>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                onClick={handlePayout}
+                disabled={payoutLoading}
+                data-testid="payout-confirm-btn"
+              >
+                {payoutLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <ArrowUpRight className="w-3.5 h-3.5 mr-1.5" />}
+                Confirmer le retrait
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setShowPayoutConfirm(false)}>Annuler</Button>
+            </div>
+          </div>
+        )}
 
         <DistributionsSection
           distributions={distributions}
@@ -638,6 +738,8 @@ export default function WalletPage() {
           onRefresh={fetchData}
           onboarding={onboarding}
         />
+
+        <PayoutHistory payouts={payouts} />
 
         <TransactionHistory transactions={transactions} txTotal={txTotal} />
       </div>

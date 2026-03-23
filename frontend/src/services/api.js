@@ -162,6 +162,8 @@ export const walletAPI = {
   getDistribution: (id) => api.get(`/api/wallet/distributions/${id}`),
   contestDistribution: (id, reason) => api.post(`/api/wallet/distributions/${id}/contest`, { reason }),
   getImpact: () => api.get('/api/wallet/impact'),
+  requestPayout: (amount_cents) => api.post('/api/wallet/payout', { amount_cents }),
+  getPayouts: (limit = 50, skip = 0) => api.get(`/api/wallet/payouts?limit=${limit}&skip=${skip}`),
 };
 
 export const connectAPI = {
