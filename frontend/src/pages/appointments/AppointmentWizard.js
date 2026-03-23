@@ -40,7 +40,7 @@ export default function AppointmentWizard() {
   const [systemPlatformCommission, setSystemPlatformCommission] = useState(20);
   
   const [participants, setParticipants] = useState([
-    { first_name: '', last_name: '', email: '', role: 'participant' }
+    { first_name: '', last_name: '', email: '' }
   ]);
   
   const [formData, setFormData] = useState({
@@ -188,7 +188,7 @@ export default function AppointmentWizard() {
   }
 
   const addParticipant = () => {
-    setParticipants([...participants, { first_name: '', last_name: '', email: '', role: 'participant' }]);
+    setParticipants([...participants, { first_name: '', last_name: '', email: '' }]);
   };
 
   const removeParticipant = (index) => {
@@ -442,23 +442,6 @@ export default function AppointmentWizard() {
                   placeholder="email@exemple.com"
                   className="mt-1"
                 />
-              </div>
-              
-              <div>
-                <Label htmlFor={`participant-role-${index}`}>Rôle</Label>
-                <Select
-                  value={participant.role}
-                  onValueChange={(value) => updateParticipant(index, 'role', value)}
-                >
-                  <SelectTrigger className="mt-1" data-testid={`participant-role-${index}`}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="participant">Participant</SelectItem>
-                    <SelectItem value="organizer">Organisateur</SelectItem>
-                    <SelectItem value="observer">Observateur</SelectItem>
-                  </SelectContent>
-                </Select>
               </div>
             </div>
           </div>
