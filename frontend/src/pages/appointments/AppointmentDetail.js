@@ -1020,23 +1020,34 @@ export default function AppointmentDetail() {
                               <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg">
                                 <p className="text-sm font-semibold text-slate-800 mb-1.5 flex items-center gap-2">
                                   <UserCog className="w-4 h-4 text-slate-500" />
-                                  Connexion en tant qu'organisateur
+                                  {metadata.creation_mode === 'central'
+                                    ? 'Réunion gérée par NLYT'
+                                    : 'Connexion en tant qu\'organisateur'
+                                  }
                                 </p>
-                                {creatorEmail && (
-                                  <p className="text-sm text-slate-600">
-                                    Réunion créée avec le compte {providerLabel} : <span className="font-semibold text-slate-900" data-testid="organizer-account-email">{creatorEmail}</span>
-                                    {creatorName && <span className="text-slate-400"> ({creatorName})</span>}
+                                {metadata.creation_mode === 'central' ? (
+                                  <p className="text-sm text-slate-600" data-testid="zoom-central-mode-info">
+                                    Cette réunion {providerLabel} est gérée automatiquement par NLYT. Aucun compte {providerLabel} n'est requis pour les participants.
                                   </p>
-                                )}
-                                {!(provider === 'zoom' && appointment.meeting_host_url) && creatorEmail && (
-                                  <p className="text-sm text-slate-500 mt-1.5" data-testid="organizer-identity-hint">
-                                    Rejoignez la réunion avec ce même compte pour être reconnu comme organisateur.
-                                  </p>
-                                )}
-                                {provider === 'zoom' && appointment.meeting_host_url && (
-                                  <p className="text-sm text-slate-500 mt-1.5" data-testid="organizer-identity-hint">
-                                    Utilisez le lien "Démarrer la réunion" ci-dessus pour être reconnu automatiquement.
-                                  </p>
+                                ) : (
+                                  <>
+                                    {creatorEmail && (
+                                      <p className="text-sm text-slate-600">
+                                        Réunion créée avec le compte {providerLabel} : <span className="font-semibold text-slate-900" data-testid="organizer-account-email">{creatorEmail}</span>
+                                        {creatorName && <span className="text-slate-400"> ({creatorName})</span>}
+                                      </p>
+                                    )}
+                                    {!(provider === 'zoom' && appointment.meeting_host_url) && creatorEmail && (
+                                      <p className="text-sm text-slate-500 mt-1.5" data-testid="organizer-identity-hint">
+                                        Rejoignez la réunion avec ce même compte pour être reconnu comme organisateur.
+                                      </p>
+                                    )}
+                                    {provider === 'zoom' && appointment.meeting_host_url && (
+                                      <p className="text-sm text-slate-500 mt-1.5" data-testid="organizer-identity-hint">
+                                        Utilisez le lien "Démarrer la réunion" ci-dessus pour être reconnu automatiquement.
+                                      </p>
+                                    )}
+                                  </>
                                 )}
                               </div>
 

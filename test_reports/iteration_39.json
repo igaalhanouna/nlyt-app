@@ -1,0 +1,102 @@
+{
+  "summary": "Zoom-as-default-provider feature fully tested. Backend API returns correct structure (zoom: mode='central', universal=true, connected=false; teams: mode='user', connected=true; meet: mode='user', connected=true). Frontend shows 4 provider options with correct badges: Zoom shows 'Configuration en cours' badge and 'Bientôt disponible' description when not configured, Teams shows 'Avancé' + 'Connecté', Meet shows 'Limité' + 'via Google Calendar', External shows 'Manuel'. Zoom card is disabled when not configured. NO REGRESSION: Teams and Meet appointments can still be selected and validated. Existing Teams appointment detail shows correct banners.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": {
+    "backend": [
+      "GET /api/video-evidence/provider-status returns 200",
+      "Provider status includes 'zoom' key",
+      "Provider status includes 'teams' key",
+      "Provider status includes 'meet' key",
+      "Zoom has mode='central'",
+      "Zoom has universal=true",
+      "Zoom has description field",
+      "Zoom has label='Zoom'",
+      "Zoom has connected=false (credentials not configured)",
+      "Teams has mode='user'",
+      "Teams has description field",
+      "Teams has label='Microsoft Teams'",
+      "Teams has connected=true",
+      "Meet has mode='user'",
+      "Meet has description field",
+      "Meet has label='Google Meet'",
+      "Meet has connected=true"
+    ],
+    "frontend": [
+      "AppointmentWizard Step 2 shows 4 provider options when type='Visioconférence'",
+      "data-testid='provider-option-zoom' is present",
+      "data-testid='provider-option-teams' is present",
+      "data-testid='provider-option-meet' is present",
+      "data-testid='provider-option-external' is present",
+      "data-testid='zoom-pending-badge' is present with text 'Configuration en cours'",
+      "Zoom description shows 'Bientôt disponible — en attente de configuration'",
+      "Zoom card is disabled (cursor-not-allowed) when not configured",
+      "Teams card shows 'Avancé' badge",
+      "Teams card shows 'Connecté' status",
+      "Meet card shows 'Limité' badge",
+      "Meet card shows 'via Google Calendar' status",
+      "External link card shows 'Manuel' badge",
+      "NO REGRESSION: Teams card is selectable and shows selected state",
+      "NO REGRESSION: Teams appointment validation passed - moved to Step 3",
+      "NO REGRESSION: Meet card is selectable and shows selected state",
+      "NO REGRESSION: Meet appointment validation passed - moved to Step 3",
+      "NO REGRESSION: Teams appointment detail - organizer-identity-block is present",
+      "NO REGRESSION: Teams appointment detail - teams-legacy-mode-warning is present with orange background",
+      "NO REGRESSION: Teams appointment detail - teams-account-warning is present",
+      "NO REGRESSION: Teams appointment detail - proof-availability-block is present",
+      "NO REGRESSION: Teams appointment detail - proof-status-auto is present",
+      "NO REGRESSION: Teams appointment detail - organizer-account-email shows 'igaal.hanouna@starauto.fr'"
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_zoom_default_provider.py",
+    "/app/test_reports/pytest/pytest_zoom_default_provider.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "AppointmentWizard.js lines 565-608: Zoom provider card correctly implements conditional rendering based on isConfigured status",
+    "AppointmentWizard.js line 594: zoom-pending-badge correctly shows 'Configuration en cours' when not configured",
+    "AppointmentWizard.js line 599-603: Zoom description correctly shows different text based on configuration status",
+    "video_evidence_routes.py lines 277-312: provider-status endpoint correctly returns mode, universal, description for each provider",
+    "meeting_provider_service.py lines 70-102: Zoom create_meeting correctly sets join_before_host:true for central mode"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_zoom_default_provider.py"
+  ],
+  "success_rate": {
+    "backend": "100% (17/17 tests passed)",
+    "frontend": "100% (23/23 UI checks passed)"
+  },
+  "test_credentials": {
+    "email": "testuser_audit@nlyt.app",
+    "password": "Test1234!"
+  },
+  "seed_data_used": {
+    "teams_fallback_appointment": "82f9be58-c4b7-48fa-a2e4-ef3b0470e626 (creation_mode: application_fallback, creator_email: igaal.hanouna@starauto.fr)"
+  },
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Zoom-as-default-provider feature verified. Zoom is currently NOT configured (ZOOM_ACCOUNT_ID, ZOOM_CLIENT_ID, ZOOM_CLIENT_SECRET not set in backend/.env), so it shows as disabled with 'Configuration en cours' badge. When Zoom credentials are configured, the zoom-recommended-badge should appear instead and the card should be enabled. Key test data: Teams appointment 82f9be58-c4b7-48fa-a2e4-ef3b0470e626 for banner verification. Provider status API returns mode='central' for Zoom and mode='user' for Teams/Meet.",
+  "verified_features": {
+    "zoom_mode_central": true,
+    "zoom_universal_true": true,
+    "zoom_pending_badge_when_not_configured": true,
+    "zoom_disabled_when_not_configured": true,
+    "zoom_description_bientot_disponible": true,
+    "teams_avance_badge": true,
+    "teams_connecte_status": true,
+    "meet_limite_badge": true,
+    "meet_via_google_calendar_status": true,
+    "external_manuel_badge": true,
+    "no_regression_teams_selection": true,
+    "no_regression_meet_selection": true,
+    "no_regression_teams_appointment_detail_banners": true
+  }
+}

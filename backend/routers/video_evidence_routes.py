@@ -283,15 +283,20 @@ async def provider_status_endpoint(request: Request):
             "features": ["create_meeting"],
             "requires": "google_calendar",
             "label": "Google Meet",
+            "mode": "user",
+            "description": "Fonctionnalités limitées — nécessite un compte Google",
         },
         "zoom": {
             "configured": zoom_platform,
-            "connected": zoom_connected,
-            "email": (zoom_user_config or {}).get("zoom_email"),
-            "connected_at": (zoom_user_config or {}).get("zoom_connected_at"),
+            "connected": zoom_platform,
+            "email": None,
+            "connected_at": None,
             "features": ["create_meeting", "fetch_attendance"],
-            "requires": "zoom_credentials",
+            "requires": "platform_config",
             "label": "Zoom",
+            "mode": "central",
+            "universal": True,
+            "description": "Aucun compte requis — réunion créée automatiquement",
         },
         "teams": {
             "configured": teams_platform,
@@ -301,6 +306,8 @@ async def provider_status_endpoint(request: Request):
             "features": ["create_meeting", "fetch_attendance"],
             "requires": "azure_credentials",
             "label": "Microsoft Teams",
+            "mode": "user",
+            "description": "Compte Microsoft 365 recommandé",
         },
     }
 

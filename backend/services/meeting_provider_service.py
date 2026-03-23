@@ -78,7 +78,7 @@ class ZoomMeetingClient:
             "settings": {
                 "host_video": True,
                 "participant_video": True,
-                "join_before_host": False,
+                "join_before_host": True,
                 "mute_upon_entry": False,
                 "waiting_room": False,
                 "meeting_authentication": False,
@@ -370,13 +370,18 @@ def create_meeting_for_appointment(
     try:
         if provider_lower == "zoom":
             if not _zoom_client.is_configured():
-                return {"error": "Zoom API non configurée. Ajoutez ZOOM_ACCOUNT_ID, ZOOM_CLIENT_ID, ZOOM_CLIENT_SECRET dans les variables d'environnement.", "needs_config": True}
+                return {"error": "Zoom API non configurée. Contactez l'administrateur NLYT.", "needs_config": True}
             result = _zoom_client.create_meeting(
                 topic=title,
                 start_time=start_datetime,
                 duration_minutes=duration_minutes,
                 timezone_str=timezone_str,
             )
+            # Enrich Zoom metadata with central mode info
+            if result and result.get("metadata"):
+                result["metadata"]["creation_mode"] = "central"
+                result["metadata"]["creator_email"] = result["metadata"].get("host_email", "")
+                result["metadata"]["creator_name"] = "NLYT (Zoom)"
 
         elif provider_lower in ("teams", "microsoft teams", "microsoft_teams"):
             # Compute end time
