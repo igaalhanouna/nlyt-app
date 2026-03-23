@@ -54,6 +54,15 @@ async def auto_fetch_attendance_job():
         logger.error(f"[SCHEDULER] Auto-fetch attendance job failed: {str(e)}")
 
 
+async def distribution_hold_expiry_job():
+    """Job to finalize distributions whose 15-day hold period has expired"""
+    try:
+        from services.distribution_service import finalize_expired_holds
+        finalize_expired_holds()
+    except Exception as e:
+        logger.error(f"[SCHEDULER] Distribution hold expiry job failed: {str(e)}")
+
+
 async def proposal_expiration_job():
     """Job to expire stale modification proposals (24h timeout)"""
     try:
@@ -110,12 +119,22 @@ def start_scheduler():
         replace_existing=True
     )
 
+    # Job 6: Distribution hold expiry (every 15 minutes)
+    scheduler.add_job(
+        distribution_hold_expiry_job,
+        trigger=IntervalTrigger(minutes=15),
+        id='distribution_hold_expiry_job',
+        name='Finalize distributions after 15-day hold period',
+        replace_existing=True
+    )
+
     scheduler.start()
     logger.info("[SCHEDULER] Background scheduler started")
     logger.info("[SCHEDULER]    - Cancellation deadline reminders: every 5 minutes")
     logger.info("[SCHEDULER]    - Event reminders (10min/1h/1day): every 2 minutes")
     logger.info("[SCHEDULER]    - Attendance evaluation: every 10 minutes")
     logger.info("[SCHEDULER]    - Auto-fetch video attendance (Zoom/Teams): every 5 minutes")
+    logger.info("[SCHEDULER]    - Distribution hold expiry: every 15 minutes")
 
 
 def stop_scheduler():

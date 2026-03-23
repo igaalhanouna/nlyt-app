@@ -229,8 +229,16 @@ def compute_distribution(capture_amount_cents, platform_pct, compensation_pct, c
         })
     else:
         # CAS SYMÉTRIQUE : organisateur no_show
-        # → compensation répartie entre participants présents
-        # → l'organisateur NE PEUT PAS se verser à lui-même
+        # La distribution suit la MÊME structure plateforme / charité / compensation
+        # que sa règle normale, MAIS toute part qui lui serait revenue personnellement
+        # est réaffectée aux participants présents.
+        #
+        # Concrètement :
+        # - platform_cents : inchangé (reste à NLYT)
+        # - charity_cents : inchangé (reste à l'association si configurée)
+        # - compensation_cents : réparti entre participants présents
+        # - l'organisateur NE REÇOIT JAMAIS sa propre compensation
+        #
         if present_participants:
             base = compensation_cents // len(present_participants)
             remainder = compensation_cents - (base * len(present_participants))
@@ -269,9 +277,10 @@ Exemple 1 — Participant no_show, 50€ (5000c), 20/50/30 :
   total:        5000c ✓
 
 Exemple 2 — Organisateur no_show, 50€, 20/50/30, 2 participants présents :
-  platform:     1000c
-  compensation: 2500c → 1250c chacun (2 participants)
-  charity:      1500c
+  platform:     1000c (inchangé)
+  charity:      1500c (inchangé — la charité s'applique toujours si configurée)
+  compensation: 2500c → 1250c chacun (2 participants présents)
+  organisateur: 0c    (sa part compensation est réaffectée aux participants)
   total:        5000c ✓
 
 Exemple 3 — Organisateur no_show, 33€ (3300c), 20/80/0, 3 participants :

@@ -446,6 +446,10 @@ def evaluate_appointment(appointment_id: str) -> dict:
     )
 
     logger.info(f"[ATTENDANCE] Evaluated {appointment_id}: {summary}")
+
+    # Post-evaluation: trigger capture/release/distribution
+    _process_financial_outcomes(appointment_id, appointment, participants)
+
     return {"evaluated": True, "records_created": len(records), "summary": summary}
 
 
@@ -523,6 +527,7 @@ def reclassify_participant(record_id: str, new_outcome: str, notes: str = None, 
     """
     Manually reclassify a participant's attendance outcome.
     Used by organizer/reviewer to override system decisions.
+    Triggers financial hooks on outcome transitions.
     """
     valid_outcomes = ('on_time', 'late', 'no_show', 'manual_review', 'waived')
     if new_outcome not in valid_outcomes:
@@ -532,6 +537,8 @@ def reclassify_participant(record_id: str, new_outcome: str, notes: str = None, 
     if not record:
         return {"error": "Enregistrement introuvable"}
 
+    previous_outcome = record.get('outcome')
+
     db.attendance_records.update_one(
         {"record_id": record_id},
         {"$set": {
@@ -540,13 +547,16 @@ def reclassify_participant(record_id: str, new_outcome: str, notes: str = None, 
             "decided_by": reviewer_id or "organizer",
             "decided_at": now_utc().isoformat(),
             "notes": notes,
-            "previous_outcome": record.get('outcome'),
+            "previous_outcome": previous_outcome,
             "previous_decision_basis": record.get('decision_basis')
         }}
     )
 
     # Update appointment summary
     _refresh_appointment_summary(record['appointment_id'])
+
+    # Post-reclassification financial hooks
+    _process_reclassification(record, previous_outcome, new_outcome)
 
     return {"success": True, "record_id": record_id, "new_outcome": new_outcome}
 
@@ -566,3 +576,211 @@ def _refresh_appointment_summary(appointment_id: str):
         {"appointment_id": appointment_id},
         {"$set": {"attendance_summary": summary}}
     )
+
+
+
+# ─── Financial Hooks (Phase 3) ────────────────────────────────────
+
+
+def _process_financial_outcomes(appointment_id: str, appointment: dict, participants: list):
+    """
+    Post-evaluation hook: process capture/release for all evaluated participants.
+    Only acts on high-confidence decisions (review_required == False).
+    """
+    from services.stripe_guarantee_service import StripeGuaranteeService
+    from services.distribution_service import create_distribution
+
+    penalty_amount = appointment.get('penalty_amount', 0)
+    if not penalty_amount or penalty_amount <= 0:
+        return  # No penalty → no financial flow
+
+    records = list(db.attendance_records.find(
+        {"appointment_id": appointment_id},
+        {"_id": 0}
+    ))
+
+    # Build lookup of present participants (on_time or late, not review_required)
+    present_participants = []
+    for r in records:
+        if r.get('outcome') in ('on_time', 'late'):
+            p = _find_participant(participants, r['participant_id'])
+            if p and p.get('user_id'):
+                present_participants.append({
+                    "user_id": p["user_id"],
+                    "participant_id": p["participant_id"],
+                })
+
+    for record in records:
+        if record.get('review_required', True):
+            continue  # manual_review → no action until reclassified
+
+        participant = _find_participant(participants, record['participant_id'])
+        if not participant:
+            continue
+
+        guarantee = db.payment_guarantees.find_one(
+            {"participant_id": record['participant_id'], "appointment_id": appointment_id},
+            {"_id": 0}
+        )
+        if not guarantee or guarantee.get('status') not in ('completed', 'dev_pending'):
+            continue  # No valid guarantee → no financial action
+
+        outcome = record.get('outcome')
+
+        if outcome == 'no_show':
+            _execute_capture_and_distribution(
+                appointment, participant, guarantee, present_participants
+            )
+        elif outcome in ('on_time', 'late'):
+            _execute_release(guarantee)
+
+
+def _execute_capture_and_distribution(
+    appointment: dict, participant: dict, guarantee: dict, present_participants: list
+):
+    """Capture guarantee and create distribution."""
+    from services.stripe_guarantee_service import StripeGuaranteeService
+    from services.distribution_service import create_distribution
+
+    guarantee_id = guarantee['guarantee_id']
+
+    # Check if already captured or has distribution
+    if guarantee.get('status') == 'captured':
+        logger.info(f"[FINANCIAL] Guarantee {guarantee_id} already captured")
+        return
+    existing_dist = db.distributions.find_one({"guarantee_id": guarantee_id})
+    if existing_dist:
+        logger.info(f"[FINANCIAL] Distribution already exists for guarantee {guarantee_id}")
+        return
+
+    # Capture
+    capture_result = StripeGuaranteeService.capture_guarantee(guarantee_id, "no_show")
+    if not capture_result.get('success'):
+        logger.error(f"[FINANCIAL] Capture failed for {guarantee_id}: {capture_result.get('error')}")
+        return
+
+    # Determine amounts
+    penalty_amount = guarantee.get('penalty_amount', 0)
+    capture_amount_cents = int(round(penalty_amount * 100))
+    if capture_amount_cents <= 0:
+        return
+
+    # Determine if organizer no_show
+    is_organizer = participant.get('is_organizer', False)
+    organizer_user_id = appointment.get('organizer_id')
+
+    # Filter out the no_show user from present participants
+    no_show_user_id = participant.get('user_id')
+    filtered_present = [p for p in present_participants if p["user_id"] != no_show_user_id]
+
+    # Get payment intent ID
+    refreshed_g = db.payment_guarantees.find_one({"guarantee_id": guarantee_id}, {"_id": 0})
+    pi_id = refreshed_g.get('stripe_payment_intent_id', '') if refreshed_g else ''
+
+    create_distribution(
+        appointment_id=appointment['appointment_id'],
+        guarantee_id=guarantee_id,
+        no_show_participant_id=participant['participant_id'],
+        no_show_user_id=no_show_user_id or '',
+        no_show_is_organizer=is_organizer,
+        capture_amount_cents=capture_amount_cents,
+        capture_currency=appointment.get('penalty_currency', 'eur'),
+        stripe_payment_intent_id=pi_id,
+        platform_commission_percent=appointment.get('platform_commission_percent', 20.0),
+        affected_compensation_percent=appointment.get('affected_compensation_percent', 50.0),
+        charity_percent=appointment.get('charity_percent', 0.0),
+        charity_association_id=appointment.get('charity_association_id'),
+        organizer_user_id=organizer_user_id or '',
+        present_participants=filtered_present,
+    )
+    logger.info(f"[FINANCIAL] Captured + distributed for guarantee {guarantee_id}")
+
+
+def _execute_release(guarantee: dict):
+    """Release a guarantee (participant was present)."""
+    from services.stripe_guarantee_service import StripeGuaranteeService
+
+    guarantee_id = guarantee['guarantee_id']
+    if guarantee.get('status') in ('released', 'captured'):
+        return
+
+    result = StripeGuaranteeService.release_guarantee(guarantee_id, "present")
+    if result.get('success'):
+        logger.info(f"[FINANCIAL] Released guarantee {guarantee_id}")
+    else:
+        logger.warning(f"[FINANCIAL] Release failed for {guarantee_id}: {result.get('error')}")
+
+
+def _process_reclassification(record: dict, previous_outcome: str, new_outcome: str):
+    """
+    Post-reclassification hook: handle financial transitions.
+
+    Transitions:
+    - manual_review → no_show : capture + distribution
+    - manual_review → on_time/late : release
+    - no_show → on_time/late : cancel distribution + release
+    - on_time/late → no_show : capture + distribution (if guarantee exists)
+    """
+    from services.distribution_service import cancel_distribution as cancel_dist
+
+    appointment_id = record['appointment_id']
+    participant_id = record['participant_id']
+
+    appointment = db.appointments.find_one({"appointment_id": appointment_id}, {"_id": 0})
+    if not appointment:
+        return
+
+    penalty_amount = appointment.get('penalty_amount', 0)
+    if not penalty_amount or penalty_amount <= 0:
+        return
+
+    participants = list(db.participants.find({"appointment_id": appointment_id}, {"_id": 0}))
+    participant = _find_participant(participants, participant_id)
+    if not participant:
+        return
+
+    guarantee = db.payment_guarantees.find_one(
+        {"participant_id": participant_id, "appointment_id": appointment_id},
+        {"_id": 0}
+    )
+    if not guarantee:
+        return  # No guarantee → no financial action
+
+    # Build present participants list from current records
+    records = list(db.attendance_records.find({"appointment_id": appointment_id}, {"_id": 0}))
+    present_participants = []
+    for r in records:
+        if r.get('outcome') in ('on_time', 'late'):
+            p = _find_participant(participants, r['participant_id'])
+            if p and p.get('user_id'):
+                present_participants.append({
+                    "user_id": p["user_id"],
+                    "participant_id": p["participant_id"],
+                })
+
+    # Handle transition: was no_show → now present → cancel distribution + release
+    if previous_outcome == 'no_show' and new_outcome in ('on_time', 'late', 'waived'):
+        # Cancel existing distribution
+        existing_dist = db.distributions.find_one({"guarantee_id": guarantee['guarantee_id']}, {"_id": 0})
+        if existing_dist and existing_dist['status'] not in ('cancelled', 'completed'):
+            cancel_dist(existing_dist['distribution_id'], f"Reclassifié: {previous_outcome} → {new_outcome}")
+
+        # Release guarantee if still captured/completed
+        if guarantee.get('status') in ('completed', 'dev_pending'):
+            _execute_release(guarantee)
+
+        logger.info(f"[FINANCIAL] Reclassification {previous_outcome}→{new_outcome}: cancelled distribution + released guarantee")
+
+    # Handle transition: was not no_show → now no_show → capture + distribution
+    elif new_outcome == 'no_show' and previous_outcome != 'no_show':
+        if guarantee.get('status') in ('completed', 'dev_pending'):
+            _execute_capture_and_distribution(appointment, participant, guarantee, present_participants)
+            logger.info(f"[FINANCIAL] Reclassification {previous_outcome}→{new_outcome}: captured + distributed")
+
+
+def _find_participant(participants: list, participant_id: str) -> dict | None:
+    """Find a participant by ID in a list."""
+    for p in participants:
+        if p.get('participant_id') == participant_id:
+            return p
+    return None

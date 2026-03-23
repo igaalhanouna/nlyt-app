@@ -829,3 +829,23 @@ async def delete_appointment(appointment_id: str, request: Request):
     )
     
     return {"message": "Rendez-vous supprimé avec succès"}
+
+
+@router.get("/{appointment_id}/distributions")
+async def get_appointment_distributions(appointment_id: str, request: Request):
+    """Get all distributions for a specific appointment."""
+    user = await get_current_user(request)
+    appointment = db.appointments.find_one(
+        {"appointment_id": appointment_id},
+        {"_id": 0, "organizer_id": 1, "workspace_id": 1}
+    )
+    if not appointment:
+        raise HTTPException(status_code=404, detail="Rendez-vous introuvable")
+
+    # Only organizer can see all distributions
+    if appointment.get("organizer_id") != user["user_id"]:
+        raise HTTPException(status_code=403, detail="Accès réservé à l'organisateur")
+
+    from services.distribution_service import get_distributions_for_appointment
+    distributions = get_distributions_for_appointment(appointment_id)
+    return {"distributions": distributions}
