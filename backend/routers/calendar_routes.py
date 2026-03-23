@@ -816,7 +816,7 @@ async def export_appointment_ics(appointment_id: str, token: str = None):
             "---",
             "Genere par NLYT"
         ])
-    description = "\\n".join(description_lines)
+    description = "\n".join(description_lines)
 
     location = appointment.get('location', '')
     if not location and appointment.get('meeting_provider'):
