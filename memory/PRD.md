@@ -17,6 +17,13 @@ Voir **`/app/memory/ARCHITECTURE.md`** pour le document complet post-pivots (Mar
 - NLYT ne crée pas de réunion centralisée
 - Les APIs vidéo sont un bonus secondaire
 
+### Verrouillage d'accès (Guarantee-First Architecture)
+- Les participants NE PEUVENT PAS accéder au fichier ICS, au lien de visio, ni au lien NLYT Proof tant qu'ils n'ont pas finalisé leur engagement
+- Statuts finalisés : `accepted` (sans garantie) ou `accepted_guaranteed` (garantie payée)
+- `accepted_pending_guarantee` = verrouillé
+- L'email d'invitation initial N'INCLUT PAS les liens ICS/proof/visio
+- L'email de confirmation (avec liens) est envoyé uniquement après finalisation
+
 ## Core Requirements
 1. Création de RDV (physique + vidéo) avec paramètres de pénalité
 2. Invitation par email avec liens sécurisés + lien NLYT Proof (visio uniquement)
@@ -29,6 +36,7 @@ Voir **`/app/memory/ARCHITECTURE.md`** pour le document complet post-pivots (Mar
 9. Page Intégrations (Calendriers + Visioconférence)
 10. Emails transactionnels avec gestion correcte des timezones
 11. Synchronisation calendrier (Google/Outlook)
+12. Verrouillage d'accès RDV jusqu'à validation garantie (ICS, visio, proof)
 
 ## Technical Stack
 Frontend: React + TailwindCSS + Shadcn/UI
@@ -37,7 +45,34 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API (mode user)
 
 ## Testing
 - iteration_40: 22/22 backend + 15/15 frontend (NLYT Proof + Provider mode)
+- iteration_41: 8/8 backend + 9/9 frontend (Stripe webhook fix + Access control)
 - Credentials: testuser_audit@nlyt.app / Test1234!
 
+## Completed
+- [x] Refactoring Visio provider (mode user)
+- [x] Séparation stricte physique/vidéo
+- [x] GPS organisateur pour check-in physique
+- [x] Document ARCHITECTURE.md
+- [x] NLYT Proof dans le moteur de décision
+- [x] Champ "Visio Display Name" au check-in
+- [x] Fix Outlook OAuth (Azure App ID)
+- [x] Logique short-notice (cap deadlines, skip reminders)
+- [x] Point d'entrée Visio unifié
+- [x] Fix bug sync/async webhook Stripe (P0)
+- [x] Verrouillage accès RDV (ICS/visio/proof) jusqu'à garantie validée (P0)
+- [x] API: meeting_join_url masqué pour participants non engagés
+- [x] Email confirmation avec proof_link + appointment_timezone après webhook Stripe
+
 ## Roadmap
-Voir **`/app/memory/ARCHITECTURE.md`** section 7.
+### P1
+- Stripe Connect (distribution automatique des fonds)
+- Calcul video_api_points (30pts bonus) dans le scoring NLYT Proof
+- Webhooks temps réel Zoom/Teams
+
+### P2
+- Pagination endpoints de liste
+- Auto-update calendrier V2 (retry automatique)
+
+### P3
+- Dashboard analytics organisateurs
+- Refactoring MongoDB connection pooling
