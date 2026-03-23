@@ -101,6 +101,11 @@ class WorkspaceCreate(BaseModel):
     name: str
     description: Optional[str] = None
 
+class WorkspaceUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+
+
 class WorkspaceResponse(BaseModel):
     workspace_id: str
     name: str

@@ -1,20 +1,68 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
-import { ArrowLeft, Building2, ChevronDown, Check, Plus, Settings, Trash2 } from 'lucide-react';
+import { ArrowLeft, Building2, ChevronDown, Check, Plus, Settings, Trash2, Pencil, X, Loader2 } from 'lucide-react';
 import { useWorkspace } from '../../contexts/WorkspaceContext';
 import { toast } from 'sonner';
 
 export default function WorkspaceSettings() {
   const navigate = useNavigate();
-  const { currentWorkspace, workspaces, selectWorkspace, createWorkspace } = useWorkspace();
+  const { currentWorkspace, workspaces, selectWorkspace, createWorkspace, updateWorkspace } = useWorkspace();
   const [workspaceDropdownOpen, setWorkspaceDropdownOpen] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newWorkspaceName, setNewWorkspaceName] = useState('');
   const [newWorkspaceDescription, setNewWorkspaceDescription] = useState('');
   const [creatingWorkspace, setCreatingWorkspace] = useState(false);
+
+  const [editing, setEditing] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [saving, setSaving] = useState(false);
+  const nameInputRef = useRef(null);
+
+  useEffect(() => {
+    if (editing && nameInputRef.current) nameInputRef.current.focus();
+  }, [editing]);
+
+  const startEditing = () => {
+    setEditName(currentWorkspace?.name || '');
+    setEditDescription(currentWorkspace?.description || '');
+    setEditing(true);
+  };
+
+  const cancelEditing = () => {
+    setEditing(false);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editName.trim()) {
+      toast.error('Le nom du workspace est requis');
+      return;
+    }
+    setSaving(true);
+    try {
+      await updateWorkspace(currentWorkspace.workspace_id, {
+        name: editName.trim(),
+        description: editDescription.trim(),
+      });
+      toast.success('Workspace mis à jour');
+      setEditing(false);
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Erreur lors de la mise à jour');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleEditKeyDown = (e) => {
+    if (e.key === 'Escape') cancelEditing();
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSaveEdit();
+    }
+  };
 
   const handleSelectWorkspace = (workspace) => {
     selectWorkspace(workspace);
@@ -128,9 +176,64 @@ export default function WorkspaceSettings() {
               <Building2 className="w-6 h-6 text-slate-700" />
             </div>
             <div className="flex-1">
-              <h2 className="text-xl font-semibold text-slate-900 mb-1">{currentWorkspace?.name}</h2>
-              <p className="text-slate-600">{currentWorkspace?.description || 'Aucune description'}</p>
+              {editing ? (
+                <div className="space-y-3" data-testid="workspace-edit-form">
+                  <Input
+                    ref={nameInputRef}
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    onKeyDown={handleEditKeyDown}
+                    placeholder="Nom du workspace"
+                    className="text-lg font-semibold"
+                    data-testid="workspace-edit-name"
+                  />
+                  <textarea
+                    value={editDescription}
+                    onChange={(e) => setEditDescription(e.target.value)}
+                    onKeyDown={handleEditKeyDown}
+                    placeholder="Description (optionnelle)"
+                    rows={2}
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none"
+                    data-testid="workspace-edit-description"
+                  />
+                  <div className="flex items-center gap-2">
+                    <Button size="sm" onClick={handleSaveEdit} disabled={saving} data-testid="workspace-edit-save">
+                      {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <Check className="w-3.5 h-3.5 mr-1.5" />}
+                      Enregistrer
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={cancelEditing} disabled={saving} data-testid="workspace-edit-cancel">
+                      <X className="w-3.5 h-3.5 mr-1.5" />
+                      Annuler
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <h2 className="text-xl font-semibold text-slate-900 mb-1" data-testid="workspace-name">{currentWorkspace?.name}</h2>
+                  {currentWorkspace?.description ? (
+                    <p className="text-slate-600" data-testid="workspace-description">{currentWorkspace.description}</p>
+                  ) : (
+                    <button
+                      onClick={startEditing}
+                      className="text-sm text-slate-400 hover:text-slate-600 transition-colors"
+                      data-testid="workspace-add-description"
+                    >
+                      Ajouter une description
+                    </button>
+                  )}
+                </>
+              )}
             </div>
+            {!editing && (
+              <button
+                onClick={startEditing}
+                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-md transition-colors"
+                title="Modifier"
+                data-testid="workspace-edit-btn"
+              >
+                <Pencil className="w-4 h-4" />
+              </button>
+            )}
           </div>
         </div>
 
@@ -161,7 +264,7 @@ export default function WorkspaceSettings() {
                   <Building2 className="w-5 h-5 text-slate-500" />
                   <div>
                     <p className="font-medium text-slate-900">{workspace.name}</p>
-                    <p className="text-sm text-slate-500">{workspace.description || 'Aucune description'}</p>
+                    <p className="text-sm text-slate-500">{workspace.description || 'Pas de description'}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">

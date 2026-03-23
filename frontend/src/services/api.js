@@ -51,6 +51,7 @@ export const workspaceAPI = {
   create: (data) => api.post('/api/workspaces/', data),
   list: () => api.get('/api/workspaces/'),
   get: (id) => api.get(`/api/workspaces/${id}`),
+  update: (id, data) => api.put(`/api/workspaces/${id}`, data),
 };
 
 export const appointmentAPI = {

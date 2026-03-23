@@ -68,12 +68,23 @@ export function WorkspaceProvider({ children }) {
     return newWorkspace;
   };
 
+  const updateWorkspace = async (workspaceId, data) => {
+    const response = await workspaceAPI.update(workspaceId, data);
+    const updated = response.data;
+    setWorkspaces(prev => prev.map(w => w.workspace_id === workspaceId ? updated : w));
+    if (currentWorkspace?.workspace_id === workspaceId) {
+      setCurrentWorkspace(updated);
+    }
+    return updated;
+  };
+
   const value = {
     currentWorkspace,
     workspaces,
     loading,
     selectWorkspace,
     createWorkspace,
+    updateWorkspace,
     refreshWorkspaces: loadWorkspaces,
   };
 

@@ -3,7 +3,7 @@ import os
 import uuid
 import sys
 sys.path.append('/app/backend')
-from models.schemas import WorkspaceCreate, WorkspaceResponse
+from models.schemas import WorkspaceCreate, WorkspaceResponse, WorkspaceUpdate
 from middleware.auth_middleware import get_current_user
 from utils.date_utils import now_utc
 
@@ -72,4 +72,30 @@ async def get_workspace(workspace_id: str, request: Request):
     if not workspace:
         raise HTTPException(status_code=404, detail="Workspace introuvable")
     
+    return workspace
+
+
+@router.put("/{workspace_id}")
+async def update_workspace(workspace_id: str, data: WorkspaceUpdate, request: Request):
+    user = await get_current_user(request)
+
+    membership = db.workspace_memberships.find_one(
+        {"workspace_id": workspace_id, "user_id": user["user_id"]},
+        {"_id": 0},
+    )
+    if not membership or membership.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Seul l'admin peut modifier le workspace")
+
+    updates = {"updated_at": now_utc().isoformat()}
+    if data.name is not None:
+        name = data.name.strip()
+        if not name:
+            raise HTTPException(status_code=400, detail="Le nom ne peut pas être vide")
+        updates["name"] = name
+    if data.description is not None:
+        updates["description"] = data.description.strip()
+
+    db.workspaces.update_one({"workspace_id": workspace_id}, {"$set": updates})
+
+    workspace = db.workspaces.find_one({"workspace_id": workspace_id}, {"_id": 0})
     return workspace
