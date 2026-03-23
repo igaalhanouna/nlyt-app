@@ -89,8 +89,8 @@ export default function CheckinPage() {
       setSessionActive(true);
       checkinTimeRef.current = new Date(res.data.checked_in_at || Date.now());
 
-      // Open visio in new tab
-      const joinUrl = res.data.meeting_join_url || info?.appointment?.meeting_join_url;
+      // Open visio in new tab — backend returns host URL for organizer, join URL for participant
+      const joinUrl = res.data.meeting_join_url || info?.appointment?.meeting_host_url || info?.appointment?.meeting_join_url;
       if (joinUrl) {
         window.open(joinUrl, '_blank');
       }

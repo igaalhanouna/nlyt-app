@@ -1018,42 +1018,33 @@ export default function AppointmentDetail() {
                     {appointment.meeting_join_url ? (
                       <div className="flex flex-col gap-2 mt-1.5">
                         {(() => {
-                          if (appointment.meeting_host_url) {
+                          // Organizer MUST go through NLYT Proof (no direct visio bypass)
+                          const orgToken = organizerParticipant?.invitation_token;
+                          if (orgToken) {
                             return (
                               <div className="flex flex-col gap-1.5">
                                 <a
-                                  href={appointment.meeting_host_url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1.5 text-sm font-semibold text-emerald-600 hover:text-emerald-800 hover:underline"
-                                  data-testid="meeting-host-url"
+                                  href={`/proof/${appointment.appointment_id}?token=${orgToken}`}
+                                  className="inline-flex items-center gap-1.5 text-sm font-semibold text-blue-600 hover:text-blue-800 hover:underline"
+                                  data-testid="organizer-proof-link"
                                 >
-                                  <Link2 className="w-3.5 h-3.5" />
-                                  Démarrer la réunion (organisateur)
+                                  <Shield className="w-3.5 h-3.5" />
+                                  Confirmer ma présence et rejoindre
                                 </a>
                                 <p className="text-xs text-slate-400 flex items-center gap-1">
                                   <Fingerprint className="w-3 h-3" />
-                                  Les participants accèdent via leur lien NLYT Proof personnel
+                                  Votre présence sera enregistrée avant d'ouvrir la visio
                                 </p>
                               </div>
                             );
                           }
-                          
+
+                          // Fallback: no organizer token (should not happen)
                           return (
                             <div className="flex flex-col gap-1.5">
-                              <a
-                                href={appointment.meeting_join_url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline"
-                                data-testid="meeting-join-url"
-                              >
-                                <Link2 className="w-3.5 h-3.5" />
-                                Rejoindre la réunion (organisateur)
-                              </a>
-                              <p className="text-xs text-slate-400 flex items-center gap-1">
-                                <Fingerprint className="w-3 h-3" />
-                                Les participants accèdent via leur lien NLYT Proof personnel
+                              <p className="text-xs text-amber-600 flex items-center gap-1">
+                                <AlertTriangle className="w-3.5 h-3.5" />
+                                Lien NLYT Proof indisponible — token organisateur manquant
                               </p>
                             </div>
                           );
@@ -1092,12 +1083,12 @@ export default function AppointmentDetail() {
                                   </p>
                                   {!(provider === 'zoom' && appointment.meeting_host_url) && (
                                     <p className="text-sm text-slate-500 mt-1.5" data-testid="organizer-identity-hint">
-                                      Rejoignez la réunion avec ce même compte pour être reconnu comme organisateur.
+                                      Rejoignez la réunion via le lien NLYT Proof pour enregistrer votre présence automatiquement.
                                     </p>
                                   )}
                                   {provider === 'zoom' && appointment.meeting_host_url && (
                                     <p className="text-sm text-slate-500 mt-1.5" data-testid="organizer-identity-hint">
-                                      Utilisez le lien "Démarrer la réunion" ci-dessus pour être reconnu automatiquement.
+                                      Le lien NLYT Proof ci-dessus ouvrira automatiquement la visio après votre check-in.
                                     </p>
                                   )}
                                 </div>

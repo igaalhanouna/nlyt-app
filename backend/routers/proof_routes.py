@@ -158,6 +158,9 @@ async def get_proof_info(appointment_id: str, token: str = Query(...)):
         {"_id": 0},
     )
 
+    # For organizer: expose meeting_host_url so they get the host link after check-in
+    is_organizer = participant.get("is_organizer", False)
+
     return {
         "appointment": {
             "appointment_id": appointment["appointment_id"],
@@ -165,6 +168,7 @@ async def get_proof_info(appointment_id: str, token: str = Query(...)):
             "start_datetime": appointment.get("start_datetime", ""),
             "duration_minutes": appointment.get("duration_minutes", 30),
             "meeting_join_url": appointment.get("meeting_join_url", ""),
+            "meeting_host_url": appointment.get("meeting_host_url", "") if is_organizer else "",
             "meeting_provider": appointment.get("meeting_provider", ""),
             "status": appointment.get("status", ""),
         },
@@ -174,6 +178,7 @@ async def get_proof_info(appointment_id: str, token: str = Query(...)):
             "last_name": participant.get("last_name", ""),
             "email": participant.get("email", ""),
             "role": participant.get("role", "participant"),
+            "is_organizer": is_organizer,
         },
         "active_session": {
             "session_id": existing["session_id"],
@@ -206,8 +211,12 @@ async def checkin(appointment_id: str, req: CheckinRequest):
         {"appointment_id": appointment_id, "participant_id": participant["participant_id"], "checked_out_at": None},
         {"_id": 0},
     )
+    is_organizer = participant.get("is_organizer", False)
+
     if existing:
-        return {"session_id": existing["session_id"], "already_active": True, "meeting_join_url": appointment.get("meeting_join_url", "")}
+        # Organizer gets host URL if available; participant gets join URL
+        visio_url = (appointment.get("meeting_host_url") or appointment.get("meeting_join_url", "")) if is_organizer else appointment.get("meeting_join_url", "")
+        return {"session_id": existing["session_id"], "already_active": True, "meeting_join_url": visio_url}
 
     now = _now()
     session_id = str(uuid.uuid4())
@@ -240,11 +249,14 @@ async def checkin(appointment_id: str, req: CheckinRequest):
 
     logger.info(f"[PROOF] Check-in: {participant.get('email')} for apt {appointment_id} (session {session_id})")
 
+    # Organizer gets host URL; participant gets join URL
+    visio_url = (appointment.get("meeting_host_url") or appointment.get("meeting_join_url", "")) if is_organizer else appointment.get("meeting_join_url", "")
+
     return {
         "session_id": session_id,
         "already_active": False,
         "checked_in_at": now.isoformat(),
-        "meeting_join_url": appointment.get("meeting_join_url", ""),
+        "meeting_join_url": visio_url,
     }
 
 
