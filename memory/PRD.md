@@ -9,8 +9,8 @@ Voir **`/app/memory/ARCHITECTURE.md`** pour le document complet post-pivots (Mar
 ## Modèle produit (résumé)
 
 ### Deux systèmes distincts, jamais mélangés
-- **Physique** (`appointment_type: "physical"`) → GPS / QR / Check-in manuel
-- **Visio** (`appointment_type: "video"`) → NLYT Proof (check-in + heartbeat + scoring)
+- **Physique** (`appointment_type: "physical"`) : GPS / QR / Check-in manuel
+- **Visio** (`appointment_type: "video"`) : NLYT Proof (check-in + heartbeat + scoring)
 
 ### Provider vidéo = support, pas source de vérité
 - L'utilisateur gère sa propre visio (coller un lien OU connecter Zoom/Teams/Meet)
@@ -44,77 +44,39 @@ Backend: FastAPI + Python + MongoDB + slowapi
 Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API (mode user)
 
 ## Testing
-- iteration_40: 22/22 backend + 15/15 frontend (NLYT Proof + Provider mode)
-- iteration_41: 8/8 backend + 9/9 frontend (Stripe webhook fix + Access control)
-- iteration_42: 8/8 backend + 6/6 frontend (Organisateur proof bypass fix)
-- iteration_43: 15/15 backend (Email confirmation 4 cas — contenu vérifié)
-- iteration_44: 6/6 backend + 9/9 frontend (Masquage evidence-dashboard pour vidéo)
-- iteration_45: 14/14 backend (Email confirmation idempotent — polling + webhook)
-- iteration_46: 11/11 backend + 3/3 frontend (ICS — lien invitation uniquement)
-- iteration_47: 14/14 backend (Notification check-in — idempotence + wording + routing)
-- iteration_48: 11/11 backend (Notification check-in — détails preuves GPS/vidéo enrichis)
-- iteration_49: 8/8 backend + 7/7 frontend (Fix "Erreur réseau" GPS check-in — gestion d'erreur complète)
+- iteration_50: 13/13 backend + 10/10 frontend (Consolidation non-régression)
 - Credentials: testuser_audit@nlyt.app / Test1234!
 
-## Completed
-- [x] Refactoring Visio provider (mode user)
-- [x] Séparation stricte physique/vidéo
-- [x] GPS organisateur pour check-in physique
-- [x] Document ARCHITECTURE.md
-- [x] NLYT Proof dans le moteur de décision
-- [x] Champ "Visio Display Name" au check-in
-- [x] Fix Outlook OAuth (Azure App ID)
-- [x] Logique short-notice (cap deadlines, skip reminders)
-- [x] Point d'entrée Visio unifié (participants + organisateur via NLYT Proof)
-- [x] Fix bug sync/async webhook Stripe (P0)
-- [x] Verrouillage accès RDV (ICS/visio/proof) jusqu'à garantie validée (P0)
-- [x] API: meeting_join_url masqué pour participants non engagés
-- [x] Email confirmation avec proof_link + appointment_timezone après webhook Stripe
-- [x] Organisateur passe par NLYT Proof (suppression bypass direct visio)
-- [x] Backend proof: retour meeting_host_url pour organisateur, join_url pour participant
-- [x] Email confirmation définitif: 4 cas (vidéo/physique × garantie/sans garantie)
-  - Vidéo: proof link comme point d'entrée unique, provider (Zoom/Teams/Meet), ICS, timezone
-  - Physique: instructions GPS/QR, adresse, ICS, timezone
-  - Mention "confirmation d'accès définitive" dans chaque email
-- [x] Section "Check-ins & Preuves" masquée pour les RDV vidéo (NLYT Proof = source unique)
-- [x] Email confirmation : envoi garanti après validation garantie Stripe (polling + webhook)
-  - Helper idempotent send_confirmation_email_once (flag confirmation_email_sent)
-  - Vidéo : bouton "Confirmer ma présence et rejoindre" → proof link
-  - Physique : bouton "Je suis arrivé — confirmer ma présence" → page invitation
-  - ICS dans les deux cas, timezone, note "définitive"
-- [x] ICS : lien invitation NLYT uniquement (pas de visio/proof directs)
-  - Endpoint accepte ?token= pour lien participant-specific
-  - Frontend + email ICS links incluent le token
-  - Aucun lien Zoom/Teams/Meet/Proof dans l'ICS
-- [x] Fix check-in GPS organisateur : source="gps" quand coordonnées fournies (au lieu de "manual_checkin")
-- [x] Notification check-in : email automatique aux autres participants quand quelqu'un check-in
-  - Physique : "est arrivé au rendez-vous" | Vidéo : "a confirmé sa présence"
-  - Flag atomique checkin_notification_sent (anti-doublon)
-  - 4 hooks : manual, QR, GPS, NLYT Proof
-  - Seuls les participants engagés (accepted/accepted_guaranteed) reçoivent
-  - Auto-exclusion : le checker ne reçoit pas son propre email
-  - Détails de preuve dans l'email :
-    - Physique : coordonnées GPS + lien Google Maps + adresse + distance + méthode
-    - Vidéo : nom de connexion (display name) + heure + plateforme
-- [x] Fix "Erreur réseau" GPS check-in (P0) — Fév 2026
-  - Suppression de tous les alert() dans InvitationPage.js et AppointmentDetail.js
-  - Gestion explicite GeolocationPositionError (codes 1/2/3) avec toast.warning
-  - Mapping HTTP 409/400/404 vers toast.info/error avec messages français explicites
-  - Toast.success pour check-in réussi
-  - Logs console frontend pour traçage GPS
-  - Logs backend (logger.info/warning) pour coordonnées reçues, distances, erreurs
-  - Harmonisation complète organisateur / participant
+## Completed — Consolidation Phase (Fév 2026)
+- [x] **Centralisation MongoClient** : 64 instances dispersées -> 1 instance unique dans `database.py`. 32 fichiers migrés.
+- [x] **Découpe AppointmentDetail.js** : 2701 -> 1592 lignes. 5 sous-composants extraits :
+  - `ProofSessionsPanel.js` (181L) — Sessions NLYT Proof
+  - `VideoEvidencePanel.js` (453L) — Preuves vidéo (ingest, fetch, CSV, logs)
+  - `AttendancePanel.js` (139L) — Détection de présence + reclassification
+  - `ModificationProposals.js` (224L) — Propositions de modification
+  - `EvidenceDashboard.js` (111L) — Dashboard check-ins physiques
+- [x] **Nettoyage enums mortes** : `GuaranteeMode.AUTH_NOW` et `AUTH_LATER` supprimés
+- [x] **Protection debug.py** : Endpoints protégés par `require_admin` (workspace owner uniquement)
+- [x] **Clarification statut** : `accepted` = sans garantie (actif), `accepted_guaranteed` = avec garantie (actif)
+
+## Completed — Earlier
+- [x] Fix P0 "Erreur réseau" GPS check-in (gestion GeolocationPositionError + mapping HTTP)
+- [x] Fix "body stream already read" (pattern `.text()` + `JSON.parse()` dans InvitationPage.js)
+- [x] Fix Azure Outlook OAuth (MICROSOFT_CLIENT_ID corrigé)
+- [x] Toutes les features listées dans ARCHITECTURE.md
 
 ## Roadmap
-### P1
-- Stripe Connect (distribution automatique des fonds)
-- Calcul video_api_points (30pts bonus) dans le scoring NLYT Proof
+### P1 — Prochaine étape
+- Stripe Connect (distribution automatique des fonds aux organisateurs/charités)
+- Calcul `video_api_points` (30pts bonus) dans le scoring NLYT Proof
 - Webhooks temps réel Zoom/Teams
 
 ### P2
 - Pagination endpoints de liste
 - Auto-update calendrier V2 (retry automatique)
+- Découpe InvitationPage.js (1409 lignes — même pattern que AppointmentDetail)
 
 ### P3
 - Dashboard analytics organisateurs
-- Refactoring MongoDB connection pooling
+- Templates email externalisés (fichiers HTML)
+- Index MongoDB (performance)
