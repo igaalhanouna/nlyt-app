@@ -83,6 +83,7 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API (mode user)
   - Endpoint accepte ?token= pour lien participant-specific
   - Frontend + email ICS links incluent le token
   - Aucun lien Zoom/Teams/Meet/Proof dans l'ICS
+- [x] Fix check-in GPS organisateur : source="gps" quand coordonnées fournies (au lieu de "manual_checkin")
 
 ## Roadmap
 ### P1

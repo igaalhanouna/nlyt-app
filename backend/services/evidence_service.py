@@ -405,10 +405,14 @@ def process_manual_checkin(
     if not appointment:
         return {"error": "Rendez-vous introuvable"}
 
+    # Determine actual source: GPS if coordinates are provided, manual otherwise
+    has_gps = latitude is not None and longitude is not None
+    actual_source = "gps" if has_gps else "manual_checkin"
+
     existing = db.evidence_items.find_one({
         "appointment_id": appointment_id,
         "participant_id": participant_id,
-        "source": "manual_checkin"
+        "source": {"$in": ["manual_checkin", "gps"]}
     })
     if existing:
         return {"error": "Check-in déjà effectué", "already_checked_in": True}
@@ -450,13 +454,13 @@ def process_manual_checkin(
         derived_facts["geographic_consistency"] = "no_gps"
 
     # Smart confidence
-    confidence = compute_smart_confidence("manual_checkin", temporal, geographic)
+    confidence = compute_smart_confidence(actual_source, temporal, geographic)
     derived_facts["confidence_factors"] = f"temporal={temporal['consistency']}, geographic={geographic['consistency']}"
 
     evidence = create_evidence(
         appointment_id=appointment_id,
         participant_id=participant_id,
-        source="manual_checkin",
+        source=actual_source,
         created_by="participant",
         confidence_score=confidence,
         derived_facts=derived_facts,
