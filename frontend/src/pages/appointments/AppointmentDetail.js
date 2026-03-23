@@ -129,13 +129,28 @@ export default function AppointmentDetail() {
     if (!organizerParticipant?.invitation_token) return;
     setCheckingIn(true);
     try {
-      await checkinAPI.manual({
+      const payload = {
         appointment_id: id,
-        invitation_token: organizerParticipant.invitation_token
-      });
+        invitation_token: organizerParticipant.invitation_token,
+        device_info: navigator.userAgent,
+      };
+
+      // Request GPS for physical appointments
+      if (appointment.appointment_type === 'physical' && navigator.geolocation) {
+        try {
+          const pos = await new Promise((resolve, reject) =>
+            navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000, enableHighAccuracy: true })
+          );
+          payload.latitude = pos.coords.latitude;
+          payload.longitude = pos.coords.longitude;
+          payload.gps_consent = true;
+        } catch (e) { /* GPS not available, continue without */ }
+      }
+
+      await checkinAPI.manual(payload);
       setOrganizerCheckinDone(true);
       toast.success('Check-in organisateur enregistré');
-      loadData(); // Refresh evidence
+      loadData();
     } catch (error) {
       const msg = error.response?.data?.detail || 'Erreur lors du check-in';
       toast.error(msg);
@@ -1571,7 +1586,7 @@ export default function AppointmentDetail() {
               </div>
             ) : (
               <div className="space-y-3">
-                <p className="text-sm text-slate-600">Confirmez votre présence en tant qu'organisateur.</p>
+                <p className="text-sm text-slate-600">Confirmez votre présence en tant qu'organisateur. Vos coordonnées GPS seront enregistrées.</p>
                 <div className="flex gap-2">
                   <Button
                     onClick={handleOrganizerCheckin}
@@ -1579,8 +1594,8 @@ export default function AppointmentDetail() {
                     className="gap-1.5"
                     data-testid="organizer-manual-checkin-btn"
                   >
-                    {checkingIn ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                    Check-in manuel
+                    {checkingIn ? <Loader2 className="w-4 h-4 animate-spin" /> : <><MapPin className="w-4 h-4" /><Check className="w-4 h-4" /></>}
+                    Check-in avec GPS
                   </Button>
                 </div>
               </div>
