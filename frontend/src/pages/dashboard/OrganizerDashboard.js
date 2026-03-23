@@ -9,7 +9,7 @@ import {
   CalendarPlus, LogOut, Settings, Calendar, Users, MapPin, Video,
   Trash2, Check, X, Clock, Building2, ChevronDown, Plus, Ban,
   ShieldCheck, CreditCard, History, Play, AlertTriangle, Bell,
-  ArrowRight, Flame, Shield, Euro, Eye
+  ArrowRight, Flame, Shield, Euro, Eye, Heart
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDateTimeCompactFr, parseUTC } from '../../utils/dateFormat';
@@ -63,30 +63,25 @@ function HeaderStats({ user, stats }) {
         <span><span className="font-semibold text-slate-700">{stats.upcoming}</span> engagement{stats.upcoming !== 1 ? 's' : ''}</span>
         <span className="text-slate-300">|</span>
         <span><span className="font-semibold text-red-600">{stats.atRisk}</span> à risque</span>
-        <span className="text-slate-300">|</span>
-        <span><span className="font-semibold text-slate-700">{fmtEuro(stats.totalEngaged)}</span> engagé{stats.totalEngaged !== 1 ? 's' : ''}</span>
       </div>
     </div>
   );
 }
 
-function FinancialSummary({ secured, atRisk }) {
+function ImpactCard({ totalCharityCents }) {
+  const amount = fmtEuro((totalCharityCents || 0) / 100);
   return (
-    <div className="grid grid-cols-2 gap-4 mb-6" data-testid="financial-summary">
-      <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
-        <div className="flex items-center gap-2 mb-1">
-          <Shield className="w-4 h-4 text-emerald-600" />
-          <span className="text-xs font-medium text-emerald-600 uppercase tracking-wide">Sécurisé</span>
-        </div>
-        <p className="text-2xl font-bold text-emerald-700" data-testid="secured-amount">{fmtEuro(secured)}</p>
+    <div className="mb-6 bg-emerald-50 border border-emerald-200 rounded-lg p-5" data-testid="impact-card">
+      <div className="flex items-center gap-2 mb-2">
+        <Heart className="w-4.5 h-4.5 text-red-500 fill-red-500" />
+        <span className="text-sm font-semibold text-emerald-700">Votre impact</span>
       </div>
-      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-        <div className="flex items-center gap-2 mb-1">
-          <AlertTriangle className="w-4 h-4 text-red-500" />
-          <span className="text-xs font-medium text-red-500 uppercase tracking-wide">À risque</span>
-        </div>
-        <p className="text-2xl font-bold text-red-600" data-testid="at-risk-amount">{fmtEuro(atRisk)}</p>
-      </div>
+      <p className="text-3xl font-bold text-emerald-800 mb-1" data-testid="impact-amount">{amount}</p>
+      <p className="text-sm text-emerald-600">générés pour des associations</p>
+      <p className="text-xs text-emerald-500 mt-1">Grâce à vos engagements sur NLYT</p>
+      <Link to="/impact" className="inline-block mt-3 text-xs text-emerald-600 hover:text-emerald-800 underline underline-offset-2 transition-colors" data-testid="impact-detail-link">
+        Voir le détail →
+      </Link>
     </div>
   );
 }
@@ -270,12 +265,14 @@ export default function OrganizerDashboard() {
   const navigate = useNavigate();
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [impactCents, setImpactCents] = useState(0);
   const [deleteModal, setDeleteModal] = useState({ open: false, appointment: null });
   const [deleting, setDeleting] = useState(false);
   const [workspaceDropdownOpen, setWorkspaceDropdownOpen] = useState(false);
 
   useEffect(() => {
     if (currentWorkspace) loadAppointments();
+    loadImpact();
   }, [currentWorkspace]);
 
   const loadAppointments = async () => {
@@ -287,6 +284,14 @@ export default function OrganizerDashboard() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const loadImpact = async () => {
+    try {
+      const res = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/impact`);
+      const data = await res.json();
+      setImpactCents(data.total_charity_cents || 0);
+    } catch (_) { /* non-blocking */ }
   };
 
   const handleDeleteClick = (appointment) => {
@@ -455,10 +460,8 @@ export default function OrganizerDashboard() {
           </div>
         </div>
 
-        {/* Financial Summary + CTA */}
-        {!loading && appointments.length > 0 && (
-          <FinancialSummary secured={computed.secured} atRisk={computed.atRisk} />
-        )}
+        {/* Impact Card */}
+        {!loading && <ImpactCard totalCharityCents={impactCents} />}
 
         <div className="mb-6">
           <Link to="/appointments/create">
