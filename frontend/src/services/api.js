@@ -150,4 +150,9 @@ export const videoEvidenceAPI = {
   disconnectTeams: () => api.delete('/api/video-evidence/connect/teams'),
 };
 
+export const proofAPI = {
+  getSessions: (appointmentId) => api.get(`/api/proof/${appointmentId}/sessions`),
+  validate: (appointmentId, sessionId, finalStatus) => api.post(`/api/proof/${appointmentId}/validate`, { session_id: sessionId, final_status: finalStatus }),
+};
+
 export default api;

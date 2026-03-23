@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { appointmentAPI, participantAPI, calendarAPI, invitationAPI, attendanceAPI, checkinAPI, modificationAPI, videoEvidenceAPI } from '../../services/api';
+import { appointmentAPI, participantAPI, calendarAPI, invitationAPI, attendanceAPI, checkinAPI, modificationAPI, videoEvidenceAPI, proofAPI } from '../../services/api';
 import { Button } from '../../components/ui/button';
 import { ArrowLeft, Calendar, MapPin, Video, Clock, Users, Ban, Check, X, AlertTriangle, Download, Heart, ShieldCheck, CreditCard, RefreshCw, Loader2, Zap, ClipboardCheck, Eye, UserX, UserCheck, HelpCircle, ChevronDown, ScanLine, QrCode, MapPinCheck, ExternalLink, Timer, Navigation, Pencil, Save, Send, FileEdit, Upload, Monitor, Shield, FileJson, Link2, UserCog, FileUp, PlayCircle, Settings2, DollarSign, CheckCircle, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
@@ -49,6 +49,8 @@ export default function AppointmentDetail() {
   const [creatingMeeting, setCreatingMeeting] = useState(false);
   const [fetchingAttendance, setFetchingAttendance] = useState(false);
   const [fetchAttendanceError, setFetchAttendanceError] = useState(null);
+  const [proofSessions, setProofSessions] = useState([]);
+  const [validatingSession, setValidatingSession] = useState(null);
   const [ingestMode, setIngestMode] = useState('file'); // 'file' or 'json'
   const [selectedFile, setSelectedFile] = useState(null);
   const [csvPreview, setCsvPreview] = useState(null);
@@ -110,6 +112,10 @@ export default function AppointmentDetail() {
         .catch(() => {});
       videoEvidenceAPI.getLogs(id)
         .then(res => setVideoIngestionLogs(res.data?.logs || []))
+        .catch(() => {});
+      // Load proof sessions (non-blocking)
+      proofAPI.getSessions(id)
+        .then(res => setProofSessions(res.data?.sessions || []))
         .catch(() => {});
     } catch (error) {
       toast.error('Erreur lors du chargement');

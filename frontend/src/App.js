@@ -23,6 +23,7 @@ import AppointmentDetail from './pages/appointments/AppointmentDetail';
 import ParticipantManagement from './pages/appointments/ParticipantManagement';
 
 import InvitationPage from './pages/invitations/InvitationPage';
+import CheckinPage from './pages/proof/CheckinPage';
 
 import PolicyTemplates from './pages/policies/PolicyTemplates';
 
@@ -67,6 +68,7 @@ function App() {
               <Route path="/resend-verification" element={<ResendVerification />} />
               
               <Route path="/invitation/:token" element={<InvitationPage />} />
+              <Route path="/proof/:appointmentId" element={<CheckinPage />} />
               
               <Route path="/workspace/select" element={<PrivateRoute><SelectWorkspace /></PrivateRoute>} />
               <Route path="/workspace/create" element={<PrivateRoute><CreateWorkspace /></PrivateRoute>} />
