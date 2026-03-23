@@ -103,6 +103,11 @@ async def manual_checkin(request: Request, body: ManualCheckinRequest):
         status = 409 if result.get('already_checked_in') else 400
         raise HTTPException(status_code=status, detail=result['error'])
 
+    # Notify other participants (non-blocking, idempotent)
+    from services.checkin_notification_service import notify_checkin
+    checkin_time = result.get('evidence', {}).get('source_timestamp')
+    await notify_checkin(participant['participant_id'], appointment['appointment_id'], checkin_time)
+
     return result
 
 
@@ -120,6 +125,11 @@ async def qr_verify(request: Request, body: QRVerifyRequest):
     if result.get('error'):
         status = 409 if result.get('already_checked_in') else 400
         raise HTTPException(status_code=status, detail=result['error'])
+
+    # Notify other participants
+    from services.checkin_notification_service import notify_checkin
+    checkin_time = result.get('evidence', {}).get('source_timestamp')
+    await notify_checkin(participant['participant_id'], appointment['appointment_id'], checkin_time)
 
     return result
 
@@ -140,6 +150,11 @@ async def gps_checkin(request: Request, body: GPSCheckinRequest):
     if result.get('error'):
         status = 409 if result.get('already_checked_in') else 400
         raise HTTPException(status_code=status, detail=result['error'])
+
+    # Notify other participants
+    from services.checkin_notification_service import notify_checkin
+    checkin_time = result.get('evidence', {}).get('source_timestamp')
+    await notify_checkin(participant['participant_id'], appointment['appointment_id'], checkin_time)
 
     return result
 

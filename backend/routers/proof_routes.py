@@ -249,6 +249,10 @@ async def checkin(appointment_id: str, req: CheckinRequest):
 
     logger.info(f"[PROOF] Check-in: {participant.get('email')} for apt {appointment_id} (session {session_id})")
 
+    # Notify other participants (non-blocking, idempotent)
+    from services.checkin_notification_service import notify_checkin
+    await notify_checkin(participant["participant_id"], appointment_id, now.isoformat())
+
     # Organizer gets host URL; participant gets join URL
     visio_url = (appointment.get("meeting_host_url") or appointment.get("meeting_join_url", "")) if is_organizer else appointment.get("meeting_join_url", "")
 

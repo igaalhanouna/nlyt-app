@@ -584,6 +584,119 @@ class EmailService:
 
 
     @staticmethod
+    async def send_checkin_notification_email(
+        to_email: str,
+        to_name: str,
+        checkin_person_name: str,
+        checkin_is_organizer: bool,
+        appointment_title: str,
+        appointment_datetime: str,
+        appointment_type: str = 'physical',
+        meeting_provider: str = None,
+        checkin_time: str = None,
+        appointment_link: str = None,
+        appointment_timezone: str = 'Europe/Paris',
+    ):
+        """
+        Notify others when someone checks in.
+        Sent once per participant per appointment (idempotent at caller level).
+        """
+        formatted_date = format_email_datetime(appointment_datetime, appointment_timezone)
+        is_video = appointment_type == 'video'
+
+        provider_label = {
+            'zoom': 'Zoom', 'teams': 'Microsoft Teams', 'meet': 'Google Meet'
+        }.get((meeting_provider or '').lower(), meeting_provider or 'visioconference')
+
+        # Wording adapté au type
+        if is_video:
+            if checkin_is_organizer:
+                action_text = f"<strong>{checkin_person_name}</strong> (organisateur) a confirme sa presence pour la reunion."
+            else:
+                action_text = f"<strong>{checkin_person_name}</strong> a confirme sa presence pour la reunion."
+            subtitle = f"Reunion {provider_label}"
+            icon_color = "#2563EB"
+        else:
+            if checkin_is_organizer:
+                action_text = f"<strong>{checkin_person_name}</strong> (organisateur) est arrive au rendez-vous."
+            else:
+                action_text = f"<strong>{checkin_person_name}</strong> est arrive au rendez-vous."
+            subtitle = "Rendez-vous en presentiel"
+            icon_color = "#059669"
+
+        # Checkin time display
+        checkin_display = ""
+        if checkin_time:
+            try:
+                from datetime import datetime as dt, timezone as tz
+                import pytz
+                ct = dt.fromisoformat(checkin_time.replace('Z', '+00:00'))
+                local_tz = pytz.timezone(appointment_timezone)
+                ct_local = ct.astimezone(local_tz)
+                checkin_display = ct_local.strftime("%H:%M")
+            except Exception:
+                checkin_display = ""
+
+        time_line = f"<p style='margin: 4px 0 0 0; color: #64748B; font-size: 12px;'>Check-in a {checkin_display}</p>" if checkin_display else ""
+
+        link_section = ""
+        if appointment_link:
+            link_section = f"""
+                    <p style="text-align: center; margin-top: 20px;">
+                        <a href="{appointment_link}" style="color: #3B82F6; text-decoration: underline; font-size: 13px;">
+                            Voir les details du rendez-vous
+                        </a>
+                    </p>
+            """
+
+        subject = f"{checkin_person_name} a confirme sa presence — {appointment_title}"
+
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <style>
+                body {{ font-family: 'Inter', Arial, sans-serif; line-height: 1.6; color: #334155; }}
+                .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+                .header {{ background: {icon_color}; color: white; padding: 24px; text-align: center; }}
+                .content {{ background: #ffffff; padding: 30px; border: 1px solid #E2E8F0; }}
+                .footer {{ text-align: center; color: #94A3B8; font-size: 12px; padding: 15px; }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1 style="margin: 0; font-size: 18px;">Confirmation de presence</h1>
+                    <p style="margin: 8px 0 0 0; opacity: 0.9; font-size: 13px;">{subtitle} — NLYT</p>
+                </div>
+                <div class="content">
+                    <p style="color: #475569; margin-top: 0;">Bonjour {to_name},</p>
+
+                    <div style="background: #F0FDF4; border-left: 4px solid {icon_color}; padding: 16px; margin: 20px 0; border-radius: 0 8px 8px 0;">
+                        <p style="margin: 0; color: #1E293B; font-size: 15px;">
+                            {action_text}
+                        </p>
+                        {time_line}
+                    </div>
+
+                    <div style="background: #F8FAFC; padding: 16px; border-radius: 8px; border: 1px solid #E2E8F0; margin: 20px 0;">
+                        <p style="margin: 0 0 6px 0; color: #1E293B; font-weight: bold;">{appointment_title}</p>
+                        <p style="margin: 0; color: #64748B; font-size: 13px;">{formatted_date}</p>
+                    </div>
+
+                    {link_section}
+                </div>
+                <div class="footer">
+                    <p>&copy; 2026 NLYT</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+        return await EmailService.send_email(to_email, subject, html_content, email_type="checkin_notification")
+
+
+    @staticmethod
     async def send_participant_cancellation_notification(
         organizer_email: str,
         organizer_name: str,
