@@ -33,6 +33,44 @@ GRACE_WINDOW_MINUTES = 30
 AUTO_CAPTURE_ENABLED = False
 
 
+def _get_best_proof_session(appointment_id: str, participant_id: str) -> dict | None:
+    """
+    Get the best (highest score) completed proof session for a participant.
+    Returns the session dict or None if no session exists.
+    """
+    sessions = list(db.proof_sessions.find(
+        {
+            "appointment_id": appointment_id,
+            "participant_id": participant_id,
+            "checked_out_at": {"$ne": None},  # Only completed sessions
+        },
+        {"_id": 0}
+    ).sort("score", -1).limit(1))
+
+    if sessions:
+        return sessions[0]
+
+    # Also check active sessions (checked in but not checked out yet)
+    active = list(db.proof_sessions.find(
+        {
+            "appointment_id": appointment_id,
+            "participant_id": participant_id,
+            "checked_out_at": None,
+        },
+        {"_id": 0}
+    ).sort("heartbeat_count", -1).limit(1))
+
+    if active:
+        session = active[0]
+        # For active sessions, estimate score based on heartbeat count
+        session["score"] = min(session.get("heartbeat_count", 0) * 2, 70)
+        session["proof_level"] = "strong" if session["score"] >= 60 else "medium" if session["score"] >= 30 else "weak"
+        session["score_breakdown"] = session.get("score_breakdown", {"checkin_points": 15, "duration_points": session["score"] - 15, "video_api_points": 0})
+        return session
+
+    return None
+
+
 def evaluate_participant(participant: dict, appointment: dict) -> dict:
     """
     Evaluate a single participant's attendance outcome.
@@ -128,83 +166,144 @@ def evaluate_participant(participant: dict, appointment: dict) -> dict:
         video_provider_ceiling = aggregation.get('video_provider_ceiling')
         video_outcome = aggregation.get('video_outcome')
 
-        # --- VIDEO APPOINTMENT SPECIFIC RULES ---
-        if is_video and aggregation.get('video_provider'):
-            video_trust = aggregation.get('video_source_trust', 'manual_upload')
-            
-            # RULE: Google Meet alone (assisted ceiling) → ALWAYS manual_review
-            if video_provider_ceiling == "assisted" and strength != "strong":
-                return {
-                    "outcome": "manual_review",
-                    "decision_basis": "meet_assisted_only",
-                    "confidence": "low",
-                    "review_required": True,
-                    "evidence_summary": aggregation,
-                    "video_context": {
-                        "provider": aggregation.get('video_provider'),
-                        "provider_ceiling": video_provider_ceiling,
-                        "video_outcome": video_outcome,
-                        "source_trust": video_trust,
-                        "rule": "Google Meet seul ne declenche pas de decision automatique",
-                    }
+        # --- VIDEO APPOINTMENT: NLYT Proof is the PRIMARY source ---
+        if is_video:
+            proof_session = _get_best_proof_session(
+                appointment.get('appointment_id', participant.get('appointment_id', '')),
+                participant.get('participant_id', '')
+            )
+
+            # Build video API context (secondary bonus)
+            video_bonus = None
+            if aggregation.get('video_provider'):
+                video_bonus = {
+                    "provider": aggregation.get('video_provider'),
+                    "video_outcome": video_outcome,
+                    "source_trust": aggregation.get('video_source_trust', 'manual_upload'),
+                    "provider_ceiling": video_provider_ceiling,
                 }
 
-            # RULE: Zoom/Teams with strong evidence and clear outcome
-            if strength == "strong" and video_outcome == "joined_on_time":
-                return {
-                    "outcome": "on_time",
-                    "decision_basis": "video_strong_on_time",
-                    "confidence": "high",
-                    "review_required": False,
-                    "evidence_summary": aggregation,
-                    "video_context": {
-                        "provider": aggregation.get('video_provider'),
-                        "video_outcome": video_outcome,
-                        "source_trust": video_trust,
-                    }
+            if proof_session:
+                score = proof_session.get('score', 0)
+                proof_level = proof_session.get('proof_level', 'weak')
+                score_breakdown = proof_session.get('score_breakdown', {})
+                checkin_points = score_breakdown.get('checkin_points', 0)
+
+                proof_context = {
+                    "source": "nlyt_proof",
+                    "session_id": proof_session.get('session_id'),
+                    "score": score,
+                    "proof_level": proof_level,
+                    "score_breakdown": score_breakdown,
+                    "heartbeat_count": proof_session.get('heartbeat_count', 0),
+                    "active_duration_seconds": proof_session.get('active_duration_seconds', 0),
+                    "video_bonus": video_bonus,
                 }
 
-            if strength == "strong" and video_outcome == "joined_late":
-                return {
-                    "outcome": "late",
-                    "decision_basis": "video_strong_late",
-                    "confidence": "high",
-                    "review_required": False,
-                    "evidence_summary": aggregation,
-                    "video_context": {
-                        "provider": aggregation.get('video_provider'),
-                        "video_outcome": video_outcome,
-                        "source_trust": video_trust,
-                    }
-                }
+                # NLYT PROOF THRESHOLDS
+                # Strong (≥ 60): clear presence proof
+                if score >= 60:
+                    is_on_time = checkin_points >= 25  # 30=on_time, 15=slightly late
+                    confidence = "high"
+                    # Video API confirmation elevates confidence
+                    if video_bonus and video_outcome in ("joined_on_time", "joined_late"):
+                        proof_context["video_confirmed"] = True
 
-            if strength == "medium" and video_outcome in ("joined_on_time", "joined_late"):
+                    return {
+                        "outcome": "on_time" if is_on_time else "late",
+                        "decision_basis": "nlyt_proof_strong_on_time" if is_on_time else "nlyt_proof_strong_late",
+                        "confidence": confidence,
+                        "review_required": False,
+                        "evidence_summary": aggregation,
+                        "proof_context": proof_context,
+                    }
+
+                # Medium (30-59): presence detected but ambiguous
+                if score >= 30:
+                    confidence = "medium"
+                    if video_bonus and video_outcome in ("joined_on_time", "joined_late"):
+                        confidence = "medium_high"
+                        proof_context["video_confirmed"] = True
+
+                    return {
+                        "outcome": "manual_review",
+                        "decision_basis": "nlyt_proof_medium",
+                        "confidence": confidence,
+                        "review_required": True,
+                        "evidence_summary": aggregation,
+                        "proof_context": proof_context,
+                    }
+
+                # Weak (< 30): very insufficient proof
                 return {
-                    "outcome": "on_time" if video_outcome == "joined_on_time" else "late",
-                    "decision_basis": f"video_medium_{video_outcome}",
+                    "outcome": "no_show",
+                    "decision_basis": "nlyt_proof_weak",
                     "confidence": "medium",
                     "review_required": True,
                     "evidence_summary": aggregation,
-                    "video_context": {
-                        "provider": aggregation.get('video_provider'),
-                        "video_outcome": video_outcome,
-                        "source_trust": video_trust,
-                    }
+                    "proof_context": proof_context,
                 }
 
-            # Weak or ambiguous video evidence → manual_review
-            return {
-                "outcome": "manual_review",
-                "decision_basis": "video_ambiguous",
-                "confidence": "low",
-                "review_required": True,
-                "evidence_summary": aggregation,
-                "video_context": {
-                    "provider": aggregation.get('video_provider'),
-                    "video_outcome": video_outcome,
-                    "source_trust": video_trust,
-                    "rule": "Signal video ambigu — revue manuelle requise",
+            # --- No NLYT Proof session: fall back to video API (secondary) ---
+            if aggregation.get('video_provider'):
+                video_trust = aggregation.get('video_source_trust', 'manual_upload')
+
+                # Google Meet alone → always manual_review
+                if video_provider_ceiling == "assisted" and strength != "strong":
+                    return {
+                        "outcome": "manual_review",
+                        "decision_basis": "no_proof_meet_assisted_only",
+                        "confidence": "low",
+                        "review_required": True,
+                        "evidence_summary": aggregation,
+                        "proof_context": {"source": "video_api_fallback", "video_bonus": video_bonus},
+                        "video_context": {
+                            "provider": aggregation.get('video_provider'),
+                            "provider_ceiling": video_provider_ceiling,
+                            "video_outcome": video_outcome,
+                            "source_trust": video_trust,
+                            "rule": "Pas de session NLYT Proof. Google Meet seul = revue manuelle",
+                        }
+                    }
+
+                # Zoom/Teams with strong evidence
+                if strength == "strong" and video_outcome == "joined_on_time":
+                    return {
+                        "outcome": "on_time",
+                        "decision_basis": "no_proof_video_fallback_on_time",
+                        "confidence": "medium",
+                        "review_required": True,
+                        "evidence_summary": aggregation,
+                        "proof_context": {"source": "video_api_fallback", "video_bonus": video_bonus, "note": "Pas de session NLYT Proof. Décision basée sur API vidéo (secondaire)."},
+                    }
+
+                if strength == "strong" and video_outcome == "joined_late":
+                    return {
+                        "outcome": "late",
+                        "decision_basis": "no_proof_video_fallback_late",
+                        "confidence": "medium",
+                        "review_required": True,
+                        "evidence_summary": aggregation,
+                        "proof_context": {"source": "video_api_fallback", "video_bonus": video_bonus, "note": "Pas de session NLYT Proof. Décision basée sur API vidéo (secondaire)."},
+                    }
+
+                # Ambiguous video → manual_review
+                return {
+                    "outcome": "manual_review",
+                    "decision_basis": "no_proof_video_ambiguous",
+                    "confidence": "low",
+                    "review_required": True,
+                    "evidence_summary": aggregation,
+                    "proof_context": {"source": "video_api_fallback", "video_bonus": video_bonus},
                 }
+
+            # --- No NLYT Proof AND no video API → absent ---
+            return {
+                "outcome": "no_show",
+                "decision_basis": "no_proof_no_video",
+                "confidence": "medium",
+                "review_required": True,
+                "proof_context": {"source": "none", "note": "Aucune session NLYT Proof, aucune preuve API vidéo."},
             }
 
         # --- PHYSICAL APPOINTMENT (original logic, unchanged) ---

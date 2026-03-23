@@ -169,6 +169,7 @@ NLYT ne crée jamais de réunion de manière centralisée. Trois options pour l'
 | CORS + Rate limiting | `server.py` | OK |
 | Check-in physique (GPS/QR/manuel) | `checkin_routes.py`, `evidence_service.py` | OK |
 | Moteur de décision conservateur | `attendance_service.py` | OK |
+| **NLYT Proof → Moteur de décision (visio)** | `attendance_service.py` | OK — 6/6 scénarios |
 | Auto-fetch Zoom/Teams | `auto_fetch_attendance_service.py`, `scheduler.py` | OK |
 | CSV/JSON import fallback | `video_evidence_routes.py` | OK |
 
@@ -176,7 +177,6 @@ NLYT ne crée jamais de réunion de manière centralisée. Trois options pour l'
 
 | Tâche | Priorité | Description |
 |---|---|---|
-| Intégrer NLYT Proof dans le moteur de décision | P0 | `attendance_service.evaluate_participant` ne consulte pas encore `proof_sessions` pour les RDV visio. Le scoring NLYT Proof devrait alimenter la décision d'assiduité |
 | Bonus API vidéo dans scoring | P1 | `video_api_points` (30pts) dans le scoring NLYT Proof est déclaré mais pas encore calculé |
 | Stripe Connect | P1 | Distribution automatique des fonds aux organisateurs/associations |
 | Webhooks temps réel Zoom/Teams | P1 | `meeting.ended` webhook pour déclencher le fetch immédiatement |
@@ -199,7 +199,7 @@ NLYT ne crée jamais de réunion de manière centralisée. Trois options pour l'
 ## 7. Roadmap priorisée
 
 ### P0 — Court terme
-- [ ] Intégrer `proof_sessions` dans `attendance_service.evaluate_participant` pour les RDV visio
+- [x] ~~Intégrer `proof_sessions` dans `attendance_service.evaluate_participant` pour les RDV visio~~ **DONE**
 
 ### P1 — Moyen terme
 - [ ] Stripe Connect (distribution automatique)
