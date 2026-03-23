@@ -53,6 +53,7 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API (mode user)
 - iteration_46: 11/11 backend + 3/3 frontend (ICS — lien invitation uniquement)
 - iteration_47: 14/14 backend (Notification check-in — idempotence + wording + routing)
 - iteration_48: 11/11 backend (Notification check-in — détails preuves GPS/vidéo enrichis)
+- iteration_49: 8/8 backend + 7/7 frontend (Fix "Erreur réseau" GPS check-in — gestion d'erreur complète)
 - Credentials: testuser_audit@nlyt.app / Test1234!
 
 ## Completed
@@ -95,6 +96,14 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API (mode user)
   - Détails de preuve dans l'email :
     - Physique : coordonnées GPS + lien Google Maps + adresse + distance + méthode
     - Vidéo : nom de connexion (display name) + heure + plateforme
+- [x] Fix "Erreur réseau" GPS check-in (P0) — Fév 2026
+  - Suppression de tous les alert() dans InvitationPage.js et AppointmentDetail.js
+  - Gestion explicite GeolocationPositionError (codes 1/2/3) avec toast.warning
+  - Mapping HTTP 409/400/404 vers toast.info/error avec messages français explicites
+  - Toast.success pour check-in réussi
+  - Logs console frontend pour traçage GPS
+  - Logs backend (logger.info/warning) pour coordonnées reçues, distances, erreurs
+  - Harmonisation complète organisateur / participant
 
 ## Roadmap
 ### P1
