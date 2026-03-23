@@ -284,12 +284,6 @@ export default function OrganizerDashboard() {
               <Link to="/dashboard" className="text-sm font-medium text-slate-900">
                 Tableau de bord
               </Link>
-              <Link to="/policies" className="text-sm text-slate-600 hover:text-slate-900">
-                Modèles
-              </Link>
-              <Link to="/analytics" className="text-sm text-slate-600 hover:text-slate-900">
-                Analytiques
-              </Link>
             </div>
           </div>
           <div className="flex items-center gap-4">

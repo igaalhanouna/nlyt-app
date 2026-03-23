@@ -123,7 +123,6 @@ export const disputeAPI = {
 export const adminAPI = {
   getCasesForReview: () => api.get('/api/admin/cases/review'),
   getPendingDisputes: () => api.get('/api/admin/disputes/pending'),
-  getAnalytics: () => api.get('/api/admin/analytics/overview'),
   getStripeEvents: (limit) => api.get(`/api/admin/stripe-events?limit=${limit || 50}`),
 };
 

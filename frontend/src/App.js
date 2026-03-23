@@ -25,14 +25,10 @@ import ParticipantManagement from './pages/appointments/ParticipantManagement';
 import InvitationPage from './pages/invitations/InvitationPage';
 import CheckinPage from './pages/proof/CheckinPage';
 
-import PolicyTemplates from './pages/policies/PolicyTemplates';
-
 import DisputeCenter from './pages/disputes/DisputeCenter';
 import DisputeDetail from './pages/disputes/DisputeDetail';
 
 import ReviewerDashboard from './pages/admin/ReviewerDashboard';
-
-import AnalyticsOverview from './pages/analytics/AnalyticsOverview';
 
 import Settings from './pages/settings/Settings';
 import Profile from './pages/settings/Profile';
@@ -83,14 +79,10 @@ function App() {
               <Route path="/appointments/:id" element={<PrivateRoute><AppointmentDetail /></PrivateRoute>} />
               <Route path="/appointments/:id/participants" element={<PrivateRoute><ParticipantManagement /></PrivateRoute>} />
               
-              <Route path="/policies" element={<PrivateRoute><PolicyTemplates /></PrivateRoute>} />
-              
               <Route path="/disputes" element={<PrivateRoute><DisputeCenter /></PrivateRoute>} />
               <Route path="/disputes/:id" element={<PrivateRoute><DisputeDetail /></PrivateRoute>} />
               
               <Route path="/admin/review" element={<PrivateRoute><ReviewerDashboard /></PrivateRoute>} />
-              
-              <Route path="/analytics" element={<PrivateRoute><AnalyticsOverview /></PrivateRoute>} />
               
               <Route path="/settings" element={<PrivateRoute><Settings /></PrivateRoute>} />
               <Route path="/settings/profile" element={<PrivateRoute><Profile /></PrivateRoute>} />
