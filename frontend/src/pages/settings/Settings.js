@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '../../components/ui/button';
-import { ArrowLeft, User, Building2, Plug, CreditCard } from 'lucide-react';
+import { ArrowLeft, User, Building2, Plug, CreditCard, Wallet } from 'lucide-react';
 
 export default function Settings() {
   return (
@@ -29,6 +29,11 @@ export default function Settings() {
             <CreditCard className="w-8 h-8 text-slate-700 mb-3" />
             <h3 className="font-semibold text-slate-900 mb-1">Paiement</h3>
             <p className="text-sm text-slate-600">Moyen de paiement par défaut pour vos garanties</p>
+          </Link>
+          <Link to="/settings/wallet" className="p-6 bg-white rounded-lg border border-slate-200 hover:border-slate-300 transition-colors" data-testid="settings-wallet-link">
+            <Wallet className="w-8 h-8 text-slate-700 mb-3" />
+            <h3 className="font-semibold text-slate-900 mb-1">Wallet</h3>
+            <p className="text-sm text-slate-600">Solde, retraits et compte de paiement Stripe Connect</p>
           </Link>
         </div>
       </div>

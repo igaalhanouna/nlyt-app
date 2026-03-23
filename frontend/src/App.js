@@ -39,6 +39,7 @@ import Profile from './pages/settings/Profile';
 import WorkspaceSettings from './pages/settings/WorkspaceSettings';
 import Integrations from './pages/settings/Integrations';
 import PaymentSettings from './pages/settings/PaymentSettings';
+import WalletPage from './pages/settings/WalletPage';
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth();
@@ -94,6 +95,7 @@ function App() {
               <Route path="/settings/workspace" element={<PrivateRoute><WorkspaceSettings /></PrivateRoute>} />
               <Route path="/settings/integrations" element={<PrivateRoute><Integrations /></PrivateRoute>} />
               <Route path="/settings/payment" element={<PrivateRoute><PaymentSettings /></PrivateRoute>} />
+              <Route path="/settings/wallet" element={<PrivateRoute><WalletPage /></PrivateRoute>} />
             </Routes>
             <Toaster />
           </div>

@@ -106,8 +106,13 @@ def start_onboarding(user_id: str) -> dict:
         }
 
     except stripe.error.StripeError as e:
+        error_msg = str(e)
+        # If Connect is not enabled on this Stripe account, fall back to dev mode
+        if "signed up for Connect" in error_msg:
+            logger.warning(f"[CONNECT] Stripe Connect not enabled — falling back to dev mode for user {user_id}")
+            return _dev_mode_onboarding(user_id)
         logger.error(f"[CONNECT] Stripe error for user {user_id}: {e}")
-        return {"success": False, "error": str(e)}
+        return {"success": False, "error": error_msg}
 
 
 def get_connect_status(user_id: str) -> dict:
@@ -129,9 +134,6 @@ def get_connect_status(user_id: str) -> dict:
 
 def create_dashboard_link(user_id: str) -> dict:
     """Generate a Stripe Express Dashboard link for an active account."""
-    if not STRIPE_API_KEY or STRIPE_API_KEY == 'sk_test_emergent':
-        return {"success": True, "dashboard_url": f"{FRONTEND_URL}/settings/wallet?dev_dashboard=true"}
-
     wallet = db.wallets.find_one({"user_id": user_id, "wallet_type": "user"}, {"_id": 0})
     if not wallet:
         return {"success": False, "error": "Wallet introuvable"}
@@ -142,6 +144,10 @@ def create_dashboard_link(user_id: str) -> dict:
 
     if wallet.get("stripe_connect_status") != "active":
         return {"success": False, "error": "Le compte doit être actif pour accéder au dashboard"}
+
+    # Dev mode accounts (acct_dev_*) can't use real Stripe dashboard
+    if not STRIPE_API_KEY or STRIPE_API_KEY == 'sk_test_emergent' or account_id.startswith("acct_dev_"):
+        return {"success": True, "dashboard_url": f"{FRONTEND_URL}/settings/wallet?dev_dashboard=true"}
 
     try:
         login_link = stripe.Account.create_login_link(account_id)

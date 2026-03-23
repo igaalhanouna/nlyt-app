@@ -5,6 +5,7 @@ import json
 import stripe
 sys.path.append('/app/backend')
 from services.stripe_guarantee_service import StripeGuaranteeService
+from services.connect_service import handle_account_updated, handle_account_deauthorized
 from datetime import datetime, timezone
 
 from database import db
@@ -132,6 +133,18 @@ async def stripe_webhook(request: Request):
                         "capture_confirmed_at": datetime.now(timezone.utc).isoformat()
                     }}
                 )
+        
+        # Handle Stripe Connect account updates
+        elif event_type == "account.updated":
+            result = handle_account_updated(event_data)
+            return {"status": "success", "event_type": event_type, "result": result}
+        
+        # Handle Stripe Connect deauthorization
+        elif event_type == "account.application.deauthorized":
+            account_id = event_data.get("id") or event_data.get("account")
+            if account_id:
+                result = handle_account_deauthorized(account_id)
+                return {"status": "success", "event_type": event_type, "result": result}
         
         return {"status": "success", "event_type": event_type}
     
