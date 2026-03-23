@@ -1,0 +1,133 @@
+<analysis>**original_problem_statement**: 
+The user wants to refine the NLYT Proof of Attendance system, consolidate the codebase to ensure stability, and implement Stripe Connect for the automatic distribution of funds. The recent focus shifted from fixing critical frontend check-in bugs and Azure OAuth integrations to executing a massive technical consolidation, and finally kicking off the Stripe Connect integration. The user has explicitly defined a phased approach for Stripe Connect: Phase 1 (Internal Wallet & Ledger - Completed) and Phase 2 (Stripe Connect Express Onboarding - Currently in progress).
+
+PRODUCT REQUIREMENTS:
+- **Consolidation**: Single MongoDB client (), modularized UI components.
+- **NLYT Proof Scoring**: Score must heavily favor good flow + good timing (40 pts timing, 30 pts duration, 10 pts flow bonus, 20 pts video API). Threshold for strong proof is ≥ 55.
+- **Stripe Connect (Phase 1 & 2)**: 
+  - Internal wallet auto-created on user registration. 
+  - Ledger must trace all transactions (holds, captures, payouts).
+  - Minimum payout amount is 5€. 
+  - Phase 2 involves onboarding users via Stripe Connect Express (Default country 'FR' for MVP, falling back to user profile locale).
+  - NLYT remains a neutral trusted third party; strict symmetry between organizer and participant rules.
+
+**User's preferred language**: French (INSTRUCT NEXT AGENT: You MUST respond in French only).
+
+**what currently exists?** 
+A heavily refactored and stabilized check-in and attendance guarantee SaaS. The codebase has just undergone major consolidation (database connections centralized, monolithic React components split). Phase 1 of Stripe Connect (internal wallet and ledger system) is fully implemented, tested, and automatically creates wallets for users upon registration. The app is currently actively building Phase 2 (Stripe Connect Express onboarding flow).
+
+**Last working item**:
+    - Last item agent was working: Implementing Stripe Connect Phase 2 (Express Onboarding). The agent gathered the architecture requirements, documented them in , and just created the skeleton files  and  to handle Stripe account creation and onboarding links.
+    - Status: IN PROGRESS
+    - Agent Testing Done: N
+    - Which testing method agent to use? Both (Backend testing agent for connect_routes logic, manual/screenshot for frontend onboarding flow integration).
+    - User Testing Done: N
+
+**All Pending/In progress Issue list**: 
+(None currently active. All major reported issues were resolved and tested in previous iterations).
+
+**In progress Task List**:
+  Task 1: Stripe Connect Phase 2 (Express Onboarding)
+     - Where to resume: Implement the logic inside  and . Then, integrate these routes into  and build the minimal frontend UI to let users start their Stripe Onboarding.
+     - What will be achieved with this? Users (organizers and participants) will be able to create their Stripe Connect Express accounts to become eligible for payouts.
+     - Status: IN PROGRESS
+     - Should Test frontend/backend/both after fix? Both
+     - Blocked on something: None.
+
+**Upcoming and Future Tasks**
+    - P1: Stripe Connect Phase 3 (Logic of distribution of funds based on attendance outcomes).
+    - P1: Stripe Connect Phase 4 (Triggering actual Stripe payouts for eligible active Connect accounts).
+    - P1: Webhooks temps réel Zoom/Teams.
+    - P2: Pagination endpoints de liste.
+    - P2: Découpe  (refactor similar to ).
+    - P2: Auto-update calendrier V2 (retry automatique).
+    - P3: Dashboard analytics organisateurs.
+    - P3: Templates email externalisés (fichiers HTML).
+    - P3: Index MongoDB (performance).
+
+**Completed work in this session**
+  - Fixed P0 Erreur réseau on GPS check-in (Removed generic alerts, added sonner toasts & robust backend error parsing) (DONE)
+  - Fixed Azure Outlook OAuth bug ( was using a preview URL instead of the valid Azure App ID) (DONE)
+  - Fixed body stream already read double  bug on  polling/fetch flows (DONE)
+  - Reordered UX: Moved NLYT Proof — Sessions de présence above Preuves de présence visio in  (DONE)
+  - Consolidation 1: Centralized 64 dispersed  instances into a single  (DONE)
+  - Consolidation 2: Split the massive  (2701 lines) into modular sub-components (, , , , ) (DONE)
+  - Consolidation 3: Cleaned up dead enums ( now only ) and protected  with  (DONE)
+  - Stripe Connect Phase 1: Built  and  (Internal Ledger), hooked auto-creation into user registration (DONE)
+
+**Earlier issues found/mentioned but not fixed**
+None.
+
+**Known issue recurrence from previous fork**
+  - Recurrence count: 0
+  - Status: NA
+
+**Code Architecture**
+
+
+**Key Technical Concepts**
+Frontend: React.js, TailwindCSS, Shadcn/UI, Sonner (Toasts).
+Backend: FastAPI, Python, MongoDB (Centralized), APScheduler.
+Financials: Stripe setup intents for guarantees, Stripe Connect Express for payouts, Internal Ledger for NLYT wallet balances.
+
+**key DB schema**
+  -  (NEW): , , , , , .
+  -  (NEW): Auditable ledger linking transactions to appointments/users.
+  - : Tracks processed webhooks for idempotency.
+
+**changes in tech stack**
+  - All MongoDB connections are now strictly routed through . Do not instantiate  locally anywhere.
+
+**All files of reference** 
+  -  (Core DB connection file)
+  -  (Target file for current task)
+  -  (Target file for current task)
+  -  (Detailed specs for the current task)
+
+**Areas that need refactoring**: 
+  -  (1400+ lines) is slated for component splitting similar to what was achieved with .
+
+**key api endpoints**
+  -  (Returns internal wallet state)
+  -  (Returns user ledger)
+
+**Critical Info for New Agent** 
+- **LANGUAGE**: You must speak French with the user.
+- **DATABASE IMPORT**: NEVER import  directly anymore. Always use .
+- **STRIPE CONNECT PHASE 2**: You are exactly at the start of Phase 2 implementation. The user validated the architecture in . Build the backend logic in  and , integrate with , and build the minimal frontend settings UI to start the onboarding flow. Default country for MVP is 'FR'.
+
+**documents and test reports created in this job** 
+  -  (Updated)
+  -  (New)
+  -  (New)
+  -  to  (All passed 100%)
+
+**Last 10 User Messages and any pending HUMAN messages** 
+1. (User) Validated Consolidations.
+2. (User) Requested exact clarification of NLYT Proof scoring for Video.
+3. (User) Ordered a rebalance of the scoring to heavily favor valid timing and NLYT flow usage over pure duration.
+4. (Agent) Showed the rebalance was already implemented and active.
+5. (User) Validated moving forward to Stripe Connect.
+6. (User) Defined Stripe Connect Phase 1 (Wallet + Ledger) and overall distribution architecture.
+7. (User) Approved Phase 1 architecture and requested execution.
+8. (User) Validated Phase 1 completion.
+9. (User) Defined Stripe Connect Phase 2 (Express Onboarding) rules and requested architecture design.
+10. (User) **PENDING INTENT:** Validated Phase 2 architecture (including using 'FR' as default for MVP) and requested the agent to proceed with step-by-step implementation.
+
+**Project Health Check:**
+App is healthy, heavily refactored, and thoroughly tested. No known regressions.
+
+**3rd Party Integrations** 
+	 • Stripe (Payments) — requires User API Key
+	 • Microsoft Graph API (Outlook/Teams) — requires User API Key
+	 • Zoom API — requires User API Key
+	 • Resend (Emails) — requires User API Key
+
+**Testing status**
+  - Testing agent used after significant changes: YES (Heavily utilized, all iterations passing 100%).
+  - Troubleshoot agent used after agent stuck in loop: NO
+  - Test files created: N/A
+  - Known regressions: None.
+
+**What agent forgot to execute**
+The agent just created the empty files  and  but ran out of context before writing the backend logic or the frontend UI for Stripe Connect Phase 2.</analysis>
