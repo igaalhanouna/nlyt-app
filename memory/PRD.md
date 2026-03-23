@@ -47,6 +47,7 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API (mode user)
 - iteration_40: 22/22 backend + 15/15 frontend (NLYT Proof + Provider mode)
 - iteration_41: 8/8 backend + 9/9 frontend (Stripe webhook fix + Access control)
 - iteration_42: 8/8 backend + 6/6 frontend (Organisateur proof bypass fix)
+- iteration_43: 15/15 backend (Email confirmation 4 cas — contenu vérifié)
 - Credentials: testuser_audit@nlyt.app / Test1234!
 
 ## Completed
@@ -65,6 +66,10 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API (mode user)
 - [x] Email confirmation avec proof_link + appointment_timezone après webhook Stripe
 - [x] Organisateur passe par NLYT Proof (suppression bypass direct visio)
 - [x] Backend proof: retour meeting_host_url pour organisateur, join_url pour participant
+- [x] Email confirmation définitif: 4 cas (vidéo/physique × garantie/sans garantie)
+  - Vidéo: proof link comme point d'entrée unique, provider (Zoom/Teams/Meet), ICS, timezone
+  - Physique: instructions GPS/QR, adresse, ICS, timezone
+  - Mention "confirmation d'accès définitive" dans chaque email
 
 ## Roadmap
 ### P1
