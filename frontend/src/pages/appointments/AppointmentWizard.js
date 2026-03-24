@@ -44,6 +44,7 @@ export default function AppointmentWizard() {
   // Video provider connection status
   const [videoProviders, setVideoProviders] = useState(null);
   const [loadingProviders, setLoadingProviders] = useState(false);
+  const [providerAutoSelected, setProviderAutoSelected] = useState(false);
   
   // Default payment method for organizer guarantee
   const [orgPaymentMethod, setOrgPaymentMethod] = useState(null);
@@ -74,6 +75,17 @@ export default function AppointmentWizard() {
     charity_percent: 0,
     charity_association_id: ''
   });
+
+  // Auto-select best available video provider (once, on first load only)
+  useEffect(() => {
+    if (videoProviders && !providerAutoSelected && !formData.meeting_provider) {
+      const priority = ['teams', 'meet', 'zoom', 'external'];
+      const best = priority.find(p => videoProviders[p]?.can_auto_generate) || 'external';
+      setFormData(prev => ({ ...prev, meeting_provider: best, meeting_join_url: '' }));
+      setProviderAutoSelected(true);
+    }
+  }, [videoProviders, providerAutoSelected, formData.meeting_provider]);
+
 
   // Load user defaults and charity associations on mount
   const [conflictResult, setConflictResult] = useState(null);
@@ -600,131 +612,44 @@ export default function AppointmentWizard() {
         </div>
       ) : (
         <div className="space-y-3">
-          <Label>Plateforme de visioconférence *</Label>
+          <Label>Visioconférence *</Label>
           {loadingProviders ? (
             <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-lg border border-slate-200">
               <Loader2 className="w-4 h-4 animate-spin text-slate-400" />
               <span className="text-sm text-slate-500">Chargement des intégrations...</span>
             </div>
           ) : (
-            <div className="space-y-3" data-testid="meeting-provider-selector">
-              {/* Section A: External link — default / simplest */}
-              {(() => {
-                const isSelected = formData.meeting_provider === 'external';
-                return (
-                  <button
-                    type="button"
-                    onClick={() => setFormData({ ...formData, meeting_provider: 'external', meeting_join_url: '' })}
-                    className={`w-full flex items-center gap-3 p-3.5 rounded-lg border text-left transition-all ${
-                      isSelected
-                        ? 'border-blue-400 bg-blue-50 ring-1 ring-blue-200'
-                        : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50 cursor-pointer'
-                    }`}
-                    data-testid="provider-option-external"
-                  >
-                    <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
-                      <Link2 className="w-5 h-5 text-blue-600" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-sm font-semibold text-slate-900">Coller un lien de visio</span>
-                        <span className="inline-flex items-center text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 font-medium">
-                          Simple
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-500 mt-0.5">Collez le lien d'une réunion Zoom, Teams, Meet ou autre</p>
-                    </div>
-                    {isSelected && <Check className="w-5 h-5 text-blue-600 flex-shrink-0" />}
-                  </button>
-                );
-              })()}
+            <div className="space-y-2" data-testid="meeting-provider-selector">
 
-              {/* Divider */}
-              <div className="flex items-center gap-3 py-1">
-                <div className="flex-1 border-t border-slate-200" />
-                <span className="text-xs text-slate-400 font-medium">ou connecter un provider</span>
-                <div className="flex-1 border-t border-slate-200" />
-              </div>
-
-              {/* Section B: Connected providers */}
-              {/* Zoom */}
+              {/* ── Microsoft Teams ── */}
               {(() => {
-                const zoomInfo = videoProviders?.zoom;
-                const isConnected = zoomInfo?.connected;
-                const isSelected = formData.meeting_provider === 'zoom';
-                return (
-                  <button
-                    type="button"
-                    onClick={() => isConnected && setFormData({ ...formData, meeting_provider: 'zoom', meeting_join_url: '' })}
-                    className={`w-full flex items-center gap-3 p-3 rounded-lg border text-left transition-all ${
-                      isSelected
-                        ? 'border-blue-400 bg-blue-50 ring-1 ring-blue-200'
-                        : isConnected
-                          ? 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50 cursor-pointer'
-                          : 'border-slate-100 bg-slate-50 opacity-60 cursor-not-allowed'
-                    }`}
-                    disabled={!isConnected}
-                    data-testid="provider-option-zoom"
-                  >
-                    <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
-                      <Video className="w-4 h-4 text-blue-600" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-sm font-medium text-slate-900">Zoom</span>
-                        {isConnected ? (
-                          <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-medium">
-                            <CheckCircle className="w-3 h-3" /> Connecté
-                          </span>
-                        ) : null}
-                      </div>
-                      <p className="text-xs text-slate-500 mt-0.5">
-                        {isConnected
-                          ? `Votre compte : ${zoomInfo?.email || ''}`
-                          : <><Link to="/settings/integrations" className="text-blue-500 hover:underline">Connecter votre compte Zoom</Link></>
-                        }
-                      </p>
-                    </div>
-                    {isSelected && <Check className="w-4 h-4 text-blue-600 flex-shrink-0" />}
-                  </button>
-                );
-              })()}
-
-              {/* Microsoft Teams */}
-              {(() => {
-                const teamsInfo = videoProviders?.teams;
-                const isConnected = teamsInfo?.connected;
+                const p = videoProviders?.teams;
+                const canUse = p?.can_auto_generate;
                 const isSelected = formData.meeting_provider === 'teams';
                 return (
                   <button
                     type="button"
-                    onClick={() => isConnected && setFormData({ ...formData, meeting_provider: 'teams', meeting_join_url: '' })}
+                    onClick={() => canUse && setFormData({ ...formData, meeting_provider: 'teams', meeting_join_url: '' })}
                     className={`w-full flex items-center gap-3 p-3 rounded-lg border text-left transition-all ${
-                      isSelected
-                        ? 'border-violet-400 bg-violet-50 ring-1 ring-violet-200'
-                        : isConnected
-                          ? 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50 cursor-pointer'
-                          : 'border-slate-100 bg-slate-50 opacity-60 cursor-not-allowed'
+                      isSelected ? 'border-violet-400 bg-violet-50 ring-1 ring-violet-200'
+                        : canUse ? 'border-slate-200 bg-white hover:border-slate-300 cursor-pointer'
+                        : 'border-slate-100 bg-slate-50/60 cursor-not-allowed'
                     }`}
-                    disabled={!isConnected}
+                    disabled={!canUse}
                     data-testid="provider-option-teams"
                   >
-                    <div className="w-9 h-9 rounded-lg bg-violet-50 flex items-center justify-center flex-shrink-0">
-                      <Monitor className="w-4 h-4 text-violet-600" />
+                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${canUse ? 'bg-violet-50' : 'bg-slate-100'}`}>
+                      <Monitor className={`w-4 h-4 ${canUse ? 'text-violet-600' : 'text-slate-400'}`} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-sm font-medium text-slate-900">Microsoft Teams</span>
-                        {isConnected ? (
-                          <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-medium">
-                            <CheckCircle className="w-3 h-3" /> Connecté
-                          </span>
-                        ) : null}
+                      <div className="flex items-center gap-2">
+                        <span className={`text-sm font-medium ${canUse ? 'text-slate-900' : 'text-slate-400'}`}>Microsoft Teams</span>
+                        {canUse && <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-semibold"><CheckCircle className="w-3 h-3" /> Automatique</span>}
                       </div>
-                      <p className="text-xs text-slate-500 mt-0.5">
-                        {isConnected
-                          ? `Compte Microsoft 365 : ${teamsInfo?.email || ''}`
-                          : <><Link to="/settings/integrations" className="text-violet-500 hover:underline">Connecter un compte Microsoft 365</Link></>
+                      <p className={`text-xs mt-0.5 ${canUse ? 'text-slate-500' : 'text-slate-400'}`}>
+                        {canUse
+                          ? `Réunion Teams créée automatiquement sous votre identité Microsoft`
+                          : p?.unavailable_reason || 'Réservé aux comptes Microsoft 365 professionnels avec Teams avancé activé'
                         }
                       </p>
                     </div>
@@ -733,45 +658,101 @@ export default function AppointmentWizard() {
                 );
               })()}
 
-              {/* Google Meet */}
+              {/* ── Google Meet ── */}
               {(() => {
-                const meetInfo = videoProviders?.meet;
-                const isConnected = meetInfo?.connected;
+                const p = videoProviders?.meet;
+                const canUse = p?.can_auto_generate;
                 const isSelected = formData.meeting_provider === 'meet';
                 return (
                   <button
                     type="button"
-                    onClick={() => isConnected && setFormData({ ...formData, meeting_provider: 'meet', meeting_join_url: '' })}
+                    onClick={() => canUse && setFormData({ ...formData, meeting_provider: 'meet', meeting_join_url: '' })}
                     className={`w-full flex items-center gap-3 p-3 rounded-lg border text-left transition-all ${
-                      isSelected
-                        ? 'border-emerald-400 bg-emerald-50 ring-1 ring-emerald-200'
-                        : isConnected
-                          ? 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50 cursor-pointer'
-                          : 'border-slate-100 bg-slate-50 opacity-60 cursor-not-allowed'
+                      isSelected ? 'border-emerald-400 bg-emerald-50 ring-1 ring-emerald-200'
+                        : canUse ? 'border-slate-200 bg-white hover:border-slate-300 cursor-pointer'
+                        : 'border-slate-100 bg-slate-50/60 cursor-not-allowed'
                     }`}
-                    disabled={!isConnected}
+                    disabled={!canUse}
                     data-testid="provider-option-meet"
                   >
-                    <div className="w-9 h-9 rounded-lg bg-emerald-50 flex items-center justify-center flex-shrink-0">
-                      <Video className="w-4 h-4 text-emerald-600" />
+                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${canUse ? 'bg-emerald-50' : 'bg-slate-100'}`}>
+                      <Video className={`w-4 h-4 ${canUse ? 'text-emerald-600' : 'text-slate-400'}`} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-sm font-medium text-slate-900">Google Meet</span>
-                        {isConnected ? (
-                          <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-medium">
-                            <CheckCircle className="w-3 h-3" /> via Google Calendar
-                          </span>
-                        ) : null}
+                      <div className="flex items-center gap-2">
+                        <span className={`text-sm font-medium ${canUse ? 'text-slate-900' : 'text-slate-400'}`}>Google Meet</span>
+                        {canUse && <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-semibold"><CheckCircle className="w-3 h-3" /> Automatique</span>}
                       </div>
-                      <p className="text-xs text-slate-500 mt-0.5">
-                        {isConnected
-                          ? `Compte Google : ${meetInfo?.email || ''}`
-                          : <><Link to="/settings/integrations" className="text-emerald-500 hover:underline">Connecter Google Calendar</Link></>
+                      <p className={`text-xs mt-0.5 ${canUse ? 'text-slate-500' : 'text-slate-400'}`}>
+                        {canUse
+                          ? `Réunion Meet créée automatiquement via votre compte Google`
+                          : p?.unavailable_reason || 'Connectez un compte Google dans les paramètres'
                         }
                       </p>
                     </div>
                     {isSelected && <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />}
+                  </button>
+                );
+              })()}
+
+              {/* ── Zoom ── */}
+              {(() => {
+                const p = videoProviders?.zoom;
+                const canUse = p?.can_auto_generate;
+                const isSelected = formData.meeting_provider === 'zoom';
+                return (
+                  <button
+                    type="button"
+                    onClick={() => canUse && setFormData({ ...formData, meeting_provider: 'zoom', meeting_join_url: '' })}
+                    className={`w-full flex items-center gap-3 p-3 rounded-lg border text-left transition-all ${
+                      isSelected ? 'border-blue-400 bg-blue-50 ring-1 ring-blue-200'
+                        : canUse ? 'border-slate-200 bg-white hover:border-slate-300 cursor-pointer'
+                        : 'border-slate-100 bg-slate-50/60 cursor-not-allowed'
+                    }`}
+                    disabled={!canUse}
+                    data-testid="provider-option-zoom"
+                  >
+                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${canUse ? 'bg-blue-50' : 'bg-slate-100'}`}>
+                      <Video className={`w-4 h-4 ${canUse ? 'text-blue-600' : 'text-slate-400'}`} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className={`text-sm font-medium ${canUse ? 'text-slate-900' : 'text-slate-400'}`}>Zoom</span>
+                        {canUse && <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-semibold"><CheckCircle className="w-3 h-3" /> Automatique</span>}
+                      </div>
+                      <p className={`text-xs mt-0.5 ${canUse ? 'text-slate-500' : 'text-slate-400'}`}>
+                        {canUse
+                          ? `Réunion Zoom créée automatiquement via votre compte Zoom`
+                          : p?.unavailable_reason || 'Connectez votre compte Zoom dans les paramètres'
+                        }
+                      </p>
+                    </div>
+                    {isSelected && <Check className="w-4 h-4 text-blue-600 flex-shrink-0" />}
+                  </button>
+                );
+              })()}
+
+              {/* ── Autre plateforme ── */}
+              {(() => {
+                const isSelected = formData.meeting_provider === 'external';
+                return (
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, meeting_provider: 'external', meeting_join_url: '' })}
+                    className={`w-full flex items-center gap-3 p-3 rounded-lg border text-left transition-all ${
+                      isSelected ? 'border-slate-400 bg-slate-50 ring-1 ring-slate-300'
+                        : 'border-slate-200 bg-white hover:border-slate-300 cursor-pointer'
+                    }`}
+                    data-testid="provider-option-external"
+                  >
+                    <div className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0">
+                      <Link2 className="w-4 h-4 text-slate-500" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm font-medium text-slate-900">Autre plateforme</span>
+                      <p className="text-xs text-slate-500 mt-0.5">Collez un lien Teams, Zoom, Google Meet ou autre</p>
+                    </div>
+                    {isSelected && <Check className="w-4 h-4 text-slate-600 flex-shrink-0" />}
                   </button>
                 );
               })()}
@@ -795,12 +776,12 @@ export default function AppointmentWizard() {
             </div>
           )}
 
-          {/* Info: auto-creation note for connected providers */}
-          {formData.meeting_provider && formData.meeting_provider !== 'external' && videoProviders?.[formData.meeting_provider]?.connected && (
+          {/* Auto-creation confirmation for connected providers */}
+          {formData.meeting_provider && formData.meeting_provider !== 'external' && videoProviders?.[formData.meeting_provider]?.can_auto_generate && (
             <div className="flex items-start gap-2 p-2.5 bg-blue-50 border border-blue-100 rounded-lg mt-2">
               <Zap className="w-3.5 h-3.5 text-blue-600 mt-0.5 flex-shrink-0" />
               <p className="text-xs text-blue-700">
-                Le lien de réunion sera créé automatiquement via votre compte {videoProviders[formData.meeting_provider]?.label || formData.meeting_provider} et inclus dans les invitations.
+                Le lien de réunion sera créé automatiquement et inclus dans les invitations.
               </p>
             </div>
           )}

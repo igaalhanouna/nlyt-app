@@ -473,6 +473,35 @@ async def create_appointment(appointment: AppointmentCreate, request: Request):
     if hours_until_start is not None and effective_cancellation_hours > hours_until_start:
         effective_cancellation_hours = max(0, int(hours_until_start))
 
+    # ── Validate meeting provider availability before creation ──
+    if appointment.appointment_type == "video" and appointment.meeting_provider:
+        mp = appointment.meeting_provider
+        if mp == "teams":
+            outlook_conn = db.calendar_connections.find_one(
+                {"user_id": user['user_id'], "provider": "outlook", "status": "connected"},
+                {"_id": 0, "has_online_meetings_scope": 1}
+            )
+            if not (outlook_conn and outlook_conn.get("has_online_meetings_scope") is True):
+                raise HTTPException(status_code=400, detail="Microsoft Teams nécessite l'activation de Teams avancé sur un compte Microsoft 365 professionnel.")
+        elif mp == "meet":
+            google_conn = db.calendar_connections.find_one(
+                {"user_id": user['user_id'], "provider": "google", "status": "connected"},
+                {"_id": 0}
+            )
+            if not google_conn:
+                raise HTTPException(status_code=400, detail="Google Meet nécessite la connexion d'un compte Google dans les paramètres.")
+        elif mp == "zoom":
+            from routers.video_evidence_routes import get_provider_status
+            zoom_platform = get_provider_status()["zoom"]["configured"]
+            zoom_user = db.user_settings.find_one(
+                {"user_id": user['user_id']}, {"_id": 0, "zoom_connected": 1}
+            )
+            if not (zoom_platform and zoom_user and zoom_user.get("zoom_connected") is True):
+                raise HTTPException(status_code=400, detail="Zoom nécessite une connexion Zoom active dans les paramètres.")
+        elif mp == "external":
+            if not appointment.meeting_join_url or not appointment.meeting_join_url.strip():
+                raise HTTPException(status_code=400, detail="L'URL de la réunion est requise pour Autre plateforme.")
+
     appointment_doc = {
         "appointment_id": appointment_id,
         "workspace_id": appointment.workspace_id,
@@ -509,11 +538,6 @@ async def create_appointment(appointment: AppointmentCreate, request: Request):
     }
     
     db.appointments.insert_one(appointment_doc)
-    
-    # Validate external provider requires a join URL (early, before DB writes)
-    if appointment.appointment_type == "video" and appointment.meeting_provider == "external":
-        if not appointment.meeting_join_url or not appointment.meeting_join_url.strip():
-            raise HTTPException(status_code=400, detail="L'URL de la réunion est requise pour un lien externe")
 
     # --- Inject organizer as participant (same rules, with guarantee) ---
     organizer_user = db.users.find_one({"user_id": user['user_id']}, {"_id": 0})

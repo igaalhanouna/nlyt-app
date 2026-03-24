@@ -231,78 +231,67 @@ async def ingest_file(
 
 @router.get("/provider-status")
 async def provider_status_endpoint(request: Request):
-    """Check which video providers are configured, per-user connection status."""
+    """Check which video providers are configured and usable per-user."""
     user = await get_current_user(request)
     platform_status = get_provider_status()
 
-    # Enrich with per-user connection info
+    # ── Per-user connection data ──
     google_conn = db.calendar_connections.find_one(
         {"user_id": user["user_id"], "provider": "google", "status": "connected"},
-        {"_id": 0, "google_email": 1, "connected_at": 1, "status": 1}
+        {"_id": 0, "google_email": 1, "connected_at": 1}
     )
     outlook_conn = db.calendar_connections.find_one(
         {"user_id": user["user_id"], "provider": "outlook", "status": "connected"},
-        {"_id": 0, "outlook_email": 1, "connected_at": 1, "status": 1}
+        {"_id": 0, "outlook_email": 1, "connected_at": 1, "has_online_meetings_scope": 1}
     )
-
-    # Zoom: user-level config from user_settings
     zoom_user_config = db.user_settings.find_one(
         {"user_id": user["user_id"]},
         {"_id": 0, "zoom_connected": 1, "zoom_email": 1, "zoom_connected_at": 1}
     )
 
-    # Teams: user-level config (azure_user_id)
-    teams_user_config = db.user_settings.find_one(
-        {"user_id": user["user_id"]},
-        {"_id": 0, "azure_user_id": 1, "teams_connected": 1, "teams_email": 1, "teams_connected_at": 1}
+    # ── Teams: can_auto_generate ONLY if delegated scope is granted ──
+    teams_has_scope = bool(
+        outlook_conn and outlook_conn.get("has_online_meetings_scope") is True
     )
 
-    # Google Meet: connected if Google Calendar is connected (same OAuth)
-    meet_connected = bool(google_conn)
+    # ── Meet: can_auto_generate if Google Calendar connected ──
+    meet_available = bool(google_conn)
 
-    # Zoom: connected if platform configured AND user has zoom settings, or platform configured alone
-    zoom_platform = platform_status["zoom"]["configured"]
-    zoom_user_ok = bool(zoom_user_config and zoom_user_config.get("zoom_connected"))
-    zoom_connected = zoom_platform or zoom_user_ok
-
-    # Teams: connected if platform configured AND user has azure_user_id, or platform configured alone
-    teams_platform = platform_status["teams"]["configured"]
-    teams_user_ok = bool(teams_user_config and teams_user_config.get("teams_connected"))
-    teams_connected = teams_platform or teams_user_ok
+    # ── Zoom: can_auto_generate if platform configured AND user has active connection ──
+    zoom_platform_ok = platform_status["zoom"]["configured"]
+    zoom_user_ok = bool(zoom_user_config and zoom_user_config.get("zoom_connected") is True)
+    zoom_available = zoom_platform_ok and zoom_user_ok
 
     return {
+        "teams": {
+            "can_auto_generate": teams_has_scope,
+            "connected": teams_has_scope,
+            "email": outlook_conn.get("outlook_email") if outlook_conn else None,
+            "connected_at": outlook_conn.get("connected_at") if outlook_conn else None,
+            "label": "Microsoft Teams",
+            "unavailable_reason": None if teams_has_scope else "Réservé aux comptes Microsoft 365 professionnels avec Teams avancé activé",
+        },
         "meet": {
-            "configured": platform_status["meet"]["configured"],
-            "connected": meet_connected,
+            "can_auto_generate": meet_available,
+            "connected": meet_available,
             "email": google_conn.get("google_email") if google_conn else None,
             "connected_at": google_conn.get("connected_at") if google_conn else None,
-            "features": ["create_meeting"],
-            "requires": "google_calendar",
             "label": "Google Meet",
-            "mode": "user",
-            "description": "Fonctionnalités limitées — nécessite un compte Google",
+            "unavailable_reason": None if meet_available else "Connectez un compte Google dans les paramètres",
         },
         "zoom": {
-            "configured": zoom_platform,
-            "connected": zoom_user_ok,
-            "email": (zoom_user_config or {}).get("zoom_email") if zoom_user_ok else None,
-            "connected_at": (zoom_user_config or {}).get("zoom_connected_at") if zoom_user_ok else None,
-            "features": ["create_meeting", "fetch_attendance"],
-            "requires": "user_zoom_account",
+            "can_auto_generate": zoom_available,
+            "connected": zoom_available,
+            "email": (zoom_user_config or {}).get("zoom_email") if zoom_available else None,
+            "connected_at": (zoom_user_config or {}).get("zoom_connected_at") if zoom_available else None,
             "label": "Zoom",
-            "mode": "user",
-            "description": "Connectez votre compte Zoom pour créer des réunions",
+            "unavailable_reason": None if zoom_available else "Connectez votre compte Zoom dans les paramètres",
         },
-        "teams": {
-            "configured": teams_platform,
-            "connected": teams_connected,
-            "email": (teams_user_config or {}).get("teams_email") or (outlook_conn.get("outlook_email") if outlook_conn else None),
-            "connected_at": (teams_user_config or {}).get("teams_connected_at"),
-            "features": ["create_meeting", "fetch_attendance"],
-            "requires": "azure_credentials",
-            "label": "Microsoft Teams",
-            "mode": "user",
-            "description": "Compte Microsoft 365 recommandé",
+        "external": {
+            "can_auto_generate": True,
+            "connected": True,
+            "label": "Autre plateforme",
+            "unavailable_reason": None,
         },
     }
 
