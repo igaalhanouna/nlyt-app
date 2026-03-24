@@ -564,8 +564,8 @@ def create_appointments(users):
         at = random.choices(["video", "physical"], weights=[70, 30])[0]
         prov = pick_provider(org) if at == "video" else ""
         pen = random.choice([10, 15, 20, 25, 30, 40, 50, 75, 100])
-        cp = random.choices([0, 0, 0, 5, 10, 15, 20, 25, 30], weights=[30, 10, 5, 5, 15, 15, 10, 5, 5])[0]
-        a = random.choice(CHARITY_ASSOCIATIONS) if cp > 0 else (None, None)
+        cp = random.choice([5, 10, 10, 15, 15, 20, 20, 25, 30])
+        a = random.choice(CHARITY_ASSOCIATIONS)
         make_apt(org, t, s, "active", at, prov, pen, cp, a[0], a[1])
 
     # ─── CATEGORY 2: Past evaluated (60) ──────────────────
@@ -577,8 +577,8 @@ def create_appointments(users):
         at = random.choices(["video", "physical"], weights=[70, 30])[0]
         prov = pick_provider(org) if at == "video" else ""
         pen = random.choice([15, 20, 25, 30, 50, 75, 100])
-        cp = random.choices([0, 0, 10, 15, 20, 25], weights=[35, 20, 15, 15, 10, 5])[0]
-        a = random.choice(CHARITY_ASSOCIATIONS) if cp > 0 else (None, None)
+        cp = random.choice([5, 10, 10, 15, 15, 20, 20, 25, 30])
+        a = random.choice(CHARITY_ASSOCIATIONS)
 
         apt = make_apt(org, t, s, "active", at, prov, pen, cp, a[0], a[1],
                        extra={"attendance_evaluated": True,
@@ -621,7 +621,9 @@ def create_appointments(users):
         at = random.choices(["video", "physical"], weights=[70, 30])[0]
         prov = pick_provider(org) if at == "video" else ""
         pen = random.choice([20, 30, 50])
-        make_apt(org, t, s, "cancelled", at, prov, pen,
+        cp = random.choice([5, 10, 15, 20])
+        a = random.choice(CHARITY_ASSOCIATIONS)
+        make_apt(org, t, s, "cancelled", at, prov, pen, cp, a[0], a[1],
                  extra={"cancelled_at": iso(cancel_dt),
                         "cancelled_by": random.choice([org["user_id"], "participant"])})
 
@@ -634,7 +636,9 @@ def create_appointments(users):
         at = "video"
         prov = pick_provider(org)
         pen = random.choice([25, 50, 75, 100])
-        make_apt(org, t, s, "pending_organizer_guarantee", at, prov, pen)
+        cp = random.choice([5, 10, 15, 20])
+        a = random.choice(CHARITY_ASSOCIATIONS)
+        make_apt(org, t, s, "pending_organizer_guarantee", at, prov, pen, cp, a[0], a[1])
 
     # ─── PREMIUM 1: Clara — Conflit clair ────────────────
     log.info("    Premium: Clara (conflit)...")
@@ -652,7 +656,8 @@ def create_appointments(users):
     victor = next(u for u in users if u["_demo_role"] == "demo-optimal")
     vt = random_future(4, 8).replace(hour=10, minute=0)
     make_apt(victor, "Stand-up daily engineering", vt,
-             "active", "video", "Google Meet", 30)
+             "active", "video", "Google Meet", 30, 10,
+             "assoc_emmaus", "Emmaüs France")
     make_apt(victor, "Démo produit pour investisseur", vt.replace(hour=14),
              "active", "video", "Zoom", 100, 20,
              "assoc_unicef", "UNICEF France")
@@ -693,10 +698,12 @@ def create_appointments(users):
     for _ in range(2):
         borg = random.choice(organizers)
         bt = random_future(4, 12).replace(hour=15, minute=0)
+        a1 = random.choice(CHARITY_ASSOCIATIONS)
+        a2 = random.choice(CHARITY_ASSOCIATIONS)
         make_apt(borg, "Formation continue — module avancé", bt,
-                 "active", "video", pick_provider(borg), 50)
+                 "active", "video", pick_provider(borg), 50, 10, a1[0], a1[1])
         make_apt(borg, "Débrief formation avec RH", bt + timedelta(minutes=50),
-                 "active", "video", pick_provider(borg), 30)
+                 "active", "video", pick_provider(borg), 30, 15, a2[0], a2[1])
 
     # ─── INSERT ──────────────────────────────────────────
     for p in all_participants:
