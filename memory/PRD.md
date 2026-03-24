@@ -117,6 +117,16 @@ Les APIs calendrier (Google/Outlook) interprétaient la valeur comme heure local
 - 18/18 tests conflit detection (régression OK)
 - 11/11 tests ICS (régression OK)
 
+## Auto-Sync Multi-Provider (Mars 2026)
+- **Avant** : auto-sync vers UN seul provider (choix exclusif Google OU Outlook)
+- **Après** : auto-sync vers TOUS les calendriers connectés simultanément
+- Backend `perform_auto_sync` : itère sur toutes les `calendar_connections` actives
+- Backend settings : simplifié à un toggle `auto_sync_enabled` (plus de `auto_sync_provider`)
+- API `GET/PUT /api/calendar/auto-sync/settings` : retourne `connected_providers[]` en plus
+- Frontend : sélecteur exclusif remplacé par toggle ON/OFF + badges des calendriers connectés
+- `perform_auto_update` : déjà multi-provider (met à jour tous les sync_logs existants) — inchangé
+- Tests : 74/74 régression OK
+
 ## Roadmap
 
 ### P1

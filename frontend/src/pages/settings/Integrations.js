@@ -17,7 +17,7 @@ export default function Integrations() {
   const [connectingOutlook, setConnectingOutlook] = useState(false);
   const [disconnecting, setDisconnecting] = useState(null);
   const [autoSyncEnabled, setAutoSyncEnabled] = useState(false);
-  const [autoSyncProvider, setAutoSyncProvider] = useState(null);
+  const [autoSyncProviders, setAutoSyncProviders] = useState([]);
   const [savingAutoSync, setSavingAutoSync] = useState(false);
 
   // Video provider states
@@ -65,7 +65,7 @@ export default function Integrations() {
       setGoogleConnection(connections.find(c => c.provider === 'google') || null);
       setOutlookConnection(connections.find(c => c.provider === 'outlook') || null);
       setAutoSyncEnabled(syncRes.data.auto_sync_enabled || false);
-      setAutoSyncProvider(syncRes.data.auto_sync_provider || null);
+      setAutoSyncProviders(syncRes.data.connected_providers || []);
       if (videoRes.data) setVideoProviders(videoRes.data);
     } catch (error) {
       console.error('Error loading:', error);
@@ -74,16 +74,13 @@ export default function Integrations() {
     }
   };
 
-  const handleSaveAutoSync = async (enabled, provider) => {
+  const handleToggleAutoSync = async (enabled) => {
     setSavingAutoSync(true);
     try {
-      await calendarAPI.updateAutoSyncSettings({
-        auto_sync_enabled: enabled,
-        auto_sync_provider: provider
-      });
+      const res = await calendarAPI.updateAutoSyncSettings({ auto_sync_enabled: enabled });
       setAutoSyncEnabled(enabled);
-      setAutoSyncProvider(enabled ? provider : null);
-      toast.success(enabled ? 'Auto-sync activé' : 'Auto-sync désactivé');
+      setAutoSyncProviders(res.data.connected_providers || []);
+      toast.success(enabled ? 'Auto-sync activé pour tous vos calendriers' : 'Auto-sync désactivé');
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Erreur lors de la sauvegarde');
     } finally {
@@ -630,62 +627,57 @@ export default function Integrations() {
                 <div className="flex-1">
                   <h3 className="text-base font-semibold text-slate-900 mb-1">Auto-sync calendrier</h3>
                   <p className="text-sm text-slate-500">
-                    Chaque nouveau rendez-vous sera automatiquement ajouté à votre calendrier (NLYT vers calendrier).
+                    Chaque nouveau rendez-vous sera automatiquement ajouté à <strong>tous</strong> vos calendriers connectés.
                   </p>
                 </div>
               </div>
             </div>
 
             <div className="border-t border-slate-100 px-5 py-4 space-y-3">
+              {/* Connected providers list */}
               <div>
-                <label className="block text-xs font-medium text-slate-600 mb-2">Calendrier préféré</label>
+                <label className="block text-xs font-medium text-slate-600 mb-2">Calendriers connectés</label>
                 <div className="flex gap-2">
                   {googleConnection?.status === 'connected' && (
-                    <button
-                      onClick={() => !savingAutoSync && handleSaveAutoSync(true, 'google')}
-                      disabled={savingAutoSync}
-                      className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-medium transition-all ${
-                        autoSyncEnabled && autoSyncProvider === 'google'
-                          ? 'border-violet-300 bg-violet-50 text-violet-800 ring-1 ring-violet-200'
-                          : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50'
-                      }`}
-                      data-testid="auto-sync-google-btn"
-                    >
+                    <span className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-medium ${
+                      autoSyncEnabled
+                        ? 'border-violet-300 bg-violet-50 text-violet-800 ring-1 ring-violet-200'
+                        : 'border-slate-200 bg-white text-slate-500'
+                    }`} data-testid="auto-sync-google-badge">
                       <Calendar className="w-3.5 h-3.5" />
                       Google Calendar
-                      {autoSyncEnabled && autoSyncProvider === 'google' && <Zap className="w-3 h-3 text-violet-600" />}
-                    </button>
+                      {autoSyncEnabled && <Zap className="w-3 h-3 text-violet-600" />}
+                    </span>
                   )}
                   {outlookConnection?.status === 'connected' && (
-                    <button
-                      onClick={() => !savingAutoSync && handleSaveAutoSync(true, 'outlook')}
-                      disabled={savingAutoSync}
-                      className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-medium transition-all ${
-                        autoSyncEnabled && autoSyncProvider === 'outlook'
-                          ? 'border-violet-300 bg-violet-50 text-violet-800 ring-1 ring-violet-200'
-                          : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50'
-                      }`}
-                      data-testid="auto-sync-outlook-btn"
-                    >
+                    <span className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-medium ${
+                      autoSyncEnabled
+                        ? 'border-violet-300 bg-violet-50 text-violet-800 ring-1 ring-violet-200'
+                        : 'border-slate-200 bg-white text-slate-500'
+                    }`} data-testid="auto-sync-outlook-badge">
                       <Calendar className="w-3.5 h-3.5" />
                       Outlook
-                      {autoSyncEnabled && autoSyncProvider === 'outlook' && <Zap className="w-3 h-3 text-violet-600" />}
-                    </button>
+                      {autoSyncEnabled && <Zap className="w-3 h-3 text-violet-600" />}
+                    </span>
                   )}
                 </div>
               </div>
 
-              {autoSyncEnabled && (
+              {/* Toggle */}
+              {autoSyncEnabled ? (
                 <div className="flex items-center justify-between pt-2 border-t border-slate-100">
                   <div className="flex items-center gap-1.5">
                     <Zap className="w-3.5 h-3.5 text-violet-600" />
                     <span className="text-xs text-slate-600">
-                      Auto-sync actif vers <strong>{autoSyncProvider === 'google' ? 'Google Calendar' : 'Outlook'}</strong>
+                      Auto-sync actif vers {[
+                        googleConnection?.status === 'connected' && 'Google Calendar',
+                        outlookConnection?.status === 'connected' && 'Outlook'
+                      ].filter(Boolean).join(' et ')}
                     </span>
                   </div>
                   <Button
                     variant="outline" size="sm"
-                    onClick={() => handleSaveAutoSync(false, null)}
+                    onClick={() => handleToggleAutoSync(false)}
                     disabled={savingAutoSync}
                     className="text-slate-500 h-7 text-xs"
                     data-testid="disable-auto-sync-btn"
@@ -694,12 +686,19 @@ export default function Integrations() {
                     Désactiver
                   </Button>
                 </div>
-              )}
-
-              {!autoSyncEnabled && (
-                <p className="text-xs text-slate-400">
-                  Sélectionnez un calendrier pour activer l'ajout automatique.
-                </p>
+              ) : (
+                <div className="pt-2 border-t border-slate-100">
+                  <Button
+                    variant="outline" size="sm"
+                    onClick={() => handleToggleAutoSync(true)}
+                    disabled={savingAutoSync}
+                    className="text-violet-700 border-violet-200 hover:bg-violet-50 h-8 text-xs"
+                    data-testid="enable-auto-sync-btn"
+                  >
+                    {savingAutoSync ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : <Zap className="w-3.5 h-3.5 mr-1" />}
+                    Activer l'auto-sync
+                  </Button>
+                </div>
               )}
             </div>
           </div>
