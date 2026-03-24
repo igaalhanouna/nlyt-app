@@ -258,11 +258,17 @@ class OutlookCalendarAdapter:
         """List events from the user's Outlook calendar within a time window.
         Returns a list of dicts with keys: event_id, title, start, end, or None on failure.
         time_min / time_max must be ISO 8601 strings.
+
+        Uses Prefer: outlook.timezone="UTC" to ensure all returned datetimes
+        are in UTC, regardless of the event's original timezone.
         """
         try:
             headers = OutlookCalendarAdapter._get_headers(access_token, refresh_token, connection_update_callback)
             if not headers:
                 return None
+
+            # Force Graph API to return all datetimes in UTC
+            headers['Prefer'] = 'outlook.timezone="UTC"'
 
             params = {
                 '$filter': f"start/dateTime ge '{time_min}' and end/dateTime le '{time_max}'",
@@ -287,8 +293,8 @@ class OutlookCalendarAdapter:
                 end_dt = item.get('end', {}).get('dateTime')
                 if not start_dt or not end_dt:
                     continue
-                # Graph API returns naive datetimes in UTC by default for calendarView
-                # Ensure timezone suffix for consistency
+                # With Prefer: outlook.timezone="UTC", datetimes are always UTC.
+                # Ensure Z suffix for consistent parsing downstream.
                 if not start_dt.endswith('Z') and '+' not in start_dt:
                     start_dt += 'Z'
                 if not end_dt.endswith('Z') and '+' not in end_dt:

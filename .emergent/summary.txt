@@ -1,56 +1,42 @@
 <analysis>**original_problem_statement**: 
-The user wants to refine the NLYT Proof of Attendance system. The initial scope included consolidating the codebase, implementing a Stripe Connect financial system (Phases 1-4), tracking charity impact, and setting up email notifications.
+The user wants to refine the NLYT Proof of Attendance system. The initial scope included codebase consolidation and a Stripe Connect system. The focus has since shifted to iterative UX/UI improvements, feature enhancements, and bug fixes based on user feedback.
 
-The focus has since shifted to iterative UX/UI improvements and feature enhancements based on user feedback. Recent tasks involved cleaning up placeholder pages, overhauling the Organizer Dashboard to be action-oriented, simplifying the appointment creation wizard, implementing a V1 of conflict detection, and fixing several bugs and regressions.
+Most recently, the user reported a recurring bug causing a 1-hour time shift in appointments synchronized with Outlook. The user has requested a complete, systemic audit of date and time handling across the entire application (frontend, backend, ICS generation, and calendar integrations) to find the root cause and implement a definitive, robust solution, moving away from temporary patches. The desired state is a clear UTC everywhere except display strategy.
 
 **User's preferred language**: French (INSTRUCT NEXT AGENT: You MUST respond in French only).
 
 **what currently exists?** 
-A stable full-stack application (React/FastAPI/MongoDB) with a fully implemented financial engine using Stripe Connect for payouts. Key features include internal wallets, a 15-day fund holding period, charity impact tracking, and idempotent email notifications.
+A full-stack application (React/FastAPI/MongoDB) with a stable financial engine (Stripe Connect). The user interface and core features have been significantly enhanced.
 
-The UI/UX has been significantly refined:
-- Placeholder pages (, ) have been removed.
-- The Organizer Dashboard has been redesigned to be an action-oriented interface, highlighting at-risk engagements and user impact, rather than just financial summaries.
-- The Wallet page clearly distinguishes between the internal NLYT wallet and the connected bank account for withdrawals.
-- The appointment creation wizard has been simplified, and a V1 Conflict Detection panel has been added, which checks for conflicts against existing NLYT engagements.
+Key recent changes include:
+- **Conflict Detection V2**: Now reads events from connected Google and Outlook calendars, with a polished UI showing conflict sources.
+- **Microsoft OAuth 2-Level Architecture**: The system now supports both personal (@hotmail, @outlook) and professional (M365) Microsoft accounts. A base connection for calendar sync is established first, with an optional upgrade flow for advanced Teams permissions, ensuring personal accounts can connect without error.
+- **Intelligent Video Provider Selection**: The appointment creation wizard features a new UI for selecting a video conferencing provider (Teams, Meet, Zoom, Other). It displays the availability of each provider based on the user's connected accounts and pre-selects the best available option, preventing the user from choosing a non-functional provider.
+
+The agent has just begun investigating the timezone bug by identifying relevant files and code sections.
 
 **Last working item**:
-    - Last item agent was working: Fixing a bug in the conflict detection algorithm where it was suggesting alternative time slots that were already in the past.
+    - Last item agent was working: A full systemic audit of date/time and timezone handling across the frontend, backend, and integration layers to diagnose a recurring 1-hour offset bug in Outlook. The agent has just started the investigation by reviewing relevant files.
     - Status: IN PROGRESS
     - Agent Testing Done: N
-    - Which testing method agent to use? backend testing agent. The agent should run the newly created test file: ============================= test session starts ==============================
-platform linux -- Python 3.11.14, pytest-9.0.2, pluggy-1.6.0
-rootdir: /app
-plugins: asyncio-1.3.0, anyio-4.12.1
-asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
-collected 14 items
-
-backend/tests/test_conflict_detection.py ..............                  [100%]
-
-=============================== warnings summary ===============================
-../root/.venv/lib/python3.11/site-packages/starlette/formparsers.py:12
-  /root/.venv/lib/python3.11/site-packages/starlette/formparsers.py:12: PendingDeprecationWarning: Please use `import python_multipart` instead.
-    import multipart
-
-../root/.venv/lib/python3.11/site-packages/passlib/utils/__init__.py:854
-  /root/.venv/lib/python3.11/site-packages/passlib/utils/__init__.py:854: DeprecationWarning: 'crypt' is deprecated and slated for removal in Python 3.13
-    from crypt import crypt as _crypt
-
--- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-======================== 14 passed, 2 warnings in 2.80s ========================.
+    - Which testing method agent to use? Manual testing by creating appointments at specific times (e.g., near DST changes) and verifying the time in the NLYT UI, the database, and the synced Outlook event.
     - User Testing Done: N
 
 **All Pending/In progress Issue list**: 
-  Issue 1: Conflict detection suggests invalid past time slots (P0)
+  Issue 1: Recurring 1-hour time shift for appointments synchronized with Outlook (P0)
   
   Issues Detail:
   - Issue 1: 
-     - Attempted fixes: The agent has rewritten the suggestion generation algorithm in  to correctly handle  as a lower bound and add a safety buffer. A new test file, , was created to validate the logic.
-     - Next debug checklist: Run the pytest tests in  to confirm the algorithm now produces only valid, future-facing suggestions.
-     - Why fix this issue and what will be achieved with the fix? To ensure the conflict detection feature is reliable and provides a good user experience by only suggesting actionable time slots.
+     - Attempted fixes: Previous fixes were insufficient as the bug has reappeared. The user now wants a full audit, not a patch.
+     - Next debug checklist: 
+       - **Frontend**: Analyze , especially , and how  sends  and . Check for , , etc.
+       - **Backend**: Analyze , especially  and . Verify how dates are received from the frontend and stored in MongoDB.
+       - **ICS Generation**: Audit the service responsible for generating  files. Check / format, the presence of  for UTC, and  properties for RFC 5545 compliance.
+       - **Outlook Integration**: Review  to see how event data is structured and sent to the Microsoft Graph API.
+     - Why fix this issue and what will be achieved with the fix? To permanently resolve a critical, user-facing bug that undermines the reliability of the core scheduling feature. The goal is to establish a robust, UTC-first date handling strategy across the entire stack.
      - Status: IN PROGRESS
-     - Is recurring issue? N
-     - Should Test frontend/backend/both after fix? Backend
+     - Is recurring issue? Y
+     - Should Test frontend/backend/both after fix? Both, with a focus on end-to-end flow from UI to Outlook calendar.
      - Blocked on other issue: None
 
 **In progress Task List**: 
@@ -58,142 +44,112 @@ backend/tests/test_conflict_detection.py ..............                  [100%]
 
 **Upcoming and Future Tasks**
     Upcoming Tasks:
-    - **P1: Conflict Detection V2 (Calendar Integration)**: The user wants to enhance the conflict detection feature to read events from connected Google & Outlook calendars. This requires implementing  methods in the existing calendar adapters ( and ), which are currently push-only.
-    - **P2: Pagination**: Implement pagination for list endpoints in both the API and the UI to improve performance as data grows.
-    - **P2: Refactor **: This large component (1400+ lines) needs to be broken down into smaller, more manageable components to reduce technical debt.
-    - **P2: Auto-update Calendar V2**: Implement automatic retry logic for calendar synchronization.
+    - **P1: Pagination**: Implement pagination for list endpoints in both the API and the UI.
+    - **P1: Refactor **: Break down the large component (1400+ lines).
+    - **P1: Auto-update Calendar V2**: Implement automatic retry logic for calendar synchronization.
+    - **P2: Apple Calendar (ICS Export)**: Implement a feature to export NLYT events as an  file for users to import into Apple Calendar, as a native API integration is not feasible.
 
     Future Tasks:
-    - **P3: Webhooks temps réel Zoom/Teams**: Implement real-time webhooks to replace the current 5-minute polling for attendance data. The user has de-prioritized this for now.
-    - **P3: Organizer Analytics Dashboard**: Build the full analytics dashboard for organizers.
-    - **P3: Charity Payouts**: Implement the mechanism to transfer accumulated funds to charities.
-    - **P3: Externalized Email Templates**: Move inline HTML email content to external template files.
-    - **P3: Dedicated Charity Pages & Leaderboard**: An evolution of the current  page.
-    - **P3: MongoDB Indexing**: Add database indexes to improve query performance.
+    - **P3: Organizer Analytics Dashboard**
+    - **P3: Charity Payouts**
+    - **P3: Externalized Email Templates**
+    - **P3: Webhooks temps réel Zoom/Teams**
+    - **P3: Dedicated Charity Pages & Leaderboard**
+    - **P3: MongoDB Indexing**
 
 **Completed work in this session**
-- **Financial Email Notifications**: Implemented and fully tested 5 types of financial emails with idempotent, non-blocking logic ().
-- **UI/UX Cleanup**:
-  - Removed placeholder pages  and .
-  - Overhauled the Organizer Dashboard to be an action-oriented decision interface with risk levels, priority sections, and an impact card instead of a financial summary.
-  - Completely refactored the Wallet page's Stripe Connect section into a clearer Compte bancaire block.
-  - Simplified the participant entry form in the appointment wizard by removing the redundant Role selector and improving the layout.
-- **New Features & Endpoints**:
-  - Implemented a  endpoint to allow organizers to send reminders to pending participants.
-  - Implemented inline editing for workspace details ().
-  - Implemented Conflict Detection V1 () and integrated the feedback panel into the appointment wizard.
-- **Bug Fixes & Audits**:
-  - Fixed two critical, recurring backend syntax errors () and performed a global audit to ensure no other instances existed.
-  - Fixed a UI regression where GPS coordinates were not displayed after a check-in.
-  - Corrected the conflict detection algorithm to stop suggesting past time slots (this is the ).
+- **Conflict Detection Bug Fix (P0)**: Resolved an issue where the conflict detection algorithm suggested past time slots. 14/14 tests passed.
+- **Conflict Detection V2 Implementation**: Implemented the ability to read events from connected Google & Outlook calendars. This included updating calendar adapters, the core conflict check endpoint, and the frontend wizard UI to show conflict sources. Validated with 18/18 tests and a testing agent run.
+- **Manual QA & UX Polish**: Performed a full 8-scenario manual QA of the Conflict Detection V2 feature and implemented a UX polish pass to improve the conflict panel's readability.
+- **Calendar Integration Audit**: Conducted a comprehensive audit of Google, Microsoft, and Apple calendar integration capabilities, identifying the root cause of Outlook connection issues for personal accounts and the non-viability of a native Apple Calendar API.
+- **Microsoft OAuth 2-Level Architecture**: Refactored the Microsoft authentication flow to support both personal (@hotmail) and professional (M365) accounts. This involved separating scopes into a base level for calendar sync and an advanced level for Teams features, with a new UI to manage the upgrade.
+- **Video Provider Selection (Option A Enriched)**: Implemented a robust UI in the appointment wizard for selecting a video provider (Teams, Meet, Zoom, Autre plateforme). The UI disables unavailable providers, explains why, and intelligently pre-selects the best available option based on user connections, preventing errors.
+- **Backend Hardening**: Added backend validation to reject appointment creation if the selected video provider is not configured for the user, preventing exploits even if the frontend is bypassed.
 
 **Earlier issues found/mentioned but not fixed**
 None.
 
 **Known issue recurrence from previous fork**
-  - **Issue recurrence**: A syntax error () caused by a bad automated merge (injecting  without indentation inside a  block) occurred in two different files (, ).
-  - **Recurrence count**: 2
-  - **Status**: RESOLVED. A full backend audit using  was performed to ensure no other such errors exist. The next agent should be mindful of this pattern if using automated tooling.
+  - **Issue recurrence**: The timezone offset bug is explicitly described by the user as **recurring**.
+  - **Recurrence count**: At least 2 (based on user's message).
+  - **Status**: IN PROGRESS (The current P0 task is to fix it definitively).
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
-- **Frontend**: React.js, TailwindCSS, Shadcn/UI,  for icons. State management via React Context.
-- **Backend**: FastAPI, Python, MongoDB.  for background tasks.
-- **Conflict Detection**: An algorithm implemented in  that checks for overlaps and proximity () between time slots and suggests alternatives. Currently V1 (NLYT appointments only).
+- **Frontend**: React.js, TailwindCSS, Shadcn/UI, .
+- **Backend**: FastAPI, Python, MongoDB.
+- **Timezone Management**: The core of the current investigation. The goal is to enforce a UTC everywhere, convert only for display policy. Key functions are  (frontend) and  (backend).
+- **OAuth 2-Level Architecture**: A custom implementation for Microsoft that separates a base set of permissions () from an advanced set () to support both personal and professional accounts.
+- **Multi-provider Strategy**: A backend service () and frontend UI () that dynamically determine provider availability (Teams, Meet, Zoom) based on user connections and platform configuration.
 
 **key DB schema**
-  - : , , , .
-  - : , ,  (pending_hold, completed), .
-  - : , , , .
-  - : , , , .
-  - : , , .
-  - : , ,  (composite unique key for idempotency).
-  - : Stores user tokens for Google/Outlook.
+  - : Stores user tokens for Google/Outlook. Now includes  and  to manage the 2-level OAuth permissions for Microsoft.
+  - : The  field is central to the timezone investigation.
 
 **changes in tech stack**
 None.
 
 **All files of reference**
--  (Contains the conflict detection algorithm that was just modified).
--  (The new test file that needs to be run).
--  (UI for the conflict detection feature).
--  (To be modified for Conflict Detection V2).
--  (To be modified for Conflict Detection V2).
+- : Contains  and .
+- : Where the user inputs the date and time.
+- : Receives and processes the appointment creation request.
+- : Sends the event data to Microsoft Graph API.
+- The service/file responsible for generating  files for calendar invites.
 
 **Areas that need refactoring**: 
--  (1400+ lines) is a high-priority candidate for being split into smaller components.
+-  (1400+ lines) remains a high-priority candidate.
 
 **key api endpoints**
--  (For conflict detection).
--  (To send reminders to pending participants).
--  (To update workspace details).
--  (To get the Stripe Express dashboard link).
+- : Endpoint for creating appointments. The  and  fields are critical for the current audit.
+- : (Enriched) Returns the availability of each video provider for the current user, including  and .
+- : New endpoint to initiate the OAuth flow for advanced Teams permissions.
 
 **Critical Info for New Agent**
 - **LANGUAGE**: You MUST speak French.
-- **IMMEDIATE TASK**: Your first action should be to run the tests for the last bug fix: ============================= test session starts ==============================
-platform linux -- Python 3.11.14, pytest-9.0.2, pluggy-1.6.0
-rootdir: /app
-plugins: asyncio-1.3.0, anyio-4.12.1
-asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
-collected 14 items
-
-backend/tests/test_conflict_detection.py ..............                  [100%]
-
-=============================== warnings summary ===============================
-../root/.venv/lib/python3.11/site-packages/starlette/formparsers.py:12
-  /root/.venv/lib/python3.11/site-packages/starlette/formparsers.py:12: PendingDeprecationWarning: Please use `import python_multipart` instead.
-    import multipart
-
-../root/.venv/lib/python3.11/site-packages/passlib/utils/__init__.py:854
-  /root/.venv/lib/python3.11/site-packages/passlib/utils/__init__.py:854: DeprecationWarning: 'crypt' is deprecated and slated for removal in Python 3.13
-    from crypt import crypt as _crypt
-
--- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-======================== 14 passed, 2 warnings in 1.03s ========================.
-- **NEXT FEATURE**: The next major feature is **Conflict Detection V2**. This involves making the existing calendar adapters (, ) capable of reading events. You will need to implement  methods for both Google Calendar and Outlook Graph APIs. The current setup only pushes events.
-- **USER PRIORITY**: The user has clearly prioritized UX improvements and feature refinement over implementing new, complex integrations like Zoom/Teams webhooks. Focus on polishing the core user flows.
+- **IMMEDIATE TASK**: Continue the systemic audit of date/time handling. The goal is to find the root cause of the 1-hour Outlook offset and implement a permanent fix based on a UTC-first strategy.
+- **AUDIT SCOPE**: The audit must cover the entire data flow: frontend input (, ) -> backend processing () -> database storage -> calendar integration (, ICS generation).
+- **USER EXPECTATION**: The user does not want a quick patch. They expect a thorough investigation and a robust, definitive solution that prevents any future timezone-related bugs.
 
 **documents and test reports created in this job**
--  (Continuously updated)
-- 
-- 
-- 
-- 
--  (New test file)
+-  (Continuously updated with completed work and backlog).
+-  (Conflict Detection V2).
+-  (Microsoft OAuth 2-Level Architecture).
+-  (Video Provider Selection UI).
+- A QA protocol for manually testing the 2-level Microsoft OAuth flow was drafted and provided to the user.
 
 **Last 10 User Messages and any pending HUMAN messages** 
-10. **Request**: Fix a bug where quick validation crashes the server. (Completed)
-9. **Request**: Investigate why a similar syntax error bug is recurring and audit the codebase. (Completed)
-8. **Report**: A UI regression where GPS coordinates are not displayed after check-in. (Completed)
-7. **Request**: Evolve conflict detection to include connected calendars (Google/Outlook) and show the source of conflicts. (Upcoming Task)
-6. **Clarification**: Asked if the code can already read from connected calendars. (Answered: No)
-5. **Report**: A bug in conflict detection where it suggests time slots in the past. (Last Working Item - In Progress)
-4. **Clarification**: Asked for a detailed proposal for Zoom/Teams webhooks. (Completed)
-3. **Clarification**: Asked about the pre-requisites for Zoom/Teams webhooks (free vs paid accounts). (Completed, user decided to skip)
-2. **Request**: Overhaul the Organizer Dashboard to be an action-oriented decision interface. (Completed)
-1. **Request**: Adjust the new dashboard to focus on Charity Impact instead of internal financial metrics. (Completed)
+10. **Request**: Go for implementation of the Option A Enriched video provider selection strategy.
+9. **Clarification**: Asked for confirmation on the exact behavior for a M365 pro user without Teams advanced before implementation.
+8. **Request**: Chose Option B: progressive scopes for Microsoft OAuth to avoid regressing Teams functionality. Requested a clear architecture proposal.
+7. **Request**: Start Priority 1 from the calendar audit: fix the Outlook personal account connection issue.
+6. **Information**: Provided the correct .
+5. **Request**: An audit of why personal Microsoft accounts (@hotmail, etc.) cannot connect, with a clear action plan. Also requested audits for Google and Apple Calendar integration feasibility.
+4. **Request**: A full manual QA validation of the Conflict Detection V2 feature, plus a UX polish pass on the conflict panel.
+3. **Approval**: Approved the plan to fix the P0 conflict detection bug and then implement P1 (Conflict Detection V2).
+2. **Clarification**: Provided 5 detailed requirements for the Conflict Detection V2 implementation (dynamic window, deduplication, strict confidence, performance, UX).
+1. **Approval**: Approved the plan to fix the P0 bug first.
 
 **Project Health Check:**
-- **Healthy**: The application is stable. The agent has been effective at implementing new features, refactoring UX, and fixing bugs reported by the user. Multiple iterations with the testing agent have been successful.
+- **Healthy**: The application is stable and the agent has successfully delivered several complex features and refactors (Conflict Detection V2, Microsoft OAuth 2-Level, Video Provider UI). The current focus is on a critical, recurring bug that requires deep architectural review.
 
 **3rd Party Integrations** 
-- **Stripe** (Payments, Connect Express) — API Keys required.
-- **Resend** (Emails) — API Key required.
-- **Microsoft Graph API** (Outlook Calendar) — API Keys required. Currently push-only.
-- **Google Calendar API** — API Keys required. Currently push-only.
-- **Zoom API** — API Keys required.
+- **Stripe** (Payments, Connect Express)
+- **Resend** (Emails)
+- **Microsoft Graph API** (Outlook/Teams Calendar): Now supports both personal and professional accounts via a 2-level OAuth flow. The connection for personal accounts is limited to calendar scopes, while professional accounts can upgrade to include Teams scopes.
+- **Google Calendar API**: Fully functional for both personal and Workspace accounts.
+- **Zoom API**: Integrated for video meeting creation.
+- **Apple Calendar**: Not integrated. Audit concluded a native API is unavailable and the recommended approach is an ICS export feature.
 
 **Testing status**
-  - Testing agent used after significant changes: YES (4 times in this session, plus a fix from the agent itself).
+  - Testing agent used after significant changes: YES (3 times in this session).
   - Troubleshoot agent used after agent stuck in loop: NO
-  - Test files created: []
-  - Known regressions: None currently active. Past regressions were fixed promptly.
+  - Test files created:  was updated for V2 tests.
+  - Known regressions: The recurring 1-hour timezone bug is an active regression.
 
 **Credentials to test flow:**
-Use mock user data or create new users as needed through the application's sign-up flow. Stripe is in test mode.
+Use mock user data or create new users as needed. The agent has been using a  user which has both Google and Outlook connections.
 
 **What agent forgot to execute**
-The agent correctly identified the bug with past-dated suggestions, rewrote the algorithm, and created a new test file (). However, the agent did not execute these new tests to confirm the fix before finishing. This is the immediate next step.</analysis>
+The agent is in the initial phase of the user's latest critical request (timezone audit) and has not forgotten anything, but rather has just begun the investigation.</analysis>

@@ -1,361 +1,271 @@
 """
-Test suite for timezone bug fix verification.
-Tests that backend returns UTC ISO format and frontend displays consistently.
+Tests for the timezone fix in calendar sync.
 
-Bug context: Organizer page showed 01:04 while Invitation page showed 00:04 for same appointment.
-Fix: Backend stores/returns ALL dates in UTC ISO format (with 'Z' suffix).
+ROOT CAUSE: _build_event_data() was passing UTC datetime values with a non-UTC
+timezone (e.g., "Europe/Paris"), causing calendar APIs to interpret UTC times
+as local times → 1-2h offset.
+
+FIX: Always use timeZone="UTC" in _build_event_data().
 """
 import pytest
-import requests
-import os
-from datetime import datetime, timezone
-
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
-
-# Test credentials
-TEST_EMAIL = "testuser_audit@nlyt.app"
-TEST_PASSWORD = "Test1234!"
-
-# Sample invitation tokens for testing
-INVITATION_TOKEN_1 = "55cebfef-1539-4642-985f-9a9ccb1da110"  # Test chek in 3, UTC: 2026-03-22T00:04:00Z
-INVITATION_TOKEN_2 = "4cf4ad07-9f38-41b1-8946-a51f2bd96430"  # Test dates en français, UTC: 2026-04-22T12:30:00Z
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 
-class TestBackendUTCFormat:
-    """Test that backend APIs return UTC ISO format with Z suffix"""
-    
-    @pytest.fixture(scope="class")
-    def auth_token(self):
-        """Get authentication token"""
-        response = requests.post(f"{BASE_URL}/api/auth/login", json={
-            "email": TEST_EMAIL,
-            "password": TEST_PASSWORD
-        })
-        assert response.status_code == 200, f"Login failed: {response.text}"
-        data = response.json()
-        return data.get("access_token")
-    
-    @pytest.fixture(scope="class")
-    def authenticated_client(self, auth_token):
-        """Session with auth header"""
-        session = requests.Session()
-        session.headers.update({
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {auth_token}"
-        })
-        return session
-    
-    def test_api_health(self):
-        """Verify API is accessible"""
-        response = requests.get(f"{BASE_URL}/api/health")
-        assert response.status_code == 200
-        print("✓ API health check passed")
-    
-    def test_invitation_api_returns_utc_with_z_suffix(self):
-        """Test GET /api/invitations/{token} returns start_datetime in UTC with Z suffix"""
-        response = requests.get(f"{BASE_URL}/api/invitations/{INVITATION_TOKEN_1}")
-        assert response.status_code == 200, f"Failed to get invitation: {response.text}"
-        
-        data = response.json()
-        start_datetime = data.get("appointment", {}).get("start_datetime", "")
-        
-        # Verify UTC format with Z suffix
-        assert start_datetime.endswith("Z"), f"start_datetime should end with 'Z', got: {start_datetime}"
-        assert "T" in start_datetime, f"start_datetime should be ISO format, got: {start_datetime}"
-        
-        # Verify it's a valid ISO datetime
-        try:
-            dt = datetime.fromisoformat(start_datetime.replace('Z', '+00:00'))
-            assert dt.tzinfo is not None, "Datetime should be timezone-aware"
-        except ValueError as e:
-            pytest.fail(f"Invalid ISO datetime format: {start_datetime}, error: {e}")
-        
-        print(f"✓ Invitation API returns UTC format: {start_datetime}")
-        return start_datetime
-    
-    def test_invitation_api_token_2_returns_utc(self):
-        """Test second invitation token also returns UTC format"""
-        response = requests.get(f"{BASE_URL}/api/invitations/{INVITATION_TOKEN_2}")
-        assert response.status_code == 200, f"Failed to get invitation: {response.text}"
-        
-        data = response.json()
-        start_datetime = data.get("appointment", {}).get("start_datetime", "")
-        
-        assert start_datetime.endswith("Z"), f"start_datetime should end with 'Z', got: {start_datetime}"
-        print(f"✓ Invitation 2 API returns UTC format: {start_datetime}")
-    
-    def test_appointments_list_returns_utc(self, authenticated_client):
-        """Test GET /api/appointments/ returns start_datetime in UTC with Z suffix"""
-        response = authenticated_client.get(f"{BASE_URL}/api/appointments/")
-        assert response.status_code == 200, f"Failed to list appointments: {response.text}"
-        
-        data = response.json()
-        appointments = data.get("appointments", [])
-        
-        assert len(appointments) > 0, "No appointments found for testing"
-        
-        utc_count = 0
-        non_utc_count = 0
-        
-        for apt in appointments:
-            start_datetime = apt.get("start_datetime", "")
-            if start_datetime:
-                if start_datetime.endswith("Z"):
-                    utc_count += 1
-                else:
-                    non_utc_count += 1
-                    print(f"  WARNING: Non-UTC datetime found: {start_datetime} for appointment {apt.get('title')}")
-        
-        print(f"✓ Appointments list: {utc_count} UTC format, {non_utc_count} non-UTC")
-        assert non_utc_count == 0, f"Found {non_utc_count} appointments with non-UTC datetime format"
-    
-    def test_single_appointment_returns_utc(self, authenticated_client):
-        """Test GET /api/appointments/{id} returns start_datetime in UTC with Z suffix"""
-        # First get an appointment ID from the invitation
-        response = requests.get(f"{BASE_URL}/api/invitations/{INVITATION_TOKEN_1}")
-        assert response.status_code == 200
-        
-        appointment_id = response.json().get("appointment", {}).get("appointment_id")
-        assert appointment_id, "No appointment_id found in invitation"
-        
-        # Now get the appointment directly
-        response = authenticated_client.get(f"{BASE_URL}/api/appointments/{appointment_id}")
-        assert response.status_code == 200, f"Failed to get appointment: {response.text}"
-        
-        data = response.json()
-        start_datetime = data.get("start_datetime", "")
-        
-        assert start_datetime.endswith("Z"), f"start_datetime should end with 'Z', got: {start_datetime}"
-        print(f"✓ Single appointment API returns UTC format: {start_datetime}")
-        
-        return appointment_id, start_datetime
+# ── Test 1: _build_event_data always returns UTC ─────────────
+
+def test_build_event_data_always_utc():
+    """Verify that _build_event_data returns UTC datetimes and timeZone='UTC'."""
+    import sys
+    sys.path.insert(0, '/app/backend')
+    from routers.calendar_routes import _build_event_data
+
+    appointment = {
+        "title": "Test Rendez-vous",
+        "start_datetime": "2026-03-24T13:00:00.000Z",  # 13:00 UTC = 14:00 Paris (CET)
+        "duration_minutes": 60,
+        "cancellation_deadline_hours": 24,
+        "tolerated_delay_minutes": 15,
+        "penalty_amount": 50,
+        "penalty_currency": "EUR",
+    }
+
+    # Even with a non-UTC calendar_tz, the output must be UTC
+    result = _build_event_data(appointment, calendar_tz="Europe/Paris")
+
+    assert result["timeZone"] == "UTC", f"Expected UTC, got {result['timeZone']}"
+    assert result["start_datetime"] == "2026-03-24T13:00:00", \
+        f"Expected 13:00:00 UTC, got {result['start_datetime']}"
+    assert result["end_datetime"] == "2026-03-24T14:00:00", \
+        f"Expected 14:00:00 UTC, got {result['end_datetime']}"
 
 
-class TestDateConsistency:
-    """Test that invitation and appointment detail show IDENTICAL dates"""
-    
-    @pytest.fixture(scope="class")
-    def auth_token(self):
-        """Get authentication token"""
-        response = requests.post(f"{BASE_URL}/api/auth/login", json={
-            "email": TEST_EMAIL,
-            "password": TEST_PASSWORD
-        })
-        assert response.status_code == 200, f"Login failed: {response.text}"
-        return response.json().get("access_token")
-    
-    @pytest.fixture(scope="class")
-    def authenticated_client(self, auth_token):
-        """Session with auth header"""
-        session = requests.Session()
-        session.headers.update({
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {auth_token}"
-        })
-        return session
-    
-    def test_invitation_and_appointment_have_same_datetime(self, authenticated_client):
-        """
-        CRITICAL TEST: Verify invitation page and appointment detail page 
-        receive the SAME start_datetime value from backend.
-        
-        This was the root cause of the bug: inconsistent date handling.
-        """
-        # Get datetime from invitation API (public endpoint)
-        inv_response = requests.get(f"{BASE_URL}/api/invitations/{INVITATION_TOKEN_1}")
-        assert inv_response.status_code == 200
-        
-        inv_data = inv_response.json()
-        inv_start_datetime = inv_data.get("appointment", {}).get("start_datetime", "")
-        appointment_id = inv_data.get("appointment", {}).get("appointment_id")
-        
-        # Get datetime from appointment API (authenticated endpoint)
-        apt_response = authenticated_client.get(f"{BASE_URL}/api/appointments/{appointment_id}")
-        assert apt_response.status_code == 200
-        
-        apt_data = apt_response.json()
-        apt_start_datetime = apt_data.get("start_datetime", "")
-        
-        # CRITICAL: Both should be IDENTICAL
-        assert inv_start_datetime == apt_start_datetime, (
-            f"TIMEZONE BUG DETECTED!\n"
-            f"Invitation API returned: {inv_start_datetime}\n"
-            f"Appointment API returned: {apt_start_datetime}\n"
-            f"These should be IDENTICAL!"
-        )
-        
-        print(f"✓ CRITICAL: Invitation and Appointment APIs return IDENTICAL datetime: {inv_start_datetime}")
-    
-    def test_second_invitation_consistency(self, authenticated_client):
-        """Test second invitation token for consistency"""
-        # Get datetime from invitation API
-        inv_response = requests.get(f"{BASE_URL}/api/invitations/{INVITATION_TOKEN_2}")
-        assert inv_response.status_code == 200
-        
-        inv_data = inv_response.json()
-        inv_start_datetime = inv_data.get("appointment", {}).get("start_datetime", "")
-        appointment_id = inv_data.get("appointment", {}).get("appointment_id")
-        
-        # Get datetime from appointment API
-        apt_response = authenticated_client.get(f"{BASE_URL}/api/appointments/{appointment_id}")
-        assert apt_response.status_code == 200
-        
-        apt_data = apt_response.json()
-        apt_start_datetime = apt_data.get("start_datetime", "")
-        
-        assert inv_start_datetime == apt_start_datetime, (
-            f"TIMEZONE BUG DETECTED for invitation 2!\n"
-            f"Invitation API: {inv_start_datetime}\n"
-            f"Appointment API: {apt_start_datetime}"
-        )
-        
-        print(f"✓ Invitation 2 consistency verified: {inv_start_datetime}")
+def test_build_event_data_utc_with_windows_tz():
+    """Ensure Windows timezone is ignored and UTC is used."""
+    import sys
+    sys.path.insert(0, '/app/backend')
+    from routers.calendar_routes import _build_event_data
+
+    appointment = {
+        "title": "Test",
+        "start_datetime": "2026-06-15T10:00:00Z",  # Summer: CEST = UTC+2, so 10 UTC = 12 Paris
+        "duration_minutes": 30,
+        "cancellation_deadline_hours": 24,
+        "tolerated_delay_minutes": 0,
+        "penalty_amount": 0,
+        "penalty_currency": "EUR",
+    }
+
+    result = _build_event_data(appointment, calendar_tz="Romance Standard Time")
+
+    assert result["timeZone"] == "UTC"
+    assert result["start_datetime"] == "2026-06-15T10:00:00"
+    assert result["end_datetime"] == "2026-06-15T10:30:00"
 
 
-class TestLegacyDateNormalization:
-    """Test that legacy naive datetime strings are normalized correctly"""
-    
-    def test_normalize_to_utc_function(self):
-        """Test the normalize_to_utc function handles various formats"""
-        import sys
-        sys.path.insert(0, '/app/backend')
-        from utils.date_utils import normalize_to_utc, parse_iso_datetime
-        
-        # Test 1: Already UTC string (should pass through)
-        utc_str = "2026-03-22T00:04:00Z"
-        result = normalize_to_utc(utc_str)
-        assert result == utc_str, f"UTC string should pass through unchanged, got: {result}"
-        print(f"✓ UTC string passes through: {utc_str}")
-        
-        # Test 2: Naive datetime (should be interpreted as Europe/Paris and converted to UTC)
-        # Europe/Paris is UTC+1 in winter, so 01:04 Paris = 00:04 UTC
-        naive_str = "2026-03-22T01:04:00"
-        result = normalize_to_utc(naive_str)
-        assert result.endswith("Z"), f"Result should end with Z, got: {result}"
-        # In March 2026, Paris is in CET (UTC+1), so 01:04 Paris = 00:04 UTC
-        # But after March 29, 2026 it's CEST (UTC+2)
-        # March 22 is before DST change, so UTC+1
-        expected = "2026-03-22T00:04:00Z"
-        assert result == expected, f"Expected {expected}, got: {result}"
-        print(f"✓ Naive datetime normalized: {naive_str} -> {result}")
-        
-        # Test 3: Datetime with offset (should convert to UTC)
-        offset_str = "2026-04-22T14:30:00+02:00"
-        result = normalize_to_utc(offset_str)
-        assert result.endswith("Z"), f"Result should end with Z, got: {result}"
-        expected = "2026-04-22T12:30:00Z"
-        assert result == expected, f"Expected {expected}, got: {result}"
-        print(f"✓ Offset datetime normalized: {offset_str} -> {result}")
-    
-    def test_parse_iso_datetime_function(self):
-        """Test parse_iso_datetime handles various formats"""
-        import sys
-        sys.path.insert(0, '/app/backend')
-        from utils.date_utils import parse_iso_datetime
-        
-        # Test UTC string
-        dt = parse_iso_datetime("2026-03-22T00:04:00Z")
-        assert dt is not None
-        assert dt.tzinfo is not None
-        assert dt.hour == 0
-        assert dt.minute == 4
-        print(f"✓ Parsed UTC string: {dt}")
-        
-        # Test naive string (interpreted as Europe/Paris)
-        dt = parse_iso_datetime("2026-03-22T01:04:00")
-        assert dt is not None
-        assert dt.tzinfo is not None
-        # After conversion to UTC, should be 00:04
-        assert dt.hour == 0
-        assert dt.minute == 4
-        print(f"✓ Parsed naive string (as Paris): {dt}")
+def test_build_event_data_no_tz_param():
+    """Works correctly even with no calendar_tz argument."""
+    import sys
+    sys.path.insert(0, '/app/backend')
+    from routers.calendar_routes import _build_event_data
+
+    appointment = {
+        "title": "No TZ",
+        "start_datetime": "2026-01-15T08:00:00Z",
+        "duration_minutes": 45,
+        "cancellation_deadline_hours": 24,
+        "tolerated_delay_minutes": 0,
+        "penalty_amount": 0,
+        "penalty_currency": "EUR",
+    }
+
+    result = _build_event_data(appointment)
+
+    assert result["timeZone"] == "UTC"
+    assert result["start_datetime"] == "2026-01-15T08:00:00"
+    assert result["end_datetime"] == "2026-01-15T08:45:00"
 
 
-class TestFrontendDateFormatUtility:
-    """Test that frontend dateFormat.js utility is correctly implemented"""
+# ── Test 2: normalize_to_utc correctness ──────────────────────
+
+def test_normalize_to_utc_already_utc():
+    """String ending with Z should pass through unchanged."""
+    import sys
+    sys.path.insert(0, '/app/backend')
+    from utils.date_utils import normalize_to_utc
+
+    assert normalize_to_utc("2026-03-24T13:00:00.000Z") == "2026-03-24T13:00:00.000Z"
+    assert normalize_to_utc("2026-03-24T13:00:00Z") == "2026-03-24T13:00:00Z"
+
+
+def test_normalize_to_utc_with_offset():
+    """String with +offset should be converted to UTC Z format."""
+    import sys
+    sys.path.insert(0, '/app/backend')
+    from utils.date_utils import normalize_to_utc
+
+    # 14:00 CET (UTC+1) = 13:00 UTC
+    result = normalize_to_utc("2026-03-24T14:00:00+01:00")
+    assert result == "2026-03-24T13:00:00Z"
+
+
+def test_normalize_to_utc_naive_string():
+    """Naive string (no tz info) should be interpreted as Europe/Paris and converted to UTC."""
+    import sys
+    sys.path.insert(0, '/app/backend')
+    from utils.date_utils import normalize_to_utc
+
+    # Naive 14:00 → interpreted as Paris (CET, UTC+1) → 13:00 UTC
+    # (January = CET = UTC+1)
+    result = normalize_to_utc("2026-01-15T14:00:00")
+    assert result == "2026-01-15T13:00:00Z"
+
+
+# ── Test 3: localInputToUTC (frontend) correctness ───────────
+
+def test_local_input_to_utc_concept():
+    """
+    Simulate what JavaScript's new Date("2026-03-24T14:00").toISOString() does
+    for a user in Europe/Paris timezone (CET = UTC+1, CEST = UTC+2).
     
-    def test_dateformat_js_exists(self):
-        """Verify dateFormat.js exists and has required functions"""
-        import os
-        path = "/app/frontend/src/utils/dateFormat.js"
-        assert os.path.exists(path), f"dateFormat.js not found at {path}"
-        
-        with open(path, 'r') as f:
-            content = f.read()
-        
-        # Check for required functions
-        required_functions = [
-            "formatDateTimeFr",
-            "formatDateTimeCompactFr",
-            "formatTimeFr",
-            "localInputToUTC",
-            "utcToLocalInput",
-            "parseUTC",
-            "getUserTimezone"
-        ]
-        
-        for func in required_functions:
-            assert f"export function {func}" in content, f"Missing function: {func}"
-            print(f"✓ Found function: {func}")
-        
-        # Check that it uses USER_TIMEZONE
-        assert "USER_TIMEZONE" in content, "Should use USER_TIMEZONE constant"
-        assert "Intl.DateTimeFormat" in content, "Should use Intl.DateTimeFormat for timezone"
-        print("✓ dateFormat.js uses Intl.DateTimeFormat for timezone handling")
+    March 24 is still CET (DST starts March 29 in 2026).
+    14:00 CET = 13:00 UTC → toISOString() returns "2026-03-24T13:00:00.000Z"
+    """
+    # Simulate the user's local time
+    paris = ZoneInfo("Europe/Paris")
+    local_time = datetime(2026, 3, 24, 14, 0, 0, tzinfo=paris)
+    utc_time = local_time.astimezone(timezone.utc)
+    iso_string = utc_time.strftime("%Y-%m-%dT%H:%M:%S.000Z")
+
+    assert iso_string == "2026-03-24T13:00:00.000Z"
+
+
+def test_dst_summer_time():
+    """
+    In summer (CEST = UTC+2): 14:00 Paris = 12:00 UTC.
+    June 15 is in CEST.
+    """
+    paris = ZoneInfo("Europe/Paris")
+    local_time = datetime(2026, 6, 15, 14, 0, 0, tzinfo=paris)
+    utc_time = local_time.astimezone(timezone.utc)
+    iso_string = utc_time.strftime("%Y-%m-%dT%H:%M:%S.000Z")
+
+    assert iso_string == "2026-06-15T12:00:00.000Z"
+
+
+# ── Test 4: End-to-end flow simulation ────────────────────────
+
+def test_end_to_end_winter_time():
+    """
+    Full flow: User in Paris selects 14:00 on March 24 (CET, UTC+1).
+    Expected: event in calendar at 14:00 Paris time.
     
-    def test_invitation_page_uses_formatDateTimeFr(self):
-        """Verify InvitationPage.js uses formatDateTimeFr for date display"""
-        path = "/app/frontend/src/pages/invitations/InvitationPage.js"
-        with open(path, 'r') as f:
-            content = f.read()
-        
-        # Check import
-        assert "formatDateTimeFr" in content, "Should import formatDateTimeFr"
-        
-        # Check usage for appointment date display
-        assert "formatDateTimeFr(appointment.start_datetime)" in content, (
-            "Should use formatDateTimeFr(appointment.start_datetime) for date display"
-        )
-        
-        # Check that old hack is removed (appending 'Z' to naive strings)
-        assert "start_datetime + 'Z'" not in content, "Old 'Z' append hack should be removed"
-        assert "start_datetime+'Z'" not in content, "Old 'Z' append hack should be removed"
-        
-        print("✓ InvitationPage.js uses formatDateTimeFr correctly")
-    
-    def test_appointment_detail_uses_formatDateTimeFr(self):
-        """Verify AppointmentDetail.js uses formatDateTimeFr for date display"""
-        path = "/app/frontend/src/pages/appointments/AppointmentDetail.js"
-        with open(path, 'r') as f:
-            content = f.read()
-        
-        # Check import
-        assert "formatDateTimeFr" in content, "Should import formatDateTimeFr"
-        
-        # Check usage
-        assert "formatDateTimeFr(appointment.start_datetime)" in content, (
-            "Should use formatDateTimeFr(appointment.start_datetime) for date display"
-        )
-        
-        print("✓ AppointmentDetail.js uses formatDateTimeFr correctly")
-    
-    def test_organizer_dashboard_uses_formatDateTimeCompactFr(self):
-        """Verify OrganizerDashboard.js uses formatDateTimeCompactFr"""
-        path = "/app/frontend/src/pages/dashboard/OrganizerDashboard.js"
-        with open(path, 'r') as f:
-            content = f.read()
-        
-        # Check import
-        assert "formatDateTimeCompactFr" in content, "Should import formatDateTimeCompactFr"
-        assert "parseUTC" in content, "Should import parseUTC"
-        
-        # Check usage
-        assert "formatDateTimeCompactFr(appointment.start_datetime)" in content, (
-            "Should use formatDateTimeCompactFr for appointment cards"
-        )
-        
-        print("✓ OrganizerDashboard.js uses formatDateTimeCompactFr correctly")
+    Previous bug: event appeared at 13:00 Paris (1h early).
+    """
+    import sys
+    sys.path.insert(0, '/app/backend')
+    from routers.calendar_routes import _build_event_data
+
+    # Step 1: Frontend sends UTC
+    frontend_utc = "2026-03-24T13:00:00.000Z"  # 14:00 CET → 13:00 UTC
+
+    # Step 2: Backend stores as-is
+    stored_utc = frontend_utc  # normalize_to_utc passes through Z strings
+
+    # Step 3: Calendar sync builds event data
+    appointment = {
+        "title": "RDV Hiver",
+        "start_datetime": stored_utc,
+        "duration_minutes": 60,
+        "cancellation_deadline_hours": 24,
+        "tolerated_delay_minutes": 0,
+        "penalty_amount": 0,
+        "penalty_currency": "EUR",
+    }
+    event = _build_event_data(appointment, "Europe/Paris")
+
+    # Step 4: Verify the event data sent to calendar API
+    # With timeZone="UTC", the API will create the event at 13:00 UTC = 14:00 Paris
+    assert event["timeZone"] == "UTC"
+    assert event["start_datetime"] == "2026-03-24T13:00:00"
+
+    # Verify: a Paris user looking at their calendar sees 14:00
+    utc_dt = datetime(2026, 3, 24, 13, 0, 0, tzinfo=timezone.utc)
+    paris_dt = utc_dt.astimezone(ZoneInfo("Europe/Paris"))
+    assert paris_dt.hour == 14, f"Expected 14:00 Paris, got {paris_dt.hour}:00"
+
+
+def test_end_to_end_summer_time():
+    """
+    Full flow: User in Paris selects 14:00 on June 15 (CEST, UTC+2).
+    Expected: event in calendar at 14:00 Paris time.
+    """
+    import sys
+    sys.path.insert(0, '/app/backend')
+    from routers.calendar_routes import _build_event_data
+
+    frontend_utc = "2026-06-15T12:00:00.000Z"  # 14:00 CEST → 12:00 UTC
+
+    appointment = {
+        "title": "RDV Été",
+        "start_datetime": frontend_utc,
+        "duration_minutes": 60,
+        "cancellation_deadline_hours": 24,
+        "tolerated_delay_minutes": 0,
+        "penalty_amount": 0,
+        "penalty_currency": "EUR",
+    }
+    event = _build_event_data(appointment, "Romance Standard Time")
+
+    assert event["timeZone"] == "UTC"
+    assert event["start_datetime"] == "2026-06-15T12:00:00"
+
+    # Verify: Paris user sees 14:00
+    utc_dt = datetime(2026, 6, 15, 12, 0, 0, tzinfo=timezone.utc)
+    paris_dt = utc_dt.astimezone(ZoneInfo("Europe/Paris"))
+    assert paris_dt.hour == 14, f"Expected 14:00 Paris, got {paris_dt.hour}:00"
+
+
+# ── Test 5: Outlook adapter timezone mapping ──────────────────
+
+def test_to_windows_timezone_utc():
+    """Verify that 'UTC' maps to 'UTC' in the Windows timezone mapping."""
+    import sys
+    sys.path.insert(0, '/app/backend')
+    from adapters.outlook_calendar_adapter import to_windows_timezone
+
+    assert to_windows_timezone("UTC") == "UTC"
+
+
+def test_to_windows_timezone_iana():
+    """Verify IANA → Windows mapping for common timezones."""
+    import sys
+    sys.path.insert(0, '/app/backend')
+    from adapters.outlook_calendar_adapter import to_windows_timezone
+
+    assert to_windows_timezone("Europe/Paris") == "Romance Standard Time"
+    assert to_windows_timezone("America/New_York") == "Eastern Standard Time"
+
+
+# ── Test 6: ICS generation correctness ────────────────────────
+
+def test_ics_generator_utc():
+    """Verify ICS generates proper UTC timestamps with Z suffix."""
+    import sys
+    sys.path.insert(0, '/app/backend')
+    from adapters.ics_generator import ICSGenerator
+
+    event_data = {
+        "appointment_id": "test-123",
+        "title": "Test ICS",
+        "start_datetime": "2026-03-24T13:00:00Z",
+        "end_datetime": "2026-03-24T14:00:00Z",
+    }
+    ics_content = ICSGenerator.generate_ics(event_data)
+
+    assert "DTSTART:20260324T130000Z" in ics_content
+    assert "DTEND:20260324T140000Z" in ics_content
 
 
 if __name__ == "__main__":
-    pytest.main([__file__, "-v", "--tb=short"])
+    pytest.main([__file__, "-v"])

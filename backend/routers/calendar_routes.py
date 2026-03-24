@@ -38,10 +38,22 @@ def _get_adapter(provider: str):
     return None
 
 
-def _build_event_data(appointment, calendar_tz):
-    """Build event data dict from an appointment (shared between providers)."""
+def _build_event_data(appointment, calendar_tz=None):
+    """Build event data dict from an appointment (shared between providers).
+
+    CRITICAL: datetime values are ALWAYS expressed in UTC with timeZone="UTC".
+    The calendar APIs (Google & Outlook) interpret naive datetimes in the
+    specified timezone. Previous code passed UTC values with a non-UTC timezone,
+    causing a 1-2h offset (depending on DST). Calendar apps convert UTC to the
+    user's display timezone automatically.
+    """
     start_dt = datetime.fromisoformat(appointment['start_datetime'].replace('Z', '+00:00'))
     end_dt = start_dt + timedelta(minutes=appointment.get('duration_minutes', 60))
+
+    # Ensure we are working with UTC
+    from datetime import timezone as tz
+    start_utc = start_dt.astimezone(tz.utc)
+    end_utc = end_dt.astimezone(tz.utc)
 
     location = appointment.get('location', '')
     if not location and appointment.get('meeting_provider'):
@@ -66,9 +78,9 @@ def _build_event_data(appointment, calendar_tz):
         "title": f"[NLYT] {appointment['title']}",
         "description": "\n".join(description_lines),
         "location": location,
-        "start_datetime": start_dt.strftime('%Y-%m-%dT%H:%M:%S'),
-        "end_datetime": end_dt.strftime('%Y-%m-%dT%H:%M:%S'),
-        "timeZone": calendar_tz
+        "start_datetime": start_utc.strftime('%Y-%m-%dT%H:%M:%S'),
+        "end_datetime": end_utc.strftime('%Y-%m-%dT%H:%M:%S'),
+        "timeZone": "UTC",
     }
 
 

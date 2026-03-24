@@ -92,6 +92,31 @@ Aucun.
   - Suppression du "V2 teaser" → indicateur "Calendriers connectés actifs"
   - Tests: 29/29 (iteration_63)
 
+## Fix Timezone Outlook/Google — Audit systémique (Fév 2026)
+
+### Cause racine identifiée
+`_build_event_data()` dans `calendar_routes.py` passait les datetime UTC en chaîne naive (sans suffix `Z`) 
+associée à un timezone non-UTC (ex: `Europe/Paris` ou `Romance Standard Time`).  
+Les APIs calendrier (Google/Outlook) interprétaient la valeur comme heure locale → **décalage de 1h (CET) ou 2h (CEST)**.
+
+### Corrections appliquées
+1. **`calendar_routes.py` → `_build_event_data()`** : toujours `timeZone: "UTC"`. Les datetime sont déjà en UTC,
+   maintenant correctement étiquetées. Les apps calendrier convertissent automatiquement en timezone d'affichage.
+2. **`outlook_calendar_adapter.py` → `list_events()`** : ajout header `Prefer: outlook.timezone="UTC"` 
+   pour forcer Graph API à retourner toutes les datetime en UTC (lecture d'événements pour conflit detection).
+
+### Composants audités (pas de bug)
+- Frontend `dateFormat.js` : `localInputToUTC()` correct (JavaScript `toISOString()` = UTC) ✅
+- Frontend `AppointmentWizard.js` : envoi `start_datetime` en UTC + `appointment_timezone` ✅
+- Backend `date_utils.py` : `normalize_to_utc()` correct (Z passthrough, offset conversion) ✅
+- Backend `appointments.py` : stockage UTC en MongoDB ✅
+- `ics_generator.py` : DTSTART/DTEND avec suffix Z (RFC 5545 conforme) ✅
+
+### Tests
+- 13/13 tests timezone (winter/summer, E2E flow, ICS, mapping Windows TZ)
+- 18/18 tests conflit detection (régression OK)
+- 11/11 tests ICS (régression OK)
+
 ## Roadmap
 
 ### P1
