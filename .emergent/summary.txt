@@ -1,78 +1,76 @@
-<analysis>**original_problem_statement**: 
+<analysis>**original_problem_statement**:
 The user wants to refine the NLYT Proof of Attendance system. The initial scope included codebase consolidation and a Stripe Connect system. The focus has since shifted to iterative UX/UI improvements, feature enhancements, and bug fixes based on user feedback.
 
-Most recently, the user reported a recurring bug causing a 1-hour time shift in appointments synchronized with Outlook. The user has requested a complete, systemic audit of date and time handling across the entire application (frontend, backend, ICS generation, and calendar integrations) to find the root cause and implement a definitive, robust solution, moving away from temporary patches. The desired state is a clear UTC everywhere except display strategy.
+A series of features and a critical bug fix were addressed in this session:
+1.  **P0 - Timezone Bug**: A recurring 1-hour time shift in appointments synchronized with Outlook. The user requested a complete, systemic audit of date and time handling across the entire application to find the root cause and implement a definitive, robust UTC everywhere solution.
+2.  **Multi-Provider Sync**: The user requested that calendar auto-sync should work for all connected providers (Google and Outlook) simultaneously, not just one.
+3.  **Auto-update Calendar V2**: Implement a resilient retry mechanism with exponential backoff for failed calendar syncs.
+4.  **Apple Calendar Support**: Implement a manual ICS export feature as a compatibility layer for Apple Calendar users.
+5.  **Pagination**: Implement a Load More style pagination for the main appointment lists to improve initial load performance.
+6.  **MongoDB Indexing**: Add database indexes to critical collections to ensure performance at scale.
+7.  **Organizer Analytics Dashboard**: Create a simple, high-level analytics view for organizers.
+8.  **Charity Impact Page**: Create a page to transparently show accumulated charity contributions, without implementing automated payouts yet.
 
 **User's preferred language**: French (INSTRUCT NEXT AGENT: You MUST respond in French only).
 
-**what currently exists?** 
-A full-stack application (React/FastAPI/MongoDB) with a stable financial engine (Stripe Connect). The user interface and core features have been significantly enhanced.
+**what currently exists?**
+A full-stack application (React/FastAPI/MongoDB). The session began by fixing a critical, recurring timezone bug. Following this, several major features were successfully implemented and tested:
+- **Timezone System**: A robust UTC-first strategy has been implemented across the stack. All dates are handled as UTC in the backend and converted for display only in the frontend. This was validated with extensive testing, including around Daylight Saving Time transitions.
+- **Calendar Sync**: Auto-sync now works simultaneously for all connected calendars (e.g., Google and Outlook). A resilient retry mechanism with exponential backoff () is in place for failed syncs.
+- **ICS Export**: A universal iCalendar () export feature has been implemented, providing a manual add to calendar option for users of Apple Calendar or other standard calendar clients.
+- **Pagination**: The main organizer dashboard now uses a Voir plus (Load More) pagination system for both upcoming and past appointments, improving initial load times.
+- **Database Performance**: Over 20 critical indexes have been added to the MongoDB collections to ensure query performance as the data grows.
+- **Organizer Analytics**: A new Statistiques tab exists on the organizer dashboard, showing 6 key performance indicators (KPIs) in a simple card format.
 
-Key recent changes include:
-- **Conflict Detection V2**: Now reads events from connected Google and Outlook calendars, with a polished UI showing conflict sources.
-- **Microsoft OAuth 2-Level Architecture**: The system now supports both personal (@hotmail, @outlook) and professional (M365) Microsoft accounts. A base connection for calendar sync is established first, with an optional upgrade flow for advanced Teams permissions, ensuring personal accounts can connect without error.
-- **Intelligent Video Provider Selection**: The appointment creation wizard features a new UI for selecting a video conferencing provider (Teams, Meet, Zoom, Other). It displays the availability of each provider based on the user's connected accounts and pre-selects the best available option, preventing the user from choosing a non-functional provider.
-
-The agent has just begun investigating the timezone bug by identifying relevant files and code sections.
+The agent was about to begin work on the Impact Caritatif (Charity Impact) page.
 
 **Last working item**:
-    - Last item agent was working: A full systemic audit of date/time and timezone handling across the frontend, backend, and integration layers to diagnose a recurring 1-hour offset bug in Outlook. The agent has just started the investigation by reviewing relevant files.
+    - Last item agent was working: The user requested the implementation of the Impact Caritatif (Charity Impact) feature, a V1 to enhance transparency around charity contributions. The plan, validated by the user, is to create a dedicated page showing the total accumulated charity funds and a history of contributions, with clear wording that automated payouts are a future feature. The agent has just started investigating the existing codebase, notably  and the  endpoint, to plan the implementation.
     - Status: IN PROGRESS
     - Agent Testing Done: N
-    - Which testing method agent to use? Manual testing by creating appointments at specific times (e.g., near DST changes) and verifying the time in the NLYT UI, the database, and the synced Outlook event.
+    - Which testing method agent to use? Backend testing agent to create and verify new endpoints for charity balance and history. Frontend testing agent or screenshot tool to validate the new page layout, wording, and data display.
     - User Testing Done: N
 
-**All Pending/In progress Issue list**: 
-  Issue 1: Recurring 1-hour time shift for appointments synchronized with Outlook (P0)
-  
-  Issues Detail:
-  - Issue 1: 
-     - Attempted fixes: Previous fixes were insufficient as the bug has reappeared. The user now wants a full audit, not a patch.
-     - Next debug checklist: 
-       - **Frontend**: Analyze , especially , and how  sends  and . Check for , , etc.
-       - **Backend**: Analyze , especially  and . Verify how dates are received from the frontend and stored in MongoDB.
-       - **ICS Generation**: Audit the service responsible for generating  files. Check / format, the presence of  for UTC, and  properties for RFC 5545 compliance.
-       - **Outlook Integration**: Review  to see how event data is structured and sent to the Microsoft Graph API.
-     - Why fix this issue and what will be achieved with the fix? To permanently resolve a critical, user-facing bug that undermines the reliability of the core scheduling feature. The goal is to establish a robust, UTC-first date handling strategy across the entire stack.
-     - Status: IN PROGRESS
-     - Is recurring issue? Y
-     - Should Test frontend/backend/both after fix? Both, with a focus on end-to-end flow from UI to Outlook calendar.
-     - Blocked on other issue: None
-
-**In progress Task List**: 
+**All Pending/In progress Issue list**:
 (None)
+
+**In progress Task List**:
+  Task 1:  Implement V1 of the Impact caritatif (Charity Impact) page (P3)
+  
+ Task Detail:
+  - Task 1: 
+     - Where to resume: The agent has identified existing files (, API endpoint ) that may be related. The next step is to fully analyze these, then create the required backend endpoints (, ) and build/update the frontend page to display the data as per the user's request for transparency.
+     - What will be achieved with this? This will fulfill the user's need for transparency regarding charity funds generated by the platform, building trust even before automated payouts are implemented.
+     - Status:  IN PROGRESS
+     - Should Test frontend/backend/both after fix? Both
+     - Blocked on something: None
 
 **Upcoming and Future Tasks**
     Upcoming Tasks:
-    - **P1: Pagination**: Implement pagination for list endpoints in both the API and the UI.
-    - **P1: Refactor **: Break down the large component (1400+ lines).
-    - **P1: Auto-update Calendar V2**: Implement automatic retry logic for calendar synchronization.
-    - **P2: Apple Calendar (ICS Export)**: Implement a feature to export NLYT events as an  file for users to import into Apple Calendar, as a native API integration is not feasible.
+    - **P3: Templates Email Externalisés**: Allow organizers to customize the content of emails (invitations, reminders, etc.) instead of using hardcoded templates.
 
     Future Tasks:
-    - **P3: Organizer Analytics Dashboard**
-    - **P3: Charity Payouts**
-    - **P3: Externalized Email Templates**
-    - **P3: Webhooks temps réel Zoom/Teams**
-    - **P3: Dedicated Charity Pages & Leaderboard**
-    - **P3: MongoDB Indexing**
+    - **P2: Refactor **: Break down the large component (1400+ lines). The user has agreed this is not a high priority and should be done opportunistically during the next feature change affecting this page.
+    - **P3: Webhooks temps réel Zoom/Teams**: For instant attendance updates.
+    - **P3: Pages dédiées charité & Leaderboard**: Public-facing pages for social proof and engagement.
+    - **Charity Payouts V2**: Implement the actual Stripe Transfer logic to send accumulated funds to charity organizations.
 
 **Completed work in this session**
-- **Conflict Detection Bug Fix (P0)**: Resolved an issue where the conflict detection algorithm suggested past time slots. 14/14 tests passed.
-- **Conflict Detection V2 Implementation**: Implemented the ability to read events from connected Google & Outlook calendars. This included updating calendar adapters, the core conflict check endpoint, and the frontend wizard UI to show conflict sources. Validated with 18/18 tests and a testing agent run.
-- **Manual QA & UX Polish**: Performed a full 8-scenario manual QA of the Conflict Detection V2 feature and implemented a UX polish pass to improve the conflict panel's readability.
-- **Calendar Integration Audit**: Conducted a comprehensive audit of Google, Microsoft, and Apple calendar integration capabilities, identifying the root cause of Outlook connection issues for personal accounts and the non-viability of a native Apple Calendar API.
-- **Microsoft OAuth 2-Level Architecture**: Refactored the Microsoft authentication flow to support both personal (@hotmail) and professional (M365) accounts. This involved separating scopes into a base level for calendar sync and an advanced level for Teams features, with a new UI to manage the upgrade.
-- **Video Provider Selection (Option A Enriched)**: Implemented a robust UI in the appointment wizard for selecting a video provider (Teams, Meet, Zoom, Autre plateforme). The UI disables unavailable providers, explains why, and intelligently pre-selects the best available option based on user connections, preventing errors.
-- **Backend Hardening**: Added backend validation to reject appointment creation if the selected video provider is not configured for the user, preventing exploits even if the frontend is bypassed.
+- **Timezone Bug Fix (P0)**: Conducted a full systemic audit, identified the root cause in  (sending naive datetimes), and implemented a robust UTC-first fix. Validated with 74/74 unit tests covering DST transitions and multiple timezones.
+- **Multi-Provider Auto-Sync**: Refactored the calendar sync logic to support simultaneous synchronization to all connected calendars (Google & Outlook), removing the previous single-provider limitation.
+- **Auto-update Calendar V2 (P1)**: Implemented a resilient retry mechanism with exponential backoff for failed calendar syncs, using a new  and a background scheduler job. 86/86 regression tests passed.
+- **ICS Export for Apple Calendar (P2)**: Implemented a universal iCalendar export feature with correct handling of event updates () and cancellations (). The UI was updated on multiple pages with user-approved wording. 86/86 regression tests passed.
+- **Pagination Voir plus (P1)**: Implemented a Load More pagination system on the organizer dashboard for upcoming and past appointments. Validated with backend API tests and a full testing agent run (15/15 backend, 9/9 frontend tests passed).
+- **MongoDB Indexing (P3)**: Created and verified over 20 indexes on critical collections via an  function at application startup to improve database performance.
+- **Organizer Analytics Dashboard V1 (P3)**: Implemented a new Statistiques tab displaying 6 key KPIs. Validated with a full testing agent run (13/13 backend, 13/13 frontend tests passed).
 
 **Earlier issues found/mentioned but not fixed**
 None.
 
 **Known issue recurrence from previous fork**
-  - **Issue recurrence**: The timezone offset bug is explicitly described by the user as **recurring**.
-  - **Recurrence count**: At least 2 (based on user's message).
-  - **Status**: IN PROGRESS (The current P0 task is to fix it definitively).
+  - **Issue recurrence**: Recurring 1-hour timezone offset for appointments.
+  - **Recurrence count**: 2+
+  - **Status**: RESOLVED. The issue was fixed via a full systemic audit and a robust UTC-first architectural change. The user explicitly validated the fix and the methodology.
 
 **Code Architecture**
 
@@ -80,76 +78,82 @@ None.
 **Key Technical Concepts**
 - **Frontend**: React.js, TailwindCSS, Shadcn/UI, .
 - **Backend**: FastAPI, Python, MongoDB.
-- **Timezone Management**: The core of the current investigation. The goal is to enforce a UTC everywhere, convert only for display policy. Key functions are  (frontend) and  (backend).
-- **OAuth 2-Level Architecture**: A custom implementation for Microsoft that separates a base set of permissions () from an advanced set () to support both personal and professional accounts.
-- **Multi-provider Strategy**: A backend service () and frontend UI () that dynamically determine provider availability (Teams, Meet, Zoom) based on user connections and platform configuration.
+- **Timezone Management**: UTC everywhere, convert only for display is the established and validated strategy.
+- **Load More Pagination**: Implemented using / parameters, returning a  structure. The frontend manages separate paginated states for different lists on the same page.
+- **Resilient Background Jobs**: Using APScheduler for tasks like the calendar sync retry mechanism with exponential backoff.
+- **MongoDB Indexing**: Indexes are now defined in  and applied at application startup to ensure performance.
+- **Backend Aggregation Pipelines**: Used in the analytics endpoint to efficiently calculate statistics across multiple collections.
 
 **key DB schema**
-  - : Stores user tokens for Google/Outlook. Now includes  and  to manage the 2-level OAuth permissions for Microsoft.
-  - : The  field is central to the timezone investigation.
+  - : Added  field to track modifications, used for the  number in ICS exports.
+  - : Added , , and  fields to manage the new retry mechanism.
+  - : A new  function centralizes the creation of all database indexes.
 
 **changes in tech stack**
 None.
 
 **All files of reference**
-- : Contains  and .
-- : Where the user inputs the date and time.
-- : Receives and processes the appointment creation request.
-- : Sends the event data to Microsoft Graph API.
-- The service/file responsible for generating  files for calendar invites.
+- : Heavily modified to add the analytics endpoint and pagination logic.
+- : Heavily modified to fix the timezone bug and implement multi-provider sync and the retry mechanism.
+- : Modified to include the  function.
+- : New file for the calendar sync retry logic.
+- : Completely refactored to support pagination and the new analytics tab.
+- : Updated to include the new ICS export button and wording.
+- : Updated with sections for multi-provider sync and ICS export info.
+- : Existing page to be investigated for the Impact Caritatif feature.
 
-**Areas that need refactoring**: 
--  (1400+ lines) remains a high-priority candidate.
+**Areas that need refactoring**:
+-  (1400+ lines) is a known area of technical debt, but the user has agreed to deprioritize its refactoring until a new feature requires changes to it.
 
 **key api endpoints**
-- : Endpoint for creating appointments. The  and  fields are critical for the current audit.
-- : (Enriched) Returns the availability of each video provider for the current user, including  and .
-- : New endpoint to initiate the OAuth flow for advanced Teams permissions.
+- : Now supports , , and  (upcoming/past) for pagination.
+- : New endpoint to provide the 6 KPIs for the organizer dashboard.
+- : Updated to use the  field to generate the correct  number for event updates.
 
 **Critical Info for New Agent**
 - **LANGUAGE**: You MUST speak French.
-- **IMMEDIATE TASK**: Continue the systemic audit of date/time handling. The goal is to find the root cause of the 1-hour Outlook offset and implement a permanent fix based on a UTC-first strategy.
-- **AUDIT SCOPE**: The audit must cover the entire data flow: frontend input (, ) -> backend processing () -> database storage -> calendar integration (, ICS generation).
-- **USER EXPECTATION**: The user does not want a quick patch. They expect a thorough investigation and a robust, definitive solution that prevents any future timezone-related bugs.
+- **IMMEDIATE TASK**: Implement the V1 of the Impact caritatif feature. The user's primary concern is **transparency**. The scope is to create a page that clearly shows the total charity funds accumulated and a history of contributions, with explicit wording that automatic payouts are not yet implemented. You should start by analyzing the existing  and related API endpoints.
+- **PRODUCT HEALTH**: The application is in a very stable and healthy state. The user is pleased with the recent bug fix and feature deliveries. Maintain this momentum by following user requirements closely.
 
 **documents and test reports created in this job**
--  (Continuously updated with completed work and backlog).
--  (Conflict Detection V2).
--  (Microsoft OAuth 2-Level Architecture).
--  (Video Provider Selection UI).
-- A QA protocol for manually testing the 2-level Microsoft OAuth flow was drafted and provided to the user.
+- 
+-  (Pagination feature test report)
+-  (Organizer Analytics Dashboard test report)
+- 
+- 
+- 
 
-**Last 10 User Messages and any pending HUMAN messages** 
-10. **Request**: Go for implementation of the Option A Enriched video provider selection strategy.
-9. **Clarification**: Asked for confirmation on the exact behavior for a M365 pro user without Teams advanced before implementation.
-8. **Request**: Chose Option B: progressive scopes for Microsoft OAuth to avoid regressing Teams functionality. Requested a clear architecture proposal.
-7. **Request**: Start Priority 1 from the calendar audit: fix the Outlook personal account connection issue.
-6. **Information**: Provided the correct .
-5. **Request**: An audit of why personal Microsoft accounts (@hotmail, etc.) cannot connect, with a clear action plan. Also requested audits for Google and Apple Calendar integration feasibility.
-4. **Request**: A full manual QA validation of the Conflict Detection V2 feature, plus a UX polish pass on the conflict panel.
-3. **Approval**: Approved the plan to fix the P0 conflict detection bug and then implement P1 (Conflict Detection V2).
-2. **Clarification**: Provided 5 detailed requirements for the Conflict Detection V2 implementation (dynamic window, deduplication, strict confidence, performance, UX).
-1. **Approval**: Approved the plan to fix the P0 bug first.
+**Last 10 User Messages and any pending HUMAN messages**
+10. **Request**: Asked the agent to implement MongoDB indexing. **Status**: COMPLETED.
+9. **Request**: Asked the agent to implement the Organizer Analytics Dashboard. **Status**: COMPLETED.
+8. **Clarification**: Provided detailed requirements for the Analytics Dashboard V1, emphasizing simplicity (KPI cards only, no graphs, all-time data). **Status**: IMPLEMENTED.
+7. **Adjustment**: Adjusted the KPI requirements for the analytics dashboard, requesting different wording and an additional metric. **Status**: IMPLEMENTED.
+6. **Adjustment**: Asked to enrich the Engagements non honorés KPI to show not just the count, but also the total cost incurred. **Status**: IMPLEMENTED.
+5. **Request**: Asked the agent for a plan to implement Charity Payouts. **Status**: PLAN PROVIDED.
+4. **Approval**: Approved the V1 plan for Charity Payouts but requested key adjustments: rename the feature to Impact Caritatif and focus entirely on transparency (wording like montants fléchés, explaining that automatic transfers are a future feature) to avoid user confusion. **Status**: PLAN FINALIZED.
+3. **Request**: Asked to change the wording of the ICS export button and related text. **Status**: COMPLETED.
+2. **Request**: Asked for a proposal on how to implement pagination. **Status**: PROPOSAL PROVIDED.
+1. **Approval**: Approved the Voir plus (Load More) pagination approach and provided specific UX/wording constraints. **Status**: IMPLEMENTED.
 
 **Project Health Check:**
-- **Healthy**: The application is stable and the agent has successfully delivered several complex features and refactors (Conflict Detection V2, Microsoft OAuth 2-Level, Video Provider UI). The current focus is on a critical, recurring bug that requires deep architectural review.
+- **Healthy**: The application is stable. The agent successfully fixed a critical, recurring bug and delivered multiple significant features requested by the user, all validated by testing and user approval.
 
-**3rd Party Integrations** 
+**3rd Party Integrations**
 - **Stripe** (Payments, Connect Express)
 - **Resend** (Emails)
-- **Microsoft Graph API** (Outlook/Teams Calendar): Now supports both personal and professional accounts via a 2-level OAuth flow. The connection for personal accounts is limited to calendar scopes, while professional accounts can upgrade to include Teams scopes.
-- **Google Calendar API**: Fully functional for both personal and Workspace accounts.
-- **Zoom API**: Integrated for video meeting creation.
-- **Apple Calendar**: Not integrated. Audit concluded a native API is unavailable and the recommended approach is an ICS export feature.
+- **Microsoft Graph API** (Outlook/Teams Calendar)
+- **Google Calendar API**
+- **Zoom API**
+- **Apple Calendar**: Supported via manual  file export. Not a direct integration.
 
 **Testing status**
-  - Testing agent used after significant changes: YES (3 times in this session).
+  - Testing agent used after significant changes: YES (for Pagination and Analytics features).
   - Troubleshoot agent used after agent stuck in loop: NO
-  - Test files created:  was updated for V2 tests.
-  - Known regressions: The recurring 1-hour timezone bug is an active regression.
+  - Test files created: , , 
+  - Known regressions: None. The major recurring timezone bug has been resolved.
 
 **Credentials to test flow:**
-Use mock user data or create new users as needed. The agent has been using a  user which has both Google and Outlook connections.
+The user  (password ) has a large number of appointments (120+) and is ideal for testing features like pagination and analytics.
 
 **What agent forgot to execute**
-The agent is in the initial phase of the user's latest critical request (timezone audit) and has not forgotten anything, but rather has just begun the investigation.</analysis>
+Nothing. The agent has systematically addressed each of the user's requests and is set to begin the next prioritized task.</analysis>

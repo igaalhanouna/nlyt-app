@@ -19,7 +19,7 @@ from datetime import datetime, timezone
 # MongoDB connection - strip quotes from env vars
 MONGO_URL = os.environ.get('MONGO_URL', 'mongodb://localhost:27017').strip('"')
 DB_NAME = os.environ.get('DB_NAME', 'test_database').strip('"')
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://datetime-debug.preview.emergentagent.com')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://contribution-hub-8.preview.emergentagent.com')
 
 client = MongoClient(MONGO_URL)
 db = client[DB_NAME]
