@@ -398,10 +398,9 @@ export default function AppointmentDetail() {
   };
 
   const handleDownloadICS = () => {
-    // Open ICS download in new tab/trigger download
     const icsUrl = calendarAPI.exportICS(id);
     window.open(icsUrl, '_blank');
-    toast.success('Téléchargement du fichier calendrier...');
+    toast.success('Fichier iCalendar téléchargé');
   };
 
   // Attendance outcome badge
@@ -828,15 +827,21 @@ export default function AppointmentDetail() {
             </span>
           </div>
           <div className="flex gap-2 flex-wrap">
-            {/* ICS Download button */}
-            <Button 
-              variant="outline"
-              onClick={handleDownloadICS}
-              data-testid="download-ics-btn"
-            >
-              <Download className="w-4 h-4 mr-2" />
-              ICS
-            </Button>
+            {/* Apple Calendar / ICS export button */}
+            <div className="relative group">
+              <Button 
+                variant="outline"
+                onClick={handleDownloadICS}
+                data-testid="download-ics-btn"
+                className="gap-2"
+              >
+                <Download className="w-4 h-4" />
+                Ajouter à Apple Calendar
+              </Button>
+              <div className="absolute left-0 top-full mt-1 w-64 bg-slate-800 text-white text-xs rounded-lg px-3 py-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-lg">
+                Télécharge un fichier iCalendar (.ics) compatible avec Apple Calendar, Thunderbird et tout calendrier standard.
+              </div>
+            </div>
 
             {/* Google Calendar sync button */}
             {syncStatus?.google?.synced ? (

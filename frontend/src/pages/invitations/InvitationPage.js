@@ -1178,8 +1178,11 @@ export default function InvitationPage() {
                     data-testid="download-ics-btn"
                   >
                     <Download className="w-4 h-4" />
-                    Ajouter au calendrier
+                    Ajouter à Apple Calendar
                   </a>
+                  <p className="text-xs text-slate-400 mt-2">
+                    Compatible avec Apple Calendar, Thunderbird et tout calendrier standard.
+                  </p>
                 </div>
                 
                 {/* Cancel button if deadline not passed */}
@@ -1241,10 +1244,10 @@ export default function InvitationPage() {
                     data-testid="download-ics-btn"
                   >
                     <Download className="w-4 h-4" />
-                    Ajouter au calendrier
+                    Ajouter à Apple Calendar
                   </a>
-                  <p className="text-xs text-slate-500 mt-2">
-                    Téléchargez le fichier .ics pour l'ajouter à votre calendrier
+                  <p className="text-xs text-slate-400 mt-2">
+                    Compatible avec Apple Calendar, Thunderbird et tout calendrier standard.
                   </p>
                 </div>
                 

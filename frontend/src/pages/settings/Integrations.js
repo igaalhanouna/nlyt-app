@@ -4,7 +4,7 @@ import { calendarAPI, videoEvidenceAPI } from '../../services/api';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
-import { ArrowLeft, Calendar, CheckCircle, XCircle, Loader2, ExternalLink, Unlink, Zap, ZapOff, Video, Monitor, Shield, Users, ChevronDown, ChevronUp, AlertTriangle, Settings2, Info } from 'lucide-react';
+import { ArrowLeft, Calendar, CheckCircle, XCircle, Loader2, ExternalLink, Unlink, Zap, ZapOff, Video, Monitor, Shield, Users, ChevronDown, ChevronUp, AlertTriangle, Settings2, Info, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDateLongFr } from '../../utils/dateFormat';
 
@@ -615,6 +615,35 @@ export default function Integrations() {
             </div>
           </div>
         </div>
+
+        {/* ========= Apple Calendar & autres (ICS Export) ========= */}
+        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden mb-8" data-testid="apple-calendar-section">
+          <div className="p-5">
+            <div className="flex items-start gap-4">
+              <div className="w-11 h-11 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0">
+                <Download className="w-5 h-5 text-slate-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-base font-semibold text-slate-900 mb-1">Apple Calendar & autres</h3>
+                <p className="text-sm text-slate-500">
+                  Exportez vos rendez-vous au format iCalendar (.ics). Compatible avec Apple Calendar, Thunderbird et tout calendrier standard.
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="border-t border-slate-100 px-5 py-4">
+            <div className="flex items-center gap-3 text-sm text-slate-600">
+              <Calendar className="w-4 h-4 text-slate-400 flex-shrink-0" />
+              <span>
+                Un bouton <strong>"Ajouter à Apple Calendar"</strong> est disponible sur chaque rendez-vous et chaque invitation. Le fichier .ics téléchargé s'ouvre directement dans votre application calendrier.
+              </span>
+            </div>
+            <p className="text-xs text-slate-400 mt-3 ml-7">
+              Cet export est manuel. En cas de modification du rendez-vous, ajoutez-le à nouveau pour mettre à jour votre calendrier.
+            </p>
+          </div>
+        </div>
+
 
         {/* ========= Auto-Sync Section ========= */}
         {(googleConnection?.status === 'connected' || outlookConnection?.status === 'connected') && (

@@ -95,13 +95,15 @@ class ICSGenerator:
         
         # Build ICS content with proper line folding
         status = event_data.get('status', 'CONFIRMED')
+        method = event_data.get('method', 'PUBLISH')
+        sequence = event_data.get('sequence', 0)
         
         lines = [
             "BEGIN:VCALENDAR",
             "VERSION:2.0",
             "PRODID:-//NLYT//Appointment Commitment System//FR",
             "CALSCALE:GREGORIAN",
-            "METHOD:PUBLISH",
+            f"METHOD:{method}",
             "X-WR-CALNAME:NLYT Rendez-vous",
             "BEGIN:VEVENT",
             f"DTSTART:{start_ics}",
@@ -110,6 +112,7 @@ class ICSGenerator:
             f"UID:{uid}",
             f"CREATED:{now_ics}",
             f"LAST-MODIFIED:{now_ics}",
+            f"SEQUENCE:{sequence}",
             ICSGenerator.fold_line(f"SUMMARY:{title}"),
         ]
         
@@ -122,7 +125,6 @@ class ICSGenerator:
         lines.extend([
             f"STATUS:{status}",
             "TRANSP:OPAQUE",
-            "SEQUENCE:0",
         ])
         
         # Only add alarm for confirmed events

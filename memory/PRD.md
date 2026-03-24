@@ -139,6 +139,16 @@ Les APIs calendrier (Google/Outlook) interprétaient la valeur comme heure local
 - **Sécurités** : skip les RDV annulés/supprimés, skip les connexions déconnectées (mais retry quand même)
 - Tests : 12/12 (backoff, schedule_retry, job, intégration) + 86/86 régression OK
 
+## Export ICS pour Apple Calendar (Mars 2026)
+- **Endpoint** : `GET /api/calendar/export/ics/{appointment_id}` — existait, enrichi avec `SEQUENCE` dynamique et `METHOD:CANCEL`
+- **ICS Generator** : supporte maintenant `sequence` (incrémenté à chaque modification) et `method` (`PUBLISH`/`CANCEL`)
+- **`modification_service.py`** : incrémente `update_count` à chaque modification → Apple Calendar met à jour via le même `UID`
+- **AppointmentDetail.js** : bouton "Ajouter à Apple Calendar" avec tooltip explicatif
+- **InvitationPage.js** : bouton "Ajouter à Apple Calendar" + sous-texte compatibilité
+- **Integrations.js** : section "Apple Calendar & autres" avec explication de l'export manuel
+- **Wording** : conforme au cadrage utilisateur — pas de "synchronisation", export manuel assumé
+- Tests : 86/86 régression OK
+
 ## Roadmap
 
 ### P1

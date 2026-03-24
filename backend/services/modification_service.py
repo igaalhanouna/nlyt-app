@@ -262,7 +262,10 @@ def _apply_proposal(proposal: dict):
 
     db.appointments.update_one(
         {"appointment_id": appointment_id},
-        {"$set": update_fields}
+        {
+            "$set": update_fields,
+            "$inc": {"update_count": 1}
+        }
     )
     logger.info(f"[MODIFICATION] Applied changes to appointment {appointment_id}: {list(changes.keys())}")
 

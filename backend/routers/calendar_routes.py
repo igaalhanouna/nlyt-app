@@ -902,6 +902,9 @@ async def export_appointment_ics(appointment_id: str, token: str = None):
     if is_cancelled:
         title = f"[ANNULE] {title}"
 
+    # Compute sequence number from update count (for Apple Calendar update support)
+    update_count = appointment.get('update_count', 0)
+
     event_data = {
         "appointment_id": appointment_id,
         "title": title,
@@ -909,7 +912,9 @@ async def export_appointment_ics(appointment_id: str, token: str = None):
         "location": location,
         "start_datetime": start_dt.isoformat(),
         "end_datetime": end_dt.isoformat(),
-        "status": "CANCELLED" if is_cancelled else "CONFIRMED"
+        "status": "CANCELLED" if is_cancelled else "CONFIRMED",
+        "sequence": update_count,
+        "method": "CANCEL" if is_cancelled else "PUBLISH",
     }
 
     ics_content = ICSGenerator.generate_ics_bytes(event_data)
