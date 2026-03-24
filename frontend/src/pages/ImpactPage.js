@@ -233,9 +233,9 @@ export default function ImpactPage() {
               />
               <StatCard
                 icon={TrendingUp}
-                value={fmt(data.total_distributed_cents)}
-                label="Total redistribué"
-                testId="kpi-total-distributed"
+                value={data.contributions?.total?.toLocaleString('fr-FR') || '0'}
+                label={data.contributions?.total > 1 ? 'Contributions enregistrées' : 'Contribution enregistrée'}
+                testId="kpi-contributions-count"
               />
             </div>
 
