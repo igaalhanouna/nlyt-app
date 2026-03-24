@@ -8,7 +8,7 @@ CLIENT_SECRET = os.environ.get('MICROSOFT_CLIENT_SECRET')
 
 AUTHORITY = 'https://login.microsoftonline.com/common/oauth2/v2.0'
 GRAPH_API = 'https://graph.microsoft.com/v1.0'
-SCOPES = ['Calendars.ReadWrite', 'User.Read', 'MailboxSettings.Read', 'offline_access', 'OnlineMeetings.ReadWrite', 'OnlineMeetingArtifact.Read.All']
+SCOPES = ['Calendars.ReadWrite', 'User.Read', 'offline_access']
 
 # IANA → Windows timezone mapping (Microsoft Graph requires Windows IDs for personal accounts)
 IANA_TO_WINDOWS_TZ = {
@@ -158,6 +158,9 @@ class OutlookCalendarAdapter:
 
     @staticmethod
     def get_calendar_timezone(access_token: str, refresh_token: str, connection_update_callback=None) -> str:
+        """Get the user's Outlook calendar timezone.
+        Tries mailboxSettings first (works for pro accounts), falls back gracefully for personal accounts.
+        """
         try:
             headers = OutlookCalendarAdapter._get_headers(access_token, refresh_token, connection_update_callback)
             if not headers:
@@ -165,6 +168,7 @@ class OutlookCalendarAdapter:
             resp = requests.get(f'{GRAPH_API}/me/mailboxSettings/timeZone', headers=headers)
             if resp.status_code == 200:
                 return resp.json().get('value', 'UTC')
+            # Personal accounts may not support mailboxSettings — graceful fallback
             return 'UTC'
         except Exception:
             return 'UTC'

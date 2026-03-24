@@ -14,7 +14,13 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API
 - iteration_61: 23/23 (Dashboard UX overhaul)
 - iteration_62: 20/20 (Conflict Detection V1)
 - iteration_63: 29/29 (Conflict Detection V2 — Calendar Integration)
-- QA Manuel V2: 8/8 scénarios E2E validés (détail ci-dessous)
+- QA Manuel V2: 8/8 scénarios E2E validés
+
+## Fix Outlook comptes personnels (Mars 2026)
+- Corrigé MICROSOFT_CLIENT_ID (valeur UUID réelle au lieu de placeholder)
+- Scopes réduits à `Calendars.ReadWrite User.Read offline_access` (universels pro+perso)
+- Supprimé `MailboxSettings.Read`, `OnlineMeetings.ReadWrite`, `OnlineMeetingArtifact.Read.All` (non supportés comptes perso)
+- Fallback gracieux pour timezone sur comptes perso (détail ci-dessous)
 
 ## QA Manuel — Conflict Detection V2 (Mars 2026)
 

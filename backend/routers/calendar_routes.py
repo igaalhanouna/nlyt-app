@@ -324,7 +324,6 @@ async def outlook_oauth_callback(code: str = None, state: str = None, error: str
             "refresh_token": tokens['refresh_token'],
             "calendar_timezone": calendar_timezone,
             "granted_scopes": tokens.get('granted_scopes', []),
-            "has_online_meetings_scope": 'OnlineMeetings.ReadWrite' in (tokens.get('granted_scopes') or []),
             "status": "connected",
             "connected_at": now_utc().isoformat(),
             "updated_at": now_utc().isoformat()
