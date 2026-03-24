@@ -836,7 +836,7 @@ export default function AppointmentDetail() {
                 className="gap-2"
               >
                 <Download className="w-4 h-4" />
-                Ajouter à Apple Calendar
+                Autres calendriers (.ics)
               </Button>
               <div className="absolute left-0 top-full mt-1 w-64 bg-slate-800 text-white text-xs rounded-lg px-3 py-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-lg">
                 Télécharge un fichier iCalendar (.ics) compatible avec Apple Calendar, Thunderbird et tout calendrier standard.

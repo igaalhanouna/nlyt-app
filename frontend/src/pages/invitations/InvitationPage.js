@@ -1178,7 +1178,7 @@ export default function InvitationPage() {
                     data-testid="download-ics-btn"
                   >
                     <Download className="w-4 h-4" />
-                    Ajouter à Apple Calendar
+                    Autres calendriers (.ics)
                   </a>
                   <p className="text-xs text-slate-400 mt-2">
                     Compatible avec Apple Calendar, Thunderbird et tout calendrier standard.
@@ -1244,7 +1244,7 @@ export default function InvitationPage() {
                     data-testid="download-ics-btn"
                   >
                     <Download className="w-4 h-4" />
-                    Ajouter à Apple Calendar
+                    Autres calendriers (.ics)
                   </a>
                   <p className="text-xs text-slate-400 mt-2">
                     Compatible avec Apple Calendar, Thunderbird et tout calendrier standard.
