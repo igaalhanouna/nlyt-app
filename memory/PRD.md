@@ -171,20 +171,28 @@ Les APIs calendrier (Google/Outlook) interprétaient la valeur comme heure local
 - Endpoint `GET /api/appointments/analytics/stats` — all-time, pas de filtre temporel
 - Tests : 13/13 backend + 13/13 frontend (testing agent iteration_67)
 
+## Impact Caritatif V1 (Mars 2026)
+- **Page publique** `/impact` entièrement refondue : focus transparence charité
+- **Wording strict** : "montants fléchés", "réservés pour des associations", jamais "reversé" ou "donné"
+- **Bloc de transparence** : explique que les montants sont accumulés, reversement automatique = fonctionnalité future
+- **Backend** : nouveau `GET /api/impact/charity` — endpoint public, paginé, avec historique des contributions
+  - Retourne `payout_status: "accumulating"`, `payout_message` avec wording validé
+  - Contributions individuelles avec enrichissement (titre engagement, nom association)
+  - Pagination `skip`/`limit` avec `has_more`
+- **Frontend** : KPIs (fléchés, associations, engagements, total redistribué), liste associations, historique contributions, "Comment ça fonctionne"
+- **Cohérence dashboard** : ImpactCard → "fléchés pour des associations", KPI analytics → "Fléchés pour des associations"
+- **Fix noms associations** : `refresh_impact_stats()` utilise le fallback sur la liste statique `VALIDATED_ASSOCIATIONS`
+- Tests : 21/21 backend + 7/7 frontend (testing agent iteration_68)
+
 ## Roadmap
 
 ### P1
-- Pagination endpoints de liste (API + UI)
-- Auto-update calendrier V2 (retry automatique)
 - Découpe InvitationPage.js (1409 lignes)
 
 ### P2
-- Apple Calendar (export ICS)
+- Templates email externalisés (HTML)
 
 ### P3
-- Dashboard analytics organisateurs
-- Payout charité vers associations
-- Templates email externalisés (HTML)
+- Charity Payouts V2 — Implémentation des Stripe Transfers réels
 - Pages dédiées par association + leaderboard
-- Index MongoDB (performance)
 - Webhooks temps réel Zoom/Teams

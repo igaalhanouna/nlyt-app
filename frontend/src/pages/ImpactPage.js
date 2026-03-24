@@ -123,7 +123,7 @@ function TransparencyBlock() {
           </h3>
           <p className="text-sm text-amber-700 leading-relaxed">
             Les montants affichés sur cette page sont <strong>fléchés pour des associations</strong> et accumulés
-            sur la plateforme NLYT. Ils ne sont pas encore reversés.
+            sur la plateforme NLYT. Le transfert vers les associations n'a pas encore eu lieu.
           </p>
           <p className="text-sm text-amber-700 leading-relaxed mt-2">
             Le <strong>reversement automatique</strong> vers les associations partenaires sera implémenté dans une
