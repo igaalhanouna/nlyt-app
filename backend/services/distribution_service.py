@@ -757,7 +757,7 @@ def refresh_impact_stats() -> dict:
     benef_ids = set(part_result[0]["user_ids"]) if part_result else set()
     total_participants = len(noshow_ids | benef_ids)
 
-    # Enrich association names
+    # Enrich association names (DB first, then static fallback)
     assoc_ids = [c["_id"] for c in charity_results if c["_id"]]
     assoc_names = {}
     if assoc_ids:
@@ -765,6 +765,11 @@ def refresh_impact_stats() -> dict:
             {"association_id": {"$in": assoc_ids}}, {"_id": 0, "association_id": 1, "name": 1}
         ):
             assoc_names[a["association_id"]] = a.get("name")
+        # Fallback to static list for names not found in DB
+        from routers.charity_associations import VALIDATED_ASSOCIATIONS
+        for va in VALIDATED_ASSOCIATIONS:
+            if va["association_id"] in assoc_ids and va["association_id"] not in assoc_names:
+                assoc_names[va["association_id"]] = va["name"]
 
     associations = []
     for c in charity_results:
@@ -804,3 +809,95 @@ def get_public_impact() -> dict:
         return stats
     # First call before scheduler runs — compute now
     return refresh_impact_stats()
+
+
+def get_public_charity_details(limit: int = 50, skip: int = 0) -> dict:
+    """
+    Public endpoint data: charity-focused impact with contribution history.
+    Returns accumulated (earmarked) charity amounts, per-association breakdown,
+    and a paginated list of individual charity contributions.
+    No auth required — all data is public and aggregated.
+    """
+    # Reuse cached global stats for totals
+    stats = get_public_impact()
+
+    # Fetch individual charity contributions from distributions
+    pipeline = [
+        {"$match": {"status": {"$nin": ["cancelled"]}}},
+        {"$unwind": "$beneficiaries"},
+        {"$match": {
+            "beneficiaries.role": "charity",
+            "beneficiaries.status": {"$ne": "refunded"},
+            "beneficiaries.amount_cents": {"$gt": 0},
+        }},
+        {"$sort": {"created_at": -1}},
+        {"$facet": {
+            "items": [
+                {"$skip": skip},
+                {"$limit": limit},
+                {"$project": {
+                    "_id": 0,
+                    "distribution_id": 1,
+                    "appointment_id": 1,
+                    "association_id": "$beneficiaries.user_id",
+                    "amount_cents": "$beneficiaries.amount_cents",
+                    "currency": "$capture_currency",
+                    "status": 1,
+                    "created_at": 1,
+                }},
+            ],
+            "total": [{"$count": "count"}],
+        }},
+    ]
+    result = list(db.distributions.aggregate(pipeline))
+    facet = result[0] if result else {"items": [], "total": []}
+    items = facet.get("items", [])
+    total = facet["total"][0]["count"] if facet.get("total") else 0
+
+    # Enrich with appointment titles
+    apt_ids = list({c["appointment_id"] for c in items if c.get("appointment_id")})
+    apt_titles = {}
+    if apt_ids:
+        for a in db.appointments.find(
+            {"appointment_id": {"$in": apt_ids}},
+            {"_id": 0, "appointment_id": 1, "title": 1},
+        ):
+            apt_titles[a["appointment_id"]] = a.get("title", "Engagement")
+
+    # Enrich with association names
+    assoc_ids = list({c["association_id"] for c in items if c.get("association_id")})
+    assoc_names = {}
+    if assoc_ids:
+        for a in db.charity_associations.find(
+            {"association_id": {"$in": assoc_ids}},
+            {"_id": 0, "association_id": 1, "name": 1},
+        ):
+            assoc_names[a["association_id"]] = a.get("name")
+    # Also check static list
+    from routers.charity_associations import VALIDATED_ASSOCIATIONS
+    for va in VALIDATED_ASSOCIATIONS:
+        if va["association_id"] not in assoc_names:
+            assoc_names[va["association_id"]] = va["name"]
+
+    for item in items:
+        item["appointment_title"] = apt_titles.get(item.get("appointment_id"), "Engagement")
+        item["association_name"] = assoc_names.get(item.get("association_id"))
+
+    return {
+        "total_charity_cents": stats.get("total_charity_cents", 0),
+        "total_distributed_cents": stats.get("total_distributed_cents", 0),
+        "associations": stats.get("associations", []),
+        "events_count": stats.get("events_count", 0),
+        "participants_count": stats.get("participants_count", 0),
+        "currency": "eur",
+        "contributions": {
+            "items": items,
+            "total": total,
+            "skip": skip,
+            "limit": limit,
+            "has_more": (skip + limit) < total,
+        },
+        "payout_status": "accumulating",
+        "payout_message": "Les montants fléchés sont accumulés sur la plateforme. Le reversement automatique vers les associations sera implémenté dans une prochaine version.",
+        "refreshed_at": stats.get("refreshed_at"),
+    }

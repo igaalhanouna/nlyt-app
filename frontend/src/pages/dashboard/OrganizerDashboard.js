@@ -77,7 +77,7 @@ function ImpactCard({ totalCharityCents }) {
         <span className="text-sm font-semibold text-emerald-700">Votre impact</span>
       </div>
       <p className="text-3xl font-bold text-emerald-800 mb-1" data-testid="impact-amount">{amount}</p>
-      <p className="text-sm text-emerald-600">générés pour des associations</p>
+      <p className="text-sm text-emerald-600">fléchés pour des associations</p>
       <p className="text-xs text-emerald-500 mt-1">Grâce à vos engagements sur NLYT</p>
       <Link to="/impact" className="inline-block mt-3 text-xs text-emerald-600 hover:text-emerald-800 underline underline-offset-2 transition-colors" data-testid="impact-detail-link">
         Voir le détail →
@@ -689,7 +689,7 @@ export default function OrganizerDashboard() {
                         <p className="text-2xl font-bold text-emerald-700">
                           {(analytics.charity_total_cents / 100).toFixed(0)} €
                         </p>
-                        <p className="text-xs text-slate-500 mt-1">Impact caritatif</p>
+                        <p className="text-xs text-slate-500 mt-1">Fléchés pour des associations</p>
                       </div>
 
                       {/* Engagements non honorés */}
