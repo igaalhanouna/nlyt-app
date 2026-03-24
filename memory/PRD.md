@@ -12,7 +12,8 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API
 - iteration_59: 25/25 (Financial Email Notifications)
 - iteration_60: 27/27 (Workspace inline edit)
 - iteration_61: 23/23 (Dashboard UX overhaul)
-- iteration_62: 20/20 (Conflict Detection)
+- iteration_62: 20/20 (Conflict Detection V1)
+- iteration_63: 29/29 (Conflict Detection V2 — Calendar Integration)
 
 ## Completed — Stripe Connect (All Phases)
 - Phase 1-4: Wallet, Connect, Distribution, Payouts ✅
@@ -33,9 +34,17 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API
   - Règles: overlap = conflict, <30min buffer = warning
   - Suggestions: 3-5 créneaux (optimal/comfortable/tight)
   - Frontend: panneau alerte dans Step 2, chips cliquables, "Trouver le meilleur créneau"
-  - Transparence: "vérifié uniquement sur vos engagements NLYT"
-  - V2 teaser: "Google Calendar / Outlook : bientôt"
   - Tests: 20/20 (iteration_62)
+- [x] **Conflict Detection V2 — Intégration Calendriers** (Mars 2026) :
+  - GoogleCalendarAdapter.list_events + OutlookCalendarAdapter.list_events
+  - Fenêtre intelligente: candidate ± BUFFER_MINUTES (pas de fenêtre fixe)
+  - Déduplication: events NLYT synchronisés filtrés via calendar_sync_logs.external_event_id
+  - Confidence rigoureuse: high = toutes sources OK, medium = source indisponible ou aucun calendrier
+  - Performance: un seul fetch sur la fenêtre, calcul local ensuite
+  - UX: badges source (NLYT/Google/Outlook) sur chaque conflit/warning
+  - confidence_detail + sources_checked dans la réponse API
+  - Suppression du "V2 teaser" → indicateur "Calendriers connectés actifs"
+  - Tests: 29/29 (iteration_63)
 
 ## Roadmap
 
@@ -50,4 +59,4 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API
 - Templates email externalisés (HTML)
 - Pages dédiées par association + leaderboard
 - Index MongoDB (performance)
-- Conflict Detection V2: FreeBusy Google Calendar + Graph Outlook
+- Webhooks temps réel Zoom/Teams
