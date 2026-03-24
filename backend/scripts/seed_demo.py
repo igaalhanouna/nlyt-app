@@ -1,24 +1,9 @@
 """
-NLYT Demo Seed Script — Preview Environment Only
-==================================================
-Generates a realistic, coherent dataset for demonstration purposes.
-
-Creates:
-  - 20 users (diverse profiles)
-  - Workspaces + memberships
-  - Calendar connections (Google, Outlook, Teams)
-  - User settings
-  - 45 appointments (various statuses, providers, dates)
-  - Participants with realistic acceptance flow
-  - Payment guarantees
-  - Attendance records + distributions + wallets
-  - 3 "premium demo" users with showcase scenarios
-
+NLYT Demo Seed Script — Preview Environment Only (V2 — 100+ users)
+===================================================================
 Usage:
   cd /app/backend
   MONGO_URL="mongodb://localhost:27017" DB_NAME="test_database" python3 scripts/seed_demo.py
-
-Idempotent: cleans demo data (seed_demo=true marker) before inserting.
 """
 
 import uuid
@@ -35,95 +20,102 @@ from utils.password_utils import hash_password
 logging.basicConfig(level=logging.INFO, format='%(message)s')
 log = logging.getLogger(__name__)
 
-# ─── Constants ──────────────────────────────────────────────
-
 DEMO_MARKER = {"_seed_demo": True}
 DEMO_PASSWORD = "Demo2026!"
 DEMO_PASSWORD_HASH = hash_password(DEMO_PASSWORD)
 NOW = datetime.now(timezone.utc)
 
-PROVIDERS = ["Google Meet", "Microsoft Teams", "Zoom", "external"]
 CHARITY_ASSOCIATIONS = [
     ("assoc_croix_rouge", "Croix-Rouge française"),
     ("assoc_restos_coeur", "Les Restos du Cœur"),
     ("assoc_secours_populaire", "Secours populaire français"),
     ("assoc_medecins_sans_frontieres", "Médecins Sans Frontières"),
     ("assoc_unicef", "UNICEF France"),
+    ("assoc_emmaus", "Emmaüs France"),
+    ("assoc_fondation_abbe_pierre", "Fondation Abbé Pierre"),
+    ("assoc_action_contre_faim", "Action contre la Faim"),
 ]
 
 APPOINTMENT_TITLES = [
-    "Point hebdomadaire équipe produit",
-    "Coaching individuel — session 3",
-    "Entretien de recrutement — Data Analyst",
-    "Revue de sprint Q1",
-    "Réunion partenariat commercial",
-    "Atelier design thinking",
-    "Formation sécurité informatique",
-    "Point mensuel freelance",
-    "Consultation juridique",
-    "Onboarding nouveau collaborateur",
-    "Comité de pilotage projet Alpha",
-    "Séance de coaching collectif",
-    "Négociation contrat fournisseur",
-    "Point avancement refonte site",
-    "Workshop OKR trimestriel",
-    "Entretien annuel de performance",
-    "Démo produit pour investisseur",
-    "Réunion copropriété",
-    "Atelier créativité brainstorming",
-    "Point de suivi mission freelance",
-    "Rendez-vous notaire",
-    "Consultation stratégie marketing",
-    "Stand-up daily ops",
-    "Formation management agile",
-    "Entretien client grand compte",
-    "Bilan semestriel coaching",
-    "Réunion lancement campagne",
-    "Point budget prévisionnel",
-    "Session mentorat startup",
-    "Revue architecture technique",
+    "Point hebdomadaire équipe produit", "Coaching individuel — session 3",
+    "Entretien de recrutement — Data Analyst", "Revue de sprint Q1",
+    "Réunion partenariat commercial", "Atelier design thinking",
+    "Formation sécurité informatique", "Point mensuel freelance",
+    "Consultation juridique", "Onboarding nouveau collaborateur",
+    "Comité de pilotage projet Alpha", "Séance de coaching collectif",
+    "Négociation contrat fournisseur", "Point avancement refonte site",
+    "Workshop OKR trimestriel", "Entretien annuel de performance",
+    "Démo produit pour investisseur", "Réunion copropriété",
+    "Atelier créativité brainstorming", "Point de suivi mission freelance",
+    "Rendez-vous notaire", "Consultation stratégie marketing",
+    "Stand-up daily ops", "Formation management agile",
+    "Entretien client grand compte", "Bilan semestriel coaching",
+    "Réunion lancement campagne", "Point budget prévisionnel",
+    "Session mentorat startup", "Revue architecture technique",
+    "Comité éditorial newsletter", "Entretien fournisseur logistique",
+    "Réunion de cadrage projet Beta", "Point commercial trimestriel",
+    "Atelier retour d'expérience", "Session brainstorm roadmap",
+    "Débrief post-mortem incident", "Comité RSE mensuel",
+    "Point de suivi alternant", "Préparation salon professionnel",
+    "Réunion coordination inter-équipes", "Entretien bilan de compétences",
+    "Formation cybersécurité avancée", "Pitch deck review",
+    "Point conformité RGPD", "Réunion association de quartier",
 ]
 
 LOCATIONS = [
-    ("45 rue de Rivoli, Paris", "45 Rue de Rivoli, 75001 Paris, France", 48.8589, 2.3469),
-    ("12 avenue Jean Médecin, Nice", "12 Avenue Jean Médecin, 06000 Nice, France", 43.7009, 7.2683),
-    ("Place Bellecour, Lyon", "Place Bellecour, 69002 Lyon, France", 45.7578, 4.8320),
-    ("Gare Saint-Jean, Bordeaux", "Gare de Bordeaux-Saint-Jean, 33000 Bordeaux, France", 44.8254, -0.5564),
-    ("Campus Sophia Antipolis", "2400 Route des Dolines, 06560 Valbonne, France", 43.6163, 7.0553),
+    ("45 rue de Rivoli, Paris", "45 Rue de Rivoli, 75001 Paris", 48.8589, 2.3469),
+    ("12 avenue Jean Médecin, Nice", "12 Avenue Jean Médecin, 06000 Nice", 43.7009, 7.2683),
+    ("Place Bellecour, Lyon", "Place Bellecour, 69002 Lyon", 45.7578, 4.8320),
+    ("Gare Saint-Jean, Bordeaux", "Gare de Bordeaux-Saint-Jean, 33000 Bordeaux", 44.8254, -0.5564),
+    ("Campus Sophia Antipolis", "2400 Route des Dolines, 06560 Valbonne", 43.6163, 7.0553),
+    ("La Défense, Paris", "1 Parvis de la Défense, 92800 Puteaux", 48.8920, 2.2360),
+    ("Vieux-Port, Marseille", "Quai du Port, 13002 Marseille", 43.2951, 5.3699),
+    ("Place du Capitole, Toulouse", "Place du Capitole, 31000 Toulouse", 43.6047, 1.4442),
+    ("Euralille, Lille", "100 Centre Commercial, 59777 Lille", 50.6365, 3.0700),
+    ("Presqu'île, Strasbourg", "Place de la Cathédrale, 67000 Strasbourg", 48.5818, 7.7510),
 ]
 
-# ─── User Profiles ──────────────────────────────────────────
+# ─── 100+ User Profiles ────────────────────────────────────
 
-USER_PROFILES = [
-    # (first, last, email, phone, bio/role context)
-    ("Marie", "Dupont", "marie.dupont@demo-nlyt.fr", "+33612345001", "coach"),
-    ("Thomas", "Martin", "thomas.martin@demo-nlyt.fr", "+33612345002", "freelance"),
-    ("Sophie", "Bernard", "sophie.bernard@demo-nlyt.fr", "+33612345003", "RH"),
-    ("Lucas", "Petit", "lucas.petit@demo-nlyt.fr", "+33612345004", "dev"),
-    ("Camille", "Robert", "camille.robert@demo-nlyt.fr", "+33612345005", "manager"),
-    ("Julien", "Richard", "julien.richard@demo-nlyt.fr", "+33612345006", "consultant"),
-    ("Emma", "Moreau", "emma.moreau@demo-nlyt.fr", "+33612345007", "designer"),
-    ("Nathan", "Simon", "nathan.simon@demo-nlyt.fr", "+33612345008", "agent-immo"),
-    ("Léa", "Laurent", "lea.laurent@demo-nlyt.fr", "+33612345009", "avocat"),
-    ("Hugo", "Michel", "hugo.michel@demo-nlyt.fr", "+33612345010", "freelance"),
-    ("Chloé", "Garcia", "chloe.garcia@demo-nlyt.fr", "+33612345011", "coach"),
-    ("Antoine", "David", "antoine.david@demo-nlyt.fr", "+33612345012", "CTO"),
-    ("Manon", "Bertrand", "manon.bertrand@demo-nlyt.fr", "+33612345013", "RH"),
-    ("Maxime", "Roux", "maxime.roux@demo-nlyt.fr", "+33612345014", "CEO"),
-    ("Sarah", "Vincent", "sarah.vincent@demo-nlyt.fr", "+33612345015", "marketing"),
-    ("Paul", "Fournier", "paul.fournier@demo-nlyt.fr", "+33612345016", "notaire"),
-    ("Julie", "Morel", "julie.morel@demo-nlyt.fr", "+33612345017", "perso"),
-    ("Romain", "Girard", "romain.girard@demo-nlyt.fr", "+33612345018", "freelance"),
-    ("Inès", "André", "ines.andre@demo-nlyt.fr", "+33612345019", "startup"),
-    ("Alexandre", "Lefèvre", "alex.lefevre@demo-nlyt.fr", "+33612345020", "perso"),
-    # ── 3 Premium Demo Users ──
-    ("Clara", "Deschamps", "clara.deschamps@demo-nlyt.fr", "+33612345021", "demo-conflit"),
-    ("Victor", "Fontaine", "victor.fontaine@demo-nlyt.fr", "+33612345022", "demo-optimal"),
-    ("Aurélie", "Marchand", "aurelie.marchand@demo-nlyt.fr", "+33612345023", "demo-penalite"),
+FIRST_NAMES_M = [
+    "Thomas", "Lucas", "Julien", "Nathan", "Hugo", "Antoine", "Maxime", "Paul",
+    "Romain", "Alexandre", "Pierre", "Nicolas", "Mathieu", "Vincent", "Sébastien",
+    "Olivier", "François", "Guillaume", "Raphaël", "Louis", "Gabriel", "Arthur",
+    "Léo", "Adam", "Jules", "Théo", "Noah", "Ethan", "Liam", "Samuel",
+    "Clément", "Adrien", "Benjamin", "David", "Éric", "Fabien", "Grégoire",
+    "Hervé", "Ibrahim", "Jean", "Karim", "Laurent", "Marc", "Noé", "Oscar",
+    "Philippe", "Quentin", "Rémi", "Stéphane", "Tristan",
 ]
 
+FIRST_NAMES_F = [
+    "Marie", "Sophie", "Camille", "Emma", "Léa", "Chloé", "Manon", "Sarah",
+    "Julie", "Inès", "Clara", "Aurélie", "Élodie", "Charlotte", "Anaïs",
+    "Margaux", "Pauline", "Marine", "Céline", "Nathalie", "Isabelle", "Valérie",
+    "Caroline", "Stéphanie", "Laure", "Hélène", "Diane", "Agathe", "Alice",
+    "Béatrice", "Delphine", "Émilie", "Fanny", "Gaëlle", "Juliette", "Lucie",
+    "Mélanie", "Nina", "Ophélie", "Patricia", "Rachel", "Sandrine", "Tatiana",
+    "Virginie", "Yasmine", "Zoé", "Amandine", "Clémence", "Florence", "Justine",
+]
 
-# ─── Helper functions ───────────────────────────────────────
+LAST_NAMES = [
+    "Dupont", "Martin", "Bernard", "Petit", "Robert", "Richard", "Moreau",
+    "Simon", "Laurent", "Michel", "Garcia", "David", "Bertrand", "Roux",
+    "Vincent", "Fournier", "Morel", "Girard", "André", "Lefèvre", "Mercier",
+    "Duval", "Denis", "Bonnet", "Lemaire", "Renard", "Mathieu", "Chevalier",
+    "Robin", "Gauthier", "Perrot", "Blanc", "Guérin", "Muller", "Henry",
+    "Rousseau", "Thomas", "Faure", "Brunet", "Blanchard", "Leroux", "Rivière",
+    "Collet", "Legrand", "Garnier", "Dubois", "Lambert", "Fontaine", "Roussel",
+    "Boyer", "Masson", "Marchand", "Dumont", "Picard", "Gérard", "Arnaud",
+    "Barbier", "Lecomte", "Brun", "Rey", "Noel", "Hubert", "Perrin", "Maillard",
+]
+
+ROLES = [
+    "coach", "freelance", "RH", "dev", "manager", "consultant", "designer",
+    "agent-immo", "avocat", "CTO", "CEO", "marketing", "notaire", "perso",
+    "startup", "comptable", "architecte", "medecin", "formateur", "commercial",
+    "data-analyst", "product-manager", "ops", "recruteur", "chercheur",
+]
+
 
 def uid():
     return str(uuid.uuid4())
@@ -133,49 +125,82 @@ def iso(dt):
     return dt.isoformat()
 
 
-def random_future(min_days=1, max_days=30):
-    delta = timedelta(days=random.randint(min_days, max_days),
-                      hours=random.choice([9, 10, 11, 14, 15, 16]),
-                      minutes=random.choice([0, 15, 30]))
-    return NOW + delta
+def random_future(min_d=1, max_d=45):
+    return NOW + timedelta(
+        days=random.randint(min_d, max_d),
+        hours=random.choice([8, 9, 10, 11, 14, 15, 16, 17]),
+        minutes=random.choice([0, 15, 30, 45]),
+    )
 
 
-def random_past(min_days=1, max_days=60):
-    delta = timedelta(days=random.randint(min_days, max_days),
-                      hours=random.choice([9, 10, 11, 14, 15, 16]),
-                      minutes=random.choice([0, 15, 30]))
-    return NOW - delta
+def random_past(min_d=1, max_d=90):
+    return NOW - timedelta(
+        days=random.randint(min_d, max_d),
+        hours=random.choice([8, 9, 10, 11, 14, 15, 16, 17]),
+        minutes=random.choice([0, 15, 30, 45]),
+    )
 
 
 # ─── Cleanup ────────────────────────────────────────────────
 
 def cleanup():
-    """Remove all demo-seeded documents."""
-    collections = [
-        'users', 'workspaces', 'workspace_memberships', 'calendar_connections',
-        'user_settings', 'appointments', 'participants', 'payment_guarantees',
-        'attendance_records', 'distributions', 'wallets', 'wallet_transactions',
-        'policy_snapshots', 'calendar_sync_logs',
-    ]
     total = 0
-    for coll in collections:
+    for coll in db.list_collection_names():
         r = db[coll].delete_many({"_seed_demo": True})
         if r.deleted_count:
             total += r.deleted_count
-    if total:
-        log.info(f"  Cleanup: {total} documents supprimés")
-    else:
-        log.info("  Cleanup: rien à supprimer")
+    log.info(f"  Nettoyage : {total} documents supprimés" if total else "  Rien à nettoyer")
+
+
+# ─── Generate 100+ unique user profiles ─────────────────────
+
+def generate_user_profiles(count=105):
+    """Generate unique user profiles with realistic French names."""
+    used_emails = set()
+    profiles = []
+
+    # 3 premium demo users first (fixed)
+    premiums = [
+        ("Clara", "Deschamps", "clara.deschamps@demo-nlyt.fr", "+33612900001", "demo-conflit"),
+        ("Victor", "Fontaine", "victor.fontaine@demo-nlyt.fr", "+33612900002", "demo-optimal"),
+        ("Aurélie", "Marchand", "aurelie.marchand@demo-nlyt.fr", "+33612900003", "demo-penalite"),
+    ]
+    for p in premiums:
+        profiles.append(p)
+        used_emails.add(p[2])
+
+    # Generate remaining users
+    i = 0
+    while len(profiles) < count:
+        is_female = random.random() < 0.5
+        first = random.choice(FIRST_NAMES_F if is_female else FIRST_NAMES_M)
+        last = random.choice(LAST_NAMES)
+
+        # Build unique email
+        email_base = f"{first.lower().replace('é','e').replace('è','e').replace('ë','e').replace('ê','e').replace('ï','i').replace('î','i').replace('ô','o').replace('ü','u').replace('û','u').replace('ç','c').replace('à','a').replace('â','a')}.{last.lower().replace('è','e').replace('é','e').replace('ê','e').replace('ë','e').replace('ï','i').replace('î','i').replace('ô','o').replace('ü','u').replace('û','u').replace('ç','c').replace('à','a').replace('â','a')}"
+        email = f"{email_base}@demo-nlyt.fr"
+        if email in used_emails:
+            email = f"{email_base}{random.randint(2,99)}@demo-nlyt.fr"
+            if email in used_emails:
+                continue
+        used_emails.add(email)
+
+        phone = f"+336{random.randint(10000000, 99999999)}"
+        role = random.choice(ROLES)
+        profiles.append((first, last, email, phone, role))
+        i += 1
+
+    return profiles
 
 
 # ─── Create Users ───────────────────────────────────────────
 
-def create_users():
+def create_users(profiles):
     users = []
-    for i, (first, last, email, phone, role) in enumerate(USER_PROFILES):
+    for first, last, email, phone, role in profiles:
         user_id = uid()
-        created = NOW - timedelta(days=random.randint(10, 120))
-        user = {
+        created = NOW - timedelta(days=random.randint(7, 180))
+        users.append({
             **DEMO_MARKER,
             "user_id": user_id,
             "email": email,
@@ -186,10 +211,8 @@ def create_users():
             "is_verified": True,
             "created_at": iso(created),
             "updated_at": iso(created),
-            "_demo_role": role,  # internal tag for seed logic
-        }
-        users.append(user)
-
+            "_demo_role": role,
+        })
     db.users.insert_many(users)
     log.info(f"  {len(users)} utilisateurs créés")
     return users
@@ -200,7 +223,6 @@ def create_users():
 def create_workspaces(users):
     workspaces = []
     memberships = []
-    # Each user gets a default workspace
     for u in users:
         ws_id = uid()
         ws = {
@@ -214,38 +236,36 @@ def create_workspaces(users):
             "updated_at": u["created_at"],
         }
         workspaces.append(ws)
-
-        mem = {
+        memberships.append({
             **DEMO_MARKER,
             "membership_id": uid(),
             "workspace_id": ws_id,
             "user_id": u["user_id"],
             "role": "admin",
             "joined_at": u["created_at"],
-        }
-        memberships.append(mem)
+        })
         u["_workspace_id"] = ws_id
-
     db.workspaces.insert_many(workspaces)
     db.workspace_memberships.insert_many(memberships)
-    log.info(f"  {len(workspaces)} workspaces + memberships créés")
-    return workspaces
+    log.info(f"  {len(workspaces)} workspaces créés")
 
 
 # ─── Calendar Connections ───────────────────────────────────
 
 def create_calendar_connections(users):
     connections = []
-    settings = []
+    settings_list = []
 
     for u in users:
         role = u["_demo_role"]
         user_id = u["user_id"]
-        conns_for_user = []
+        conns = []
 
-        # Google: 60% of users
-        if random.random() < 0.6 or role in ("coach", "manager", "demo-conflit", "demo-optimal"):
-            conn = {
+        force_google = role in ("coach", "manager", "demo-conflit", "demo-optimal", "formateur", "startup")
+        force_outlook = role in ("CTO", "RH", "manager", "demo-conflit", "demo-penalite", "avocat", "notaire")
+
+        if force_google or random.random() < 0.55:
+            connections.append({
                 **DEMO_MARKER,
                 "connection_id": uid(),
                 "provider": "google",
@@ -253,19 +273,17 @@ def create_calendar_connections(users):
                 "status": "connected",
                 "google_email": u["email"],
                 "google_name": f"{u['first_name']} {u['last_name']}",
-                "access_token": f"demo_google_at_{user_id[:8]}",
-                "refresh_token": f"demo_google_rt_{user_id[:8]}",
-                "connected_at": iso(NOW - timedelta(days=random.randint(5, 60))),
+                "access_token": f"demo_gat_{user_id[:8]}",
+                "refresh_token": f"demo_grt_{user_id[:8]}",
+                "connected_at": iso(NOW - timedelta(days=random.randint(3, 90))),
                 "updated_at": iso(NOW - timedelta(days=random.randint(0, 5))),
                 "calendar_timezone": "Europe/Paris",
-            }
-            connections.append(conn)
-            conns_for_user.append("google")
+            })
+            conns.append("google")
 
-        # Outlook: 40% of users
-        if random.random() < 0.4 or role in ("CTO", "RH", "manager", "demo-conflit", "demo-penalite"):
-            has_teams = role in ("CTO", "RH", "manager", "demo-conflit")
-            conn = {
+        if force_outlook or random.random() < 0.35:
+            has_teams = role in ("CTO", "RH", "manager", "demo-conflit", "ops", "CEO")
+            connections.append({
                 **DEMO_MARKER,
                 "connection_id": uid(),
                 "provider": "outlook",
@@ -273,46 +291,44 @@ def create_calendar_connections(users):
                 "status": "connected",
                 "outlook_email": u["email"],
                 "outlook_name": f"{u['first_name']} {u['last_name']}",
-                "access_token": f"demo_outlook_at_{user_id[:8]}",
-                "refresh_token": f"demo_outlook_rt_{user_id[:8]}",
-                "connected_at": iso(NOW - timedelta(days=random.randint(5, 60))),
+                "access_token": f"demo_oat_{user_id[:8]}",
+                "refresh_token": f"demo_ort_{user_id[:8]}",
+                "connected_at": iso(NOW - timedelta(days=random.randint(3, 90))),
                 "updated_at": iso(NOW - timedelta(days=random.randint(0, 5))),
                 "calendar_timezone": "Europe/Paris",
                 "has_online_meetings_scope": has_teams,
                 "scope_level": "teams_advanced" if has_teams else "calendar_base",
-            }
-            connections.append(conn)
-            conns_for_user.append("outlook")
+            })
+            conns.append("outlook")
 
-        # User settings
-        setting = {
-            **DEMO_MARKER,
-            "user_id": user_id,
-        }
-        if "google" in conns_for_user:
+        setting = {**DEMO_MARKER, "user_id": user_id}
+        if "google" in conns:
             setting["google_connected"] = True
-        if "outlook" in conns_for_user:
+        if "outlook" in conns:
             setting["teams_connected"] = True
             setting["teams_connected_at"] = iso(NOW - timedelta(days=random.randint(1, 30)))
-        if role in ("freelance", "consultant"):
+        if role in ("freelance", "consultant", "commercial"):
             setting["zoom_connected"] = True
             setting["zoom_connected_at"] = iso(NOW - timedelta(days=random.randint(1, 30)))
             setting["zoom_email"] = u["email"]
-
-        settings.append(setting)
-        u["_conns"] = conns_for_user
+        settings_list.append(setting)
+        u["_conns"] = conns
 
     if connections:
         db.calendar_connections.insert_many(connections)
-    if settings:
-        db.user_settings.insert_many(settings)
-    log.info(f"  {len(connections)} connexions calendrier + {len(settings)} user_settings créés")
+    if settings_list:
+        db.user_settings.insert_many(settings_list)
+
+    google_c = sum(1 for c in connections if c["provider"] == "google")
+    outlook_c = sum(1 for c in connections if c["provider"] == "outlook")
+    teams_c = sum(1 for c in connections if c.get("has_online_meetings_scope"))
+    no_cal = sum(1 for u in users if not u.get("_conns"))
+    log.info(f"  {len(connections)} connexions (Google:{google_c}, Outlook:{outlook_c}, Teams avancé:{teams_c}, sans calendrier:{no_cal})")
 
 
-# ─── Create Appointments ────────────────────────────────────
+# ─── Appointments + Participants ────────────────────────────
 
 def create_appointments(users):
-    """Create 45 appointments with realistic distribution."""
     user_map = {u["user_id"]: u for u in users}
     organizers = [u for u in users if u["_demo_role"] not in ("perso",)]
 
@@ -325,26 +341,25 @@ def create_appointments(users):
     all_wallets_to_create = set()
     all_wallet_txns = []
 
-    def pick_provider(organizer):
-        conns = organizer.get("_conns", [])
-        options = []
+    def pick_provider(org):
+        conns = org.get("_conns", [])
+        opts = []
         if "outlook" in conns:
-            options.append("Microsoft Teams")
+            opts.append("Microsoft Teams")
         if "google" in conns:
-            options.append("Google Meet")
-        options.append("Zoom")
-        options.append("external")
-        return random.choice(options)
+            opts.append("Google Meet")
+        opts += ["Zoom", "external"]
+        return random.choice(opts)
 
-    def pick_participants(organizer, count=None):
+    def pick_participants(org, count=None):
         if count is None:
-            count = random.choices([1, 2, 3, 4], weights=[40, 30, 20, 10])[0]
-        eligible = [u for u in users if u["user_id"] != organizer["user_id"]]
+            count = random.choices([1, 2, 3, 4, 5], weights=[25, 35, 25, 10, 5])[0]
+        eligible = [u for u in users if u["user_id"] != org["user_id"]]
         return random.sample(eligible, min(count, len(eligible)))
 
     def make_snapshot(apt):
         snap_id = uid()
-        snap = {
+        all_snapshots.append({
             **DEMO_MARKER,
             "snapshot_id": snap_id,
             "appointment_id": apt["appointment_id"],
@@ -358,64 +373,48 @@ def create_appointments(users):
                 "tolerated_delay_minutes": apt["tolerated_delay_minutes"],
                 "cancellation_deadline_hours": apt["cancellation_deadline_hours"],
                 "penalty_amount": apt["penalty_amount"],
-                "penalty_currency": apt["penalty_currency"],
+                "penalty_currency": "eur",
             },
-            "consent_language": {"fr": "En acceptant ce rendez-vous, je m'engage à respecter les conditions."},
+            "consent_language": {"fr": "En acceptant, je m'engage à respecter les conditions."},
             "created_at": apt["created_at"],
-        }
-        all_snapshots.append(snap)
+        })
         return snap_id
 
-    # ── Distribution helper ──
     def create_distribution_for_noshow(apt, participant, guarantee):
         dist_id = uid()
         capture = int(apt["penalty_amount"] * 100)
-        platform_pct = apt["platform_commission_percent"]
-        comp_pct = apt["affected_compensation_percent"]
+        plat_pct = apt["platform_commission_percent"]
         charity_pct = apt["charity_percent"]
-
-        platform_cents = int(capture * platform_pct / 100)
+        platform_cents = int(capture * plat_pct / 100)
         charity_cents = int(capture * charity_pct / 100)
         comp_cents = capture - platform_cents - charity_cents
 
         beneficiaries = []
-
-        # Platform
         if platform_cents > 0:
             beneficiaries.append({
-                "beneficiary_id": uid(),
-                "wallet_id": f"wallet_platform_demo",
-                "user_id": "__nlyt_platform__",
-                "role": "platform",
-                "amount_cents": platform_cents,
-                "status": "credited_available",
+                "beneficiary_id": uid(), "wallet_id": "wallet_platform_demo",
+                "user_id": "__nlyt_platform__", "role": "platform",
+                "amount_cents": platform_cents, "status": "credited_available",
             })
             all_wallets_to_create.add("__nlyt_platform__")
 
-        # Charity
         assoc_id = apt.get("charity_association_id")
         if charity_cents > 0 and assoc_id:
             beneficiaries.append({
-                "beneficiary_id": uid(),
-                "wallet_id": f"wallet_{assoc_id}",
-                "user_id": assoc_id,
-                "role": "charity",
-                "amount_cents": charity_cents,
-                "status": "credited_available",
+                "beneficiary_id": uid(), "wallet_id": f"wallet_{assoc_id}",
+                "user_id": assoc_id, "role": "charity",
+                "amount_cents": charity_cents, "status": "credited_available",
             })
 
-        # Compensation to organizer
         if comp_cents > 0:
             beneficiaries.append({
-                "beneficiary_id": uid(),
-                "wallet_id": f"wallet_{apt['organizer_id'][:8]}",
-                "user_id": apt["organizer_id"],
-                "role": "organizer",
-                "amount_cents": comp_cents,
-                "status": "credited_available",
+                "beneficiary_id": uid(), "wallet_id": f"wallet_{apt['organizer_id'][:8]}",
+                "user_id": apt["organizer_id"], "role": "organizer",
+                "amount_cents": comp_cents, "status": "credited_available",
             })
             all_wallets_to_create.add(apt["organizer_id"])
 
+        eval_at = apt.get("_eval_at", iso(NOW - timedelta(days=5)))
         dist = {
             **DEMO_MARKER,
             "distribution_id": dist_id,
@@ -429,81 +428,58 @@ def create_appointments(users):
             "stripe_payment_intent_id": f"pi_demo_{dist_id[:8]}",
             "status": "completed",
             "distribution_rules": {
-                "platform_commission_percent": platform_pct,
-                "affected_compensation_percent": comp_pct,
+                "platform_commission_percent": plat_pct,
+                "affected_compensation_percent": apt["affected_compensation_percent"],
                 "charity_percent": charity_pct,
             },
             "beneficiaries": beneficiaries,
             "hold_expires_at": iso(NOW - timedelta(days=1)),
-            "contested": False,
-            "contested_at": None,
-            "contested_by": None,
-            "contest_reason": None,
-            "captured_at": apt.get("_eval_at", iso(NOW - timedelta(days=5))),
-            "distributed_at": apt.get("_eval_at", iso(NOW - timedelta(days=5))),
-            "completed_at": apt.get("_eval_at", iso(NOW - timedelta(days=5))),
-            "cancelled_at": None,
-            "cancel_reason": None,
-            "created_at": apt.get("_eval_at", iso(NOW - timedelta(days=5))),
-            "updated_at": apt.get("_eval_at", iso(NOW - timedelta(days=5))),
+            "contested": False, "contested_at": None, "contested_by": None,
+            "contest_reason": None, "captured_at": eval_at, "distributed_at": eval_at,
+            "completed_at": eval_at, "cancelled_at": None, "cancel_reason": None,
+            "created_at": eval_at, "updated_at": eval_at,
         }
         all_distributions.append(dist)
-
-        # Track wallet transactions
         for b in beneficiaries:
             all_wallet_txns.append({
                 **DEMO_MARKER,
-                "transaction_id": uid(),
-                "wallet_id": b["wallet_id"],
-                "type": "credit_available",
-                "amount": b["amount_cents"],
-                "currency": "eur",
-                "reference_type": "distribution",
+                "transaction_id": uid(), "wallet_id": b["wallet_id"],
+                "type": "credit_available", "amount": b["amount_cents"],
+                "currency": "eur", "reference_type": "distribution",
                 "reference_id": dist_id,
                 "description": f"Distribution — {apt['title']}",
-                "created_at": dist["created_at"],
+                "created_at": eval_at,
             })
 
-    # ───────────────────────────────────────────────────────
-    # Generate appointments in categories
-    # ───────────────────────────────────────────────────────
-
-    def make_appointment(organizer, title, start_dt, status, apt_type, provider,
-                         penalty, charity_pct=0, assoc_id=None, assoc_name=None,
-                         participants_data=None, extra_fields=None):
+    def make_apt(org, title, start_dt, status, apt_type, provider, penalty,
+                 charity_pct=0, assoc_id=None, assoc_name=None,
+                 part_users=None, extra=None):
         apt_id = uid()
-        loc = None
-        loc_display = None
-        lat = lng = None
-
+        loc = loc_disp = lat = lng = None
         if apt_type == "physical":
-            loc_data = random.choice(LOCATIONS)
-            loc, loc_display, lat, lng = loc_data
+            l = random.choice(LOCATIONS)
+            loc, loc_disp, lat, lng = l
 
-        created = start_dt - timedelta(days=random.randint(3, 14))
-        tolerated = random.choice([5, 10, 15, 20])
-        cancel_deadline = random.choice([6, 12, 24, 48])
-        comp_pct = round(100 - 20 - charity_pct, 1)  # platform=20% fixed
-        duration = random.choice([30, 45, 60, 90])
+        created = start_dt - timedelta(days=random.randint(2, 14))
+        comp_pct = round(100 - 20 - charity_pct, 1)
+        duration = random.choice([30, 45, 60, 90, 120])
 
         apt = {
             **DEMO_MARKER,
             "appointment_id": apt_id,
-            "workspace_id": organizer["_workspace_id"],
-            "organizer_id": organizer["user_id"],
+            "workspace_id": org["_workspace_id"],
+            "organizer_id": org["user_id"],
             "title": title,
             "appointment_type": apt_type,
-            "location": loc,
-            "location_display_name": loc_display,
+            "location": loc, "location_display_name": loc_disp,
             "location_geocoded": loc is not None,
-            "location_latitude": lat,
-            "location_longitude": lng,
+            "location_latitude": lat, "location_longitude": lng,
             "meeting_provider": provider if apt_type == "video" else "",
             "start_datetime": iso(start_dt),
             "appointment_timezone": "Europe/Paris",
             "duration_minutes": duration,
-            "tolerated_delay_minutes": tolerated,
-            "cancellation_deadline_hours": cancel_deadline,
+            "tolerated_delay_minutes": random.choice([5, 10, 15, 20]),
+            "cancellation_deadline_hours": random.choice([6, 12, 24, 48]),
             "penalty_amount": penalty,
             "penalty_currency": "eur",
             "affected_compensation_percent": comp_pct,
@@ -512,322 +488,223 @@ def create_appointments(users):
             "charity_association_id": assoc_id,
             "charity_association_name": assoc_name,
             "policy_template_id": None,
-            "event_reminders": {
-                "ten_minutes_before": True,
-                "one_hour_before": True,
-                "one_day_before": True,
-            },
+            "event_reminders": {"ten_minutes_before": True, "one_hour_before": True, "one_day_before": True},
             "event_reminders_sent": {},
             "status": status,
-            "created_at": iso(created),
-            "updated_at": iso(created),
+            "created_at": iso(created), "updated_at": iso(created),
         }
-        if extra_fields:
-            apt.update(extra_fields)
-
-        snap_id = make_snapshot(apt)
-        apt["policy_snapshot_id"] = snap_id
+        if extra:
+            apt.update(extra)
+        apt["policy_snapshot_id"] = make_snapshot(apt)
         appointments.append(apt)
 
-        # Create participants
-        parts_list = participants_data or pick_participants(organizer)
-        for p_user in parts_list:
+        # Participants
+        p_users = part_users or pick_participants(org)
+        for pu in p_users:
             p_id = uid()
             token = uid()
-            p_status = "invited"
-            p_extra = {}
-
-            if status == "active":
-                if isinstance(p_user, dict) and p_user.get("_force_status"):
-                    p_status = p_user["_force_status"]
-                elif start_dt < NOW:
-                    # Past appointment
-                    p_status = random.choices(
-                        ["accepted_guaranteed", "accepted_pending_guarantee", "cancelled_by_participant"],
-                        weights=[60, 20, 20]
-                    )[0]
-                else:
-                    # Future appointment
-                    p_status = random.choices(
-                        ["accepted_guaranteed", "accepted_pending_guarantee", "invited"],
-                        weights=[50, 25, 25]
-                    )[0]
+            if status == "active" and start_dt < NOW:
+                p_status = random.choices(
+                    ["accepted_guaranteed", "accepted_pending_guarantee", "cancelled_by_participant"],
+                    weights=[55, 25, 20])[0]
+            elif status == "active":
+                p_status = random.choices(
+                    ["accepted_guaranteed", "accepted_pending_guarantee", "invited"],
+                    weights=[45, 30, 25])[0]
             elif status == "cancelled":
                 p_status = random.choice(["invited", "accepted_pending_guarantee", "cancelled_by_participant"])
-
-            p_email = p_user["email"] if isinstance(p_user, dict) else p_user.get("email", "unknown@demo.fr")
-            p_first = p_user.get("first_name", "Unknown") if isinstance(p_user, dict) else "Unknown"
-            p_last = p_user.get("last_name", "") if isinstance(p_user, dict) else ""
-            p_user_id = p_user.get("user_id") if isinstance(p_user, dict) else None
+            else:
+                p_status = "invited"
 
             part = {
                 **DEMO_MARKER,
-                "participant_id": p_id,
-                "appointment_id": apt_id,
-                "email": p_email,
-                "first_name": p_first,
-                "last_name": p_last,
-                "name": "",
-                "role": "participant",
-                "status": p_status,
-                "invitation_token": token,
-                "user_id": p_user_id,
-                "invited_at": iso(created),
-                "created_at": iso(created),
+                "participant_id": p_id, "appointment_id": apt_id,
+                "email": pu["email"], "first_name": pu["first_name"],
+                "last_name": pu["last_name"], "name": "", "role": "participant",
+                "status": p_status, "invitation_token": token,
+                "user_id": pu.get("user_id"),
+                "invited_at": iso(created), "created_at": iso(created),
                 "updated_at": iso(created),
-                **p_extra,
             }
 
             if p_status in ("accepted_guaranteed", "accepted_pending_guarantee"):
-                part["accept_initiated_at"] = iso(created + timedelta(hours=random.randint(1, 24)))
+                part["accept_initiated_at"] = iso(created + timedelta(hours=random.randint(1, 48)))
 
             if p_status == "accepted_guaranteed":
                 g_id = uid()
                 part["guarantee_id"] = g_id
-                part["guaranteed_at"] = iso(created + timedelta(hours=random.randint(2, 48)))
-                guarantee = {
+                part["guaranteed_at"] = iso(created + timedelta(hours=random.randint(2, 72)))
+                g = {
                     **DEMO_MARKER,
-                    "guarantee_id": g_id,
-                    "participant_id": p_id,
-                    "appointment_id": apt_id,
-                    "invitation_token": token,
+                    "guarantee_id": g_id, "participant_id": p_id,
+                    "appointment_id": apt_id, "invitation_token": token,
                     "stripe_customer_id": f"cus_demo_{p_id[:8]}",
                     "stripe_session_id": f"cs_demo_{g_id[:8]}",
                     "stripe_setup_intent_id": None,
                     "stripe_payment_method_id": f"pm_demo_{g_id[:8]}",
-                    "penalty_amount": penalty,
-                    "penalty_currency": "eur",
-                    "status": "completed",
-                    "dev_mode": True,
+                    "penalty_amount": penalty, "penalty_currency": "eur",
+                    "status": "completed", "dev_mode": True,
                     "created_at": part["accept_initiated_at"],
                     "updated_at": part["guaranteed_at"],
                     "completed_at": part["guaranteed_at"],
                 }
-                all_guarantees.append(guarantee)
-                part["_guarantee_doc"] = guarantee
+                all_guarantees.append(g)
+                part["_guarantee_doc"] = g
 
             all_participants.append(part)
 
         return apt
 
-    # ───────────────────────────────────────────────────────
-    # CATEGORY 1: Future active appointments (15)
-    # ───────────────────────────────────────────────────────
-    log.info("  Generating future active appointments...")
-    for i in range(15):
+    # ─── CATEGORY 1: Future active (50) ───────────────────
+    log.info("    Futurs actifs (50)...")
+    for _ in range(50):
         org = random.choice(organizers)
-        title = random.choice(APPOINTMENT_TITLES)
-        start = random_future(1, 28)
-        apt_type = random.choices(["video", "physical"], weights=[70, 30])[0]
-        provider = pick_provider(org) if apt_type == "video" else ""
-        penalty = random.choice([10, 20, 30, 50, 75, 100])
-        charity_pct = random.choices([0, 0, 0, 10, 15, 20, 30], weights=[40, 10, 10, 15, 10, 10, 5])[0]
-        assoc = random.choice(CHARITY_ASSOCIATIONS) if charity_pct > 0 else (None, None)
-        make_appointment(org, title, start, "active", apt_type, provider, penalty,
-                         charity_pct, assoc[0], assoc[1])
+        t = random.choice(APPOINTMENT_TITLES)
+        s = random_future(1, 40)
+        at = random.choices(["video", "physical"], weights=[70, 30])[0]
+        prov = pick_provider(org) if at == "video" else ""
+        pen = random.choice([10, 15, 20, 25, 30, 40, 50, 75, 100])
+        cp = random.choices([0, 0, 0, 5, 10, 15, 20, 25, 30], weights=[30, 10, 5, 5, 15, 15, 10, 5, 5])[0]
+        a = random.choice(CHARITY_ASSOCIATIONS) if cp > 0 else (None, None)
+        make_apt(org, t, s, "active", at, prov, pen, cp, a[0], a[1])
 
-    # ───────────────────────────────────────────────────────
-    # CATEGORY 2: Past completed (attendance evaluated) (15)
-    # ───────────────────────────────────────────────────────
-    log.info("  Generating past completed appointments...")
-    for i in range(15):
+    # ─── CATEGORY 2: Past evaluated (60) ──────────────────
+    log.info("    Passés évalués (60)...")
+    for _ in range(60):
         org = random.choice(organizers)
-        title = random.choice(APPOINTMENT_TITLES)
-        start = random_past(2, 45)
-        apt_type = random.choices(["video", "physical"], weights=[70, 30])[0]
-        provider = pick_provider(org) if apt_type == "video" else ""
-        penalty = random.choice([20, 30, 50, 75, 100])
-        charity_pct = random.choices([0, 0, 10, 15, 20], weights=[40, 20, 15, 15, 10])[0]
-        assoc = random.choice(CHARITY_ASSOCIATIONS) if charity_pct > 0 else (None, None)
+        t = random.choice(APPOINTMENT_TITLES)
+        s = random_past(2, 75)
+        at = random.choices(["video", "physical"], weights=[70, 30])[0]
+        prov = pick_provider(org) if at == "video" else ""
+        pen = random.choice([15, 20, 25, 30, 50, 75, 100])
+        cp = random.choices([0, 0, 10, 15, 20, 25], weights=[35, 20, 15, 15, 10, 5])[0]
+        a = random.choice(CHARITY_ASSOCIATIONS) if cp > 0 else (None, None)
 
-        apt = make_appointment(org, title, start, "active", apt_type, provider, penalty,
-                               charity_pct, assoc[0], assoc[1],
-                               extra_fields={
-                                   "attendance_evaluated": True,
-                                   "attendance_evaluated_at": iso(start + timedelta(hours=2)),
-                               })
-        apt["_eval_at"] = iso(start + timedelta(hours=2))
+        apt = make_apt(org, t, s, "active", at, prov, pen, cp, a[0], a[1],
+                       extra={"attendance_evaluated": True,
+                              "attendance_evaluated_at": iso(s + timedelta(hours=2))})
+        apt["_eval_at"] = iso(s + timedelta(hours=2))
 
-        # Generate attendance records for participants
-        apt_parts = [p for p in all_participants if p["appointment_id"] == apt["appointment_id"]]
+        # Attendance
+        parts = [p for p in all_participants
+                 if p["appointment_id"] == apt["appointment_id"]
+                 and p["status"] == "accepted_guaranteed"]
         summary = {"on_time": 0, "late": 0, "no_show": 0, "waived": 0, "manual_review": 0}
-
-        for p in apt_parts:
-            if p["status"] != "accepted_guaranteed":
-                continue
-            outcome = random.choices(
-                ["on_time", "late", "no_show"],
-                weights=[60, 25, 15]
-            )[0]
+        for p in parts:
+            outcome = random.choices(["on_time", "late", "no_show"], weights=[60, 25, 15])[0]
             summary[outcome] += 1
-
-            record = {
+            all_attendance.append({
                 **DEMO_MARKER,
-                "record_id": uid(),
-                "appointment_id": apt["appointment_id"],
+                "record_id": uid(), "appointment_id": apt["appointment_id"],
                 "participant_id": p["participant_id"],
                 "participant_email": p["email"],
                 "participant_name": f"{p['first_name']} {p['last_name']}",
-                "outcome": outcome,
-                "confidence": "high",
-                "decided_at": iso(start + timedelta(hours=1, minutes=30)),
+                "outcome": outcome, "confidence": "high",
+                "decided_at": iso(s + timedelta(hours=1, minutes=30)),
                 "decided_by": org["user_id"],
-                "decision_basis": "organizer_manual",
+                "decision_basis": random.choice(["organizer_manual", "auto_video", "auto_checkin"]),
                 "auto_capture_enabled": outcome == "no_show",
                 "review_required": False,
-            }
-            all_attendance.append(record)
-
-            # Create distribution for no-shows
+            })
             if outcome == "no_show" and p.get("_guarantee_doc"):
                 create_distribution_for_noshow(apt, p, p["_guarantee_doc"])
 
         apt["attendance_summary"] = summary
 
-    # ───────────────────────────────────────────────────────
-    # CATEGORY 3: Cancelled appointments (5)
-    # ───────────────────────────────────────────────────────
-    log.info("  Generating cancelled appointments...")
-    for i in range(5):
+    # ─── CATEGORY 3: Cancelled (15) ──────────────────────
+    log.info("    Annulés (15)...")
+    for _ in range(15):
         org = random.choice(organizers)
-        title = random.choice(APPOINTMENT_TITLES)
-        start = random_future(3, 20)
-        cancel_time = NOW - timedelta(days=random.randint(1, 5))
-        apt_type = random.choices(["video", "physical"], weights=[70, 30])[0]
-        provider = pick_provider(org) if apt_type == "video" else ""
-        penalty = random.choice([20, 50])
+        t = random.choice(APPOINTMENT_TITLES)
+        s = random_future(2, 25)
+        cancel_dt = NOW - timedelta(days=random.randint(0, 7))
+        at = random.choices(["video", "physical"], weights=[70, 30])[0]
+        prov = pick_provider(org) if at == "video" else ""
+        pen = random.choice([20, 30, 50])
+        make_apt(org, t, s, "cancelled", at, prov, pen,
+                 extra={"cancelled_at": iso(cancel_dt),
+                        "cancelled_by": random.choice([org["user_id"], "participant"])})
 
-        make_appointment(org, title, start, "cancelled", apt_type, provider, penalty,
-                         extra_fields={
-                             "cancelled_at": iso(cancel_time),
-                             "cancelled_by": random.choice([org["user_id"], "participant"]),
-                         })
-
-    # ───────────────────────────────────────────────────────
-    # CATEGORY 4: Pending organizer guarantee (3)
-    # ───────────────────────────────────────────────────────
-    log.info("  Generating pending organizer guarantee appointments...")
-    for i in range(3):
+    # ─── CATEGORY 4: Pending organizer guarantee (8) ─────
+    log.info("    En attente de garantie organisateur (8)...")
+    for _ in range(8):
         org = random.choice(organizers)
-        title = random.choice(APPOINTMENT_TITLES)
-        start = random_future(5, 20)
-        apt_type = "video"
-        provider = pick_provider(org)
-        penalty = random.choice([30, 50, 100])
+        t = random.choice(APPOINTMENT_TITLES)
+        s = random_future(5, 25)
+        at = "video"
+        prov = pick_provider(org)
+        pen = random.choice([25, 50, 75, 100])
+        make_apt(org, t, s, "pending_organizer_guarantee", at, prov, pen)
 
-        make_appointment(org, title, start, "pending_organizer_guarantee",
-                         apt_type, provider, penalty)
-
-    # ───────────────────────────────────────────────────────
-    # PREMIUM DEMO 1: Clara — Conflit clair
-    # ───────────────────────────────────────────────────────
-    log.info("  Generating premium demo: Clara (conflit)...")
+    # ─── PREMIUM 1: Clara — Conflit clair ────────────────
+    log.info("    Premium: Clara (conflit)...")
     clara = next(u for u in users if u["_demo_role"] == "demo-conflit")
-    # Two overlapping appointments
-    conflict_time = random_future(3, 7)
-    conflict_time = conflict_time.replace(hour=14, minute=0)
+    ct = random_future(3, 7).replace(hour=14, minute=0)
+    make_apt(clara, "Coaching client VIP — session mensuelle", ct,
+             "active", "video", "Microsoft Teams", 75, 15,
+             "assoc_croix_rouge", "Croix-Rouge française")
+    make_apt(clara, "Point hebdomadaire équipe projet", ct + timedelta(minutes=15),
+             "active", "video", "Google Meet", 50, 10,
+             "assoc_restos_coeur", "Les Restos du Cœur")
 
-    make_appointment(clara, "Coaching client VIP — session mensuelle", conflict_time,
-                     "active", "video", "Microsoft Teams", 75, 15,
-                     "assoc_croix_rouge", "Croix-Rouge française")
-
-    make_appointment(clara, "Point hebdomadaire équipe projet", conflict_time + timedelta(minutes=15),
-                     "active", "video", "Google Meet", 50, 10,
-                     "assoc_restos_coeur", "Les Restos du Cœur")
-
-    # ───────────────────────────────────────────────────────
-    # PREMIUM DEMO 2: Victor — Suggestion optimale
-    # ───────────────────────────────────────────────────────
-    log.info("  Generating premium demo: Victor (suggestion optimale)...")
+    # ─── PREMIUM 2: Victor — Créneau optimal ────────────
+    log.info("    Premium: Victor (suggestion optimale)...")
     victor = next(u for u in users if u["_demo_role"] == "demo-optimal")
-    # One appointment at 10h, one at 14h → clear slot at 11h-13h
-    opt_day = random_future(4, 8)
-    opt_day = opt_day.replace(hour=10, minute=0)
+    vt = random_future(4, 8).replace(hour=10, minute=0)
+    make_apt(victor, "Stand-up daily engineering", vt,
+             "active", "video", "Google Meet", 30)
+    make_apt(victor, "Démo produit pour investisseur", vt.replace(hour=14),
+             "active", "video", "Zoom", 100, 20,
+             "assoc_unicef", "UNICEF France")
 
-    make_appointment(victor, "Stand-up daily engineering", opt_day,
-                     "active", "video", "Google Meet", 30)
-
-    make_appointment(victor, "Démo produit pour investisseur", opt_day.replace(hour=14),
-                     "active", "video", "Zoom", 100, 20,
-                     "assoc_unicef", "UNICEF France")
-
-    # ───────────────────────────────────────────────────────
-    # PREMIUM DEMO 3: Aurélie — Pénalité appliquée
-    # ───────────────────────────────────────────────────────
-    log.info("  Generating premium demo: Aurélie (pénalité)...")
+    # ─── PREMIUM 3: Aurélie — Pénalité appliquée ────────
+    log.info("    Premium: Aurélie (pénalité)...")
     aurelie = next(u for u in users if u["_demo_role"] == "demo-penalite")
-    penalty_time = random_past(5, 12)
-
-    apt_penalite = make_appointment(
-        aurelie,
-        "Consultation stratégique — client premium",
-        penalty_time,
-        "active",
-        "video",
-        "Microsoft Teams",
-        100,
-        25,
-        "assoc_medecins_sans_frontieres",
-        "Médecins Sans Frontières",
-        extra_fields={
-            "attendance_evaluated": True,
-            "attendance_evaluated_at": iso(penalty_time + timedelta(hours=2)),
-        },
-    )
-    apt_penalite["_eval_at"] = iso(penalty_time + timedelta(hours=2))
-
-    # Force one no-show participant
-    noshow_parts = [p for p in all_participants
-                    if p["appointment_id"] == apt_penalite["appointment_id"]
-                    and p["status"] == "accepted_guaranteed"]
-
-    if noshow_parts:
-        ns_part = noshow_parts[0]
-        record = {
+    pt = random_past(5, 15)
+    apt_p = make_apt(aurelie, "Consultation stratégique — client premium", pt,
+                     "active", "video", "Microsoft Teams", 100, 25,
+                     "assoc_medecins_sans_frontieres", "Médecins Sans Frontières",
+                     extra={"attendance_evaluated": True,
+                            "attendance_evaluated_at": iso(pt + timedelta(hours=2))})
+    apt_p["_eval_at"] = iso(pt + timedelta(hours=2))
+    ns_parts = [p for p in all_participants
+                if p["appointment_id"] == apt_p["appointment_id"]
+                and p["status"] == "accepted_guaranteed"]
+    if ns_parts:
+        ns = ns_parts[0]
+        all_attendance.append({
             **DEMO_MARKER,
-            "record_id": uid(),
-            "appointment_id": apt_penalite["appointment_id"],
-            "participant_id": ns_part["participant_id"],
-            "participant_email": ns_part["email"],
-            "participant_name": f"{ns_part['first_name']} {ns_part['last_name']}",
-            "outcome": "no_show",
-            "confidence": "high",
-            "decided_at": iso(penalty_time + timedelta(hours=1, minutes=30)),
+            "record_id": uid(), "appointment_id": apt_p["appointment_id"],
+            "participant_id": ns["participant_id"],
+            "participant_email": ns["email"],
+            "participant_name": f"{ns['first_name']} {ns['last_name']}",
+            "outcome": "no_show", "confidence": "high",
+            "decided_at": iso(pt + timedelta(hours=1, minutes=30)),
             "decided_by": aurelie["user_id"],
             "decision_basis": "organizer_manual",
-            "auto_capture_enabled": True,
-            "review_required": False,
-        }
-        all_attendance.append(record)
-        if ns_part.get("_guarantee_doc"):
-            create_distribution_for_noshow(apt_penalite, ns_part, ns_part["_guarantee_doc"])
+            "auto_capture_enabled": True, "review_required": False,
+        })
+        if ns.get("_guarantee_doc"):
+            create_distribution_for_noshow(apt_p, ns, ns["_guarantee_doc"])
+        apt_p["attendance_summary"] = {"on_time": max(0, len(ns_parts) - 1), "late": 0, "no_show": 1, "waived": 0, "manual_review": 0}
 
-        apt_penalite["attendance_summary"] = {"on_time": max(0, len(noshow_parts) - 1), "late": 0, "no_show": 1, "waived": 0, "manual_review": 0}
+    # ─── CATEGORY 5: Buffer warning (4) ─────────────────
+    log.info("    Buffer warning (4)...")
+    for _ in range(2):
+        borg = random.choice(organizers)
+        bt = random_future(4, 12).replace(hour=15, minute=0)
+        make_apt(borg, "Formation continue — module avancé", bt,
+                 "active", "video", pick_provider(borg), 50)
+        make_apt(borg, "Débrief formation avec RH", bt + timedelta(minutes=50),
+                 "active", "video", pick_provider(borg), 30)
 
-    # ───────────────────────────────────────────────────────
-    # CATEGORY 5: Buffer warning appointments (2)
-    # ───────────────────────────────────────────────────────
-    log.info("  Generating buffer warning appointments...")
-    buffer_org = random.choice(organizers)
-    buffer_time = random_future(5, 10).replace(hour=15, minute=0)
+    # ─── INSERT ──────────────────────────────────────────
+    for p in all_participants:
+        p.pop("_guarantee_doc", None)
 
-    make_appointment(buffer_org, "Formation continue — module 3", buffer_time,
-                     "active", "video", pick_provider(buffer_org), 50)
-    # Second one starts 20 min after the first ends (tight buffer)
-    make_appointment(buffer_org, "Débrief formation avec RH",
-                     buffer_time + timedelta(minutes=50),  # 50 min after start of 45-min meeting = 5 min gap
-                     "active", "video", pick_provider(buffer_org), 30)
-
-    # ───────────────────────────────────────────────────────
-    # INSERT EVERYTHING
-    # ───────────────────────────────────────────────────────
     if appointments:
         db.appointments.insert_many(appointments)
     if all_participants:
-        # Clean internal helper fields
-        for p in all_participants:
-            p.pop("_guarantee_doc", None)
-            p.pop("_force_status", None)
         db.participants.insert_many(all_participants)
     if all_guarantees:
         db.payment_guarantees.insert_many(all_guarantees)
@@ -838,122 +715,97 @@ def create_appointments(users):
     if all_distributions:
         db.distributions.insert_many(all_distributions)
 
-    log.info(f"  {len(appointments)} rendez-vous créés")
-    log.info(f"  {len(all_participants)} participants créés")
-    log.info(f"  {len(all_guarantees)} garanties créées")
-    log.info(f"  {len(all_attendance)} records de présence créés")
-    log.info(f"  {len(all_distributions)} distributions créées")
+    log.info(f"  {len(appointments)} rendez-vous")
+    log.info(f"  {len(all_participants)} participants")
+    log.info(f"  {len(all_guarantees)} garanties")
+    log.info(f"  {len(all_attendance)} records de présence")
+    log.info(f"  {len(all_distributions)} distributions")
 
     return appointments, all_wallets_to_create, all_wallet_txns
 
 
-# ─── Create Wallets ─────────────────────────────────────────
+# ─── Wallets ────────────────────────────────────────────────
 
 def create_wallets(users, wallets_needed, wallet_txns):
     wallets = []
-    # Platform wallet
+    txn_by_wallet = {}
+    for tx in wallet_txns:
+        txn_by_wallet.setdefault(tx["wallet_id"], []).append(tx)
+
     if "__nlyt_platform__" in wallets_needed:
+        total = sum(tx["amount"] for tx in txn_by_wallet.get("wallet_platform_demo", []))
         wallets.append({
             **DEMO_MARKER,
-            "wallet_id": "wallet_platform_demo",
-            "user_id": "__nlyt_platform__",
-            "wallet_type": "platform",
-            "available_balance": 0,
-            "pending_balance": 0,
-            "currency": "eur",
-            "total_received": 0,
-            "total_withdrawn": 0,
-            "created_at": iso(NOW - timedelta(days=60)),
-            "updated_at": iso(NOW),
+            "wallet_id": "wallet_platform_demo", "user_id": "__nlyt_platform__",
+            "wallet_type": "platform", "available_balance": total, "pending_balance": 0,
+            "currency": "eur", "total_received": total, "total_withdrawn": 0,
+            "created_at": iso(NOW - timedelta(days=90)), "updated_at": iso(NOW),
         })
 
-    # User wallets
     for u in users:
         w_id = f"wallet_{u['user_id'][:8]}"
-        total_received = 0
-        # Check if this user has any distributions as beneficiary
-        if u["user_id"] in wallets_needed:
-            for tx in wallet_txns:
-                if tx["wallet_id"] == w_id:
-                    total_received += tx["amount"]
-
+        total = sum(tx["amount"] for tx in txn_by_wallet.get(w_id, []))
+        connect_active = random.random() < 0.65
         wallets.append({
             **DEMO_MARKER,
-            "wallet_id": w_id,
-            "user_id": u["user_id"],
-            "wallet_type": "user",
-            "available_balance": total_received,
-            "pending_balance": 0,
+            "wallet_id": w_id, "user_id": u["user_id"],
+            "wallet_type": "user", "available_balance": total, "pending_balance": 0,
             "currency": "eur",
             "stripe_connect_account_id": f"acct_demo_{u['user_id'][:8]}",
-            "stripe_connect_status": random.choices(["active", "not_started"], weights=[70, 30])[0],
-            "total_received": total_received,
-            "total_withdrawn": 0,
-            "created_at": u["created_at"],
-            "updated_at": iso(NOW),
+            "stripe_connect_status": "active" if connect_active else "not_started",
+            "total_received": total, "total_withdrawn": 0,
+            "created_at": u["created_at"], "updated_at": iso(NOW),
         })
-
-    # Compute platform wallet balance
-    platform_total = sum(tx["amount"] for tx in wallet_txns if tx["wallet_id"] == "wallet_platform_demo")
-    for w in wallets:
-        if w["user_id"] == "__nlyt_platform__":
-            w["available_balance"] = platform_total
-            w["total_received"] = platform_total
 
     if wallets:
         db.wallets.insert_many(wallets)
     if wallet_txns:
         db.wallet_transactions.insert_many(wallet_txns)
-    log.info(f"  {len(wallets)} wallets + {len(wallet_txns)} transactions créés")
-
-
-# ─── Refresh Impact Stats ──────────────────────────────────
-
-def refresh_stats():
-    from services.distribution_service import refresh_impact_stats
-    stats = refresh_impact_stats()
-    log.info(f"  Impact stats: {stats['total_charity_cents']}c fléchés, "
-             f"{len(stats['associations'])} associations, "
-             f"{stats['distributions_count']} distributions")
+    log.info(f"  {len(wallets)} wallets, {len(wallet_txns)} transactions")
 
 
 # ─── Main ───────────────────────────────────────────────────
 
 def main():
     log.info("=" * 60)
-    log.info("NLYT Demo Seed — Preview Environment")
+    log.info("NLYT Demo Seed V2 — 100+ utilisateurs")
     log.info("=" * 60)
 
-    log.info("\n[1/8] Nettoyage des données de démo existantes...")
+    log.info("\n[1/7] Nettoyage...")
     cleanup()
 
-    log.info("\n[2/8] Création des utilisateurs...")
-    users = create_users()
+    log.info("\n[2/7] Utilisateurs...")
+    profiles = generate_user_profiles(105)
+    users = create_users(profiles)
 
-    log.info("\n[3/8] Création des workspaces...")
+    log.info("\n[3/7] Workspaces...")
     create_workspaces(users)
 
-    log.info("\n[4/8] Connexions calendrier...")
+    log.info("\n[4/7] Connexions calendrier...")
     create_calendar_connections(users)
 
-    log.info("\n[5/8] Création des rendez-vous + participants...")
-    appointments, wallets_needed, wallet_txns = create_appointments(users)
+    log.info("\n[5/7] Rendez-vous + participants + présence + distributions...")
+    apts, wallets_needed, wallet_txns = create_appointments(users)
 
-    log.info("\n[6/8] Wallets et transactions...")
+    log.info("\n[6/7] Wallets...")
     create_wallets(users, wallets_needed, wallet_txns)
 
-    log.info("\n[7/8] Refresh des stats d'impact...")
-    refresh_stats()
+    log.info("\n[7/7] Refresh stats impact...")
+    from services.distribution_service import refresh_impact_stats
+    stats = refresh_impact_stats()
+    log.info(f"  Impact: {stats['total_charity_cents']/100:.0f}€ fléchés, "
+             f"{len(stats['associations'])} associations, "
+             f"{stats['distributions_count']} distributions")
 
-    log.info("\n[8/8] Résumé")
-    log.info("─" * 60)
-    log.info(f"  Mot de passe commun : {DEMO_PASSWORD}")
-    log.info(f"  Utilisateurs premium :")
-    log.info(f"    Clara Deschamps  → clara.deschamps@demo-nlyt.fr  (conflit)")
-    log.info(f"    Victor Fontaine  → victor.fontaine@demo-nlyt.fr  (suggestion)")
-    log.info(f"    Aurélie Marchand → aurelie.marchand@demo-nlyt.fr (pénalité)")
-    log.info("─" * 60)
-    log.info("Seed terminé avec succès.")
+    log.info("\n" + "=" * 60)
+    log.info("SEED TERMINÉ")
+    log.info(f"  Mot de passe : {DEMO_PASSWORD}")
+    log.info(f"  Utilisateurs : {len(users)}")
+    log.info(f"  Premium :")
+    log.info(f"    clara.deschamps@demo-nlyt.fr   (conflit)")
+    log.info(f"    victor.fontaine@demo-nlyt.fr    (suggestion)")
+    log.info(f"    aurelie.marchand@demo-nlyt.fr   (pénalité)")
+    log.info("=" * 60)
 
 
 if __name__ == "__main__":
