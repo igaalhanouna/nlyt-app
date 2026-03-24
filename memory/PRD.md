@@ -184,6 +184,23 @@ Les APIs calendrier (Google/Outlook) interprétaient la valeur comme heure local
 - **Fix noms associations** : `refresh_impact_stats()` utilise le fallback sur la liste statique `VALIDATED_ASSOCIATIONS`
 - Tests : 21/21 backend + 7/7 frontend (testing agent iteration_68)
 
+## Dataset de Démonstration (Mars 2026)
+- **Script** : `/app/backend/scripts/seed_demo.py` — idempotent (clean + insert)
+- **Marqueur** : `_seed_demo: true` sur tous les documents pour nettoyage ciblé
+- **Mot de passe commun** : `Demo2026!`
+- **23 utilisateurs** : profiles variés (coach, freelance, RH, CTO, notaire, startup...)
+- **34 connexions calendrier** : Google (17), Outlook (17), dont 5 avec Teams avancé
+- **45 rendez-vous** : 15 futurs actifs, 15 passés évalués, 5 annulés, 3 pending, 2 buffer warning, 5 premium
+- **Providers** : Teams (8), Meet (6), Zoom (12), externe (7), physique (12)
+- **101 participants** : guaranteed (45), pending (25), invited (19), cancelled (12)
+- **Présence** : on_time (12), late (7), no_show (4)
+- **4 distributions** avec 3 associations caritatives → 52€ fléchés
+- **24 wallets** + 12 transactions
+- **3 utilisateurs premium** :
+  - `clara.deschamps@demo-nlyt.fr` — 2 RDV en conflit (28 mars 14h00/14h15, Teams vs Meet)
+  - `victor.fontaine@demo-nlyt.fr` — créneau optimal entre 10h et 14h
+  - `aurelie.marchand@demo-nlyt.fr` — pénalité appliquée (100€, MSF)
+
 ## Roadmap
 
 ### P1
