@@ -127,6 +127,18 @@ Les APIs calendrier (Google/Outlook) interprétaient la valeur comme heure local
 - `perform_auto_update` : déjà multi-provider (met à jour tous les sync_logs existants) — inchangé
 - Tests : 74/74 régression OK
 
+## Auto-update Calendar V2 — Retry automatique (Mars 2026)
+- **Service** : `services/calendar_retry_service.py`
+- **Backoff exponentiel** : 2min → 5min → 15min → 60min (max 4 tentatives)
+- **Statuts sync_log** : `synced` → (échec) → `retry_pending` → `synced` ou `permanently_failed`
+- **Scheduler** : job toutes les 2 minutes (`calendar_retry_job`) scanne les `retry_pending` dont `next_retry_at` est passé
+- **perform_auto_sync** (création) : en cas d'échec, programme le premier retry au lieu de rester `failed`
+- **perform_auto_update** (mise à jour) : en cas d'échec, programme un retry au lieu de marquer `out_of_sync`
+- **Endpoint sync status** : enrichi avec `retry_pending`, `retry_count`, `max_retries_reached`
+- **Sync manuelle** : détecte les logs `retry_pending`/`permanently_failed` pour re-sync
+- **Sécurités** : skip les RDV annulés/supprimés, skip les connexions déconnectées (mais retry quand même)
+- Tests : 12/12 (backoff, schedule_retry, job, intégration) + 86/86 régression OK
+
 ## Roadmap
 
 ### P1

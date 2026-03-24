@@ -81,6 +81,15 @@ async def proposal_expiration_job():
         logger.error(f"[SCHEDULER] Proposal expiration job failed: {str(e)}")
 
 
+async def calendar_retry_job():
+    """Job to retry failed/out_of_sync calendar sync operations with exponential backoff"""
+    try:
+        from services.calendar_retry_service import run_calendar_retry_job
+        run_calendar_retry_job()
+    except Exception as e:
+        logger.error(f"[SCHEDULER] Calendar retry job failed: {str(e)}")
+
+
 def start_scheduler():
     """Start the background scheduler"""
     # Job 1: Cancellation deadline reminders (every 5 minutes)
@@ -146,6 +155,15 @@ def start_scheduler():
         replace_existing=True
     )
 
+    # Job 8: Calendar sync retry with exponential backoff (every 2 minutes)
+    scheduler.add_job(
+        calendar_retry_job,
+        trigger=IntervalTrigger(minutes=2),
+        id='calendar_retry_job',
+        name='Retry failed calendar sync operations (exponential backoff)',
+        replace_existing=True
+    )
+
     scheduler.start()
     logger.info("[SCHEDULER] Background scheduler started")
     logger.info("[SCHEDULER]    - Cancellation deadline reminders: every 5 minutes")
@@ -154,6 +172,7 @@ def start_scheduler():
     logger.info("[SCHEDULER]    - Auto-fetch video attendance (Zoom/Teams): every 5 minutes")
     logger.info("[SCHEDULER]    - Distribution hold expiry: every 15 minutes")
     logger.info("[SCHEDULER]    - Impact stats refresh: every 30 minutes")
+    logger.info("[SCHEDULER]    - Calendar sync retry (backoff): every 2 minutes")
 
 
 def stop_scheduler():

@@ -481,6 +481,7 @@ def perform_auto_sync(user_id: str, appointment_id: str, appointment_doc: dict):
     Internal function: auto-sync an appointment to ALL connected calendars.
     Called from appointments.py after an appointment becomes active.
     Non-blocking: logs errors but never raises.
+    On failure, schedules retry with exponential backoff.
     """
     try:
         user_settings = db.users.find_one(
@@ -508,7 +509,7 @@ def perform_auto_sync(user_id: str, appointment_id: str, appointment_doc: dict):
                 existing = db.calendar_sync_logs.find_one({
                     "appointment_id": appointment_id,
                     "connection_id": connection_id,
-                    "sync_status": "synced"
+                    "sync_status": {"$in": ["synced", "retry_pending"]}
                 })
                 if existing:
                     continue
@@ -521,24 +522,43 @@ def perform_auto_sync(user_id: str, appointment_id: str, appointment_doc: dict):
                     event_data, connection_update_callback=on_refresh
                 )
 
-                sync_status = "synced" if result else "failed"
-                sync_log = {
-                    "log_id": str(uuid.uuid4()),
-                    "appointment_id": appointment_id,
-                    "connection_id": connection_id,
-                    "provider": provider,
-                    "external_event_id": result.get('event_id') if result else None,
-                    "html_link": result.get('html_link') if result else None,
-                    "sync_status": sync_status,
-                    "sync_source": "auto",
-                    "synced_at": now_utc().isoformat()
-                }
-                db.calendar_sync_logs.insert_one(sync_log)
-
                 if result:
+                    sync_log = {
+                        "log_id": str(uuid.uuid4()),
+                        "appointment_id": appointment_id,
+                        "connection_id": connection_id,
+                        "provider": provider,
+                        "external_event_id": result.get('event_id'),
+                        "html_link": result.get('html_link'),
+                        "sync_status": "synced",
+                        "sync_source": "auto",
+                        "retry_count": 0,
+                        "next_retry_at": None,
+                        "max_retries_reached": False,
+                        "synced_at": now_utc().isoformat()
+                    }
+                    db.calendar_sync_logs.insert_one(sync_log)
                     print(f"[AUTO-SYNC] Appointment {appointment_id} synced to {provider}")
                 else:
-                    print(f"[AUTO-SYNC] Failed to sync appointment {appointment_id} to {provider}")
+                    from services.calendar_retry_service import schedule_retry
+                    log_id = str(uuid.uuid4())
+                    sync_log = {
+                        "log_id": log_id,
+                        "appointment_id": appointment_id,
+                        "connection_id": connection_id,
+                        "provider": provider,
+                        "external_event_id": None,
+                        "html_link": None,
+                        "sync_status": "failed",
+                        "sync_source": "auto",
+                        "retry_count": 0,
+                        "next_retry_at": None,
+                        "max_retries_reached": False,
+                        "synced_at": now_utc().isoformat()
+                    }
+                    db.calendar_sync_logs.insert_one(sync_log)
+                    schedule_retry(log_id, 0, f"Échec initial de la sync vers {provider}")
+                    print(f"[AUTO-SYNC] Failed to sync {appointment_id} to {provider}, retry scheduled")
             except Exception as e:
                 print(f"[AUTO-SYNC] Error syncing to {provider} for {appointment_id}: {e}")
     except Exception as e:
@@ -556,12 +576,13 @@ def has_calendar_fields_changed(old_doc: dict, update_data: dict) -> bool:
 def perform_auto_update(user_id: str, appointment_id: str, updated_appointment: dict):
     """
     Update calendar events for all providers already synced for this appointment.
-    Non-blocking: logs errors but never raises. Sets out_of_sync on failure.
+    Non-blocking: logs errors but never raises.
+    On failure, schedules retry with exponential backoff instead of just marking out_of_sync.
     """
     try:
         sync_logs = list(db.calendar_sync_logs.find({
             "appointment_id": appointment_id,
-            "sync_status": "synced"
+            "sync_status": {"$in": ["synced", "retry_pending"]}
         }))
 
         if not sync_logs:
@@ -571,6 +592,7 @@ def perform_auto_update(user_id: str, appointment_id: str, updated_appointment: 
             provider = sync_log.get('provider')
             external_event_id = sync_log.get('external_event_id')
             connection_id = sync_log.get('connection_id')
+            log_id = sync_log.get('log_id')
 
             if not external_event_id or not connection_id:
                 continue
@@ -579,15 +601,9 @@ def perform_auto_update(user_id: str, appointment_id: str, updated_appointment: 
                 {"connection_id": connection_id, "status": "connected"}
             )
             if not connection:
-                db.calendar_sync_logs.update_one(
-                    {"log_id": sync_log['log_id']},
-                    {"$set": {
-                        "sync_status": "out_of_sync",
-                        "sync_error_reason": "Connexion calendrier déconnectée ou expirée",
-                        "updated_at": now_utc().isoformat()
-                    }}
-                )
-                print(f"[AUTO-UPDATE] Connection {connection_id} not active for {provider}")
+                from services.calendar_retry_service import schedule_retry
+                schedule_retry(log_id, 0, "Connexion calendrier déconnectée ou expirée")
+                print(f"[AUTO-UPDATE] Connection {connection_id} not active for {provider}, retry scheduled")
                 continue
 
             try:
@@ -605,34 +621,25 @@ def perform_auto_update(user_id: str, appointment_id: str, updated_appointment: 
 
                 if result:
                     db.calendar_sync_logs.update_one(
-                        {"log_id": sync_log['log_id']},
+                        {"log_id": log_id},
                         {"$set": {
                             "sync_status": "synced",
                             "sync_error_reason": None,
+                            "retry_count": 0,
+                            "next_retry_at": None,
+                            "max_retries_reached": False,
                             "updated_at": now_utc().isoformat()
                         }}
                     )
                     print(f"[AUTO-UPDATE] Appointment {appointment_id} updated on {provider}")
                 else:
-                    db.calendar_sync_logs.update_one(
-                        {"log_id": sync_log['log_id']},
-                        {"$set": {
-                            "sync_status": "out_of_sync",
-                            "sync_error_reason": f"Échec de la mise à jour sur {provider}",
-                            "updated_at": now_utc().isoformat()
-                        }}
-                    )
-                    print(f"[AUTO-UPDATE] Failed to update on {provider} for {appointment_id}")
+                    from services.calendar_retry_service import schedule_retry
+                    schedule_retry(log_id, 0, f"Échec de la mise à jour sur {provider}")
+                    print(f"[AUTO-UPDATE] Failed to update on {provider} for {appointment_id}, retry scheduled")
             except Exception as e:
-                db.calendar_sync_logs.update_one(
-                    {"log_id": sync_log['log_id']},
-                    {"$set": {
-                        "sync_status": "out_of_sync",
-                        "sync_error_reason": str(e)[:200],
-                        "updated_at": now_utc().isoformat()
-                    }}
-                )
-                print(f"[AUTO-UPDATE] Error updating {provider} for {appointment_id}: {e}")
+                from services.calendar_retry_service import schedule_retry
+                schedule_retry(log_id, 0, str(e)[:200])
+                print(f"[AUTO-UPDATE] Error updating {provider} for {appointment_id}: {e}, retry scheduled")
     except Exception as e:
         print(f"[AUTO-UPDATE] Fatal error for appointment {appointment_id}: {e}")
 
@@ -676,11 +683,11 @@ async def sync_appointment_to_calendar(appointment_id: str, request: Request, pr
             "html_link": existing_sync.get('html_link')
         }
 
-    # Check for out_of_sync event — update instead of creating new
+    # Check for out_of_sync/retry_pending/permanently_failed event — update instead of creating new
     out_of_sync_log = db.calendar_sync_logs.find_one({
         "appointment_id": appointment_id,
         "connection_id": connection['connection_id'],
-        "sync_status": "out_of_sync"
+        "sync_status": {"$in": ["out_of_sync", "retry_pending", "permanently_failed"]}
     })
 
     adapter = _get_adapter(provider)
@@ -765,13 +772,17 @@ async def get_sync_status(appointment_id: str, request: Request):
 
         sync_log = db.calendar_sync_logs.find_one(
             {"appointment_id": appointment_id, "connection_id": conn['connection_id'],
-             "sync_status": {"$in": ["synced", "out_of_sync"]}},
+             "sync_status": {"$in": ["synced", "out_of_sync", "retry_pending", "permanently_failed"]}},
             {"_id": 0},
             sort=[("synced_at", -1)]
         )
         if sync_log:
-            result[provider]["synced"] = sync_log.get('sync_status') == 'synced'
-            result[provider]["out_of_sync"] = sync_log.get('sync_status') == 'out_of_sync'
+            status = sync_log.get('sync_status')
+            result[provider]["synced"] = status == 'synced'
+            result[provider]["out_of_sync"] = status in ('out_of_sync', 'permanently_failed')
+            result[provider]["retry_pending"] = status == 'retry_pending'
+            result[provider]["retry_count"] = sync_log.get('retry_count', 0)
+            result[provider]["max_retries_reached"] = sync_log.get('max_retries_reached', False)
             result[provider]["external_event_id"] = sync_log.get('external_event_id')
             result[provider]["html_link"] = sync_log.get('html_link')
             result[provider]["sync_source"] = sync_log.get('sync_source', 'manual')
