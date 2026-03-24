@@ -8,7 +8,16 @@ CLIENT_SECRET = os.environ.get('MICROSOFT_CLIENT_SECRET')
 
 AUTHORITY = 'https://login.microsoftonline.com/common/oauth2/v2.0'
 GRAPH_API = 'https://graph.microsoft.com/v1.0'
-SCOPES = ['Calendars.ReadWrite', 'User.Read', 'offline_access']
+
+# Level 1: Universal scopes (personal + pro accounts) — Calendar sync
+BASE_SCOPES = ['Calendars.ReadWrite', 'User.Read', 'offline_access']
+
+# Level 2: Teams advanced scopes (pro accounts only) — OnlineMeetings + Attendance
+TEAMS_SCOPES = ['Calendars.ReadWrite', 'User.Read', 'offline_access',
+                'OnlineMeetings.ReadWrite', 'OnlineMeetingArtifact.Read.All']
+
+# Default: base scopes for initial connection
+SCOPES = BASE_SCOPES
 
 # IANA → Windows timezone mapping (Microsoft Graph requires Windows IDs for personal accounts)
 IANA_TO_WINDOWS_TZ = {
@@ -74,12 +83,16 @@ def to_windows_timezone(iana_tz: str) -> str:
 class OutlookCalendarAdapter:
 
     @staticmethod
-    def get_authorization_url(redirect_uri: str, state: str = None) -> tuple:
+    def get_authorization_url(redirect_uri: str, state: str = None, scopes: list = None) -> tuple:
+        """Build the Microsoft OAuth authorization URL.
+        scopes: override the default BASE_SCOPES (used for Teams upgrade flow).
+        """
+        scope_list = scopes or SCOPES
         params = {
             'client_id': CLIENT_ID,
             'redirect_uri': redirect_uri,
             'response_type': 'code',
-            'scope': ' '.join(SCOPES),
+            'scope': ' '.join(scope_list),
             'response_mode': 'query',
             'prompt': 'consent',
         }

@@ -286,6 +286,7 @@ async def outlook_oauth_callback(code: str = None, state: str = None, error: str
         state_payload = json.loads(base64.urlsafe_b64decode(state.encode()))
         user_id = state_payload.get("user_id")
         user_timezone = state_payload.get("timezone", "UTC")
+        is_teams_upgrade = state_payload.get("upgrade") == "teams"
     except Exception:
         return RedirectResponse(url=f"{FRONTEND_URL}/settings/integrations?outlook=error&reason=invalid_state")
 
@@ -312,6 +313,10 @@ async def outlook_oauth_callback(code: str = None, state: str = None, error: str
     )
     calendar_timezone = detected_tz if detected_tz != 'UTC' else user_timezone
 
+    # Detect which scopes were actually granted
+    granted = tokens.get('granted_scopes') or []
+    has_meetings_scope = 'OnlineMeetings.ReadWrite' in granted
+
     db.calendar_connections.update_one(
         {"user_id": user_id, "provider": "outlook"},
         {"$set": {
@@ -323,7 +328,9 @@ async def outlook_oauth_callback(code: str = None, state: str = None, error: str
             "access_token": tokens['access_token'],
             "refresh_token": tokens['refresh_token'],
             "calendar_timezone": calendar_timezone,
-            "granted_scopes": tokens.get('granted_scopes', []),
+            "granted_scopes": granted,
+            "has_online_meetings_scope": has_meetings_scope,
+            "scope_level": "teams" if has_meetings_scope else "calendar",
             "status": "connected",
             "connected_at": now_utc().isoformat(),
             "updated_at": now_utc().isoformat()
@@ -331,7 +338,8 @@ async def outlook_oauth_callback(code: str = None, state: str = None, error: str
         upsert=True
     )
 
-    return RedirectResponse(url=f"{FRONTEND_URL}/settings/integrations?outlook=connected")
+    redirect_param = "outlook=upgraded_teams" if is_teams_upgrade and has_meetings_scope else "outlook=connected"
+    return RedirectResponse(url=f"{FRONTEND_URL}/settings/integrations?{redirect_param}")
 
 
 @router.delete("/connections/outlook")
@@ -351,6 +359,51 @@ async def disconnect_outlook_calendar(request: Request):
     db.calendar_sync_logs.delete_many({"connection_id": connection.get('connection_id')})
 
     return {"success": True, "message": "Outlook Calendar déconnecté"}
+
+
+# ── Microsoft Teams — Upgrade OAuth (Level 2 scopes) ────────
+
+@router.get("/connect/outlook/teams-upgrade")
+async def upgrade_outlook_teams(request: Request, timezone: str = None):
+    """Initiate a secondary OAuth flow requesting Teams-advanced scopes.
+    Only meaningful for Microsoft 365 pro accounts.
+    """
+    user = await get_current_user(request)
+
+    if not os.environ.get('MICROSOFT_CLIENT_ID'):
+        raise HTTPException(status_code=500, detail="Microsoft non configuré")
+
+    # Verify an Outlook connection already exists
+    existing = db.calendar_connections.find_one(
+        {"user_id": user['user_id'], "provider": "outlook", "status": "connected"},
+        {"_id": 0}
+    )
+    if not existing:
+        raise HTTPException(status_code=400, detail="Connectez d'abord votre calendrier Outlook avant d'activer Teams.")
+
+    import base64
+    state_payload = json.dumps({
+        "user_id": user['user_id'],
+        "nonce": str(uuid.uuid4()),
+        "timezone": timezone or "UTC",
+        "upgrade": "teams",
+    })
+    state = base64.urlsafe_b64encode(state_payload.encode()).decode()
+
+    redirect_uri = _get_outlook_redirect_uri()
+    # Use TEAMS_SCOPES instead of BASE_SCOPES
+    from adapters.outlook_calendar_adapter import TEAMS_SCOPES
+    auth_url, _ = OutlookCalendarAdapter.get_authorization_url(
+        redirect_uri, state=state, scopes=TEAMS_SCOPES
+    )
+
+    db.oauth_states.update_one(
+        {"user_id": user['user_id'], "provider": "outlook"},
+        {"$set": {"state": state, "created_at": now_utc().isoformat()}},
+        upsert=True
+    )
+
+    return {"authorization_url": auth_url}
 
 
 

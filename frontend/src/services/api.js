@@ -88,6 +88,10 @@ export const calendarAPI = {
     return api.get(`/api/calendar/connect/outlook?timezone=${encodeURIComponent(tz)}`);
   },
   disconnectOutlook: () => api.delete('/api/calendar/connections/outlook'),
+  upgradeOutlookTeams: (timezone) => {
+    const tz = timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+    return api.get(`/api/calendar/connect/outlook/teams-upgrade?timezone=${encodeURIComponent(tz)}`);
+  },
   listConnections: () => api.get('/api/calendar/connections'),
   syncAppointment: (appointment_id, provider = 'google') => api.post(`/api/calendar/sync/appointment/${appointment_id}?provider=${provider}`),
   unsyncAppointment: (appointment_id) => api.delete(`/api/calendar/sync/appointment/${appointment_id}`),

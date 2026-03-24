@@ -1,0 +1,78 @@
+{
+  "summary": "2-Level Microsoft OAuth Architecture fully tested. Backend: 9/9 new tests pass + 18/18 conflict detection regression tests pass. Frontend: All UI elements verified - Calendar active banner, Teams upgrade banner with 'Activer Teams avancé' button (for has_online_meetings_scope=false). Teams upgrade flow redirects to Microsoft OAuth with correct TEAMS_SCOPES. Fixed frontend bug where Teams upgrade button used undefined variables.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": {
+    "backend": [
+      "test_connect_outlook_returns_base_scopes - /api/calendar/connect/outlook returns BASE_SCOPES only (no OnlineMeetings)",
+      "test_teams_upgrade_returns_teams_scopes - /api/calendar/connect/outlook/teams-upgrade returns TEAMS_SCOPES (with OnlineMeetings.ReadWrite + OnlineMeetingArtifact.Read.All)",
+      "test_teams_upgrade_requires_outlook_connection - teams-upgrade returns 400 if no Outlook connection exists",
+      "test_connections_include_has_online_meetings_scope - /api/calendar/connections returns has_online_meetings_scope and scope_level fields",
+      "test_adapter_scope_definitions - outlook_calendar_adapter.py defines BASE_SCOPES, TEAMS_SCOPES, and SCOPES=BASE_SCOPES",
+      "test_get_authorization_url_accepts_scopes_param - OutlookCalendarAdapter.get_authorization_url accepts optional scopes parameter",
+      "test_meeting_provider_service_reads_from_db - meeting_provider_service.py reads has_online_meetings_scope from DB (not from adapter SCOPES)",
+      "test_meeting_provider_service_delegated_path_exists - Delegated mode uses /me/onlineMeetings, fallback uses /users/{user_id}/onlineMeetings",
+      "test_conflict_check_endpoint_works - Conflict detection endpoint still works (regression test)"
+    ],
+    "frontend": [
+      "Outlook Calendar card displayed with connected email (igaal@hotmail.com)",
+      "Calendar active banner displayed: 'Calendrier Outlook synchronisé'",
+      "Teams upgrade banner displayed (has_online_meetings_scope=false): 'Teams avancé (optionnel)'",
+      "'Activer Teams avancé' button visible and clickable",
+      "Teams upgrade button redirects to Microsoft OAuth with TEAMS_SCOPES",
+      "Google Calendar card displayed with connected email (igaal.hanouna@gmail.com)",
+      "Auto-sync section displayed",
+      "Toast for outlook=upgraded_teams shows correct success message (code verified)"
+    ]
+  },
+  "code_verification": {
+    "outlook_calendar_adapter.py": {
+      "BASE_SCOPES": "['Calendars.ReadWrite', 'User.Read', 'offline_access']",
+      "TEAMS_SCOPES": "['Calendars.ReadWrite', 'User.Read', 'offline_access', 'OnlineMeetings.ReadWrite', 'OnlineMeetingArtifact.Read.All']",
+      "SCOPES": "BASE_SCOPES (default)",
+      "get_authorization_url": "Accepts optional scopes parameter (line 86-102)"
+    },
+    "calendar_routes.py": {
+      "connect_outlook": "Uses BASE_SCOPES (default) - line 263",
+      "teams_upgrade": "Uses TEAMS_SCOPES - lines 394-397",
+      "callback": "Writes has_online_meetings_scope based on granted_scopes - lines 318-333"
+    },
+    "meeting_provider_service.py": {
+      "delegated_mode_check": "outlook_conn.get('has_online_meetings_scope') is True - lines 405, 634",
+      "NOT_MODIFIED": "File reads has_online_meetings_scope from DB, not from adapter SCOPES constant"
+    }
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_two_level_oauth.py",
+    "/app/backend/tests/test_conflict_detection.py",
+    "/app/test_reports/pytest/pytest_two_level_oauth.xml",
+    "/app/test_reports/pytest/pytest_conflict_detection.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/frontend/src/pages/settings/Integrations.js (fixed Teams upgrade button - was using undefined setConnectingState and api)",
+    "/app/frontend/src/services/api.js (added upgradeOutlookTeams method to calendarAPI)"
+  ],
+  "success_rate": {
+    "backend": "100% (9/9 new tests + 18/18 regression tests)",
+    "frontend": "100% (8/8 UI elements verified)"
+  },
+  "test_credentials": "testuser_audit@nlyt.app / Test1234!",
+  "seed_data_creation": "None - used existing test user with Outlook connection (igaal@hotmail.com, has_online_meetings_scope=false)",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "2-Level Microsoft OAuth architecture complete. Key features: (1) /api/calendar/connect/outlook uses BASE_SCOPES (calendar only), (2) /api/calendar/connect/outlook/teams-upgrade uses TEAMS_SCOPES (includes OnlineMeetings.ReadWrite + OnlineMeetingArtifact.Read.All), (3) teams-upgrade requires existing Outlook connection, (4) callback writes has_online_meetings_scope and scope_level based on granted scopes, (5) meeting_provider_service.py delegated mode reads has_online_meetings_scope from DB. Frontend data-testid attributes: outlook-calendar-card, outlook-calendar-active-banner, teams-upgrade-banner, teams-delegated-active-banner, upgrade-teams-btn. Test user has Outlook connected with has_online_meetings_scope=false (personal account igaal@hotmail.com).",
+  "mocked_apis": {
+    "has_mocked_apis": false,
+    "mocked_apis_list": [],
+    "note": "Microsoft OAuth flow is real but requires user interaction to complete. The Teams upgrade button correctly redirects to Microsoft OAuth with TEAMS_SCOPES."
+  }
+}

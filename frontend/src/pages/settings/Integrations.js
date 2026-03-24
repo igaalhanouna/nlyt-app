@@ -42,6 +42,9 @@ export default function Integrations() {
     if (outlookResult === 'connected') {
       toast.success('Outlook Calendar connecté avec succès');
       loadAll();
+    } else if (outlookResult === 'upgraded_teams') {
+      toast.success('Teams avancé activé — les réunions Teams utiliseront votre identité Microsoft');
+      loadAll();
     } else if (outlookResult === 'error') {
       toast.error(`Échec Outlook Calendar (${searchParams.get('reason') || 'erreur'})`);
     }
@@ -238,17 +241,70 @@ export default function Integrations() {
               </div>
             )}
             {!isGoogle && provider === 'outlook' && connection && (
-              <div className="mt-3 mx-5 mb-3 p-3 bg-slate-50 border border-slate-200 rounded-lg" data-testid="outlook-calendar-active-banner">
-                <div className="flex items-center gap-2.5">
-                  <CheckCircle className="w-5 h-5 text-emerald-600 flex-shrink-0" />
-                  <div>
-                    <p className="text-sm font-semibold text-slate-800">Calendrier Outlook synchronisé</p>
-                    <p className="text-sm text-slate-600 mt-0.5">
-                      Vos événements Outlook sont utilisés pour la détection de conflits.
-                    </p>
+              <>
+                {/* Calendar always active */}
+                <div className="mt-3 mx-5 mb-1 p-3 bg-slate-50 border border-slate-200 rounded-lg" data-testid="outlook-calendar-active-banner">
+                  <div className="flex items-center gap-2.5">
+                    <CheckCircle className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm font-semibold text-slate-800">Calendrier Outlook synchronisé</p>
+                      <p className="text-sm text-slate-600 mt-0.5">
+                        Vos événements Outlook sont utilisés pour la détection de conflits.
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
+
+                {/* Teams scope level */}
+                {connection?.has_online_meetings_scope ? (
+                  <div className="mx-5 mb-3 p-3 bg-emerald-50 border border-emerald-200 rounded-lg" data-testid="teams-delegated-active-banner">
+                    <div className="flex items-center gap-2.5">
+                      <Video className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+                      <div>
+                        <p className="text-sm font-semibold text-emerald-900">Teams avancé activé</p>
+                        <p className="text-sm text-emerald-700 mt-0.5">
+                          Les réunions Teams sont créées sous votre propre identité Microsoft.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mx-5 mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg" data-testid="teams-upgrade-banner">
+                    <div className="flex items-start gap-2.5">
+                      <Video className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                      <div className="flex-1">
+                        <p className="text-sm font-semibold text-blue-900">Teams avancé (optionnel)</p>
+                        <p className="text-sm text-blue-700 mt-0.5">
+                          Activez les permissions avancées pour créer les réunions Teams sous votre identité et récupérer les rapports de présence. Réservé aux comptes Microsoft 365 pro.
+                        </p>
+                        <Button
+                          size="sm"
+                          onClick={async () => {
+                            try {
+                              setConnectingOutlook(true);
+                              const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                              const res = await calendarAPI.upgradeOutlookTeams(tz);
+                              if (res.data?.authorization_url) {
+                                window.location.href = res.data.authorization_url;
+                              }
+                            } catch (err) {
+                              toast.error(err?.response?.data?.detail || 'Erreur lors de l\'activation Teams');
+                            } finally {
+                              setConnectingOutlook(false);
+                            }
+                          }}
+                          disabled={connectingOutlook}
+                          className="mt-2.5 h-8 text-sm bg-blue-600 hover:bg-blue-700 text-white"
+                          data-testid="upgrade-teams-btn"
+                        >
+                          {connectingOutlook ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : <Video className="w-4 h-4 mr-1.5" />}
+                          Activer Teams avancé
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
         ) : isExpired ? (
