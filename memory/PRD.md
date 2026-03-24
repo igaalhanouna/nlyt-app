@@ -26,7 +26,15 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API
 - Callback OAuth écrit `has_online_meetings_scope` et `scope_level` basés sur scopes réellement consentis
 - `meeting_provider_service.py` NON modifié — le mode délégué lit `has_online_meetings_scope` depuis la BDD
 - Frontend : 2 banners (Calendar actif + Teams upgrade/actif) + toast pour upgrade Teams
-- Tests: iteration_64 — 9/9 backend + 8/8 frontend + 18/18 régression (détail ci-dessous)
+- Tests: iteration_64 — 9/9 backend + 8/8 frontend + 18/18 régression
+
+## Sélection Video Provider — Option A enrichie (Mars 2026)
+- 4 providers visibles : Teams, Meet, Zoom, Autre plateforme
+- Teams binaire : `can_auto_generate` UNIQUEMENT si `has_online_meetings_scope=true` (M365 pro + Teams avancé)
+- Pré-sélection automatique : Teams > Meet > Zoom > External (une seule fois au chargement)
+- Backend validation : rejet 400 si provider non disponible pour l'utilisateur
+- "Lien externe" renommé "Autre plateforme"
+- Tests: iteration_65 — 12/12 backend + 10/10 frontend
 
 ## QA Manuel — Conflict Detection V2 (Mars 2026)
 
@@ -86,10 +94,13 @@ Aucun.
 
 ## Roadmap
 
-### P2
+### P1
 - Pagination endpoints de liste (API + UI)
 - Auto-update calendrier V2 (retry automatique)
 - Découpe InvitationPage.js (1409 lignes)
+
+### P2
+- Apple Calendar (export ICS)
 
 ### P3
 - Dashboard analytics organisateurs
