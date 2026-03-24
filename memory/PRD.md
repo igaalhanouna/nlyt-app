@@ -164,6 +164,13 @@ Les APIs calendrier (Google/Outlook) interprétaient la valeur comme heure local
 - Fonction `ensure_indexes()` dans `database.py`, appelée au démarrage (idempotente)
 - L'ancien index email idempotency migré depuis server.py vers database.py
 
+## Dashboard Analytics Organisateur V1 (Mars 2026)
+- Nouvel onglet "Statistiques" dans le dashboard existant
+- 6 KPI cards : Engagements créés, Taux de présence, Taux d'acceptation, Dédommagement personnel, Impact caritatif, Engagements non honorés
+- Message global contextuel basé sur le taux de présence (positif/neutre/attention)
+- Endpoint `GET /api/appointments/analytics/stats` — all-time, pas de filtre temporel
+- Tests : 13/13 backend + 13/13 frontend (testing agent iteration_67)
+
 ## Roadmap
 
 ### P1
