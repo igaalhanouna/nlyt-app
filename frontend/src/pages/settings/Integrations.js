@@ -237,37 +237,14 @@ export default function Integrations() {
                 </p>
               </div>
             )}
-            {!isGoogle && provider === 'outlook' && !connection?.has_online_meetings_scope && (
-              <div className="mt-3 mx-5 mb-3 p-3.5 bg-orange-50 border border-orange-300 rounded-lg" data-testid="outlook-upgrade-scope-banner">
-                <div className="flex items-start gap-3">
-                  <AlertTriangle className="w-5 h-5 text-orange-600 mt-0.5 flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-orange-900">Mise à jour recommandée</p>
-                    <p className="text-sm text-orange-800 mt-1">
-                      Reconnectez votre compte Outlook pour créer les réunions Teams directement sous votre propre identité (et non via une identité technique).
-                    </p>
-                    <Button
-                      size="sm"
-                      onClick={() => handleConnect(provider)}
-                      disabled={connectingState}
-                      className="mt-2.5 h-8 text-sm bg-orange-600 hover:bg-orange-700 text-white"
-                      data-testid="upgrade-outlook-scope-btn"
-                    >
-                      {connectingState ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : <ExternalLink className="w-4 h-4 mr-1.5" />}
-                      Reconnecter Outlook
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            )}
-            {!isGoogle && provider === 'outlook' && connection?.has_online_meetings_scope && (
-              <div className="mt-3 mx-5 mb-3 p-3 bg-emerald-50 border border-emerald-200 rounded-lg" data-testid="outlook-delegated-active-banner">
+            {!isGoogle && provider === 'outlook' && connection && (
+              <div className="mt-3 mx-5 mb-3 p-3 bg-slate-50 border border-slate-200 rounded-lg" data-testid="outlook-calendar-active-banner">
                 <div className="flex items-center gap-2.5">
                   <CheckCircle className="w-5 h-5 text-emerald-600 flex-shrink-0" />
                   <div>
-                    <p className="text-sm font-semibold text-emerald-900">Identité Teams activée</p>
-                    <p className="text-sm text-emerald-700 mt-0.5">
-                      Les réunions Teams sont créées sous votre propre identité Microsoft.
+                    <p className="text-sm font-semibold text-slate-800">Calendrier Outlook synchronisé</p>
+                    <p className="text-sm text-slate-600 mt-0.5">
+                      Vos événements Outlook sont utilisés pour la détection de conflits.
                     </p>
                   </div>
                 </div>
