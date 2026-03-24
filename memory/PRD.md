@@ -18,9 +18,15 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API
 
 ## Fix Outlook comptes personnels (Mars 2026)
 - Corrigé MICROSOFT_CLIENT_ID (valeur UUID réelle au lieu de placeholder)
-- Scopes réduits à `Calendars.ReadWrite User.Read offline_access` (universels pro+perso)
-- Supprimé `MailboxSettings.Read`, `OnlineMeetings.ReadWrite`, `OnlineMeetingArtifact.Read.All` (non supportés comptes perso)
-- Fallback gracieux pour timezone sur comptes perso (détail ci-dessous)
+- Architecture à 2 niveaux OAuth Microsoft :
+  - **Niveau 1 (Calendar base)** : `Calendars.ReadWrite User.Read offline_access` — universel pro+perso
+  - **Niveau 2 (Teams avancé)** : ajoute `OnlineMeetings.ReadWrite OnlineMeetingArtifact.Read.All` — pro seulement
+- Endpoint `/api/calendar/connect/outlook` → scopes de base
+- Endpoint `/api/calendar/connect/outlook/teams-upgrade` → scopes Teams (nécessite connexion Outlook préalable)
+- Callback OAuth écrit `has_online_meetings_scope` et `scope_level` basés sur scopes réellement consentis
+- `meeting_provider_service.py` NON modifié — le mode délégué lit `has_online_meetings_scope` depuis la BDD
+- Frontend : 2 banners (Calendar actif + Teams upgrade/actif) + toast pour upgrade Teams
+- Tests: iteration_64 — 9/9 backend + 8/8 frontend + 18/18 régression (détail ci-dessous)
 
 ## QA Manuel — Conflict Detection V2 (Mars 2026)
 
