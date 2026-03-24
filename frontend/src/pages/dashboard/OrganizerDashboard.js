@@ -697,6 +697,11 @@ export default function OrganizerDashboard() {
                         <p className={`text-2xl font-bold ${analytics.organizer_defaults > 0 ? 'text-amber-600' : 'text-slate-900'}`}>
                           {analytics.organizer_defaults}
                         </p>
+                        {analytics.organizer_penalties_cents > 0 && (
+                          <p className="text-sm font-semibold text-amber-600 mt-0.5">
+                            {(analytics.organizer_penalties_cents / 100).toFixed(0)} €
+                          </p>
+                        )}
                         <p className="text-xs text-slate-500 mt-1">Engagements non honorés</p>
                       </div>
                     </div>
