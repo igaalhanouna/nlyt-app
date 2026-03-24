@@ -883,12 +883,18 @@ def get_public_charity_details(limit: int = 50, skip: int = 0) -> dict:
         item["appointment_title"] = apt_titles.get(item.get("appointment_id"), "Engagement")
         item["association_name"] = assoc_names.get(item.get("association_id"))
 
+    # Count total appointments (engagements) and no-show distributions
+    total_appointments = db.appointments.count_documents({"status": {"$ne": "deleted"}})
+    total_no_shows = db.distributions.count_documents({"status": {"$nin": ["cancelled"]}, "beneficiaries.role": "charity", "beneficiaries.amount_cents": {"$gt": 0}})
+
     return {
         "total_charity_cents": stats.get("total_charity_cents", 0),
         "total_distributed_cents": stats.get("total_distributed_cents", 0),
         "associations": stats.get("associations", []),
         "events_count": stats.get("events_count", 0),
         "participants_count": stats.get("participants_count", 0),
+        "total_appointments": total_appointments,
+        "total_no_show_contributions": total_no_shows,
         "currency": "eur",
         "contributions": {
             "items": items,

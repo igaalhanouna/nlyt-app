@@ -227,15 +227,15 @@ export default function ImpactPage() {
               />
               <StatCard
                 icon={CalendarCheck}
-                value={data.events_count?.toLocaleString('fr-FR') || '0'}
-                label="Engagements concernés"
-                testId="kpi-events"
+                value={data.total_appointments?.toLocaleString('fr-FR') || '0'}
+                label="Engagements totaux"
+                testId="kpi-total-appointments"
               />
               <StatCard
                 icon={TrendingUp}
-                value={data.contributions?.total?.toLocaleString('fr-FR') || '0'}
-                label={data.contributions?.total > 1 ? 'Contributions enregistrées' : 'Contribution enregistrée'}
-                testId="kpi-contributions-count"
+                value={data.total_no_show_contributions?.toLocaleString('fr-FR') || '0'}
+                label="Non tenus avec contribution caritative"
+                testId="kpi-no-show-contributions"
               />
             </div>
 
