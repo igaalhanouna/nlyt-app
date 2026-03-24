@@ -5,6 +5,7 @@ Uses atomic flag `checkin_notification_sent` on participant doc for idempotence.
 """
 from datetime import datetime, timezone
 import os
+from database import db
 
 
 
@@ -65,8 +66,6 @@ async def notify_checkin(
     # 6. Send emails
     try:
         from services.email_service import EmailService
-
-from database import db
         frontend_url = os.environ.get('FRONTEND_URL', '').rstrip('/')
 
         for recipient in recipients:
