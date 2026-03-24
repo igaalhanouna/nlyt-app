@@ -33,6 +33,7 @@ class ConflictItem(BaseModel):
     title: str
     start: str
     end: str
+    source: str = "nlyt"  # nlyt | google | outlook
 
 
 class SuggestionItem(BaseModel):
@@ -43,9 +44,11 @@ class SuggestionItem(BaseModel):
 class ConflictCheckOutput(BaseModel):
     status: str  # conflict | warning | available
     confidence: str  # high | medium
+    confidence_detail: str = ""
     conflicts: List[ConflictItem] = []
     warnings: List[ConflictItem] = []
     suggestions: List[SuggestionItem] = []
+    sources_checked: List[str] = []
 
 
 def _parse_dt(s: str) -> Optional[datetime]:
@@ -103,6 +106,7 @@ def _check_overlap(proposed_start: datetime, proposed_end: datetime, engagements
             continue
         eng_dur = eng.get("duration_minutes", 60)
         eng_end = eng_start + timedelta(minutes=eng_dur)
+        source = eng.get("source", "nlyt")
 
         # Strict overlap check (half-open intervals: [start, end))
         if proposed_start < eng_end and proposed_end > eng_start:
@@ -110,6 +114,7 @@ def _check_overlap(proposed_start: datetime, proposed_end: datetime, engagements
                 title=eng.get("title", "Engagement"),
                 start=eng["start_datetime"],
                 end=eng_end.isoformat(),
+                source=source,
             ))
         else:
             # Check buffer proximity
@@ -124,6 +129,7 @@ def _check_overlap(proposed_start: datetime, proposed_end: datetime, engagements
                     title=eng.get("title", "Engagement"),
                     start=eng["start_datetime"],
                     end=eng_end.isoformat(),
+                    source=source,
                 ))
     return conflicts, warnings
 
@@ -206,9 +212,104 @@ def _generate_suggestions(
     return suggestions
 
 
+def _fetch_external_events(user_id: str, window_start: str, window_end: str):
+    """Fetch events from all connected calendars and return normalized engagements.
+    Returns (events: list[dict], sources_ok: list[str], sources_failed: list[str]).
+    Each event dict has: title, start_datetime, duration_minutes, source.
+    """
+    from adapters.google_calendar_adapter import GoogleCalendarAdapter
+    from adapters.outlook_calendar_adapter import OutlookCalendarAdapter
+
+    events = []
+    sources_ok = []
+    sources_failed = []
+
+    connections = list(db.calendar_connections.find(
+        {"user_id": user_id, "status": "connected"},
+        {"_id": 0}
+    ))
+
+    # Collect all NLYT-synced external_event_ids for deduplication
+    nlyt_external_ids = set()
+    if connections:
+        connection_ids = [c["connection_id"] for c in connections]
+        sync_logs = db.calendar_sync_logs.find(
+            {"connection_id": {"$in": connection_ids}, "sync_status": "synced"},
+            {"_id": 0, "external_event_id": 1}
+        )
+        for sl in sync_logs:
+            eid = sl.get("external_event_id")
+            if eid:
+                nlyt_external_ids.add(eid)
+
+    for conn in connections:
+        provider = conn.get("provider")
+        access_token = conn.get("access_token")
+        refresh_token = conn.get("refresh_token")
+        connection_id = conn.get("connection_id")
+
+        if not access_token:
+            sources_failed.append(provider)
+            continue
+
+        def _make_cb(cid):
+            def cb(new_token):
+                if new_token:
+                    db.calendar_connections.update_one(
+                        {"connection_id": cid},
+                        {"$set": {"access_token": new_token}}
+                    )
+                else:
+                    db.calendar_connections.update_one(
+                        {"connection_id": cid},
+                        {"$set": {"status": "expired"}}
+                    )
+            return cb
+
+        on_refresh = _make_cb(connection_id)
+
+        raw_events = None
+        if provider == "google":
+            raw_events = GoogleCalendarAdapter.list_events(
+                access_token, refresh_token, window_start, window_end,
+                connection_update_callback=on_refresh
+            )
+        elif provider == "outlook":
+            raw_events = OutlookCalendarAdapter.list_events(
+                access_token, refresh_token, window_start, window_end,
+                connection_update_callback=on_refresh
+            )
+
+        if raw_events is None:
+            sources_failed.append(provider)
+            continue
+
+        sources_ok.append(provider)
+
+        for ev in raw_events:
+            # Deduplication: skip events that originated from NLYT
+            if ev.get("event_id") in nlyt_external_ids:
+                continue
+
+            start_dt = _parse_dt(ev["start"])
+            end_dt = _parse_dt(ev["end"])
+            if not start_dt or not end_dt:
+                continue
+            duration_min = max(int((end_dt - start_dt).total_seconds() / 60), 1)
+
+            events.append({
+                "title": ev.get("title", "(Sans titre)"),
+                "start_datetime": start_dt.isoformat(),
+                "duration_minutes": duration_min,
+                "source": provider,
+            })
+
+    return events, sources_ok, sources_failed
+
+
 @router.post("/check-conflicts")
 async def check_conflicts(data: ConflictCheckInput, request: Request):
-    """Check if a proposed slot conflicts with existing NLYT engagements."""
+    """Check if a proposed slot conflicts with NLYT engagements + connected calendars."""
     user = await get_current_user(request)
 
     proposed_start = _parse_dt(data.start_datetime)
@@ -216,29 +317,77 @@ async def check_conflicts(data: ConflictCheckInput, request: Request):
         raise HTTPException(status_code=400, detail="Date invalide")
     proposed_end = proposed_start + timedelta(minutes=data.duration_minutes)
 
-    engagements = _get_user_engagements(user["user_id"])
-    conflicts, warnings = _check_overlap(proposed_start, proposed_end, engagements)
+    # ── 1. NLYT engagements (always available) ──
+    nlyt_engagements = _get_user_engagements(user["user_id"])
+    # Tag each with source
+    for eng in nlyt_engagements:
+        eng["source"] = "nlyt"
+
+    sources_checked = ["nlyt"]
+
+    # ── 2. External calendar events (smart window: candidate ± buffer) ──
+    buffer_td = timedelta(minutes=BUFFER_MINUTES)
+    window_start = (proposed_start - buffer_td).isoformat()
+    window_end = (proposed_end + buffer_td).isoformat()
+
+    # Also expand for suggestion generation (3-day window)
+    suggestion_window_start = proposed_start.replace(hour=0, minute=0, second=0, microsecond=0)
+    suggestion_window_end = suggestion_window_start + timedelta(days=3)
+    # Use the wider window to cover both conflict check AND suggestion generation
+    fetch_start = min(proposed_start - buffer_td, suggestion_window_start).isoformat()
+    fetch_end = max(proposed_end + buffer_td, suggestion_window_end).isoformat()
+
+    ext_events, sources_ok, sources_failed = _fetch_external_events(
+        user["user_id"], fetch_start, fetch_end
+    )
+    sources_checked.extend(sources_ok)
+
+    # ── 3. Merge all engagements ──
+    all_engagements = nlyt_engagements + ext_events
+
+    # ── 4. Compute conflicts & warnings ──
+    conflicts, warnings = _check_overlap(proposed_start, proposed_end, all_engagements)
 
     if conflicts:
         status = "conflict"
-        confidence = "high"
     elif warnings:
         status = "warning"
-        confidence = "high"
     else:
         status = "available"
-        confidence = "medium"  # Only NLYT data, no external calendar
 
+    # ── 5. Confidence: rigorous ──
+    # Check how many providers the user has connected
+    total_connected = db.calendar_connections.count_documents(
+        {"user_id": user["user_id"], "status": "connected"}
+    )
+    if total_connected == 0:
+        # No external calendars → medium (only NLYT data)
+        confidence = "medium"
+        confidence_detail = "Seuls vos engagements NLYT sont vérifiés"
+    elif sources_failed:
+        # Some connected sources failed → medium
+        confidence = "medium"
+        failed_names = ", ".join(s.capitalize() for s in sources_failed)
+        confidence_detail = f"Source(s) indisponible(s) : {failed_names}"
+    else:
+        # All connected sources responded OK → high
+        confidence = "high"
+        checked_names = ", ".join(s.upper() if s == "nlyt" else s.capitalize() for s in sources_checked)
+        confidence_detail = f"Toutes les sources vérifiées : {checked_names}"
+
+    # ── 6. Suggestions (computed locally from the merged set) ──
     suggestions = []
     if status != "available":
-        suggestions = _generate_suggestions(proposed_start, data.duration_minutes, engagements)
+        suggestions = _generate_suggestions(proposed_start, data.duration_minutes, all_engagements)
 
     return ConflictCheckOutput(
         status=status,
         confidence=confidence,
+        confidence_detail=confidence_detail,
         conflicts=[c.model_dump() for c in conflicts],
         warnings=[w.model_dump() for w in warnings],
         suggestions=[s.model_dump() for s in suggestions],
+        sources_checked=sources_checked,
     )
 
 

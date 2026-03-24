@@ -237,6 +237,57 @@ class OutlookCalendarAdapter:
             return None
 
     @staticmethod
+    def list_events(access_token: str, refresh_token: str, time_min: str, time_max: str, connection_update_callback=None) -> Optional[list]:
+        """List events from the user's Outlook calendar within a time window.
+        Returns a list of dicts with keys: event_id, title, start, end, or None on failure.
+        time_min / time_max must be ISO 8601 strings.
+        """
+        try:
+            headers = OutlookCalendarAdapter._get_headers(access_token, refresh_token, connection_update_callback)
+            if not headers:
+                return None
+
+            params = {
+                '$filter': f"start/dateTime ge '{time_min}' and end/dateTime le '{time_max}'",
+                '$orderby': 'start/dateTime',
+                '$top': 50,
+                '$select': 'id,subject,start,end,isCancelled',
+            }
+            resp = requests.get(
+                f'{GRAPH_API}/me/events',
+                headers=headers,
+                params=params,
+            )
+            if resp.status_code != 200:
+                print(f"[OUTLOOK] list_events error {resp.status_code}: {resp.text[:300]}")
+                return None
+
+            events = []
+            for item in resp.json().get('value', []):
+                if item.get('isCancelled'):
+                    continue
+                start_dt = item.get('start', {}).get('dateTime')
+                end_dt = item.get('end', {}).get('dateTime')
+                if not start_dt or not end_dt:
+                    continue
+                # Graph API returns naive datetimes in UTC by default for calendarView
+                # Ensure timezone suffix for consistency
+                if not start_dt.endswith('Z') and '+' not in start_dt:
+                    start_dt += 'Z'
+                if not end_dt.endswith('Z') and '+' not in end_dt:
+                    end_dt += 'Z'
+                events.append({
+                    'event_id': item['id'],
+                    'title': item.get('subject', '(Sans titre)'),
+                    'start': start_dt,
+                    'end': end_dt,
+                })
+            return events
+        except Exception as e:
+            print(f"[OUTLOOK] Error listing events: {e}")
+            return None
+
+    @staticmethod
     def delete_event(access_token: str, refresh_token: str, event_id: str, connection_update_callback=None) -> bool:
         try:
             headers = OutlookCalendarAdapter._get_headers(access_token, refresh_token, connection_update_callback)

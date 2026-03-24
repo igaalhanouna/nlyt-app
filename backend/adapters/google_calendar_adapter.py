@@ -221,6 +221,54 @@ class GoogleCalendarAdapter:
             return False
 
     @staticmethod
+    def list_events(access_token: str, refresh_token: str, time_min: str, time_max: str, connection_update_callback=None) -> Optional[list]:
+        """List events from the user's primary Google Calendar within a time window.
+        Returns a list of dicts with keys: event_id, title, start, end, or None on failure.
+        time_min / time_max must be RFC3339 strings (e.g. '2026-03-25T08:00:00Z').
+        """
+        try:
+            headers = GoogleCalendarAdapter._get_headers(access_token, refresh_token, connection_update_callback)
+            if not headers:
+                return None
+
+            params = {
+                'timeMin': time_min,
+                'timeMax': time_max,
+                'singleEvents': 'true',
+                'orderBy': 'startTime',
+                'maxResults': 50,
+            }
+            resp = requests.get(
+                'https://www.googleapis.com/calendar/v3/calendars/primary/events',
+                headers=headers,
+                params=params,
+            )
+            if resp.status_code != 200:
+                print(f"[GOOGLE] list_events error {resp.status_code}: {resp.text[:300]}")
+                return None
+
+            events = []
+            for item in resp.json().get('items', []):
+                if item.get('status') == 'cancelled':
+                    continue
+                start_raw = item.get('start', {})
+                end_raw = item.get('end', {})
+                start_dt = start_raw.get('dateTime') or start_raw.get('date')
+                end_dt = end_raw.get('dateTime') or end_raw.get('date')
+                if not start_dt or not end_dt:
+                    continue
+                events.append({
+                    'event_id': item['id'],
+                    'title': item.get('summary', '(Sans titre)'),
+                    'start': start_dt,
+                    'end': end_dt,
+                })
+            return events
+        except Exception as e:
+            print(f"[GOOGLE] Error listing events: {e}")
+            return None
+
+    @staticmethod
     def revoke_token(access_token: str) -> bool:
         """Revoke Google OAuth token."""
         try:

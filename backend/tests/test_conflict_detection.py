@@ -184,6 +184,74 @@ def test_suggestions_sorted_and_realistic():
     print(f"PASS: all labels valid ({[s.label for s in suggestions]})")
 
 
+# ── V2 Tests: source propagation & mixed sources ──
+
+def _make_eng_with_source(title, start_iso, duration=60, source="nlyt"):
+    return {"title": title, "start_datetime": start_iso, "duration_minutes": duration, "source": source}
+
+
+def test_source_field_propagation():
+    """Conflict items should carry the source field from the engagement."""
+    conflicts, warnings = _check_overlap(
+        _dt(14, 0), _dt(15, 0),
+        [_make_eng_with_source("NLYT Meeting", "2026-03-25T14:00:00+00:00", 60, "nlyt")]
+    )
+    assert len(conflicts) == 1
+    assert conflicts[0].source == "nlyt"
+    print("PASS: source field propagated (nlyt)")
+
+
+def test_mixed_sources_conflicts():
+    """Conflicts from different sources should each carry their own source tag."""
+    engs = [
+        _make_eng_with_source("NLYT RDV", "2026-03-25T14:00:00+00:00", 60, "nlyt"),
+        _make_eng_with_source("Google Event", "2026-03-25T14:30:00+00:00", 60, "google"),
+        _make_eng_with_source("Outlook Meeting", "2026-03-25T14:15:00+00:00", 30, "outlook"),
+    ]
+    conflicts, _ = _check_overlap(_dt(14, 0), _dt(15, 0), engs)
+    assert len(conflicts) == 3
+    sources = {c.source for c in conflicts}
+    assert sources == {"nlyt", "google", "outlook"}
+    print("PASS: mixed sources → 3 conflicts with correct source tags")
+
+
+def test_dedup_nlyt_not_double_counted():
+    """If an engagement exists in NLYT and also as an external event, only the NLYT
+    version should be in the list (dedup happens in _fetch_external_events, but
+    _check_overlap should not care — it trusts what it receives)."""
+    engs = [
+        _make_eng_with_source("Team Sync", "2026-03-25T14:00:00+00:00", 60, "nlyt"),
+        # This would be the same event but from Google — should NOT be present if dedup worked
+        # We test that _check_overlap counts each item independently
+    ]
+    conflicts, _ = _check_overlap(_dt(14, 0), _dt(15, 0), engs)
+    assert len(conflicts) == 1
+    assert conflicts[0].source == "nlyt"
+    print("PASS: dedup scenario — single NLYT source counted once")
+
+
+def test_suggestions_avoid_mixed_busy_slots():
+    """Suggestions should avoid busy slots from all sources."""
+    now = datetime.now(timezone.utc)
+    busy_start = now + timedelta(hours=2)
+    engs = [
+        _make_eng_with_source("NLYT", busy_start.isoformat(), 60, "nlyt"),
+        _make_eng_with_source("Google", (busy_start + timedelta(hours=2)).isoformat(), 60, "google"),
+    ]
+    suggestions = _generate_suggestions(busy_start, 60, engs, count=5)
+    for s in suggestions:
+        dt = _parse_dt(s.datetime_str)
+        dt_end = dt + timedelta(minutes=60)
+        for eng in engs:
+            es = _parse_dt(eng["start_datetime"])
+            ee = es + timedelta(minutes=eng["duration_minutes"])
+            assert not (dt < ee and dt_end > es), \
+                f"Suggestion {s.datetime_str} conflicts with {eng['source']} busy slot!"
+    print(f"PASS: all {len(suggestions)} suggestions avoid mixed-source busy slots")
+
+
+
+
 if __name__ == "__main__":
     test_exact_overlap()
     test_partial_overlap_start()
@@ -199,4 +267,8 @@ if __name__ == "__main__":
     test_suggestions_respect_duration()
     test_suggestions_not_same_as_proposed()
     test_suggestions_sorted_and_realistic()
-    print("\n✅ ALL 14 TESTS PASSED")
+    test_source_field_propagation()
+    test_mixed_sources_conflicts()
+    test_dedup_nlyt_not_double_counted()
+    test_suggestions_avoid_mixed_busy_slots()
+    print("\n✅ ALL 18 TESTS PASSED")
