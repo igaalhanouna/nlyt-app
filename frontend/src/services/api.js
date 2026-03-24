@@ -65,6 +65,7 @@ export const appointmentAPI = {
   cancel: (id) => api.post(`/api/appointments/${id}/cancel`),
   checkActivation: (id) => api.post(`/api/appointments/${id}/check-activation`),
   retryGuarantee: (id) => api.post(`/api/appointments/${id}/retry-organizer-guarantee`),
+  analyticsStats: (workspace_id) => api.get('/api/appointments/analytics/stats', { params: { workspace_id } }),
 };
 
 export const participantAPI = {

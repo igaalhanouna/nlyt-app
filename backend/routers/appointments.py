@@ -971,6 +971,128 @@ async def list_appointments(workspace_id: str = None, skip: int = 0, limit: int 
         "has_more": skip + limit < total,
     }
 
+
+@router.get("/analytics/stats")
+async def get_analytics_stats(workspace_id: str = None, request: Request = None):
+    """Return KPI stats for the organizer analytics dashboard."""
+    user = await get_current_user(request)
+
+    # Resolve workspace IDs
+    if workspace_id:
+        membership = db.workspace_memberships.find_one(
+            {"workspace_id": workspace_id, "user_id": user['user_id']}, {"_id": 0}
+        )
+        if not membership:
+            raise HTTPException(status_code=403, detail="Accès refusé")
+        ws_ids = [workspace_id]
+    else:
+        memberships = list(db.workspace_memberships.find({"user_id": user['user_id']}, {"_id": 0}))
+        ws_ids = [m['workspace_id'] for m in memberships]
+
+    base_query = {"workspace_id": {"$in": ws_ids}, "status": {"$ne": "deleted"}}
+
+    # --- KPI 1: Engagements créés ---
+    total_engagements = db.appointments.count_documents(base_query)
+
+    # Get all appointment IDs for participant queries
+    apt_ids = [a['appointment_id'] for a in db.appointments.find(base_query, {"_id": 0, "appointment_id": 1})]
+
+    # --- KPI 2: Taux de présence ---
+    # Based on attendance evaluation outcomes: on_time/late = present, no_show = absent
+    # Only count appointments where evaluation happened (past appointments with results)
+    attendance_records = list(db.attendance_evaluations.find(
+        {"appointment_id": {"$in": apt_ids}},
+        {"_id": 0, "outcome": 1}
+    ))
+    present_count = sum(1 for r in attendance_records if r.get('outcome') in ('on_time', 'late', 'waived'))
+    absent_count = sum(1 for r in attendance_records if r.get('outcome') == 'no_show')
+    attendance_total = present_count + absent_count
+    presence_rate = round((present_count / attendance_total * 100), 1) if attendance_total > 0 else None
+
+    # --- KPI 3: Taux d'acceptation ---
+    # accepted_* / total invited (exclude participants in cancelled/deleted appointments)
+    all_participants = list(db.participants.find(
+        {"appointment_id": {"$in": apt_ids}},
+        {"_id": 0, "status": 1}
+    ))
+    accepted_statuses = {'accepted', 'accepted_pending_guarantee', 'accepted_guaranteed', 'guarantee_released'}
+    total_invited = len(all_participants)
+    total_accepted = sum(1 for p in all_participants if p.get('status') in accepted_statuses)
+    acceptance_rate = round((total_accepted / total_invited * 100), 1) if total_invited > 0 else None
+
+    # --- KPI 4: Dédommagement personnel (compensation to organizer from captured guarantees) ---
+    distributions = list(db.distributions.find(
+        {"appointment_id": {"$in": apt_ids}},
+        {"_id": 0, "capture_amount_cents": 1, "affected_compensation_percent": 1,
+         "platform_commission_percent": 1, "charity_percent": 1,
+         "no_show_is_organizer": 1, "status": 1}
+    ))
+    personal_compensation_cents = 0
+    charity_total_cents = 0
+    organizer_penalties_cents = 0
+
+    for dist in distributions:
+        amount = dist.get('capture_amount_cents', 0)
+        commission = dist.get('platform_commission_percent', 20)
+        compensation_pct = dist.get('affected_compensation_percent', 50)
+        charity_pct = dist.get('charity_percent', 0)
+
+        net_after_commission = amount * (1 - commission / 100)
+
+        if dist.get('no_show_is_organizer'):
+            # Organizer was the no-show → this is an organizer penalty
+            organizer_penalties_cents += amount
+        else:
+            # Participant was the no-show → organizer gets compensation
+            personal_compensation_cents += int(net_after_commission * compensation_pct / 100)
+
+        charity_total_cents += int(net_after_commission * charity_pct / 100)
+
+    # --- KPI 5: Impact caritatif ---
+    # Already computed above
+
+    # --- KPI 6: Engagements non honorés par l'organisateur ---
+    # Cancelled by organizer + organizer no-shows
+    cancelled_by_org = db.appointments.count_documents({
+        **base_query,
+        "status": "cancelled",
+        "cancelled_by": "organizer"
+    })
+    organizer_no_shows = sum(1 for d in distributions if d.get('no_show_is_organizer'))
+    organizer_defaults = cancelled_by_org + organizer_no_shows
+
+    # --- Global message ---
+    if presence_rate is not None:
+        if presence_rate >= 85:
+            global_message = "Vos engagements fonctionnent très bien"
+            global_tone = "positive"
+        elif presence_rate >= 65:
+            global_message = "Vos engagements fonctionnent correctement"
+            global_tone = "neutral"
+        else:
+            global_message = "Certains engagements nécessitent votre attention"
+            global_tone = "warning"
+    elif total_engagements > 0:
+        global_message = "En attente des premiers résultats de présence"
+        global_tone = "neutral"
+    else:
+        global_message = "Créez votre premier engagement pour commencer"
+        global_tone = "neutral"
+
+    return {
+        "total_engagements": total_engagements,
+        "presence_rate": presence_rate,
+        "acceptance_rate": acceptance_rate,
+        "personal_compensation_cents": personal_compensation_cents,
+        "charity_total_cents": charity_total_cents,
+        "organizer_defaults": organizer_defaults,
+        "organizer_penalties_cents": organizer_penalties_cents,
+        "currency": "eur",
+        "global_message": global_message,
+        "global_tone": global_tone,
+    }
+
+
 @router.get("/{appointment_id}")
 async def get_appointment(appointment_id: str, request: Request):
     user = await get_current_user(request)

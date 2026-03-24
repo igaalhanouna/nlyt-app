@@ -282,6 +282,10 @@ export default function OrganizerDashboard() {
   const [deleting, setDeleting] = useState(false);
   const [workspaceDropdownOpen, setWorkspaceDropdownOpen] = useState(false);
 
+  // Analytics state
+  const [analytics, setAnalytics] = useState(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+
   const PAGE_SIZE = 20;
 
   useEffect(() => {
@@ -341,6 +345,19 @@ export default function OrganizerDashboard() {
       setPastLoading(false);
     }
   }, [past.length, pastLoading, pastHasMore, currentWorkspace]);
+
+  const loadAnalytics = useCallback(async () => {
+    if (!currentWorkspace) return;
+    setAnalyticsLoading(true);
+    try {
+      const res = await appointmentAPI.analyticsStats(currentWorkspace.workspace_id);
+      setAnalytics(res.data);
+    } catch (error) {
+      console.error('Analytics load error:', error);
+    } finally {
+      setAnalyticsLoading(false);
+    }
+  }, [currentWorkspace]);
 
   const loadImpact = async () => {
     try {
@@ -547,6 +564,10 @@ export default function OrganizerDashboard() {
                     <span className="ml-2 px-2 py-0.5 text-xs font-semibold bg-slate-200 text-slate-600 rounded-full">{pastTotal}</span>
                   )}
                 </TabsTrigger>
+                <TabsTrigger value="stats" data-testid="tab-stats" onClick={() => { if (!analytics) loadAnalytics(); }}>
+                  <Eye className="w-4 h-4 mr-2" />
+                  Statistiques
+                </TabsTrigger>
               </TabsList>
 
               <TabsContent value="upcoming">
@@ -612,6 +633,78 @@ export default function OrganizerDashboard() {
                         <p className="text-xs text-slate-400 mt-1">{past.length} sur {pastTotal} engagements</p>
                       </div>
                     )}
+                  </div>
+                )}
+              </TabsContent>
+              <TabsContent value="stats">
+                {analyticsLoading ? (
+                  <div className="text-center py-12">
+                    <Loader2 className="w-8 h-8 animate-spin text-slate-400 mx-auto" />
+                  </div>
+                ) : analytics ? (
+                  <div className="space-y-5">
+                    {/* Global message */}
+                    <div className={`px-4 py-3 rounded-lg text-sm font-medium ${
+                      analytics.global_tone === 'positive' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' :
+                      analytics.global_tone === 'warning' ? 'bg-amber-50 text-amber-800 border border-amber-200' :
+                      'bg-slate-50 text-slate-600 border border-slate-200'
+                    }`} data-testid="analytics-global-message">
+                      {analytics.global_message}
+                    </div>
+
+                    {/* KPI cards */}
+                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+                      {/* Engagements créés */}
+                      <div className="bg-slate-50 rounded-lg p-4 border border-slate-100" data-testid="kpi-engagements">
+                        <p className="text-2xl font-bold text-slate-900">{analytics.total_engagements}</p>
+                        <p className="text-xs text-slate-500 mt-1">Engagements créés</p>
+                      </div>
+
+                      {/* Taux de présence */}
+                      <div className="bg-slate-50 rounded-lg p-4 border border-slate-100" data-testid="kpi-presence">
+                        <p className="text-2xl font-bold text-slate-900">
+                          {analytics.presence_rate !== null ? `${analytics.presence_rate}%` : '—'}
+                        </p>
+                        <p className="text-xs text-slate-500 mt-1">Taux de présence</p>
+                      </div>
+
+                      {/* Taux d'acceptation */}
+                      <div className="bg-slate-50 rounded-lg p-4 border border-slate-100" data-testid="kpi-acceptance">
+                        <p className="text-2xl font-bold text-slate-900">
+                          {analytics.acceptance_rate !== null ? `${analytics.acceptance_rate}%` : '—'}
+                        </p>
+                        <p className="text-xs text-slate-500 mt-1">Taux d'acceptation</p>
+                      </div>
+
+                      {/* Dédommagement personnel */}
+                      <div className="bg-slate-50 rounded-lg p-4 border border-slate-100" data-testid="kpi-compensation">
+                        <p className="text-2xl font-bold text-slate-900">
+                          {(analytics.personal_compensation_cents / 100).toFixed(0)} €
+                        </p>
+                        <p className="text-xs text-slate-500 mt-1">Dédommagement personnel</p>
+                      </div>
+
+                      {/* Impact caritatif */}
+                      <div className="bg-slate-50 rounded-lg p-4 border border-slate-100" data-testid="kpi-charity">
+                        <p className="text-2xl font-bold text-emerald-700">
+                          {(analytics.charity_total_cents / 100).toFixed(0)} €
+                        </p>
+                        <p className="text-xs text-slate-500 mt-1">Impact caritatif</p>
+                      </div>
+
+                      {/* Engagements non honorés */}
+                      <div className="bg-slate-50 rounded-lg p-4 border border-slate-100" data-testid="kpi-defaults">
+                        <p className={`text-2xl font-bold ${analytics.organizer_defaults > 0 ? 'text-amber-600' : 'text-slate-900'}`}>
+                          {analytics.organizer_defaults}
+                        </p>
+                        <p className="text-xs text-slate-500 mt-1">Engagements non honorés</p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <Eye className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                    <p className="text-slate-500">Chargement des statistiques...</p>
                   </div>
                 )}
               </TabsContent>
