@@ -56,7 +56,7 @@ export const workspaceAPI = {
 
 export const appointmentAPI = {
   create: (data) => api.post('/api/appointments/', data),
-  list: (workspace_id) => api.get('/api/appointments/', { params: { workspace_id } }),
+  list: (workspace_id, { skip = 0, limit = 20, time_filter } = {}) => api.get('/api/appointments/', { params: { workspace_id, skip, limit, time_filter } }),
   get: (id) => api.get(`/api/appointments/${id}`),
   remind: (id) => api.post(`/api/appointments/${id}/remind`),
   checkConflicts: (data) => api.post('/api/appointments/check-conflicts', data),

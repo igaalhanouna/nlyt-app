@@ -886,7 +886,7 @@ async def retry_organizer_guarantee(appointment_id: str, request: Request):
 
 
 @router.get("/")
-async def list_appointments(workspace_id: str = None, request: Request = None):
+async def list_appointments(workspace_id: str = None, skip: int = 0, limit: int = 20, time_filter: str = None, request: Request = None):
     user = await get_current_user(request)
     
     query = {}
@@ -905,10 +905,26 @@ async def list_appointments(workspace_id: str = None, request: Request = None):
         workspace_ids = [m['workspace_id'] for m in memberships]
         query["workspace_id"] = {"$in": workspace_ids}
     
-    # Sort by start_datetime ascending (closest to today first)
     # Exclude deleted appointments from listing
     query["status"] = {"$ne": "deleted"}
-    appointments = list(db.appointments.find(query, {"_id": 0}).sort("start_datetime", 1))
+
+    # Time filter: upcoming (future) or past
+    now_str = now_utc().isoformat()
+    sort_order = 1  # ascending by default
+    if time_filter == "upcoming":
+        query["start_datetime"] = {"$gte": now_str}
+        sort_order = 1  # nearest first
+    elif time_filter == "past":
+        query["start_datetime"] = {"$lt": now_str}
+        sort_order = -1  # most recent past first
+
+    total = db.appointments.count_documents(query)
+    appointments = list(
+        db.appointments.find(query, {"_id": 0})
+        .sort("start_datetime", sort_order)
+        .skip(skip)
+        .limit(limit)
+    )
     
     # Add participants with status to each appointment
     for apt in appointments:
@@ -947,7 +963,13 @@ async def list_appointments(workspace_id: str = None, request: Request = None):
                 status_summary['invited'] += 1
         apt['participants_status_summary'] = status_summary
     
-    return {"appointments": appointments}
+    return {
+        "items": appointments,
+        "total": total,
+        "skip": skip,
+        "limit": limit,
+        "has_more": skip + limit < total,
+    }
 
 @router.get("/{appointment_id}")
 async def get_appointment(appointment_id: str, request: Request):

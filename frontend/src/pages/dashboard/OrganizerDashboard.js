@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useWorkspace } from '../../contexts/WorkspaceContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -9,7 +9,7 @@ import {
   CalendarPlus, LogOut, Settings, Calendar, Users, MapPin, Video,
   Trash2, Check, X, Clock, Building2, ChevronDown, Plus, Ban,
   ShieldCheck, CreditCard, History, Play, AlertTriangle, Bell,
-  ArrowRight, Flame, Shield, Euro, Eye, Heart
+  ArrowRight, Flame, Shield, Euro, Eye, Heart, Loader2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDateTimeCompactFr, parseUTC } from '../../utils/dateFormat';
@@ -263,28 +263,84 @@ export default function OrganizerDashboard() {
   const { user, logout } = useAuth();
   const { currentWorkspace, workspaces, selectWorkspace } = useWorkspace();
   const navigate = useNavigate();
-  const [appointments, setAppointments] = useState([]);
+
+  // Pagination state — upcoming
+  const [upcoming, setUpcoming] = useState([]);
+  const [upcomingTotal, setUpcomingTotal] = useState(0);
+  const [upcomingHasMore, setUpcomingHasMore] = useState(false);
+  const [upcomingLoading, setUpcomingLoading] = useState(false);
+
+  // Pagination state — past
+  const [past, setPast] = useState([]);
+  const [pastTotal, setPastTotal] = useState(0);
+  const [pastHasMore, setPastHasMore] = useState(false);
+  const [pastLoading, setPastLoading] = useState(false);
+
   const [loading, setLoading] = useState(true);
   const [impactCents, setImpactCents] = useState(0);
   const [deleteModal, setDeleteModal] = useState({ open: false, appointment: null });
   const [deleting, setDeleting] = useState(false);
   const [workspaceDropdownOpen, setWorkspaceDropdownOpen] = useState(false);
 
+  const PAGE_SIZE = 20;
+
   useEffect(() => {
-    if (currentWorkspace) loadAppointments();
+    if (currentWorkspace) loadInitial();
     loadImpact();
   }, [currentWorkspace]);
 
-  const loadAppointments = async () => {
+  const loadInitial = async () => {
+    setLoading(true);
     try {
-      const response = await appointmentAPI.list(currentWorkspace.workspace_id);
-      setAppointments(response.data.appointments || []);
+      const wsId = currentWorkspace.workspace_id;
+      const [upRes, pastRes] = await Promise.all([
+        appointmentAPI.list(wsId, { skip: 0, limit: PAGE_SIZE, time_filter: 'upcoming' }),
+        appointmentAPI.list(wsId, { skip: 0, limit: PAGE_SIZE, time_filter: 'past' }),
+      ]);
+      setUpcoming(upRes.data.items || []);
+      setUpcomingTotal(upRes.data.total || 0);
+      setUpcomingHasMore(upRes.data.has_more || false);
+      setPast(pastRes.data.items || []);
+      setPastTotal(pastRes.data.total || 0);
+      setPastHasMore(pastRes.data.has_more || false);
     } catch (error) {
       toast.error('Erreur lors du chargement des engagements');
     } finally {
       setLoading(false);
     }
   };
+
+  const loadMoreUpcoming = useCallback(async () => {
+    if (upcomingLoading || !upcomingHasMore) return;
+    setUpcomingLoading(true);
+    try {
+      const res = await appointmentAPI.list(currentWorkspace.workspace_id, {
+        skip: upcoming.length, limit: PAGE_SIZE, time_filter: 'upcoming'
+      });
+      setUpcoming(prev => [...prev, ...(res.data.items || [])]);
+      setUpcomingHasMore(res.data.has_more || false);
+    } catch (error) {
+      toast.error('Erreur lors du chargement');
+    } finally {
+      setUpcomingLoading(false);
+    }
+  }, [upcoming.length, upcomingLoading, upcomingHasMore, currentWorkspace]);
+
+  const loadMorePast = useCallback(async () => {
+    if (pastLoading || !pastHasMore) return;
+    setPastLoading(true);
+    try {
+      const res = await appointmentAPI.list(currentWorkspace.workspace_id, {
+        skip: past.length, limit: PAGE_SIZE, time_filter: 'past'
+      });
+      setPast(prev => [...prev, ...(res.data.items || [])]);
+      setPastHasMore(res.data.has_more || false);
+    } catch (error) {
+      toast.error('Erreur lors du chargement');
+    } finally {
+      setPastLoading(false);
+    }
+  }, [past.length, pastLoading, pastHasMore, currentWorkspace]);
 
   const loadImpact = async () => {
     try {
@@ -303,7 +359,9 @@ export default function OrganizerDashboard() {
     setDeleting(true);
     try {
       await appointmentAPI.delete(deleteModal.appointment.appointment_id);
-      setAppointments(prev => prev.filter(a => a.appointment_id !== deleteModal.appointment.appointment_id));
+      const aptId = deleteModal.appointment.appointment_id;
+      setUpcoming(prev => prev.filter(a => a.appointment_id !== aptId));
+      setPast(prev => prev.filter(a => a.appointment_id !== aptId));
       toast.success('Engagement supprimé');
       setDeleteModal({ open: false, appointment: null });
     } catch (error) {
@@ -331,25 +389,8 @@ export default function OrganizerDashboard() {
   // ── Computed data ──
   const computed = useMemo(() => {
     const now = new Date();
-    const upcoming = appointments
-      .filter(a => {
-        const start = parseUTC(a.start_datetime);
-        if (!start) return false;
-        const end = new Date(start.getTime() + (a.duration_minutes || 0) * 60000);
-        return end >= now;
-      })
-      .sort((a, b) => new Date(a.start_datetime) - new Date(b.start_datetime));
 
-    const past = appointments
-      .filter(a => {
-        const start = parseUTC(a.start_datetime);
-        if (!start) return true;
-        const end = new Date(start.getTime() + (a.duration_minutes || 0) * 60000);
-        return end < now;
-      })
-      .sort((a, b) => new Date(b.start_datetime) - new Date(a.start_datetime));
-
-    // Risk computation
+    // Risk computation from upcoming list
     let secured = 0, atRisk = 0, atRiskCount = 0;
     const priorityItems = [];
 
@@ -365,8 +406,8 @@ export default function OrganizerDashboard() {
       if (risk === 'high') priorityItems.push(a);
     });
 
-    return { now, upcoming, past, secured, atRisk, atRiskCount, priorityItems, totalEngaged: secured + atRisk };
-  }, [appointments]);
+    return { now, secured, atRisk, atRiskCount, priorityItems, totalEngaged: secured + atRisk };
+  }, [upcoming]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -411,7 +452,7 @@ export default function OrganizerDashboard() {
       <div className="max-w-7xl mx-auto px-6 py-8">
         {/* Header + Workspace Switcher */}
         <div className="flex items-start justify-between mb-2">
-          <HeaderStats user={user} stats={{ upcoming: computed.upcoming.length, atRisk: computed.atRiskCount, totalEngaged: computed.totalEngaged }} />
+          <HeaderStats user={user} stats={{ upcoming: upcomingTotal, atRisk: computed.atRiskCount, totalEngaged: computed.totalEngaged }} />
           <div className="relative flex-shrink-0">
             <button
               onClick={() => setWorkspaceDropdownOpen(!workspaceDropdownOpen)}
@@ -483,7 +524,7 @@ export default function OrganizerDashboard() {
             <div className="text-center py-12">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900 mx-auto"></div>
             </div>
-          ) : appointments.length === 0 ? (
+          ) : upcoming.length === 0 && past.length === 0 ? (
             <div className="text-center py-12">
               <Calendar className="w-16 h-16 text-slate-300 mx-auto mb-4" />
               <p className="text-slate-600 mb-4">Aucun engagement pour le moment</p>
@@ -495,21 +536,21 @@ export default function OrganizerDashboard() {
                 <TabsTrigger value="upcoming" data-testid="tab-upcoming">
                   <Calendar className="w-4 h-4 mr-2" />
                   À venir
-                  {computed.upcoming.length > 0 && (
-                    <span className="ml-2 px-2 py-0.5 text-xs font-semibold bg-slate-900 text-white rounded-full">{computed.upcoming.length}</span>
+                  {upcomingTotal > 0 && (
+                    <span className="ml-2 px-2 py-0.5 text-xs font-semibold bg-slate-900 text-white rounded-full">{upcomingTotal}</span>
                   )}
                 </TabsTrigger>
                 <TabsTrigger value="past" data-testid="tab-past">
                   <History className="w-4 h-4 mr-2" />
                   Passés
-                  {computed.past.length > 0 && (
-                    <span className="ml-2 px-2 py-0.5 text-xs font-semibold bg-slate-200 text-slate-600 rounded-full">{computed.past.length}</span>
+                  {pastTotal > 0 && (
+                    <span className="ml-2 px-2 py-0.5 text-xs font-semibold bg-slate-200 text-slate-600 rounded-full">{pastTotal}</span>
                   )}
                 </TabsTrigger>
               </TabsList>
 
               <TabsContent value="upcoming">
-                {computed.upcoming.length === 0 ? (
+                {upcoming.length === 0 ? (
                   <div className="text-center py-12">
                     <Calendar className="w-12 h-12 text-slate-300 mx-auto mb-3" />
                     <p className="text-slate-500">Aucun engagement à venir</p>
@@ -517,24 +558,60 @@ export default function OrganizerDashboard() {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {computed.upcoming.map(a => (
+                    {upcoming.map(a => (
                       <EngagementCard key={a.appointment_id} appointment={a} isPast={false} onDelete={handleDeleteClick} onRemind={handleRemind} now={computed.now} />
                     ))}
+                    {upcomingHasMore && (
+                      <div className="pt-4 text-center">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={loadMoreUpcoming}
+                          disabled={upcomingLoading}
+                          className="text-slate-500 hover:text-slate-700"
+                          data-testid="load-more-upcoming-btn"
+                        >
+                          {upcomingLoading ? (
+                            <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                          ) : null}
+                          Voir plus
+                        </Button>
+                        <p className="text-xs text-slate-400 mt-1">{upcoming.length} sur {upcomingTotal} engagements</p>
+                      </div>
+                    )}
                   </div>
                 )}
               </TabsContent>
 
               <TabsContent value="past">
-                {computed.past.length === 0 ? (
+                {past.length === 0 ? (
                   <div className="text-center py-12">
                     <History className="w-12 h-12 text-slate-300 mx-auto mb-3" />
                     <p className="text-slate-500">Aucun engagement passé</p>
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {computed.past.map(a => (
+                    {past.map(a => (
                       <EngagementCard key={a.appointment_id} appointment={a} isPast={true} onDelete={handleDeleteClick} onRemind={handleRemind} now={computed.now} />
                     ))}
+                    {pastHasMore && (
+                      <div className="pt-4 text-center">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={loadMorePast}
+                          disabled={pastLoading}
+                          className="text-slate-500 hover:text-slate-700"
+                          data-testid="load-more-past-btn"
+                        >
+                          {pastLoading ? (
+                            <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                          ) : null}
+                          Voir plus
+                        </Button>
+                        <p className="text-xs text-slate-400 mt-1">{past.length} sur {pastTotal} engagements</p>
+                      </div>
+                    )}
                   </div>
                 )}
               </TabsContent>
