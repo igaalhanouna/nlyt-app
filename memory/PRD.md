@@ -14,6 +14,32 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API
 - iteration_61: 23/23 (Dashboard UX overhaul)
 - iteration_62: 20/20 (Conflict Detection V1)
 - iteration_63: 29/29 (Conflict Detection V2 — Calendar Integration)
+- QA Manuel V2: 8/8 scénarios E2E validés (détail ci-dessous)
+
+## QA Manuel — Conflict Detection V2 (Mars 2026)
+
+### Scénarios testés
+| # | Scénario | Résultat | Détail |
+|---|----------|----------|--------|
+| 1 | Conflit NLYT seul | ✅ | 1 conflit source=nlyt, confidence high |
+| 2 | Google Calendar interrogé | ✅ | Google dans sources_checked, 0 event externe trouvé (calendrier vide sur cette fenêtre) |
+| 3 | Outlook indisponible | ✅ | Fallback gracieux, pas de crash, Outlook absent de sources_checked |
+| 4 | Déduplication NLYT↔Google | ✅ | RDV synchro Google, 1 seul conflit (pas de doublon) |
+| 5 | Warning buffer < 30 min | ✅ | Créneau 15h00 → warning "Enchaînement serré" |
+| 6 | Fallback partiel (Outlook connecté mais token mort) | ✅ | confidence=medium, detail="Source(s) indisponible(s) : Outlook" |
+| 7 | Suggestions valides + futures | ✅ | 5 suggestions optimal, toutes > now |
+| 8 | Affichage source + clic suggestion → revalidation | ✅ | Badge NLYT visible, clic → date mise à jour → "Créneau disponible" |
+
+### Bugs résiduels
+Aucun.
+
+### Points UX améliorés (Polish)
+- Badge source avec icône + bordure (plus visible)
+- Titre conflit en 13px bold
+- Wording amélioré ("Enchaînement serré", "Ce créneau chevauche...")
+- Clic suggestion → clear + loading immédiat → revalidation
+- Cards avec shadow-sm et rounded-lg
+- Suggestions avec hover shadow + meilleur padding
 
 ## Completed — Stripe Connect (All Phases)
 - Phase 1-4: Wallet, Connect, Distribution, Payouts ✅

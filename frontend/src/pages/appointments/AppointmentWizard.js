@@ -116,6 +116,9 @@ export default function AppointmentWizard() {
     const day = String(d.getDate()).padStart(2, '0');
     const h = String(d.getHours()).padStart(2, '0');
     const mi = String(d.getMinutes()).padStart(2, '0');
+    // Clear old result and show loading immediately for snappy feedback
+    setConflictResult(null);
+    setConflictLoading(true);
     setFormData(prev => ({ ...prev, start_datetime: `${y}-${m}-${day}T${h}:${mi}` }));
   };
 
@@ -855,21 +858,27 @@ export default function AppointmentWizard() {
             <div className="space-y-3">
               {/* Status badge */}
               {conflictResult.status === 'conflict' && (
-                <div className="border border-red-200 bg-red-50 rounded-lg p-3" data-testid="conflict-alert">
-                  <div className="flex items-start gap-2">
-                    <XCircle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
+                <div className="border border-red-200 bg-red-50 rounded-lg p-4" data-testid="conflict-alert">
+                  <div className="flex items-start gap-2.5">
+                    <XCircle className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" />
                     <div className="flex-1">
-                      <p className="text-sm font-semibold text-red-700">Conflit détecté</p>
-                      <p className="text-xs text-red-600 mt-0.5">Vous avez déjà un engagement à ce moment</p>
+                      <p className="text-sm font-bold text-red-700">Conflit détecté</p>
+                      <p className="text-xs text-red-600 mt-0.5">Ce créneau chevauche un engagement existant</p>
                       {conflictResult.conflicts?.map((c, i) => {
-                        const srcCfg = { nlyt: { label: 'NLYT', cls: 'bg-indigo-100 text-indigo-700' }, google: { label: 'Google', cls: 'bg-red-100 text-red-600' }, outlook: { label: 'Outlook', cls: 'bg-blue-100 text-blue-700' } }[c.source] || { label: c.source, cls: 'bg-slate-100 text-slate-600' };
+                        const srcCfg = {
+                          nlyt: { label: 'NLYT', cls: 'bg-indigo-100 text-indigo-700 border-indigo-200', icon: <Calendar className="w-3 h-3" /> },
+                          google: { label: 'Google', cls: 'bg-red-50 text-red-600 border-red-200', icon: <ExternalLink className="w-3 h-3" /> },
+                          outlook: { label: 'Outlook', cls: 'bg-sky-50 text-sky-700 border-sky-200', icon: <ExternalLink className="w-3 h-3" /> },
+                        }[c.source] || { label: c.source, cls: 'bg-slate-100 text-slate-600 border-slate-200', icon: null };
                         return (
-                          <div key={i} className="mt-2 bg-white border border-red-100 rounded px-3 py-2" data-testid={`conflict-item-${i}`}>
-                            <div className="flex items-center gap-2">
-                              <p className="text-xs font-medium text-slate-800 flex-1">{c.title}</p>
-                              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${srcCfg.cls}`} data-testid={`conflict-source-${i}`}>{srcCfg.label}</span>
+                          <div key={i} className="mt-2.5 bg-white border border-red-100 rounded-lg px-3 py-2.5 shadow-sm" data-testid={`conflict-item-${i}`}>
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="text-[13px] font-semibold text-slate-800">{c.title}</p>
+                              <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border ${srcCfg.cls}`} data-testid={`conflict-source-${i}`}>
+                                {srcCfg.icon}{srcCfg.label}
+                              </span>
                             </div>
-                            <p className="text-[11px] text-slate-500 mt-0.5">{formatSlotRange(c.start, c.end)}</p>
+                            <p className="text-xs text-slate-500 mt-1">{formatSlotRange(c.start, c.end)}</p>
                           </div>
                         );
                       })}
@@ -878,21 +887,27 @@ export default function AppointmentWizard() {
                 </div>
               )}
               {conflictResult.status === 'warning' && (
-                <div className="border border-amber-200 bg-amber-50 rounded-lg p-3" data-testid="warning-alert">
-                  <div className="flex items-start gap-2">
-                    <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
+                <div className="border border-amber-200 bg-amber-50 rounded-lg p-4" data-testid="warning-alert">
+                  <div className="flex items-start gap-2.5">
+                    <AlertTriangle className="w-5 h-5 text-amber-500 mt-0.5 flex-shrink-0" />
                     <div className="flex-1">
-                      <p className="text-sm font-semibold text-amber-700">Risque de retard</p>
-                      <p className="text-xs text-amber-600 mt-0.5">Un engagement est prévu à proximité (moins de 30 min)</p>
+                      <p className="text-sm font-bold text-amber-700">Enchaînement serré</p>
+                      <p className="text-xs text-amber-600 mt-0.5">Moins de 30 min entre ce créneau et un engagement proche</p>
                       {conflictResult.warnings?.map((w, i) => {
-                        const srcCfg = { nlyt: { label: 'NLYT', cls: 'bg-indigo-100 text-indigo-700' }, google: { label: 'Google', cls: 'bg-red-100 text-red-600' }, outlook: { label: 'Outlook', cls: 'bg-blue-100 text-blue-700' } }[w.source] || { label: w.source, cls: 'bg-slate-100 text-slate-600' };
+                        const srcCfg = {
+                          nlyt: { label: 'NLYT', cls: 'bg-indigo-100 text-indigo-700 border-indigo-200', icon: <Calendar className="w-3 h-3" /> },
+                          google: { label: 'Google', cls: 'bg-red-50 text-red-600 border-red-200', icon: <ExternalLink className="w-3 h-3" /> },
+                          outlook: { label: 'Outlook', cls: 'bg-sky-50 text-sky-700 border-sky-200', icon: <ExternalLink className="w-3 h-3" /> },
+                        }[w.source] || { label: w.source, cls: 'bg-slate-100 text-slate-600 border-slate-200', icon: null };
                         return (
-                          <div key={i} className="mt-2 bg-white border border-amber-100 rounded px-3 py-2" data-testid={`warning-item-${i}`}>
-                            <div className="flex items-center gap-2">
-                              <p className="text-xs font-medium text-slate-800 flex-1">{w.title}</p>
-                              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${srcCfg.cls}`} data-testid={`warning-source-${i}`}>{srcCfg.label}</span>
+                          <div key={i} className="mt-2.5 bg-white border border-amber-100 rounded-lg px-3 py-2.5 shadow-sm" data-testid={`warning-item-${i}`}>
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="text-[13px] font-semibold text-slate-800">{w.title}</p>
+                              <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border ${srcCfg.cls}`} data-testid={`warning-source-${i}`}>
+                                {srcCfg.icon}{srcCfg.label}
+                              </span>
                             </div>
-                            <p className="text-[11px] text-slate-500 mt-0.5">{formatSlotRange(w.start, w.end)}</p>
+                            <p className="text-xs text-slate-500 mt-1">{formatSlotRange(w.start, w.end)}</p>
                           </div>
                         );
                       })}
@@ -901,11 +916,11 @@ export default function AppointmentWizard() {
                 </div>
               )}
               {conflictResult.status === 'available' && (
-                <div className="flex items-center gap-2 py-1" data-testid="available-badge">
+                <div className="flex items-center gap-2 py-2" data-testid="available-badge">
                   <CheckCircle className="w-4 h-4 text-emerald-500" />
-                  <span className="text-sm text-emerald-700 font-medium">Créneau libre</span>
+                  <span className="text-sm text-emerald-700 font-medium">Créneau disponible</span>
                   {conflictResult.sources_checked?.length > 1 ? (
-                    <span className="text-[11px] text-slate-400 ml-1">vérifié sur {conflictResult.sources_checked.map(s => s === 'nlyt' ? 'NLYT' : s.charAt(0).toUpperCase() + s.slice(1)).join(', ')}</span>
+                    <span className="text-[11px] text-slate-400 ml-1">vérifié sur {conflictResult.sources_checked.map(s => s === 'nlyt' ? 'NLYT' : s.charAt(0).toUpperCase() + s.slice(1)).join(' + ')}</span>
                   ) : (
                     <span className="text-[11px] text-slate-400 ml-1">aucun conflit NLYT détecté</span>
                   )}
@@ -915,26 +930,27 @@ export default function AppointmentWizard() {
               {/* Suggestions */}
               {conflictResult.suggestions?.length > 0 && (
                 <div className="space-y-2" data-testid="suggestions-panel">
-                  <p className="text-xs font-medium text-slate-600">Créneaux alternatifs :</p>
+                  <p className="text-xs font-semibold text-slate-600">Créneaux alternatifs disponibles :</p>
                   <div className="flex flex-wrap gap-2">
                     {conflictResult.suggestions.map((s, i) => {
                       const d = new Date(s.datetime_str);
                       const dayLabel = d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
                       const timeLabel = d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
                       const labelCfg = {
-                        optimal: { text: 'optimal', cls: 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100' },
-                        comfortable: { text: 'confort', cls: 'border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100' },
-                        tight: { text: 'serré', cls: 'border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100' },
+                        optimal: { text: 'optimal', cls: 'border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:border-emerald-400' },
+                        comfortable: { text: 'confort', cls: 'border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100 hover:border-blue-400' },
+                        tight: { text: 'serré', cls: 'border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100 hover:border-amber-400' },
                       }[s.label] || { text: s.label, cls: 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100' };
                       return (
                         <button
                           key={i}
                           type="button"
                           onClick={() => applySuggestion(s.datetime_str)}
-                          className={`px-3 py-1.5 rounded-md border text-xs font-medium transition-colors cursor-pointer ${labelCfg.cls}`}
+                          className={`px-3 py-2 rounded-lg border text-xs font-medium transition-all cursor-pointer shadow-sm hover:shadow ${labelCfg.cls}`}
                           data-testid={`suggestion-${i}`}
                         >
-                          {dayLabel} {timeLabel} <span className="opacity-60 ml-1">{labelCfg.text}</span>
+                          <span className="font-semibold">{dayLabel} {timeLabel}</span>
+                          <span className="opacity-50 ml-1.5 text-[10px]">{labelCfg.text}</span>
                         </button>
                       );
                     })}
@@ -943,8 +959,8 @@ export default function AppointmentWizard() {
               )}
 
               {/* Confidence + transparency */}
-              <div className="flex items-center gap-2 pt-1" data-testid="confidence-indicator">
-                <div className={`w-1.5 h-1.5 rounded-full ${conflictResult.confidence === 'high' ? 'bg-emerald-500' : 'bg-amber-400'}`} />
+              <div className="flex items-center gap-2 pt-2" data-testid="confidence-indicator">
+                <div className={`w-2 h-2 rounded-full ${conflictResult.confidence === 'high' ? 'bg-emerald-500' : 'bg-amber-400'}`} />
                 <span className="text-[11px] text-slate-400">
                   {conflictResult.confidence === 'high' ? 'Fiabilité élevée' : 'Fiabilité partielle'}
                   {conflictResult.confidence_detail ? ` — ${conflictResult.confidence_detail}` : ''}
