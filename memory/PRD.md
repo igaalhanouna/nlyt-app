@@ -149,6 +149,14 @@ Les APIs calendrier (Google/Outlook) interprétaient la valeur comme heure local
 - **Wording** : conforme au cadrage utilisateur — pas de "synchronisation", export manuel assumé
 - Tests : 86/86 régression OK
 
+## Pagination "Voir plus" (Mars 2026)
+- **Backend** : `GET /api/appointments/` supporte `skip`, `limit`, `time_filter` (upcoming|past|all)
+- **Réponse** : `{items, total, skip, limit, has_more}`
+- **Frontend** : deux appels parallèles (upcoming + past) au chargement, "Voir plus" indépendant par section
+- **Terminologie** : "engagements" (pas "rendez-vous")
+- **UX** : bouton discret, compteur "X sur N engagements", pas de scroll reset, loader léger
+- Tests : 15/15 backend + 9/9 frontend (testing agent iteration_66)
+
 ## Roadmap
 
 ### P1
