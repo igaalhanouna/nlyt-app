@@ -21,6 +21,7 @@ from typing import Optional, List
 from datetime import datetime, timedelta, timezone
 
 BUFFER_MINUTES = 30  # Warning threshold
+MIN_FUTURE_MINUTES = 10  # Never suggest a slot starting less than 10 min from now
 
 
 class ConflictCheckInput(BaseModel):
@@ -63,12 +64,10 @@ def _parse_dt(s: str) -> Optional[datetime]:
 def _get_user_engagements(user_id: str) -> list:
     """Return future NLYT engagements for a user (as organizer or participant)."""
     now = now_utc_iso()
-    # Appointments where user is organizer
     org_apts = list(db.appointments.find(
         {"organizer_id": user_id, "status": {"$nin": ["cancelled", "deleted"]}, "start_datetime": {"$gte": now}},
         {"_id": 0, "appointment_id": 1, "title": 1, "start_datetime": 1, "duration_minutes": 1},
     ))
-    # Appointments where user is participant
     participant_apt_ids = [
         p["appointment_id"]
         for p in db.participants.find(
@@ -81,7 +80,6 @@ def _get_user_engagements(user_id: str) -> list:
             {"appointment_id": {"$in": participant_apt_ids}, "status": {"$nin": ["cancelled", "deleted"]}, "start_datetime": {"$gte": now}},
             {"_id": 0, "appointment_id": 1, "title": 1, "start_datetime": 1, "duration_minutes": 1},
         ))
-        # Merge, deduplicate by appointment_id
         seen = {a["appointment_id"] for a in org_apts}
         for a in part_apts:
             if a["appointment_id"] not in seen:
@@ -91,7 +89,12 @@ def _get_user_engagements(user_id: str) -> list:
 
 
 def _check_overlap(proposed_start: datetime, proposed_end: datetime, engagements: list):
-    """Check for conflicts and warnings against existing engagements."""
+    """Check for conflicts and warnings against existing engagements.
+
+    Conflict: proposed_start < eng_end AND proposed_end > eng_start (any intersection).
+    Warning: no overlap but gap < BUFFER_MINUTES on either side.
+    Edge-to-edge (proposed_end == eng_start or eng_end == proposed_start) is NOT a conflict.
+    """
     conflicts = []
     warnings = []
     for eng in engagements:
@@ -101,78 +104,104 @@ def _check_overlap(proposed_start: datetime, proposed_end: datetime, engagements
         eng_dur = eng.get("duration_minutes", 60)
         eng_end = eng_start + timedelta(minutes=eng_dur)
 
-        # Direct overlap?
+        # Strict overlap check (half-open intervals: [start, end))
         if proposed_start < eng_end and proposed_end > eng_start:
             conflicts.append(ConflictItem(
                 title=eng.get("title", "Engagement"),
                 start=eng["start_datetime"],
                 end=eng_end.isoformat(),
             ))
-        # Buffer warning?
-        elif (
-            (proposed_start - eng_end).total_seconds() < BUFFER_MINUTES * 60 and proposed_start >= eng_end
-        ) or (
-            (eng_start - proposed_end).total_seconds() < BUFFER_MINUTES * 60 and eng_start >= proposed_end
-        ):
-            warnings.append(ConflictItem(
-                title=eng.get("title", "Engagement"),
-                start=eng["start_datetime"],
-                end=eng_end.isoformat(),
-            ))
+        else:
+            # Check buffer proximity
+            gap_seconds = None
+            if proposed_start >= eng_end:
+                gap_seconds = (proposed_start - eng_end).total_seconds()
+            elif eng_start >= proposed_end:
+                gap_seconds = (eng_start - proposed_end).total_seconds()
+
+            if gap_seconds is not None and gap_seconds < BUFFER_MINUTES * 60:
+                warnings.append(ConflictItem(
+                    title=eng.get("title", "Engagement"),
+                    start=eng["start_datetime"],
+                    end=eng_end.isoformat(),
+                ))
     return conflicts, warnings
 
 
-def _generate_suggestions(proposed_start: datetime, duration: int, engagements: list, count: int = 5) -> List[SuggestionItem]:
-    """Generate smart slot suggestions around the proposed date."""
-    suggestions = []
-    base_date = proposed_start.replace(hour=8, minute=0, second=0, microsecond=0)
+def _generate_suggestions(
+    proposed_start: datetime,
+    duration: int,
+    engagements: list,
+    count: int = 5,
+) -> List[SuggestionItem]:
+    """Generate slot suggestions that are always in the future and conflict-free."""
+    now = datetime.now(timezone.utc)
+    earliest_allowed = now + timedelta(minutes=MIN_FUTURE_MINUTES)
 
-    # Build busy intervals for the day and next day
+    # Build busy intervals within a 3-day window
     busy = []
     for eng in engagements:
         eng_start = _parse_dt(eng["start_datetime"])
         if not eng_start:
             continue
         eng_end = eng_start + timedelta(minutes=eng.get("duration_minutes", 60))
-        # Only consider engagements within 2 days of proposed
-        if abs((eng_start - proposed_start).total_seconds()) < 172800:
+        if abs((eng_start - proposed_start).total_seconds()) < 259200:  # 3 days
             busy.append((eng_start, eng_end))
     busy.sort(key=lambda x: x[0])
 
-    # Scan 30-min slots from 8:00 to 20:00, today and tomorrow
-    now = datetime.now(timezone.utc)
+    base_date = proposed_start.replace(hour=8, minute=0, second=0, microsecond=0)
+    suggestions = []
+
     for day_offset in range(3):
         day_start = base_date + timedelta(days=day_offset)
         slot = day_start
         while slot.hour < 20:
             slot_end = slot + timedelta(minutes=duration)
-            if slot_end <= now:
+
+            # Rule 1: slot START must be in the future with safety margin
+            if slot < earliest_allowed:
                 slot += timedelta(minutes=30)
                 continue
 
+            # Rule 2: slot must not extend past 20:00
+            if slot_end.hour >= 20 and slot_end.minute > 0:
+                break
+
+            # Rule 3: skip if this is the same slot the user already selected
+            if abs((slot - proposed_start).total_seconds()) < 60:
+                slot += timedelta(minutes=30)
+                continue
+
+            # Rule 4: check for conflicts (full duration must be clear)
             has_conflict = False
-            min_gap = float("inf")
+            min_gap_seconds = float("inf")
             for bs, be in busy:
+                # Overlap check: [slot, slot_end) vs [bs, be)
                 if slot < be and slot_end > bs:
                     has_conflict = True
                     break
-                gap = min(abs((slot - be).total_seconds()), abs((bs - slot_end).total_seconds()))
-                min_gap = min(min_gap, gap)
+                # Gap calculation (only for non-overlapping)
+                if slot >= be:
+                    gap = (slot - be).total_seconds()
+                elif bs >= slot_end:
+                    gap = (bs - slot_end).total_seconds()
+                else:
+                    gap = 0
+                min_gap_seconds = min(min_gap_seconds, gap)
 
             if not has_conflict:
-                gap_min = min_gap / 60 if min_gap != float("inf") else 999
+                gap_min = min_gap_seconds / 60 if min_gap_seconds != float("inf") else 999
                 if gap_min >= 60:
                     label = "optimal"
-                elif gap_min >= 30:
+                elif gap_min >= BUFFER_MINUTES:
                     label = "comfortable"
                 else:
                     label = "tight"
                 suggestions.append(SuggestionItem(datetime_str=slot.isoformat(), label=label))
                 if len(suggestions) >= count:
-                    break
+                    return suggestions
+
             slot += timedelta(minutes=30)
-        if len(suggestions) >= count:
-            break
 
     return suggestions
 

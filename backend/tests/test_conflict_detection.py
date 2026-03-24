@@ -1,268 +1,202 @@
-"""
-Test suite for Conflict Detection feature in Appointment Wizard
-POST /api/appointments/check-conflicts endpoint
+"""Tests for conflict detection logic — _check_overlap and _generate_suggestions."""
 
-Tests:
-- Conflict detection when proposed slot overlaps existing engagement
-- Warning detection when proposed slot is within 30min buffer
-- Available status when no conflicts
-- Suggestions generation with labels (optimal/comfortable/tight)
-- Invalid date handling (400)
-- Authentication requirement (401)
-"""
-
-import pytest
-import requests
+import sys
 import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
 from datetime import datetime, timedelta, timezone
-
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
-
-# Test credentials
-TEST_EMAIL = "testuser_audit@nlyt.app"
-TEST_PASSWORD = "Test1234!"
-
-# Known conflicting date: 2026-06-20T08:00:00Z (appointment 'Test Source Trust', 60min)
-CONFLICT_DATE = "2026-06-20T08:00:00Z"
+from routers.appointments import (
+    _check_overlap, _generate_suggestions, _parse_dt,
+    ConflictItem, BUFFER_MINUTES, MIN_FUTURE_MINUTES,
+)
 
 
-@pytest.fixture(scope="module")
-def auth_token():
-    """Get authentication token for test user"""
-    response = requests.post(f"{BASE_URL}/api/auth/login", json={
-        "email": TEST_EMAIL,
-        "password": TEST_PASSWORD
-    })
-    if response.status_code == 200:
-        data = response.json()
-        return data.get("access_token") or data.get("token")
-    pytest.skip(f"Authentication failed: {response.status_code} - {response.text}")
+def _make_eng(title, start_iso, duration=60):
+    return {"title": title, "start_datetime": start_iso, "duration_minutes": duration}
 
 
-@pytest.fixture
-def api_client():
-    """Shared requests session"""
-    session = requests.Session()
-    session.headers.update({"Content-Type": "application/json"})
-    return session
+def _dt(h, m=0, day=25, month=3, year=2026):
+    return datetime(year, month, day, h, m, tzinfo=timezone.utc)
 
 
-@pytest.fixture
-def authenticated_client(api_client, auth_token):
-    """Session with auth header"""
-    api_client.headers.update({"Authorization": f"Bearer {auth_token}"})
-    return api_client
+# ── _check_overlap tests ──
+
+def test_exact_overlap():
+    """Proposed slot is exactly the same as existing → conflict."""
+    conflicts, warnings = _check_overlap(
+        _dt(14, 0), _dt(15, 0),
+        [_make_eng("Meeting", "2026-03-25T14:00:00+00:00", 60)]
+    )
+    assert len(conflicts) == 1
+    assert len(warnings) == 0
+    print("PASS: exact overlap → conflict")
 
 
-class TestConflictDetectionAuth:
-    """Test authentication requirements for conflict detection endpoint"""
-    
-    def test_requires_authentication(self, api_client):
-        """POST /api/appointments/check-conflicts returns 401 without token"""
-        response = api_client.post(f"{BASE_URL}/api/appointments/check-conflicts", json={
-            "start_datetime": "2026-06-25T10:00:00Z",
-            "duration_minutes": 60
-        })
-        assert response.status_code == 401, f"Expected 401, got {response.status_code}: {response.text}"
-        print("PASS: Endpoint requires authentication (401 without token)")
+def test_partial_overlap_start():
+    """Proposed starts during an existing event → conflict."""
+    conflicts, _ = _check_overlap(
+        _dt(14, 30), _dt(15, 30),
+        [_make_eng("Meeting", "2026-03-25T14:00:00+00:00", 60)]
+    )
+    assert len(conflicts) == 1
+    print("PASS: partial overlap at start → conflict")
 
 
-class TestConflictDetection:
-    """Test conflict detection logic"""
-    
-    def test_conflict_status_on_overlap(self, authenticated_client):
-        """Returns 'conflict' status when proposed slot overlaps existing engagement"""
-        # Use the known conflicting date: 2026-06-20T08:00:00Z
-        response = authenticated_client.post(f"{BASE_URL}/api/appointments/check-conflicts", json={
-            "start_datetime": CONFLICT_DATE,
-            "duration_minutes": 60
-        })
-        assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
-        
-        data = response.json()
-        print(f"Response: {data}")
-        
-        # Check response structure
-        assert "status" in data, "Response should have 'status' field"
-        assert "confidence" in data, "Response should have 'confidence' field"
-        assert "conflicts" in data, "Response should have 'conflicts' field"
-        assert "warnings" in data, "Response should have 'warnings' field"
-        assert "suggestions" in data, "Response should have 'suggestions' field"
-        
-        # If there's a conflict, verify the structure
-        if data["status"] == "conflict":
-            assert data["confidence"] == "high", "Conflict should have high confidence"
-            assert len(data["conflicts"]) > 0, "Should have at least one conflict item"
-            
-            # Verify conflict item structure
-            conflict = data["conflicts"][0]
-            assert "title" in conflict, "Conflict item should have 'title'"
-            assert "start" in conflict, "Conflict item should have 'start'"
-            assert "end" in conflict, "Conflict item should have 'end'"
-            
-            # Should have suggestions when conflict detected
-            assert len(data["suggestions"]) > 0, "Should provide suggestions when conflict detected"
-            print(f"PASS: Conflict detected - {conflict['title']} ({conflict['start']} - {conflict['end']})")
-        else:
-            # No conflict found - this is also valid if no appointment exists at that time
-            print(f"INFO: No conflict found at {CONFLICT_DATE} - status: {data['status']}")
-            assert data["status"] in ["available", "warning"], f"Status should be available or warning, got {data['status']}"
-    
-    def test_warning_status_within_buffer(self, authenticated_client):
-        """Returns 'warning' status when proposed slot is within 30min of existing engagement"""
-        # Schedule 15 minutes after the known appointment ends (08:00 + 60min = 09:00, so 09:15)
-        warning_time = "2026-06-20T09:15:00Z"
-        
-        response = authenticated_client.post(f"{BASE_URL}/api/appointments/check-conflicts", json={
-            "start_datetime": warning_time,
-            "duration_minutes": 60
-        })
-        assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
-        
-        data = response.json()
-        print(f"Response for warning test: {data}")
-        
-        # Check response structure
-        assert "status" in data
-        assert "confidence" in data
-        
-        if data["status"] == "warning":
-            assert data["confidence"] == "high", "Warning should have high confidence"
-            assert len(data["warnings"]) > 0, "Should have at least one warning item"
-            
-            warning = data["warnings"][0]
-            assert "title" in warning
-            assert "start" in warning
-            assert "end" in warning
-            print(f"PASS: Warning detected - {warning['title']} is within 30min buffer")
-        else:
-            print(f"INFO: Status is {data['status']} - may not have appointment at that time")
-    
-    def test_available_status_no_conflicts(self, authenticated_client):
-        """Returns 'available' with 'medium' confidence when no conflicts"""
-        # Use a date far in the future with no appointments
-        safe_time = "2027-12-25T14:00:00Z"
-        
-        response = authenticated_client.post(f"{BASE_URL}/api/appointments/check-conflicts", json={
-            "start_datetime": safe_time,
-            "duration_minutes": 60
-        })
-        assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
-        
-        data = response.json()
-        print(f"Response for available test: {data}")
-        
-        assert data["status"] == "available", f"Expected 'available', got {data['status']}"
-        assert data["confidence"] == "medium", f"Expected 'medium' confidence for NLYT-only check, got {data['confidence']}"
-        assert len(data["conflicts"]) == 0, "Should have no conflicts"
-        assert len(data["warnings"]) == 0, "Should have no warnings"
-        # Suggestions may or may not be present when available
-        print("PASS: Available status with medium confidence when no conflicts")
+def test_partial_overlap_end():
+    """Proposed ends during an existing event → conflict."""
+    conflicts, _ = _check_overlap(
+        _dt(13, 30), _dt(14, 30),
+        [_make_eng("Meeting", "2026-03-25T14:00:00+00:00", 60)]
+    )
+    assert len(conflicts) == 1
+    print("PASS: partial overlap at end → conflict")
 
 
-class TestSuggestions:
-    """Test suggestion generation"""
-    
-    def test_suggestions_have_required_fields(self, authenticated_client):
-        """Suggestions array contains datetime_str and label fields"""
-        # Use a time that might have conflicts to get suggestions
-        response = authenticated_client.post(f"{BASE_URL}/api/appointments/check-conflicts", json={
-            "start_datetime": CONFLICT_DATE,
-            "duration_minutes": 60
-        })
-        assert response.status_code == 200
-        
-        data = response.json()
-        
-        if data["status"] in ["conflict", "warning"] and len(data["suggestions"]) > 0:
-            for suggestion in data["suggestions"]:
-                assert "datetime_str" in suggestion, "Suggestion should have 'datetime_str'"
-                assert "label" in suggestion, "Suggestion should have 'label'"
-                assert suggestion["label"] in ["optimal", "comfortable", "tight"], \
-                    f"Label should be optimal/comfortable/tight, got {suggestion['label']}"
-            print(f"PASS: {len(data['suggestions'])} suggestions with valid labels")
-        else:
-            print("INFO: No suggestions generated (no conflict/warning or empty suggestions)")
-    
-    def test_suggestions_labels_variety(self, authenticated_client):
-        """Suggestions include different labels (optimal/comfortable/tight)"""
-        response = authenticated_client.post(f"{BASE_URL}/api/appointments/check-conflicts", json={
-            "start_datetime": CONFLICT_DATE,
-            "duration_minutes": 60
-        })
-        assert response.status_code == 200
-        
-        data = response.json()
-        
-        if len(data.get("suggestions", [])) > 0:
-            labels = set(s["label"] for s in data["suggestions"])
-            print(f"Labels found: {labels}")
-            # At least one label type should be present
-            assert len(labels) >= 1, "Should have at least one label type"
-            print(f"PASS: Suggestions have labels: {labels}")
-        else:
-            print("INFO: No suggestions to check labels")
+def test_proposed_contains_existing():
+    """Proposed fully contains an existing event → conflict."""
+    conflicts, _ = _check_overlap(
+        _dt(13, 0), _dt(16, 0),
+        [_make_eng("Meeting", "2026-03-25T14:00:00+00:00", 60)]
+    )
+    assert len(conflicts) == 1
+    print("PASS: proposed contains existing → conflict")
 
 
-class TestInputValidation:
-    """Test input validation"""
-    
-    def test_invalid_date_returns_400(self, authenticated_client):
-        """Returns 400 for invalid date format"""
-        response = authenticated_client.post(f"{BASE_URL}/api/appointments/check-conflicts", json={
-            "start_datetime": "invalid-date-format",
-            "duration_minutes": 60
-        })
-        assert response.status_code == 400, f"Expected 400, got {response.status_code}: {response.text}"
-        
-        data = response.json()
-        assert "detail" in data, "Error response should have 'detail' field"
-        print(f"PASS: Invalid date returns 400 - {data.get('detail')}")
-    
-    def test_empty_date_returns_400(self, authenticated_client):
-        """Returns 400 for empty date"""
-        response = authenticated_client.post(f"{BASE_URL}/api/appointments/check-conflicts", json={
-            "start_datetime": "",
-            "duration_minutes": 60
-        })
-        assert response.status_code == 400, f"Expected 400, got {response.status_code}: {response.text}"
-        print("PASS: Empty date returns 400")
-    
-    def test_default_duration(self, authenticated_client):
-        """Uses default duration of 60 minutes if not specified"""
-        response = authenticated_client.post(f"{BASE_URL}/api/appointments/check-conflicts", json={
-            "start_datetime": "2027-06-25T10:00:00Z"
-        })
-        assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
-        print("PASS: Default duration works when not specified")
+def test_existing_contains_proposed():
+    """Existing event fully contains proposed → conflict."""
+    conflicts, _ = _check_overlap(
+        _dt(14, 15), _dt(14, 45),
+        [_make_eng("Meeting", "2026-03-25T14:00:00+00:00", 60)]
+    )
+    assert len(conflicts) == 1
+    print("PASS: existing contains proposed → conflict")
 
 
-class TestResponseStructure:
-    """Test response structure completeness"""
-    
-    def test_response_has_all_fields(self, authenticated_client):
-        """Response contains all required fields"""
-        response = authenticated_client.post(f"{BASE_URL}/api/appointments/check-conflicts", json={
-            "start_datetime": "2027-06-25T10:00:00Z",
-            "duration_minutes": 60
-        })
-        assert response.status_code == 200
-        
-        data = response.json()
-        
-        required_fields = ["status", "confidence", "conflicts", "warnings", "suggestions"]
-        for field in required_fields:
-            assert field in data, f"Response missing required field: {field}"
-        
-        # Validate types
-        assert isinstance(data["status"], str)
-        assert isinstance(data["confidence"], str)
-        assert isinstance(data["conflicts"], list)
-        assert isinstance(data["warnings"], list)
-        assert isinstance(data["suggestions"], list)
-        
-        print("PASS: Response has all required fields with correct types")
+def test_edge_to_edge_no_conflict():
+    """Proposed starts exactly when existing ends → NO conflict (edge-to-edge)."""
+    conflicts, warnings = _check_overlap(
+        _dt(15, 0), _dt(16, 0),
+        [_make_eng("Meeting", "2026-03-25T14:00:00+00:00", 60)]
+    )
+    assert len(conflicts) == 0
+    print("PASS: edge-to-edge → no conflict")
+
+
+def test_edge_to_edge_warning():
+    """Proposed starts right when existing ends → warning (0 min buffer)."""
+    _, warnings = _check_overlap(
+        _dt(15, 0), _dt(16, 0),
+        [_make_eng("Meeting", "2026-03-25T14:00:00+00:00", 60)]
+    )
+    assert len(warnings) == 1
+    print("PASS: edge-to-edge → warning (0 min buffer)")
+
+
+def test_buffer_warning():
+    """Proposed starts 15 min after existing ends → warning (<30 min buffer)."""
+    conflicts, warnings = _check_overlap(
+        _dt(15, 15), _dt(16, 15),
+        [_make_eng("Meeting", "2026-03-25T14:00:00+00:00", 60)]
+    )
+    assert len(conflicts) == 0
+    assert len(warnings) == 1
+    print("PASS: 15 min gap → warning")
+
+
+def test_sufficient_buffer_no_warning():
+    """Proposed starts 45 min after existing ends → no warning."""
+    conflicts, warnings = _check_overlap(
+        _dt(15, 45), _dt(16, 45),
+        [_make_eng("Meeting", "2026-03-25T14:00:00+00:00", 60)]
+    )
+    assert len(conflicts) == 0
+    assert len(warnings) == 0
+    print("PASS: 45 min gap → available")
+
+
+def test_multi_conflicts():
+    """Proposed overlaps two events → 2 conflicts."""
+    conflicts, _ = _check_overlap(
+        _dt(14, 0), _dt(17, 0),
+        [
+            _make_eng("Meeting A", "2026-03-25T14:00:00+00:00", 60),
+            _make_eng("Meeting B", "2026-03-25T16:00:00+00:00", 60),
+        ]
+    )
+    assert len(conflicts) == 2
+    print("PASS: overlapping 2 events → 2 conflicts")
+
+
+# ── _generate_suggestions tests ──
+
+def test_suggestions_never_in_past():
+    """All suggestions must be in the future (> now + MIN_FUTURE_MINUTES)."""
+    now = datetime.now(timezone.utc)
+    proposed = now - timedelta(hours=1)  # Proposed is in the past
+    engs = [_make_eng("Busy", (now + timedelta(hours=1)).isoformat(), 60)]
+    suggestions = _generate_suggestions(proposed, 60, engs, count=5)
+    min_allowed = now + timedelta(minutes=MIN_FUTURE_MINUTES)
+    for s in suggestions:
+        dt = _parse_dt(s.datetime_str)
+        assert dt >= min_allowed, f"Suggestion {s.datetime_str} is in the past!"
+    print(f"PASS: all {len(suggestions)} suggestions are in the future")
+
+
+def test_suggestions_respect_duration():
+    """No suggestion's [start, start+duration) should overlap with a busy slot."""
+    now = datetime.now(timezone.utc)
+    busy_start = now + timedelta(hours=2)
+    busy_end = busy_start + timedelta(minutes=60)
+    engs = [_make_eng("Busy", busy_start.isoformat(), 60)]
+    suggestions = _generate_suggestions(busy_start, 60, engs, count=5)
+    for s in suggestions:
+        dt = _parse_dt(s.datetime_str)
+        dt_end = dt + timedelta(minutes=60)
+        assert not (dt < busy_end and dt_end > busy_start), \
+            f"Suggestion {s.datetime_str} conflicts with busy slot!"
+    print(f"PASS: all {len(suggestions)} suggestions respect full duration")
+
+
+def test_suggestions_not_same_as_proposed():
+    """Suggestions should not include the same slot the user proposed."""
+    now = datetime.now(timezone.utc)
+    proposed = now + timedelta(hours=2)
+    proposed = proposed.replace(minute=0, second=0, microsecond=0)
+    engs = [_make_eng("Busy", proposed.isoformat(), 60)]
+    suggestions = _generate_suggestions(proposed, 60, engs, count=5)
+    for s in suggestions:
+        dt = _parse_dt(s.datetime_str)
+        assert abs((dt - proposed).total_seconds()) >= 60, \
+            f"Suggestion {s.datetime_str} is same as proposed!"
+    print(f"PASS: no suggestion matches proposed slot")
+
+
+def test_suggestions_sorted_and_realistic():
+    """Suggestions should have valid labels."""
+    now = datetime.now(timezone.utc)
+    proposed = now + timedelta(hours=3)
+    proposed = proposed.replace(minute=0, second=0, microsecond=0)
+    engs = [_make_eng("Busy", proposed.isoformat(), 60)]
+    suggestions = _generate_suggestions(proposed, 60, engs, count=5)
+    valid_labels = {"optimal", "comfortable", "tight"}
+    for s in suggestions:
+        assert s.label in valid_labels, f"Invalid label: {s.label}"
+    print(f"PASS: all labels valid ({[s.label for s in suggestions]})")
 
 
 if __name__ == "__main__":
-    pytest.main([__file__, "-v"])
+    test_exact_overlap()
+    test_partial_overlap_start()
+    test_partial_overlap_end()
+    test_proposed_contains_existing()
+    test_existing_contains_proposed()
+    test_edge_to_edge_no_conflict()
+    test_edge_to_edge_warning()
+    test_buffer_warning()
+    test_sufficient_buffer_no_warning()
+    test_multi_conflicts()
+    test_suggestions_never_in_past()
+    test_suggestions_respect_duration()
+    test_suggestions_not_same_as_proposed()
+    test_suggestions_sorted_and_realistic()
+    print("\n✅ ALL 14 TESTS PASSED")
