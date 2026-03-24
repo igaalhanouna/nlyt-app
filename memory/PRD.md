@@ -157,6 +157,13 @@ Les APIs calendrier (Google/Outlook) interprétaient la valeur comme heure local
 - **UX** : bouton discret, compteur "X sur N engagements", pas de scroll reset, loader léger
 - Tests : 15/15 backend + 9/9 frontend (testing agent iteration_66)
 
+## Indexation MongoDB (Mars 2026)
+- 20+ index créés sur les collections critiques : appointments, participants, calendar_sync_logs, users, wallets, payment_guarantees, etc.
+- Index composites pour les requêtes fréquentes (workspace_id+status, sync_status+next_retry_at)
+- Index unique sur les IDs métier (appointment_id, participant_id, etc.)
+- Fonction `ensure_indexes()` dans `database.py`, appelée au démarrage (idempotente)
+- L'ancien index email idempotency migré depuis server.py vers database.py
+
 ## Roadmap
 
 ### P1
