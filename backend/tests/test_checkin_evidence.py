@@ -18,7 +18,7 @@ import requests
 import os
 import time
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://stripe-connect-hub-6.preview.emergentagent.com')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://organizer-hub-26.preview.emergentagent.com')
 
 # Test credentials
 TEST_EMAIL = "testuser_audit@nlyt.app"

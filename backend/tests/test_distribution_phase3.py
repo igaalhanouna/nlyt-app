@@ -15,7 +15,7 @@ import os
 import uuid
 from datetime import datetime, timedelta, timezone
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://stripe-connect-hub-6.preview.emergentagent.com').rstrip('/')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://organizer-hub-26.preview.emergentagent.com').rstrip('/')
 
 # Test credentials
 TEST_EMAIL = "testuser_audit@nlyt.app"
