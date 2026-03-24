@@ -34,6 +34,7 @@ export default function AppointmentDetail() {
   // Organizer check-in state
   const [organizerParticipant, setOrganizerParticipant] = useState(null);
   const [organizerCheckinDone, setOrganizerCheckinDone] = useState(false);
+  const [organizerCheckinData, setOrganizerCheckinData] = useState(null);
   const [checkingIn, setCheckingIn] = useState(false);
   const [proposalHistory, setProposalHistory] = useState([]);
   const [showProposalForm, setShowProposalForm] = useState(false);
@@ -83,7 +84,11 @@ export default function AppointmentDetail() {
       if (orgP && orgP.invitation_token) {
         checkinAPI.getStatus(id, orgP.invitation_token)
           .then(res => {
-            if (res.data?.evidence_count > 0) setOrganizerCheckinDone(true);
+            if (res.data?.evidence_count > 0) {
+              setOrganizerCheckinDone(true);
+              const gpsEv = res.data.evidence?.find(e => e.source === 'gps' || (e.derived_facts?.latitude));
+              if (gpsEv) setOrganizerCheckinData(gpsEv);
+            }
           })
           .catch(() => {});
       }
@@ -165,9 +170,14 @@ export default function AppointmentDetail() {
       }
 
       console.log(`[CHECKIN:ORG] Sending organizer check-in: hasGPS=${!!payload.latitude}`);
-      await checkinAPI.manual(payload);
+      const checkinRes = await checkinAPI.manual(payload);
       console.log('[CHECKIN:ORG] Success');
       setOrganizerCheckinDone(true);
+      if (checkinRes.data?.evidence?.derived_facts) {
+        setOrganizerCheckinData(checkinRes.data.evidence);
+      } else if (payload.latitude) {
+        setOrganizerCheckinData({ derived_facts: { latitude: payload.latitude, longitude: payload.longitude } });
+      }
       toast.success('Check-in organisateur enregistré');
       loadData();
     } catch (error) {
@@ -1305,9 +1315,32 @@ export default function AppointmentDetail() {
               <h2 className="text-lg font-semibold text-slate-900">Mon check-in (organisateur)</h2>
             </div>
             {organizerCheckinDone ? (
-              <div className="flex items-center gap-2 p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
-                <Check className="w-5 h-5 text-emerald-600" />
-                <p className="text-sm font-medium text-emerald-700">Check-in enregistré</p>
+              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg space-y-2">
+                <div className="flex items-center gap-2">
+                  <Check className="w-5 h-5 text-emerald-600" />
+                  <p className="text-sm font-medium text-emerald-700">Check-in enregistré</p>
+                </div>
+                {organizerCheckinData?.derived_facts && (
+                  <div className="pl-7 space-y-1" data-testid="organizer-gps-details">
+                    {organizerCheckinData.derived_facts.latitude && (
+                      <p className="text-xs text-slate-500">
+                        <MapPin className="w-3 h-3 inline mr-1" />
+                        {Number(organizerCheckinData.derived_facts.latitude).toFixed(5)}, {Number(organizerCheckinData.derived_facts.longitude).toFixed(5)}
+                      </p>
+                    )}
+                    {organizerCheckinData.derived_facts.distance_km != null && (
+                      <p className="text-xs text-slate-500">
+                        Distance : {organizerCheckinData.derived_facts.distance_km < 1
+                          ? `${Math.round(organizerCheckinData.derived_facts.distance_km * 1000)} m`
+                          : `${organizerCheckinData.derived_facts.distance_km.toFixed(2)} km`
+                        } du lieu de rendez-vous
+                      </p>
+                    )}
+                    {organizerCheckinData.derived_facts.address_label && (
+                      <p className="text-xs text-slate-400">{organizerCheckinData.derived_facts.address_label}</p>
+                    )}
+                  </div>
+                )}
               </div>
             ) : appointment.appointment_type === 'video' ? (
               <div className="space-y-3">

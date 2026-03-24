@@ -81,13 +81,27 @@ export default function EvidenceDashboard({ participants, evidenceData, appointm
                       </div>
                       {e.derived_facts && (
                         <div className="text-xs text-slate-500 space-y-0.5 ml-5">
+                          {e.derived_facts.latitude && (
+                            <div className="flex items-center gap-1">
+                              <Navigation className="w-3 h-3" />
+                              {Number(e.derived_facts.latitude).toFixed(5)}, {Number(e.derived_facts.longitude).toFixed(5)}
+                            </div>
+                          )}
+                          {e.derived_facts.distance_km != null && (
+                            <div className="flex items-center gap-1 text-slate-400">
+                              Distance : {e.derived_facts.distance_km < 1
+                                ? `${Math.round(e.derived_facts.distance_km * 1000)} m`
+                                : `${e.derived_facts.distance_km.toFixed(2)} km`
+                              }
+                            </div>
+                          )}
                           {e.derived_facts.temporal_detail && (
                             <div className="flex items-center gap-1">
                               <Timer className="w-3 h-3" />
                               {e.derived_facts.temporal_detail}
                             </div>
                           )}
-                          {e.derived_facts.geographic_detail && (
+                          {e.derived_facts.geographic_detail && !e.derived_facts.latitude && (
                             <div className="flex items-center gap-1">
                               <Navigation className="w-3 h-3" />
                               {e.derived_facts.geographic_detail}
