@@ -15,13 +15,15 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API
 - Wording: "Engagement solidaire" au lieu de "rendez-vous", "Geste solidaire" au lieu de "pénalité", "Temps valorisé"
 - Custom domain: app.nlyt.io (production)
 
-## Testing
-- iteration_59: 25/25 (Financial Email Notifications)
-- iteration_60: 27/27 (Workspace inline edit)
-- iteration_61: 23/23 (Dashboard UX overhaul)
-- iteration_62: 20/20 (Conflict Detection V1)
-- iteration_63: 29/29 (Conflict Detection V2 — Calendar Integration)
-- QA Manuel V2: 8/8 scénarios E2E validés
+## Logo Placement (Completed)
+Pages with N·L·Y·T logo (top-right):
+- LandingPage, ImpactPage (white on dark)
+- Auth pages: SignIn, SignUp, ForgotPassword, ResetPassword, ResendVerification, VerifyEmail
+- Dashboard: OrganizerDashboard
+- Settings: Profile, Integrations, PaymentSettings, WalletPage, WorkspaceSettings, Settings hub
+- Appointments: AppointmentWizard, AppointmentDetail, ParticipantManagement
+- SelectWorkspace
+- InvitationPage
 
 ## Completed Features
 - [x] Stripe Connect (Phases 1-5): Wallet, Connect, Distribution, Payouts, Notifications
@@ -40,7 +42,7 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API
 - [x] Complete Product Repositioning ("engagement solidaire" wording)
 - [x] Dark theme on ImpactPage
 - [x] Default compensation sliders: charity/geste solidaire first
-- [x] N·L·Y·T typographic logo on all pages (Landing, Auth, Dashboard, Profile, Settings, Workspace)
+- [x] N·L·Y·T typographic logo on ALL app pages
 
 ## P0 — Configuration Pending
 - [ ] Zoom credentials (ZOOM_ACCOUNT_ID, ZOOM_CLIENT_ID, ZOOM_CLIENT_SECRET)
@@ -48,7 +50,7 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API
 
 ## P1 — Next Up
 - [ ] Aligner les emails transactionnels backend (wording "engagement solidaire" / "temps valorisé")
-- [ ] Refactorer InvitationPage.js (1400+ lignes → découper en composants)
+- [ ] Refactorer InvitationPage.js (1400+ lignes -> composants modulaires)
 - [ ] Test réel du mode calendar Teams (compte Outlook non-pro)
 
 ## P2 — Planned

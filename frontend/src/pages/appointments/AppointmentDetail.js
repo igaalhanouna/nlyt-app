@@ -788,12 +788,18 @@ export default function AppointmentDetail() {
   return (
     <div className="min-h-screen bg-background py-8 px-4">
       <div className="max-w-6xl mx-auto">
-        <Link to="/dashboard">
-          <Button variant="ghost" className="mb-6">
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Retour au tableau de bord
-          </Button>
-        </Link>
+        <div className="flex items-center justify-between mb-6">
+          <Link to="/dashboard">
+            <Button variant="ghost">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Retour au tableau de bord
+            </Button>
+          </Link>
+          <div>
+            <span className="block text-lg font-bold tracking-[0.35em] text-slate-900 text-right">N<span className="text-slate-400">·</span>L<span className="text-slate-400">·</span>Y<span className="text-slate-400">·</span>T</span>
+            <span className="block text-[10px] font-medium tracking-[0.25em] text-slate-400 uppercase text-right">Never Lose Your Time</span>
+          </div>
+        </div>
 
         {/* Cancelled Banner */}
         {isCancelled && (

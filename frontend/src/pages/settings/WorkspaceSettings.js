@@ -99,6 +99,13 @@ export default function WorkspaceSettings() {
           </Button>
         </Link>
         
+        <div className="flex justify-end mb-4">
+          <div>
+            <span className="block text-lg font-bold tracking-[0.35em] text-slate-900 text-right">N<span className="text-slate-400">·</span>L<span className="text-slate-400">·</span>Y<span className="text-slate-400">·</span>T</span>
+            <span className="block text-[10px] font-medium tracking-[0.25em] text-slate-400 uppercase text-right">Never Lose Your Time</span>
+          </div>
+        </div>
+
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-3xl font-bold">Paramètres du workspace</h1>
           
