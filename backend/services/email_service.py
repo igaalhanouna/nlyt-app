@@ -58,7 +58,6 @@ ACCENT_COLORS = {
 
 def _base_template(body_html: str, accent: str = "neutral") -> str:
     """Wrap any email body in the NLYT branded template."""
-    bar_color = ACCENT_COLORS.get(accent, ACCENT_COLORS["neutral"])
     return f"""<!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -79,9 +78,6 @@ def _base_template(body_html: str, accent: str = "neutral") -> str:
     <span style="font-size:10px;font-weight:500;letter-spacing:0.25em;color:rgba(255,255,255,0.35);text-transform:uppercase;">Never Lose Your Time</span>
   </a>
 </td></tr>
-
-<!-- ACCENT BAR -->
-<tr><td style="height:3px;background-color:{bar_color};font-size:0;line-height:0;">&nbsp;</td></tr>
 
 <!-- BODY -->
 <tr><td style="background-color:#FFFFFF;padding:36px 36px 28px 36px;">
