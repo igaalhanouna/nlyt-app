@@ -23,12 +23,12 @@ export default function LandingPage() {
     <div className="min-h-screen bg-[#0A0A0B] text-white">
       {/* ── Nav ── */}
       <nav className="border-b border-white/5">
-        <div className="max-w-6xl mx-auto px-6 lg:px-8 py-5 flex items-center justify-between">
+        <div className="max-w-6xl mx-auto px-6 lg:px-8 py-5 flex items-center justify-between relative">
           <span className="text-xl font-bold tracking-tight text-white" data-testid="nav-logo">
             <span className="tracking-[0.25em]">N <span className="mx-[2px]">·</span> L <span className="mx-[2px]">·</span> Y <span className="mx-[2px]">·</span> T</span>
             <span className="block text-[9px] font-normal tracking-[0.2em] text-slate-500 uppercase">Never Lose Your Time</span>
           </span>
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-medium text-slate-400">
+          <div className="absolute left-1/2 -translate-x-1/2 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-medium text-slate-400">
             <Shield className="w-3 h-3" />
             Créateur d'engagements solidaires
           </div>
