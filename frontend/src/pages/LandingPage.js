@@ -110,24 +110,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Preuve sociale / Compteur (moved higher) ── */}
-      {impactCents > 0 && (
-        <section className="py-10 sm:py-20 px-4 sm:px-6 border-t border-white/5" data-testid="proof-section">
-          <div className="max-w-3xl mx-auto text-center">
-            <Heart className="w-5 h-5 text-rose-400 mx-auto mb-4 sm:mb-6" />
-            <p className="text-4xl sm:text-5xl font-bold tracking-tight text-white mb-3" data-testid="proof-amount">
-              {impactFormatted}
-            </p>
-            <p className="text-sm text-slate-400">
-              reversés à des associations grâce aux gestes solidaires sur NLYT.
-            </p>
-            <Link to="/impact" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-white mt-4 sm:mt-6 transition-colors">
-              Voir le détail <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
-          </div>
-        </section>
-      )}
-
       {/* ── Promesse (compact on mobile) ── */}
       <section className="py-10 sm:py-20 px-4 sm:px-6 border-t border-white/5" data-testid="promise-section">
         <div className="max-w-3xl mx-auto">
@@ -178,15 +160,39 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── CTA Final ── */}
-      <section className="py-10 sm:py-24 px-4 sm:px-6 border-t border-white/5" data-testid="cta-section">
+      {/* ── Phrase finale ── */}
+      <section className="py-10 sm:py-16 px-4 sm:px-6 border-t border-white/5" data-testid="closing-section">
         <div className="max-w-2xl mx-auto text-center">
           <p className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight text-white mb-4">
             Chaque occasion perdue devient une possibilité de faire une bonne action.
           </p>
-          <p className="text-sm text-slate-500 mb-6 sm:mb-10">
+          <p className="text-sm text-slate-500">
             Votre temps est garanti. Faites en profiter qui vous voulez.
           </p>
+        </div>
+      </section>
+
+      {/* ── Preuve sociale / Compteur (validation finale) ── */}
+      {impactCents > 0 && (
+        <section className="py-10 sm:py-20 px-4 sm:px-6 border-t border-white/5" data-testid="proof-section">
+          <div className="max-w-3xl mx-auto text-center">
+            <Heart className="w-5 h-5 text-rose-400 mx-auto mb-4 sm:mb-6" />
+            <p className="text-4xl sm:text-5xl font-bold tracking-tight text-white mb-3" data-testid="proof-amount">
+              {impactFormatted}
+            </p>
+            <p className="text-sm text-slate-400">
+              reversés à des associations grâce aux gestes solidaires sur NLYT.
+            </p>
+            <Link to="/impact" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-white mt-4 sm:mt-6 transition-colors">
+              Voir le détail <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+        </section>
+      )}
+
+      {/* ── CTA Final ── */}
+      <section className="py-10 sm:py-24 px-4 sm:px-6 border-t border-white/5" data-testid="cta-section">
+        <div className="max-w-2xl mx-auto text-center">
           <Link to="/signup" className="block sm:inline-block">
             <Button size="lg" className="bg-white text-[#0A0A0B] hover:bg-slate-200 text-sm sm:text-base px-6 sm:px-8 h-12 sm:h-13 font-semibold w-full sm:w-auto" data-testid="footer-cta-btn">
               Créer mon premier engagement solidaire <ArrowRight className="ml-2 w-4 h-4" />

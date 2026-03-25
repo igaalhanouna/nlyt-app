@@ -57,7 +57,7 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API
 - [x] P1 Mobile: Dashboard tabs scroll+fade, AppointmentDetail layout, AppointmentWizard stepper+nav+inputs, ParticipantManagement, Settings sub-pages padding+buttons
 
 ## Completed — Public Pages Mobile UX (Mars 2026)
-- [x] Homepage (LandingPage.js) : Hero compact, réordonnancement sections, preuve sociale remontée, nav CTA masqué mobile
+- [x] Homepage (LandingPage.js) : Hero compact, réordonnancement sections, preuve sociale en validation finale (avant CTA), nav CTA masqué mobile
 - [x] Impact (ImpactPage.js) : Hero compact + CTA above fold, Comment ça fonctionne remonté, 344€ proéminent, KPIs compacts (3 cols), Associations 3 max + toggle, Historique 3 max + toggle, CTA doublon supprimé, Transparence compacte
 - [x] Vérifié : 0 overflow horizontal (375px), desktop (1280px) intact, aucun texte/wording modifié sur les 2 pages
 
