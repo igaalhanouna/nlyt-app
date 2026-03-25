@@ -209,6 +209,15 @@ Les APIs calendrier (Google/Outlook) interprétaient la valeur comme heure local
 - **3 modes Teams** : délégué (Outlook scope), application (Azure AD form), non connecté
 - Tests : 20/20 backend + 10/10 frontend (testing agent iteration_69)
 
+## Alignement Teams / Google Meet (Mars 2026)
+- **Nouveau mode "calendar"** : création Teams via `isOnlineMeeting: true` sur événement calendrier — fonctionne pour comptes perso + pro
+- **Chaîne de fallback** : Calendar → Delegated OnlineMeetings → Application (Azure AD legacy)
+- **`provider-status` enrichi** : champ `level` (advanced/standard/application/null), `has_attendance` (pro only)
+- **`can_auto_generate: true`** dès qu'Outlook est connecté (même sans scope OnlineMeetings)
+- **Wording prudent** : "Microsoft Teams disponible via votre compte Outlook" (standard), affirmatif seulement pour advanced (validé en prod)
+- **UX simplifiée** : formulaire Azure AD masqué derrière "Configuration avancée", message Outlook en priorité
+- Tests : 25/25 backend + 13/13 frontend (testing agent iteration_70)
+
 ## Roadmap
 
 ### P1
