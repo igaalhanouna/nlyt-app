@@ -95,20 +95,20 @@ export default function ImpactPage() {
       {/* ── Hero ── */}
       <section className="pt-16 pb-20 px-6" data-testid="impact-hero-section">
         <div className="max-w-3xl mx-auto text-center">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-medium text-slate-400 mb-10">
-            <Shield className="w-3.5 h-3.5" />
-            Données auditables et traçables
-          </div>
           <h1
             className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.05] mb-8"
             data-testid="impact-hero-title"
           >
             Faites profiter de votre temps perdu
           </h1>
-          <p className="text-lg sm:text-xl text-slate-400 leading-relaxed max-w-xl mx-auto mb-12">
+          <p className="text-lg sm:text-xl text-slate-400 leading-relaxed max-w-xl mx-auto mb-8">
             Chaque engagement non tenu sur NLYT génère des gestes solidaires
             reversés à des associations. Transparence totale.
           </p>
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-medium text-slate-400">
+            <Shield className="w-3.5 h-3.5" />
+            Données auditables et traçables
+          </div>
         </div>
       </section>
 
