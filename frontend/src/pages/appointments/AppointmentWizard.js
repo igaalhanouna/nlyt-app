@@ -80,7 +80,10 @@ export default function AppointmentWizard() {
   useEffect(() => {
     if (videoProviders && !providerAutoSelected && !formData.meeting_provider) {
       const priority = ['teams', 'meet', 'zoom', 'external'];
-      const best = priority.find(p => videoProviders[p]?.can_auto_generate) || 'external';
+      const best = priority.find(p => {
+        if (p === 'teams') return videoProviders[p]?.level === 'advanced';
+        return videoProviders[p]?.can_auto_generate;
+      }) || 'external';
       setFormData(prev => ({ ...prev, meeting_provider: best, meeting_join_url: '' }));
       setProviderAutoSelected(true);
     }
@@ -624,7 +627,7 @@ export default function AppointmentWizard() {
               {/* ── Microsoft Teams ── */}
               {(() => {
                 const p = videoProviders?.teams;
-                const canUse = p?.can_auto_generate;
+                const canUse = p?.level === 'advanced';
                 const isSelected = formData.meeting_provider === 'teams';
                 return (
                   <button
@@ -648,8 +651,10 @@ export default function AppointmentWizard() {
                       </div>
                       <p className={`text-xs mt-0.5 ${canUse ? 'text-slate-500' : 'text-slate-400'}`}>
                         {canUse
-                          ? `Réunion Teams créée automatiquement sous votre identité Microsoft`
-                          : p?.unavailable_reason || 'Réservé aux comptes Microsoft 365 professionnels avec Teams avancé activé'
+                          ? 'Réunion Teams créée automatiquement sous votre identité Microsoft'
+                          : p?.level === 'standard'
+                            ? 'Réservé aux comptes Microsoft 365 Pro. Activez Teams avancé dans Paramètres > Intégrations.'
+                            : p?.unavailable_reason || 'Connectez un compte Outlook dans Paramètres > Intégrations pour activer Teams.'
                         }
                       </p>
                     </div>
@@ -777,7 +782,11 @@ export default function AppointmentWizard() {
           )}
 
           {/* Auto-creation confirmation for connected providers */}
-          {formData.meeting_provider && formData.meeting_provider !== 'external' && videoProviders?.[formData.meeting_provider]?.can_auto_generate && (
+          {formData.meeting_provider && formData.meeting_provider !== 'external' && (
+            formData.meeting_provider === 'teams'
+              ? videoProviders?.teams?.level === 'advanced'
+              : videoProviders?.[formData.meeting_provider]?.can_auto_generate
+          ) && (
             <div className="flex items-start gap-2 p-2.5 bg-blue-50 border border-blue-100 rounded-lg mt-2">
               <Zap className="w-3.5 h-3.5 text-blue-600 mt-0.5 flex-shrink-0" />
               <p className="text-xs text-blue-700">

@@ -1,0 +1,66 @@
+{
+  "summary": "Teams UX Bug Fix verified. Microsoft Teams integration card is correctly GREYED OUT (disabled) for non-pro accounts in both (1) Settings > Integrations page and (2) Appointment Creation Wizard. Only 'advanced' level (pro) accounts see Teams as active/green.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": {
+    "wizard_tests": [
+      "Sandrine (standard): Teams option is GREYED OUT with cursor-not-allowed and bg-slate-50/60 styling",
+      "Sandrine (standard): Teams option does NOT show 'Automatique' badge",
+      "Sandrine (standard): Teams option shows 'Réservé aux comptes Microsoft 365 Pro. Activez Teams avancé dans Paramètres > Intégrations.'",
+      "Sandrine (standard): Google Meet is available and selected by default",
+      "Clara (advanced): Teams option is ACTIVE with violet styling (border-violet-400 bg-violet-50)",
+      "Clara (advanced): Teams option shows 'Automatique' badge",
+      "Clara (advanced): Teams option shows 'Réunion Teams créée automatiquement sous votre identité Microsoft'",
+      "Clara (advanced): Teams is auto-selected as default provider",
+      "Marie (null): Teams option is GREYED OUT with cursor-not-allowed and bg-slate-50/60 styling",
+      "Marie (null): Teams option does NOT show 'Automatique' badge",
+      "Marie (null): Teams option shows 'Connectez votre calendrier Outlook pour activer Microsoft Teams.'"
+    ],
+    "integrations_page_tests": [
+      "Sandrine (standard): Teams calendar note is GREY (bg-slate-50 border-slate-200)",
+      "Sandrine (standard): Teams note shows 'Les liens Teams ne peuvent pas être créés automatiquement pour vos RDV visio Microsoft. Vous avez besoin d'un compte Microsoft 365 Pro pour ceci.'",
+      "Clara (advanced): Teams calendar note is GREEN (bg-emerald-50/50 border-emerald-100)",
+      "Clara (advanced): Teams note shows 'Création de liens Teams active' and 'Récupération de présences disponible'",
+      "Marie (null): Teams calendar note is GREY (bg-slate-50 border-slate-200)",
+      "Marie (null): Teams note shows 'La création automatique de liens Teams nécessite un compte Microsoft 365 professionnel connecté via Outlook. Connectez un compte Outlook compatible ci-dessus.'"
+    ]
+  },
+  "test_report_links": [
+    "/app/test_reports/iteration_71.json"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "N/A (frontend-only test)",
+    "frontend": "100% (17/17 UI checks passed)"
+  },
+  "test_credentials": {
+    "standard_user": "sandrine.bonnet@demo-nlyt.fr / Demo2026! (teams.level='standard')",
+    "advanced_user": "clara.deschamps@demo-nlyt.fr / Demo2026! (teams.level='advanced')",
+    "null_user": "marie.morel@demo-nlyt.fr / Demo2026! (teams.level=null)"
+  },
+  "seed_data_creation": "None - used existing demo users",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Teams UX Bug Fix verified. Key implementation details: (1) In AppointmentWizard.js lines 624-659, Teams provider option uses canUse = p?.level === 'advanced' to determine if clickable. Non-advanced users see greyed out option with cursor-not-allowed styling. (2) In Integrations.js lines 698-740, Teams calendar note uses isActive = teamsLevel === 'advanced' to determine green vs grey styling. (3) Three user levels: 'advanced' (pro account with has_online_meetings_scope), 'standard' (Outlook connected but no pro scope), null (no Outlook connection). Only 'advanced' users can use Teams auto-generation.",
+  "mocked_apis": {
+    "has_mocked_apis": false,
+    "mocked_apis_list": []
+  },
+  "screenshots": [
+    ".screenshots/sandrine_wizard_step2.png - Shows Teams greyed out for standard user",
+    ".screenshots/sandrine_integrations_full.png - Shows Teams calendar note grey for standard user",
+    ".screenshots/clara_wizard_step2.png - Shows Teams active/selected for advanced user",
+    ".screenshots/clara_integrations_full.png - Shows Teams calendar note green for advanced user",
+    ".screenshots/marie_wizard_step2.png - Shows Teams greyed out for null user",
+    ".screenshots/marie_integrations.png - Shows Teams calendar note grey for null user"
+  ]
+}
