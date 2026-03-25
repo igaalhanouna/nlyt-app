@@ -795,7 +795,7 @@ export default function AppointmentDetail() {
         { label: appointment.title },
       ]} />
 
-      <div className="max-w-6xl mx-auto px-6 pb-12">
+      <div className="max-w-6xl mx-auto px-4 md:px-6 pb-12">
 
         {/* Cancelled Banner */}
         {isCancelled && (
@@ -810,9 +810,9 @@ export default function AppointmentDetail() {
           </div>
         )}
 
-        <div className="mb-6 flex items-start justify-between">
-          <div>
-            <h1 className={`text-3xl font-bold mb-2 ${isCancelled ? 'text-slate-400 line-through' : 'text-slate-900'}`} data-testid="appointment-title">
+        <div className="mb-6">
+          <div className="mb-3">
+            <h1 className={`text-2xl md:text-3xl font-bold mb-2 ${isCancelled ? 'text-slate-400 line-through' : 'text-slate-900'}`} data-testid="appointment-title">
               {appointment.title}
             </h1>
             <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
@@ -828,14 +828,14 @@ export default function AppointmentDetail() {
                appointment.status === 'draft' ? 'Brouillon' : appointment.status}
             </span>
           </div>
-          <div className="flex gap-2 flex-wrap">
+          <div className="flex flex-wrap gap-2">
             {/* Apple Calendar / ICS export button */}
-            <div className="relative group">
+            <div className="relative group w-full sm:w-auto">
               <Button 
                 variant="outline"
                 onClick={handleDownloadICS}
                 data-testid="download-ics-btn"
-                className="gap-2"
+                className="gap-2 w-full sm:w-auto min-h-[44px] sm:min-h-0"
               >
                 <Download className="w-4 h-4" />
                 Autres calendriers (.ics)
@@ -907,15 +907,15 @@ export default function AppointmentDetail() {
             
             {!isCancelled && (
               <>
-                <Link to={`/appointments/${id}/participants`}>
-                  <Button variant="outline">
+                <Link to={`/appointments/${id}/participants`} className="w-full sm:w-auto">
+                  <Button variant="outline" className="w-full sm:w-auto min-h-[44px] sm:min-h-0">
                     <Users className="w-4 h-4 mr-2" />
                     Gérer les participants
                   </Button>
                 </Link>
                 <Button 
                   variant="outline" 
-                  className="text-red-600 border-red-300 hover:bg-red-50"
+                  className="text-red-600 border-red-300 hover:bg-red-50 w-full sm:w-auto min-h-[44px] sm:min-h-0"
                   onClick={() => setShowCancelModal(true)}
                   data-testid="cancel-appointment-btn"
                 >
@@ -929,15 +929,15 @@ export default function AppointmentDetail() {
 
         {/* Banner for pending organizer guarantee */}
         {isPendingGuarantee && (
-          <div className="mb-6 bg-amber-50 border border-amber-200 rounded-lg p-5 flex items-start gap-4" data-testid="pending-guarantee-banner">
+          <div className="mb-6 bg-amber-50 border border-amber-200 rounded-lg p-4 md:p-5 flex items-start gap-3 md:gap-4" data-testid="pending-guarantee-banner">
             <AlertTriangle className="w-6 h-6 text-amber-600 mt-0.5 flex-shrink-0" />
-            <div className="flex-1">
+            <div className="flex-1 min-w-0">
               <h3 className="font-semibold text-amber-900">Rendez-vous en attente de votre garantie</h3>
               <p className="text-sm text-amber-800 mt-1">
                 Les invitations ne seront envoyées aux participants qu'après validation de votre garantie organisateur.
                 Complétez votre garantie ou configurez une carte par défaut dans vos paramètres.
               </p>
-              <div className="flex gap-3 mt-3">
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mt-3">
                 <Button
                   size="sm"
                   onClick={handleResumeGuarantee}
@@ -962,8 +962,8 @@ export default function AppointmentDetail() {
           </div>
         )}
 
-        <div className="grid md:grid-cols-3 gap-6 mb-6">
-          <div className={`bg-white p-6 rounded-lg border ${isCancelled ? 'border-slate-200 opacity-60' : 'border-slate-200'}`}>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-6 mb-6">
+          <div className={`bg-white p-4 md:p-6 rounded-lg border ${isCancelled ? 'border-slate-200 opacity-60' : 'border-slate-200'}`}>
             <div className="flex items-center gap-3 mb-3">
               <div className="p-2 bg-blue-100 rounded-lg">
                 <Users className="w-5 h-5 text-blue-700" />
@@ -978,7 +978,7 @@ export default function AppointmentDetail() {
             </div>
           </div>
 
-          <div className={`bg-white p-6 rounded-lg border ${isCancelled ? 'border-slate-200 opacity-60' : 'border-slate-200'}`}>
+          <div className={`bg-white p-4 md:p-6 rounded-lg border ${isCancelled ? 'border-slate-200 opacity-60' : 'border-slate-200'}`}>
             <div className="flex items-center gap-3 mb-3">
               <div className="p-2 bg-emerald-100 rounded-lg">
                 <Clock className="w-5 h-5 text-emerald-700" />
@@ -991,7 +991,7 @@ export default function AppointmentDetail() {
             <div className="text-xs text-slate-500">Tolérance autorisée</div>
           </div>
 
-          <div className={`bg-white p-6 rounded-lg border ${isCancelled ? 'border-slate-200 opacity-60' : 'border-slate-200'}`}>
+          <div className={`bg-white p-4 md:p-6 rounded-lg border ${isCancelled ? 'border-slate-200 opacity-60' : 'border-slate-200'}`}>
             <div className="flex items-center gap-3 mb-3">
               <div className="p-2 bg-amber-100 rounded-lg">
                 <Calendar className="w-5 h-5 text-amber-700" />
@@ -1010,8 +1010,8 @@ export default function AppointmentDetail() {
           </div>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-6">
-          <div className={`bg-white rounded-lg border p-6 min-w-0 overflow-hidden ${isCancelled ? 'border-slate-200 opacity-60' : 'border-slate-200'}`}>
+        <div className="grid md:grid-cols-2 gap-4 md:gap-6">
+          <div className={`bg-white rounded-lg border p-4 md:p-6 min-w-0 overflow-hidden ${isCancelled ? 'border-slate-200 opacity-60' : 'border-slate-200'}`}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-slate-900">Informations générales</h2>
               {canEditDatetime() && (
@@ -1259,7 +1259,7 @@ export default function AppointmentDetail() {
             </div>
           </div>
 
-          <div className={`bg-white rounded-lg border p-6 ${isCancelled ? 'border-slate-200 opacity-60' : 'border-slate-200'}`}>
+          <div className={`bg-white rounded-lg border p-4 md:p-6 ${isCancelled ? 'border-slate-200 opacity-60' : 'border-slate-200'}`}>
             <h2 className="text-lg font-semibold text-slate-900 mb-4">Conditions financières</h2>
             <div className="space-y-3">
               <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg">
@@ -1316,7 +1316,7 @@ export default function AppointmentDetail() {
 
         {/* ORGANIZER CHECK-IN SECTION */}
         {organizerParticipant && organizerParticipant.status === 'accepted_guaranteed' && !isCancelled && (
-          <div className="bg-white rounded-lg border border-indigo-200 p-6 mt-6" data-testid="organizer-checkin-section">
+          <div className="bg-white rounded-lg border border-indigo-200 p-4 md:p-6 mt-6" data-testid="organizer-checkin-section">
             <div className="flex items-center gap-2 mb-4">
               <UserCog className="w-5 h-5 text-indigo-600" />
               <h2 className="text-lg font-semibold text-slate-900">Mon check-in (organisateur)</h2>
@@ -1455,7 +1455,7 @@ export default function AppointmentDetail() {
         )}
         
         {participants.length > 0 && (
-          <div className={`bg-white rounded-lg border p-6 mt-6 ${isCancelled ? 'border-slate-200 opacity-60' : 'border-slate-200'}`}>
+          <div className={`bg-white rounded-lg border p-4 md:p-6 mt-6 ${isCancelled ? 'border-slate-200 opacity-60' : 'border-slate-200'}`}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-slate-900">Participants</h2>
               {!isCancelled && (
@@ -1470,12 +1470,12 @@ export default function AppointmentDetail() {
               {participants.slice(0, 5).map((participant) => (
                 <div
                   key={participant.participant_id}
-                  className="flex items-center justify-between p-3 border border-slate-200 rounded-lg"
+                  className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-3 border border-slate-200 rounded-lg"
                 >
-                  <div className="flex items-center gap-2">
-                    <div>
-                      <div className="flex items-center gap-1.5">
-                        <p className="font-medium text-slate-900">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <p className="font-medium text-slate-900 truncate">
                           {participant.first_name} {participant.last_name}
                         </p>
                         {participant.is_organizer && (
@@ -1484,10 +1484,10 @@ export default function AppointmentDetail() {
                           </span>
                         )}
                       </div>
-                      <p className="text-sm text-slate-600">{participant.email}</p>
+                      <p className="text-sm text-slate-600 truncate">{participant.email}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-shrink-0">
                     {getParticipantStatusBadge(participant.status, participant)}
                     {participant.status === 'invited' && !isCancelled && !participant.is_organizer && (
                       <button
@@ -1606,19 +1606,19 @@ export default function AppointmentDetail() {
               </ul>
             </div>
             
-            <div className="flex gap-3 p-4 bg-slate-50 border-t border-slate-100">
+            <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 p-4 bg-slate-50 border-t border-slate-100">
               <Button
                 variant="outline"
                 onClick={() => setShowCancelModal(false)}
                 disabled={cancelling}
-                className="flex-1"
+                className="flex-1 min-h-[44px] sm:min-h-0"
               >
                 Retour
               </Button>
               <Button
                 onClick={handleCancelAppointment}
                 disabled={cancelling}
-                className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white min-h-[44px] sm:min-h-0"
                 data-testid="confirm-cancel-btn"
               >
                 {cancelling ? 'Annulation...' : 'Confirmer l\'annulation'}

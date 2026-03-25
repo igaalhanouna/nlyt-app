@@ -536,8 +536,8 @@ export default function OrganizerDashboard() {
             </div>
           ) : (
             <Tabs defaultValue="upcoming">
-              <div className="overflow-x-auto scrollbar-none -mx-1 px-1">
-                <TabsList className="mb-6 w-max">
+              <div className="overflow-x-auto scrollbar-none -mx-1 px-1 pb-1">
+                <TabsList className="mb-6 w-max pr-2">
                   <TabsTrigger value="upcoming" data-testid="tab-upcoming">
                     <Calendar className="w-4 h-4 mr-1.5" />
                     À venir
