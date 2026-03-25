@@ -1203,7 +1203,7 @@ export default function AppointmentWizard() {
     return (
       <div className="space-y-6">
         <div className="p-6 bg-white border-t-4 border-slate-900 rounded-lg shadow-sm">
-          <h3 className="text-xl font-semibold text-slate-900 mb-6">Récapitulatif de l'engagement</h3>
+          <h3 className="text-xl font-semibold text-slate-900 mb-6">Récapitulatif de l'engagement solidaire</h3>
           
           <div className="space-y-4">
             <div className="border-b border-slate-200 pb-4">
@@ -1360,8 +1360,8 @@ export default function AppointmentWizard() {
         ) : (
           <>
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-slate-900 mb-2">Créer un engagement</h1>
-          <p className="text-slate-600 mb-4">Définissez les conditions de votre engagement</p>
+          <h1 className="text-3xl font-bold text-slate-900 mb-2">Créer un engagement solidaire</h1>
+          <p className="text-slate-600 mb-4">Définissez les conditions de votre engagement solidaire</p>
           
           {/* Workspace Selector */}
           <div className="relative inline-block">
@@ -1564,7 +1564,7 @@ export default function AppointmentWizard() {
                 </Button>
               ) : (
                 <Button type="button" onClick={handleSubmit} disabled={loading} data-testid="wizard-create-btn">
-                  {loading ? 'Création...' : 'Créer l\'engagement'}
+                  {loading ? 'Création...' : 'Créer l\'engagement solidaire'}
                 </Button>
               )}
             </div>

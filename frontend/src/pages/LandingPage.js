@@ -60,7 +60,7 @@ export default function LandingPage() {
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link to="/signup">
               <Button size="lg" className="bg-white text-[#0A0A0B] hover:bg-slate-200 text-base px-8 h-13 font-semibold" data-testid="hero-cta-btn">
-                Créer un engagement <ArrowRight className="ml-2 w-4 h-4" />
+                Créer un engagement solidaire <ArrowRight className="ml-2 w-4 h-4" />
               </Button>
             </Link>
           </div>
@@ -182,7 +182,7 @@ export default function LandingPage() {
           </p>
           <Link to="/signup">
             <Button size="lg" className="bg-white text-[#0A0A0B] hover:bg-slate-200 text-base px-8 h-13 font-semibold" data-testid="footer-cta-btn">
-              Créer mon premier engagement <ArrowRight className="ml-2 w-4 h-4" />
+              Créer mon premier engagement solidaire <ArrowRight className="ml-2 w-4 h-4" />
             </Button>
           </Link>
         </div>
