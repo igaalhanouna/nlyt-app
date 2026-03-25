@@ -806,8 +806,10 @@ export default function InvitationPage() {
         {/* Header */}
         <div className="text-center mb-8">
           <div className="mb-2">
-            <span className="block text-lg font-bold tracking-[0.35em] text-slate-800">N<span className="text-slate-400">·</span>L<span className="text-slate-400">·</span>Y<span className="text-slate-400">·</span>T</span>
-            <span className="block text-[10px] font-medium tracking-[0.25em] text-slate-400 uppercase">Never Lose Your Time</span>
+            <a href="https://nlyt.io" target="_blank" rel="noopener noreferrer" className="inline-block">
+              <span className="block text-lg font-bold tracking-[0.35em] text-slate-800">N<span className="text-slate-400">·</span>L<span className="text-slate-400">·</span>Y<span className="text-slate-400">·</span>T</span>
+              <span className="block text-[10px] font-medium tracking-[0.25em] text-slate-400 uppercase">Never Lose Your Time</span>
+            </a>
           </div>
           <p className="text-slate-600">Rendez-vous avec engagement solidaire</p>
         </div>
@@ -1370,6 +1372,7 @@ export default function InvitationPage() {
         <div className="text-center mt-8 text-sm text-slate-500">
           <p>Besoin d'aide ? Contactez l'organisateur directement.</p>
           <p className="mt-2">© 2026 N·L·Y·T — Never Lose Your Time. Tous droits réservés.</p>
+          <a href="https://nlyt.io" target="_blank" rel="noopener noreferrer" className="inline-block mt-2 text-blue-600 hover:text-blue-800 font-medium">nlyt.io</a>
         </div>
       </div>
 

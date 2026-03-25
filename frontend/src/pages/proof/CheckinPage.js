@@ -260,9 +260,12 @@ export default function CheckinPage() {
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
       <div className="max-w-md w-full bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="bg-slate-900 px-6 py-5 text-white text-center">
+          <a href="https://nlyt.io" target="_blank" rel="noopener noreferrer" className="inline-block mb-2">
+            <span className="block text-lg font-bold tracking-[0.35em] text-white">N<span className="text-white/40">·</span>L<span className="text-white/40">·</span>Y<span className="text-white/40">·</span>T</span>
+            <span className="block text-[10px] font-medium tracking-[0.25em] text-slate-400 uppercase">Never Lose Your Time</span>
+          </a>
           <Shield className="w-8 h-8 mx-auto mb-2 text-blue-400" />
           <h1 className="text-lg font-bold">Preuve de présence</h1>
-          <p className="text-xs text-slate-300 mt-1">N·L·Y·T — Système de vérification</p>
         </div>
 
         <div className="p-6 space-y-4">
@@ -336,6 +339,9 @@ export default function CheckinPage() {
             {checkingIn ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <Video className="w-5 h-5 mr-2" />}
             Je rejoins la réunion
           </Button>
+          <div className="text-center mt-4 pt-4 border-t border-slate-100">
+            <a href="https://nlyt.io" target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:text-blue-800 font-medium">nlyt.io</a>
+          </div>
         </div>
       </div>
     </div>
