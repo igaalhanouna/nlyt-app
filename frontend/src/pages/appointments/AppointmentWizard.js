@@ -491,18 +491,18 @@ export default function AppointmentWizard() {
       <div className="space-y-3">
         {participants.map((participant, index) => (
           <div key={index} className="group relative border border-slate-200 rounded-lg bg-white hover:border-slate-300 transition-colors" data-testid={`participant-block-${index}`}>
-            <div className="flex items-center gap-3 px-4 py-3">
-              <div className="flex items-center justify-center w-7 h-7 rounded-full bg-slate-900 text-white text-xs font-semibold flex-shrink-0">
+            <div className="flex items-start gap-3 px-3 sm:px-4 py-3">
+              <div className="flex items-center justify-center w-7 h-7 rounded-full bg-slate-900 text-white text-xs font-semibold flex-shrink-0 mt-2">
                 {index + 1}
               </div>
-              <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
                 <Input
                   id={`participant-firstname-${index}`}
                   data-testid={`participant-firstname-${index}`}
                   value={participant.first_name}
                   onChange={(e) => updateParticipant(index, 'first_name', e.target.value)}
                   placeholder="Prénom"
-                  className="h-9 text-sm"
+                  className="h-11 sm:h-9 text-sm"
                 />
                 <Input
                   id={`participant-lastname-${index}`}
@@ -510,7 +510,7 @@ export default function AppointmentWizard() {
                   value={participant.last_name}
                   onChange={(e) => updateParticipant(index, 'last_name', e.target.value)}
                   placeholder="Nom"
-                  className="h-9 text-sm"
+                  className="h-11 sm:h-9 text-sm"
                 />
                 <Input
                   id={`participant-email-${index}`}
@@ -519,17 +519,17 @@ export default function AppointmentWizard() {
                   value={participant.email}
                   onChange={(e) => updateParticipant(index, 'email', e.target.value)}
                   placeholder="email@exemple.com"
-                  className="h-9 text-sm"
+                  className="h-11 sm:h-9 text-sm"
                 />
               </div>
               {participants.length > 1 && (
                 <button
                   type="button"
                   onClick={() => removeParticipant(index)}
-                  className="p-1.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-md transition-colors opacity-0 group-hover:opacity-100 flex-shrink-0"
+                  className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-md transition-colors flex-shrink-0 mt-1.5"
                   data-testid={`remove-participant-${index}`}
                 >
-                  <Trash2 className="w-3.5 h-3.5" />
+                  <Trash2 className="w-4 h-4" />
                 </button>
               )}
             </div>
@@ -1349,7 +1349,7 @@ export default function AppointmentWizard() {
         { label: 'Nouvel engagement' },
       ]} />
 
-      <div className="max-w-4xl mx-auto px-6 pb-12">
+      <div className="max-w-4xl mx-auto px-4 md:px-6 pb-12">
 
         {loadingDefaults ? (
           <div className="flex items-center justify-center py-12">
@@ -1361,7 +1361,7 @@ export default function AppointmentWizard() {
         ) : (
           <>
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-slate-900 mb-2">Créer un engagement solidaire</h1>
+          <h1 className="text-2xl md:text-3xl font-bold text-slate-900 mb-2">Créer un engagement solidaire</h1>
           <p className="text-slate-600 mb-4">Définissez les conditions de votre engagement solidaire</p>
           
           {/* Workspace Selector */}
@@ -1389,7 +1389,7 @@ export default function AppointmentWizard() {
                 />
                 
                 {/* Dropdown Menu */}
-                <div className="absolute left-0 top-full mt-2 w-80 bg-white rounded-lg shadow-lg border border-slate-200 z-20" data-testid="wizard-workspace-dropdown">
+                <div className="absolute left-0 right-0 sm:right-auto top-full mt-2 w-auto sm:w-80 bg-white rounded-lg shadow-lg border border-slate-200 z-20" data-testid="wizard-workspace-dropdown">
                   {!showCreateWorkspace ? (
                     <>
                       <div className="p-2">
@@ -1491,11 +1491,11 @@ export default function AppointmentWizard() {
           </div>
         </div>
 
-        <div className="mb-8">
-          <div className="flex items-center justify-between">
+        <div className="mb-8 overflow-x-auto scrollbar-none -mx-1 px-1">
+          <div className="flex items-center justify-between min-w-[340px]">
             {steps.map((step, index) => (
               <React.Fragment key={step.number}>
-                <div className="flex flex-col items-center">
+                <div className="flex flex-col items-center flex-shrink-0">
                   <div className={`w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center ${
                     currentStep === step.number
                       ? 'bg-slate-900 text-white'
@@ -1505,14 +1505,14 @@ export default function AppointmentWizard() {
                   }`}>
                     {currentStep > step.number ? <Check className="w-5 h-5 md:w-6 md:h-6" /> : <step.icon className="w-5 h-5 md:w-6 md:h-6" />}
                   </div>
-                  <span className={`text-xs mt-2 text-center max-w-[80px] md:max-w-[100px] ${
+                  <span className={`text-[11px] md:text-xs mt-2 text-center max-w-[60px] md:max-w-[100px] ${
                     currentStep === step.number ? 'font-medium text-slate-900' : 'text-slate-600'
                   }`}>
                     {step.title}
                   </span>
                 </div>
                 {index < steps.length - 1 && (
-                  <div className={`flex-1 h-1 mx-2 md:mx-4 ${
+                  <div className={`flex-1 h-1 mx-1 md:mx-4 min-w-[12px] ${
                     currentStep > step.number ? 'bg-emerald-600' : 'bg-slate-200'
                   }`} />
                 )}
@@ -1521,32 +1521,33 @@ export default function AppointmentWizard() {
           </div>
         </div>
 
-        <div className="bg-white rounded-lg border border-slate-200 p-6 md:p-8">
+        <div className="bg-white rounded-lg border border-slate-200 p-4 sm:p-6 md:p-8">
           {currentStep === 1 && renderStep1()}
           {currentStep === 2 && renderStep2()}
           {currentStep === 3 && renderStep3()}
           {currentStep === 4 && renderStep4()}
           {currentStep === 5 && renderStep5()}
 
-          <div className="flex justify-between mt-8 pt-6 border-t border-slate-200">
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-between gap-3 mt-8 pt-6 border-t border-slate-200">
             <Button
               type="button"
               variant="outline"
               onClick={handleBack}
               disabled={currentStep === 1}
+              className="min-h-[44px] sm:min-h-0"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
               Précédent
             </Button>
 
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
               {currentStep === 2 && (
                 <Button
                   type="button"
                   variant="outline"
                   onClick={handleQuickCreate}
                   disabled={loading}
-                  className="border-amber-300 text-amber-700 hover:bg-amber-50 hover:border-amber-400"
+                  className="border-amber-300 text-amber-700 hover:bg-amber-50 hover:border-amber-400 min-h-[44px] sm:min-h-0"
                   data-testid="quick-create-btn"
                 >
                   {loading ? (
@@ -1559,12 +1560,12 @@ export default function AppointmentWizard() {
               )}
 
               {currentStep < 5 ? (
-                <Button type="button" onClick={handleNext} data-testid="wizard-next-btn">
+                <Button type="button" onClick={handleNext} data-testid="wizard-next-btn" className="min-h-[44px] sm:min-h-0">
                   Suivant
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>
               ) : (
-                <Button type="button" onClick={handleSubmit} disabled={loading} data-testid="wizard-create-btn">
+                <Button type="button" onClick={handleSubmit} disabled={loading} data-testid="wizard-create-btn" className="min-h-[44px] sm:min-h-0">
                   {loading ? 'Création...' : 'Créer l\'engagement solidaire'}
                 </Button>
               )}

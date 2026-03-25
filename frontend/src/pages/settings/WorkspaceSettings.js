@@ -164,8 +164,8 @@ export default function WorkspaceSettings() {
     >
 
         {/* Current Workspace Info */}
-        <div className="bg-white p-6 rounded-lg border border-slate-200 mb-6">
-          <div className="flex items-start gap-4">
+        <div className="bg-white p-4 md:p-6 rounded-lg border border-slate-200 mb-6">
+          <div className="flex items-start gap-3 md:gap-4">
             <div className="p-3 bg-slate-100 rounded-lg">
               <Building2 className="w-6 h-6 text-slate-700" />
             </div>

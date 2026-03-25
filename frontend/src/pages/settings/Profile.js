@@ -202,7 +202,7 @@ export default function Profile() {
     >
 
         {/* Section 1: Informations personnelles */}
-        <div className="bg-white rounded-xl border border-slate-200 p-6 mb-6">
+        <div className="bg-white rounded-xl border border-slate-200 p-4 md:p-6 mb-6">
           <div className="flex items-center gap-3 mb-6">
             <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center">
               <User className="w-5 h-5 text-slate-600" />
@@ -213,7 +213,7 @@ export default function Profile() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
             <div>
               <Label htmlFor="first_name">Prénom</Label>
               <Input
@@ -259,7 +259,7 @@ export default function Profile() {
         </div>
 
         {/* Section 2: Paramètres par défaut des engagements */}
-        <div className="bg-white rounded-xl border border-slate-200 p-6 mb-6">
+        <div className="bg-white rounded-xl border border-slate-200 p-4 md:p-6 mb-6">
           <div className="flex items-center gap-3 mb-6">
             <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center">
               <Settings className="w-5 h-5 text-emerald-600" />
@@ -277,7 +277,7 @@ export default function Profile() {
               Règles d'engagement par défaut
             </h3>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
               <div>
                 <Label htmlFor="cancellation_hours">Délai de désengagement (heures)</Label>
                 <Input
@@ -332,7 +332,7 @@ export default function Profile() {
               Répartition des compensations par défaut
             </h3>
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
               <div>
                 <Label htmlFor="charity_percent">Part geste solidaire (%)</Label>
                 <Input

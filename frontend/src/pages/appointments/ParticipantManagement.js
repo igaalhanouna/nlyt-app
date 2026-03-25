@@ -114,7 +114,7 @@ export default function ParticipantManagement() {
         { label: 'Participants' },
       ]} />
 
-      <div className="max-w-6xl mx-auto px-6 pb-12">
+      <div className="max-w-6xl mx-auto px-4 md:px-6 pb-12">
         <Link to={`/appointments/${id}`}>
           <Button variant="ghost" className="mb-4" size="sm">
             <ArrowLeft className="w-4 h-4 mr-2" />
@@ -129,10 +129,10 @@ export default function ParticipantManagement() {
           <p className="text-slate-600">{appointment?.title}</p>
         </div>
 
-        <div className="bg-white rounded-lg border border-slate-200 p-6 mb-6">
-          <div className="flex items-center justify-between mb-6">
+        <div className="bg-white rounded-lg border border-slate-200 p-4 md:p-6 mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
             <div>
-              <h2 className="text-xl font-semibold text-slate-900">Gestion des participants ({participants.length})</h2>
+              <h2 className="text-lg sm:text-xl font-semibold text-slate-900">Gestion des participants ({participants.length})</h2>
               <p className="text-sm text-slate-600 mt-1">
                 Invitez les participants à cet engagement
               </p>
@@ -140,7 +140,7 @@ export default function ParticipantManagement() {
             
             <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
               <DialogTrigger asChild>
-                <Button data-testid="add-participant-btn">
+                <Button data-testid="add-participant-btn" className="w-full sm:w-auto min-h-[44px] sm:min-h-0">
                   <UserPlus className="w-4 h-4 mr-2" />
                   Ajouter un participant
                 </Button>
@@ -181,17 +181,17 @@ export default function ParticipantManagement() {
                       className="mt-1"
                     />
                   </div>
-                  <div className="flex gap-3 pt-4">
+                  <div className="flex gap-2 sm:gap-3 pt-4">
                     <Button
                       variant="outline"
                       onClick={() => setIsAddDialogOpen(false)}
-                      className="flex-1"
+                      className="flex-1 min-h-[44px] sm:min-h-0"
                     >
                       Annuler
                     </Button>
                     <Button
                       onClick={handleAddParticipant}
-                      className="flex-1"
+                      className="flex-1 min-h-[44px] sm:min-h-0"
                       data-testid="participant-submit-btn"
                     >
                       Inviter
@@ -219,14 +219,14 @@ export default function ParticipantManagement() {
                   data-testid={`participant-card-${participant.participant_id}`}
                 >
                   <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap mb-1">
                         <h3 className="font-semibold text-slate-900">
                           {participant.first_name} {participant.last_name}
                         </h3>
                         {getStatusBadge(participant.status)}
                       </div>
-                      <p className="text-sm text-slate-600">{participant.email}</p>
+                      <p className="text-sm text-slate-600 truncate">{participant.email}</p>
                       {participant.invited_at && (
                         <p className="text-xs text-slate-500 mt-1">
                           Invité le {formatDateTimeCompactFr(participant.invited_at)}
@@ -272,7 +272,7 @@ export default function ParticipantManagement() {
         </div>
 
         <div className="flex justify-center">
-          <Button onClick={() => navigate(`/appointments/${id}`)} data-testid="back-to-appointment-btn">
+          <Button onClick={() => navigate(`/appointments/${id}`)} data-testid="back-to-appointment-btn" className="w-full sm:w-auto min-h-[44px] sm:min-h-0">
             <ArrowLeft className="w-4 h-4 mr-2" />
             Retour à l'engagement
           </Button>

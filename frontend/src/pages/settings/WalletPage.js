@@ -730,10 +730,10 @@ export default function WalletPage() {
               Vous allez retirer <span className="font-bold">{fmt(wallet.available_balance, wallet.currency)}</span> vers votre compte bancaire.
               Ce transfert est irréversible.
             </p>
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <Button
                 size="sm"
-                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white min-h-[44px] sm:min-h-0"
                 onClick={handlePayout}
                 disabled={payoutLoading}
                 data-testid="payout-confirm-btn"
@@ -741,7 +741,7 @@ export default function WalletPage() {
                 {payoutLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <ArrowUpRight className="w-3.5 h-3.5 mr-1.5" />}
                 Confirmer le retrait
               </Button>
-              <Button size="sm" variant="ghost" onClick={() => setShowPayoutConfirm(false)}>Annuler</Button>
+              <Button size="sm" variant="ghost" onClick={() => setShowPayoutConfirm(false)} className="min-h-[44px] sm:min-h-0">Annuler</Button>
             </div>
           </div>
         )}

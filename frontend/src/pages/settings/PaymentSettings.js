@@ -124,10 +124,10 @@ export default function PaymentSettings() {
         {hasPaymentMethod && paymentMethod ? (
           <div className="space-y-6">
             {/* Card display */}
-            <div className="bg-white border border-slate-200 rounded-lg p-6" data-testid="saved-card-display">
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="w-14 h-10 bg-gradient-to-br from-slate-700 to-slate-900 rounded-md flex items-center justify-center">
+            <div className="bg-white border border-slate-200 rounded-lg p-4 md:p-6" data-testid="saved-card-display">
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                <div className="flex items-center gap-3 md:gap-4">
+                  <div className="w-14 h-10 bg-gradient-to-br from-slate-700 to-slate-900 rounded-md flex items-center justify-center flex-shrink-0">
                     <CreditCard className="w-6 h-6 text-white" />
                   </div>
                   <div>
@@ -156,12 +156,13 @@ export default function PaymentSettings() {
             </div>
 
             {/* Actions */}
-            <div className="flex gap-3">
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
               <Button
                 onClick={handleSetup}
                 disabled={settingUp}
                 variant="outline"
                 data-testid="replace-card-btn"
+                className="w-full sm:w-auto min-h-[44px] sm:min-h-0"
               >
                 {settingUp ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <CreditCard className="w-4 h-4 mr-2" />}
                 Remplacer la carte
@@ -170,7 +171,7 @@ export default function PaymentSettings() {
                 onClick={handleRemove}
                 disabled={removing}
                 variant="outline"
-                className="text-red-600 border-red-200 hover:bg-red-50"
+                className="text-red-600 border-red-200 hover:bg-red-50 w-full sm:w-auto min-h-[44px] sm:min-h-0"
                 data-testid="remove-card-btn"
               >
                 {removing ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Trash2 className="w-4 h-4 mr-2" />}
@@ -181,7 +182,7 @@ export default function PaymentSettings() {
         ) : (
           <div className="space-y-6">
             {/* Empty state */}
-            <div className="bg-white border border-slate-200 rounded-lg p-8 text-center" data-testid="no-card-display">
+            <div className="bg-white border border-slate-200 rounded-lg p-6 md:p-8 text-center" data-testid="no-card-display">
               <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <CreditCard className="w-8 h-8 text-slate-400" />
               </div>
