@@ -144,15 +144,14 @@ class TeamsMeetingClient:
 
     def is_configured(self) -> bool:
         """Check if Teams/Azure credentials are present and structurally valid.
-        Tenant ID must be a UUID or verified domain, Client ID must be a UUID,
-        Client Secret must be at least 16 chars."""
+        Tenant ID must be a UUID, verified domain, or Azure multi-tenant endpoint.
+        Client ID must be a UUID. Client Secret must be at least 16 chars."""
         if not (self.tenant_id and self.client_id and self.client_secret):
             return False
         # Reject known placeholders and test values
         reject_values = {
             "detect-presence", "guarantee-first", "placeholder",
             "your-tenant-id", "your-client-id", "your-client-secret",
-            "common", "organizations", "consumers",
             "datetime-debug", "test", "todo", "fixme",
         }
         if self.tenant_id.lower() in reject_values or self.client_id.lower() in reject_values:
@@ -162,8 +161,9 @@ class TeamsMeetingClient:
         uuid_pattern = re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', re.IGNORECASE)
         if not uuid_pattern.match(self.client_id):
             return False
-        # Tenant ID: UUID or verified domain (contains a dot)
-        if not (uuid_pattern.match(self.tenant_id) or '.' in self.tenant_id):
+        # Tenant ID: UUID, verified domain (contains a dot), or Azure multi-tenant endpoint
+        azure_multi_tenant = {"common", "organizations", "consumers"}
+        if not (uuid_pattern.match(self.tenant_id) or '.' in self.tenant_id or self.tenant_id.lower() in azure_multi_tenant):
             return False
         # Secret must be substantial (Azure secrets are 30+ chars)
         if len(self.client_secret) < 16:
