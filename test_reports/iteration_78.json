@@ -1,0 +1,126 @@
+{
+  "summary": "AppointmentDetail refactoring testing complete. Page successfully decomposed from 1633 lines into 8 files (~280 lines orchestrator + 7 sub-components). All features working correctly at 375px mobile viewport. Page height reduced from ~4 screens to 1.4 screens. No horizontal overflow. Both <details> elements collapsed by default. Desktop regression passed at 1280px.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "AppointmentDetail",
+        "issues": [
+          "Minor: edit-general-info-btn (pencil icon) is 26x26px, below 44px touch target - acceptable for secondary action",
+          "Minor: resend-detail-btn (refresh icon) is 24x24px, below 44px touch target - acceptable for secondary action"
+        ]
+      }
+    ]
+  },
+  "passed_tests": {
+    "page_load_after_refactoring": [
+      "✅ Page loads correctly without blank screen",
+      "✅ No console errors",
+      "✅ All imports resolved (AppBreadcrumb, Lucide icons)"
+    ],
+    "header_component": [
+      "✅ Appointment title displayed: 'Coaching client VIP — session mensuelle'",
+      "✅ Status badge displayed: 'Actif'",
+      "✅ data-testid='appointment-title' present",
+      "✅ data-testid='appointment-status-badge' present"
+    ],
+    "essentials_block": [
+      "✅ Date/time displayed: 'dimanche 29 mars 2026 à 14:00'",
+      "✅ Duration displayed: '45 min'",
+      "✅ Meeting provider displayed: 'Microsoft Teams'",
+      "✅ Trust signal displayed: 'Engagement actif · 1 participant garanti'",
+      "✅ data-testid='appointment-essentials' present",
+      "✅ data-testid='appointment-datetime-display' present",
+      "✅ data-testid='trust-signal' present"
+    ],
+    "engagement_summary": [
+      "✅ Compensation amount dominant: '75 EUR' (2 cols, rose background)",
+      "✅ Tolerance displayed: '10 min tolérance'",
+      "✅ Cancellation deadline displayed: '6h annulation'",
+      "✅ Asymmetric grid layout (grid-cols-4 with col-span-2 for compensation)",
+      "✅ data-testid='engagement-summary' present",
+      "✅ data-testid='compensation-amount' present"
+    ],
+    "financial_breakdown": [
+      "✅ Compensation participants: 65%",
+      "✅ Commission plateforme: 20%",
+      "✅ Don caritatif: 15%",
+      "✅ Charity association inline: 'Croix-Rouge française · 15% reversé'",
+      "✅ data-testid='financial-breakdown' present",
+      "✅ data-testid='charity-association-block' present"
+    ],
+    "participants_section": [
+      "✅ Social signal displayed: '1 confirmé · 1 en attente'",
+      "✅ Participant list with status badges (Invité, Garanti)",
+      "✅ 'Gérer les participants' button present",
+      "✅ data-testid='participants-section' present"
+    ],
+    "details_elements": [
+      "✅ Preuves de présence <details> collapsed by default",
+      "✅ Preuves de présence <details> opens on click",
+      "✅ Calendrier & Export <details> collapsed by default",
+      "✅ Calendrier & Export <details> opens on click",
+      "✅ Download ICS button visible when details opened",
+      "✅ data-testid='proof-tracking-details' present",
+      "✅ data-testid='secondary-actions-details' present"
+    ],
+    "cancel_button": [
+      "✅ 'Annuler l'engagement' button visible",
+      "✅ Ghost red text styling (text-red-500)",
+      "✅ Cancel modal opens on click",
+      "✅ Cancel modal closes with 'Retour' button",
+      "✅ data-testid='cancel-appointment-btn' present"
+    ],
+    "mobile_375px": [
+      "✅ No horizontal overflow at 375px viewport",
+      "✅ Page height: 1104px (1.4 screens) - significantly reduced from ~4 screens",
+      "✅ All content readable and accessible"
+    ],
+    "desktop_1280px_regression": [
+      "✅ All components present at desktop viewport",
+      "✅ No horizontal overflow at 1280px",
+      "✅ Layout adapts correctly to wider viewport"
+    ],
+    "dashboard_navigation": [
+      "✅ Dashboard loads correctly",
+      "✅ 4 appointment cards visible",
+      "✅ Clicking appointment card navigates to detail page",
+      "✅ Appointment detail loads correctly after navigation"
+    ]
+  },
+  "failed_tests": {},
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Refactoring well executed - 1633 lines decomposed into 8 manageable files",
+    "All data-testid attributes properly added for testing",
+    "Mobile-first design achieved with no horizontal overflow",
+    "Page height significantly reduced (1.4 screens vs ~4 screens)",
+    "Both <details> elements correctly collapsed by default",
+    "Wording unchanged as required",
+    "All Lucide icons correctly imported",
+    "AppBreadcrumb import working correctly"
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "N/A (frontend only test)",
+    "frontend": "100%"
+  },
+  "test_credentials": {
+    "user": "clara.deschamps@demo-nlyt.fr / Demo2026!",
+    "appointment_url": "/appointments/a795dbb4-91ee-417d-91f5-d6141449f521"
+  },
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "AppointmentDetail page refactored from 1633 lines to 8 files. Main orchestrator ~280 lines. Sub-components: AppointmentHeader, AppointmentEssentials, EngagementSummary, FinancialBreakdown, ParticipantsSection, SecondaryActions, CancelModal. Existing panels (ProofSessionsPanel, VideoEvidencePanel, AttendancePanel, EvidenceDashboard, ModificationProposals) preserved via prop drilling. Page height reduced to 1.4 screens on mobile. All touch targets >= 44px except secondary icon buttons (edit pencil 26px, resend 24px).",
+  "mocked_apis": {
+    "has_mocked_apis": false,
+    "mocked_apis_list": []
+  }
+}
