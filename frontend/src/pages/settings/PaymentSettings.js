@@ -122,9 +122,15 @@ export default function PaymentSettings() {
       <div className="max-w-2xl mx-auto">
         <Link to="/settings"><Button variant="ghost" className="mb-6" data-testid="back-to-settings"><ArrowLeft className="w-4 h-4 mr-2" />Retour aux paramètres</Button></Link>
         
-        <div className="flex items-center gap-3 mb-2">
-          <CreditCard className="w-7 h-7 text-slate-700" />
-          <h1 className="text-2xl font-bold text-slate-900">Moyen de paiement par défaut</h1>
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-3">
+            <CreditCard className="w-7 h-7 text-slate-700" />
+            <h1 className="text-2xl font-bold text-slate-900">Moyen de paiement par défaut</h1>
+          </div>
+          <div>
+            <span className="block text-lg font-bold tracking-[0.35em] text-slate-900 text-right">N<span className="text-slate-400">·</span>L<span className="text-slate-400">·</span>Y<span className="text-slate-400">·</span>T</span>
+            <span className="block text-[10px] font-medium tracking-[0.25em] text-slate-400 uppercase text-right">Never Lose Your Time</span>
+          </div>
         </div>
         <p className="text-sm text-slate-500 mb-8">
           Pour vos garanties en tant qu'organisateur

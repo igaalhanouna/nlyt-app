@@ -711,11 +711,14 @@ export default function WalletPage() {
       <div className="max-w-2xl mx-auto">
         <Link to="/settings"><Button variant="ghost" className="mb-6" data-testid="back-to-settings"><ArrowLeft className="w-4 h-4 mr-2" />Retour aux paramètres</Button></Link>
 
-        <div className="flex items-center gap-3 mb-1">
-          <Wallet className="w-6 h-6 text-slate-700" />
+        <div className="flex items-center justify-between mb-1">
+          <div className="flex items-center gap-3">
+            <Wallet className="w-6 h-6 text-slate-700" />
+            <h1 className="text-2xl font-bold text-slate-900">Wallet</h1>
+          </div>
           <div>
-            <span className="block text-lg font-bold tracking-[0.35em] text-slate-900">N<span className="text-slate-400">·</span>L<span className="text-slate-400">·</span>Y<span className="text-slate-400">·</span>T</span>
-            <span className="block text-[10px] font-medium tracking-[0.25em] text-slate-400 uppercase">Never Lose Your Time</span>
+            <span className="block text-lg font-bold tracking-[0.35em] text-slate-900 text-right">N<span className="text-slate-400">·</span>L<span className="text-slate-400">·</span>Y<span className="text-slate-400">·</span>T</span>
+            <span className="block text-[10px] font-medium tracking-[0.25em] text-slate-400 uppercase text-right">Never Lose Your Time</span>
           </div>
         </div>
         <p className="text-xs text-slate-500 mb-6">Vos fonds internes, distributions reçues et compte de paiement</p>
