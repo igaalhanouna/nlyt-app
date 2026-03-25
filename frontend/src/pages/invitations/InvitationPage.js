@@ -1102,11 +1102,11 @@ export default function InvitationPage() {
                   </li>
                   {engagement_rules.tolerated_delay_minutes > 0 && (
                     <li>
-                      <strong>Retard toléré :</strong> {engagement_rules.tolerated_delay_minutes} minutes
+                      <strong>Dépassement toléré :</strong> {engagement_rules.tolerated_delay_minutes} minutes
                     </li>
                   )}
                   <li>
-                    <strong>Pénalité en cas d'absence :</strong> {engagement_rules.penalty_amount} {engagement_rules.penalty_currency}
+                    <strong>Compensation en cas d'absence :</strong> {engagement_rules.penalty_amount} {engagement_rules.penalty_currency}
                   </li>
                   <li>
                     <strong>Répartition :</strong> {engagement_rules.affected_compensation_percent}% aux participants affectés, {engagement_rules.platform_commission_percent}% commission plateforme
@@ -1320,7 +1320,7 @@ export default function InvitationPage() {
                           <strong> Aucun montant ne sera prélevé immédiatement.</strong>
                         </p>
                         <p className="text-xs text-blue-600 mt-2">
-                          La pénalité de {engagement_rules.penalty_amount} {engagement_rules.penalty_currency} ne sera prélevée 
+                          La compensation de {engagement_rules.penalty_amount} {engagement_rules.penalty_currency} ne sera prélevée 
                           qu'en cas d'absence ou de retard excessif.
                         </p>
                       </div>

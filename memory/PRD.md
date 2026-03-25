@@ -250,6 +250,20 @@ Les APIs calendrier (Google/Outlook) interprétaient la valeur comme heure local
 - **Fix** : `OrganizerDashboard.js` utilise maintenant `GET /api/wallet/impact` (authentifié, per-user) au lieu de `GET /api/impact` (public, global)
 - La fonction `get_charity_impact(user_id)` existait déjà — elle agrège les distributions où le user est impliqué (ses no-shows + les no-shows de ses participants)
 
+## Rebrand Positionnement V4 (Mars 2026)
+- **Nouvelle landing page** : Thème sombre, hero "Le temps ne se perd plus.", sous-titre "Votre temps est protégé. Toujours. Et chaque absence peut aussi devenir un geste solidaire."
+- **Sections** : Promesse (tenu/non tenu), Comment ça marche (3 étapes), Preuve sociale (compteur live), Cas d'usage, CTA final
+- **Remplacement global du wording** dans tous les fichiers frontend (15+ fichiers) :
+  - "rendez-vous" → "engagement" (0 occurrences restantes)
+  - "pénalité" → "compensation" (0 occurrences restantes)
+  - "retard" → "dépassement" (0 occurrences restantes)
+  - "annulation" → "désengagement" (0 occurrences restantes)
+  - "fléché" → "reversé" (0 occurrences restantes)
+  - "impact caritatif" → "gestes solidaires" (0 occurrences restantes)
+  - "Votre impact" → "Vos gestes solidaires"
+- **Fichiers modifiés** : LandingPage.js (rewrite), ImpactPage.js, OrganizerDashboard.js, AppointmentWizard.js, AppointmentDetail.js, ParticipantManagement.js, ModificationProposals.js, CheckinPage.js, PaymentSettings.js, Profile.js, Integrations.js, InvitationPage.js, WalletPage.js, ParticipantDashboard.js, CreateWorkspace.js
+- Tests : iteration_73 (testing agent) + corrections, 0 anciennes occurrences vérifiées par grep
+
 ## Roadmap
 
 ### P1

@@ -682,12 +682,12 @@ export default function OrganizerDashboard() {
                         <p className="text-xs text-slate-500 mt-1">Dédommagement personnel</p>
                       </div>
 
-                      {/* Impact caritatif */}
+                      {/* Gestes solidaires */}
                       <div className="bg-slate-50 rounded-lg p-4 border border-slate-100" data-testid="kpi-charity">
                         <p className="text-2xl font-bold text-emerald-700">
                           {(analytics.charity_total_cents / 100).toFixed(0)} €
                         </p>
-                        <p className="text-xs text-slate-500 mt-1">Fléchés pour des associations</p>
+                        <p className="text-xs text-slate-500 mt-1">Reversés à des associations</p>
                       </div>
 
                       {/* Engagements non honorés */}

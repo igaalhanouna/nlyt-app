@@ -283,7 +283,7 @@ export default function Profile() {
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <Label htmlFor="cancellation_hours">Délai d'annulation (heures)</Label>
+                <Label htmlFor="cancellation_hours">Délai de désengagement (heures)</Label>
                 <Input
                   id="cancellation_hours"
                   type="number"
@@ -298,7 +298,7 @@ export default function Profile() {
               </div>
               
               <div>
-                <Label htmlFor="late_tolerance">Retard toléré (minutes)</Label>
+                <Label htmlFor="late_tolerance">Dépassement toléré (minutes)</Label>
                 <Input
                   id="late_tolerance"
                   type="number"
@@ -313,7 +313,7 @@ export default function Profile() {
               </div>
               
               <div>
-                <Label htmlFor="penalty_amount">Montant de pénalité par défaut (€)</Label>
+                <Label htmlFor="penalty_amount">Montant de l'engagement par défaut (€)</Label>
                 <Input
                   id="penalty_amount"
                   type="number"
