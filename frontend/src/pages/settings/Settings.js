@@ -13,7 +13,7 @@ export default function Settings() {
           <Link to="/settings/profile" className="p-6 bg-white rounded-lg border border-slate-200 hover:border-slate-300 transition-colors" data-testid="settings-profile-link">
             <User className="w-8 h-8 text-slate-700 mb-3" />
             <h3 className="font-semibold text-slate-900 mb-1">Profil</h3>
-            <p className="text-sm text-slate-600">Gérez vos informations personnelles</p>
+            <p className="text-sm text-slate-600">Gérez vos informations personnelles et choisissez vos associations préférées</p>
           </Link>
           <Link to="/settings/workspace" className="p-6 bg-white rounded-lg border border-slate-200 hover:border-slate-300 transition-colors" data-testid="settings-workspace-link">
             <Building2 className="w-8 h-8 text-slate-700 mb-3" />
