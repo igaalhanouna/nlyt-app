@@ -231,6 +231,20 @@ Les APIs calendrier (Google/Outlook) interprétaient la valeur comme heure local
   - `null` → Teams grisé, message "Connectez Outlook"
 - Tests : 17/17 frontend (testing agent iteration_71)
 
+## Auto-sync per provider (Mars 2026)
+- **Avant** : un seul toggle ON/OFF qui sync vers TOUS les calendriers connectés
+- **Après** : toggles indépendants par provider (Google / Outlook) — aucun, l'un, l'autre, ou les deux
+- **Backend** : `auto_sync_providers: ["google", "outlook"]` (liste), rétrocompatible avec l'ancien `auto_sync_enabled`
+  - `GET /api/calendar/auto-sync/settings` → retourne `auto_sync_providers` + `connected_providers`
+  - `PUT` accepte `{ auto_sync_providers: [...] }` ou legacy `{ auto_sync_enabled: bool }`
+  - `perform_auto_sync` filtre les connexions par `enabled_providers`
+- **Frontend** : section Auto-sync déplacée dans la section Calendriers (sous Outlook), toggles switches individuels
+- **Apple Calendar** : déplacé dans la section Calendriers
+- Tests : 9/9 backend + 12/12 frontend (testing agent iteration_72)
+
+## Credentials Microsoft (Mars 2026)
+- `MICROSOFT_CLIENT_ID` mis à jour avec la vraie valeur UUID
+
 ## Roadmap
 
 ### P1
