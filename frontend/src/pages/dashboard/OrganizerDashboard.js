@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useWorkspace } from '../../contexts/WorkspaceContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { appointmentAPI } from '../../services/api';
+import { appointmentAPI, walletAPI } from '../../services/api';
 import { Button } from '../../components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/tabs';
 import {
@@ -361,9 +361,8 @@ export default function OrganizerDashboard() {
 
   const loadImpact = async () => {
     try {
-      const res = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/impact`);
-      const data = await res.json();
-      setImpactCents(data.total_charity_cents || 0);
+      const res = await walletAPI.getImpact();
+      setImpactCents(res.data?.total_charity_cents || 0);
     } catch (_) { /* non-blocking */ }
   };
 

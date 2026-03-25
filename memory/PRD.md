@@ -245,6 +245,11 @@ Les APIs calendrier (Google/Outlook) interprétaient la valeur comme heure local
 ## Credentials Microsoft (Mars 2026)
 - `MICROSOFT_CLIENT_ID` mis à jour avec la vraie valeur UUID
 
+## Fix Impact Personnel Dashboard (Mars 2026)
+- **Bug** : Le bloc "Votre impact" affichait le total global (415,25€) au lieu de la contribution personnelle
+- **Fix** : `OrganizerDashboard.js` utilise maintenant `GET /api/wallet/impact` (authentifié, per-user) au lieu de `GET /api/impact` (public, global)
+- La fonction `get_charity_impact(user_id)` existait déjà — elle agrège les distributions où le user est impliqué (ses no-shows + les no-shows de ses participants)
+
 ## Roadmap
 
 ### P1
