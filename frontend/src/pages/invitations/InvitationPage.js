@@ -806,7 +806,7 @@ export default function InvitationPage() {
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-slate-800 mb-2">NLYT</h1>
-          <p className="text-slate-600">Rendez-vous avec engagement</p>
+          <p className="text-slate-600">Rendez-vous avec engagement solidaire</p>
         </div>
 
         {/* Cancelled/Deleted Appointment Message */}

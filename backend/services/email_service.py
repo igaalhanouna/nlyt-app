@@ -319,7 +319,7 @@ class EmailService:
             <div class="container">
                 <div class="header">
                     <h1 style="margin: 0;">NLYT</h1>
-                    <p style="margin: 10px 0 0 0; opacity: 0.9;">Rendez-vous avec engagement</p>
+                    <p style="margin: 10px 0 0 0; opacity: 0.9;">Rendez-vous avec engagement solidaire</p>
                 </div>
                 <div class="content">
                     <h2 style="color: #1E293B;">Bonjour {to_name},</h2>
