@@ -30,6 +30,12 @@ export default function SelectWorkspace() {
   return (
     <div className="min-h-screen bg-background py-12 px-4">
       <div className="max-w-4xl mx-auto">
+        <div className="flex justify-end mb-4">
+          <div>
+            <span className="block text-lg font-bold tracking-[0.35em] text-slate-900 text-right">N<span className="text-slate-400">·</span>L<span className="text-slate-400">·</span>Y<span className="text-slate-400">·</span>T</span>
+            <span className="block text-[10px] font-medium tracking-[0.25em] text-slate-400 uppercase text-right">Never Lose Your Time</span>
+          </div>
+        </div>
         <div className="text-center mb-12">
           <h1 className="text-3xl font-bold text-slate-900 mb-2">Sélectionnez un workspace</h1>
           <p className="text-slate-600">Choisissez le workspace dans lequel vous souhaitez travailler</p>
