@@ -25,8 +25,8 @@ export default function LandingPage() {
       <nav className="border-b border-white/5">
         <div className="max-w-6xl mx-auto px-6 lg:px-8 py-4 flex items-center justify-between">
           <span className="text-white" data-testid="nav-logo">
-            <span className="block text-[10px] font-semibold tracking-[0.3em] text-slate-400">N · L · Y · T</span>
-            <span className="block text-base font-bold tracking-wide text-white">Never Lose Your Time</span>
+            <span className="block text-lg font-bold tracking-[0.35em] text-white">N<span className="text-white/60">·</span>L<span className="text-white/60">·</span>Y<span className="text-white/60">·</span>T</span>
+            <span className="block text-[10px] font-medium tracking-[0.25em] text-slate-500 uppercase">Never Lose Your Time</span>
           </span>
           <div className="flex items-center gap-3">
             <Link to="/impact">
@@ -58,10 +58,10 @@ export default function LandingPage() {
       <section className="pt-28 pb-20 px-6" data-testid="hero-section">
         <div className="max-w-3xl mx-auto text-center">
           <div className="mb-6">
-            <p className="text-sm tracking-[0.35em] font-semibold text-white mb-1">
-              N · L · Y · T
+            <p className="text-2xl sm:text-3xl font-bold tracking-[0.4em] text-white mb-2">
+              N<span className="text-white/60">·</span>L<span className="text-white/60">·</span>Y<span className="text-white/60">·</span>T
             </p>
-            <p className="text-[11px] tracking-[0.25em] uppercase text-slate-500">
+            <p className="text-xs tracking-[0.3em] uppercase text-slate-500 font-medium">
               Never Lose Your Time
             </p>
           </div>
