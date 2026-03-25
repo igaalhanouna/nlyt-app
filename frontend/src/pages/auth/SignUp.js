@@ -61,7 +61,7 @@ export default function SignUp() {
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-slate-900 mb-2">NLYT</h1>
           <h2 className="text-2xl font-semibold text-slate-800 mb-2">Créer un compte</h2>
-          <p className="text-slate-600">Commencez à gérer vos engagements</p>
+          <p className="text-slate-600">Commencez à créer vos engagements solidaires</p>
         </div>
 
         <div className="bg-white p-8 rounded-lg shadow-sm border border-slate-200">
