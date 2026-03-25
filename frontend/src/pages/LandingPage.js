@@ -48,14 +48,14 @@ export default function LandingPage() {
         <div className="max-w-3xl mx-auto text-center">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-medium text-slate-400 mb-10">
             <Shield className="w-3 h-3" />
-            Infrastructure d'engagement
+            Créateur d'engagements solidaires
           </div>
           <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.05] mb-8" data-testid="hero-title">
-            Le temps ne se<br />perd plus.
+            Votre temps<br /> ne se perd plus.
           </h1>
           <p className="text-lg sm:text-xl text-slate-400 leading-relaxed max-w-xl mx-auto mb-12" data-testid="hero-subtitle">
-            Votre temps est protégé. Toujours.<br className="hidden sm:block" />
-            Et chaque absence peut aussi devenir un geste solidaire.
+            Votre temps est précieux. Protégez-le.<br className="hidden sm:block" />
+            Et faites que chaque absence indélicate devienne un geste solidaire.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link to="/signup">
@@ -75,19 +75,19 @@ export default function LandingPage() {
               <CheckCircle className="w-5 h-5 text-emerald-400 mb-5" />
               <p className="text-lg font-semibold text-white mb-2">Engagement tenu</p>
               <p className="text-sm text-slate-400 leading-relaxed">
-                Du temps de qualité pour tous. La garantie est libérée.
+                Votre temps est respecté. La garantie est libérée.
               </p>
             </div>
             <div className="p-8 rounded-2xl bg-white/[0.03] border border-white/5">
               <Heart className="w-5 h-5 text-rose-400 mb-5" />
               <p className="text-lg font-semibold text-white mb-2">Engagement non tenu</p>
               <p className="text-sm text-slate-400 leading-relaxed">
-                Vous êtes compensé. Et si vous le souhaitez, une part devient un geste solidaire.
+                Votre perte de temps est compensée et devient même un geste solidaire.
               </p>
             </div>
           </div>
           <p className="text-center text-sm text-slate-500 mt-8">
-            Dans tous les cas, votre temps est valorisé.
+            Votre temps n'est plus jamais perdu.
           </p>
         </div>
       </section>
@@ -175,10 +175,10 @@ export default function LandingPage() {
       <section className="py-24 px-6 border-t border-white/5" data-testid="cta-section">
         <div className="max-w-2xl mx-auto text-center">
           <p className="text-2xl sm:text-3xl font-bold tracking-tight text-white mb-4">
-            Même quand ça se passe mal,<br />quelque chose de bien en sort.
+            Chaque occasion perdue devient une possibilité de faire une bonne action.
           </p>
           <p className="text-sm text-slate-500 mb-10">
-            Votre temps est protégé. Vous choisissez ce qu'il devient.
+            Votre temps est garanti. Faites en profiter qui vous voulez.
           </p>
           <Link to="/signup">
             <Button size="lg" className="bg-white text-[#0A0A0B] hover:bg-slate-200 text-base px-8 h-13 font-semibold" data-testid="footer-cta-btn">
@@ -191,8 +191,8 @@ export default function LandingPage() {
       {/* ── Footer ── */}
       <footer className="border-t border-white/5 py-10 px-6">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <p className="text-xs text-slate-600">© 2026 NLYT. Le temps ne se perd plus.</p>
-          <p className="text-xs text-slate-600">Chaque minute compte. Littéralement.</p>
+          <p className="text-xs text-slate-600">© 2026 NLYT. Votre temps ne se perd plus.</p>
+          <p className="text-xs text-slate-600">Votre temps est compté. Ne le gaspillez pas.</p>
         </div>
       </footer>
     </div>
