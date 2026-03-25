@@ -663,15 +663,24 @@ export default function Integrations() {
 
           <div className="space-y-3">
             {renderVideoProviderCard('zoom')}
-            {renderVideoProviderCard('teams')}
           </div>
 
           {/* Google Meet note — tied to Calendar */}
-          <div className="mt-3 flex items-start gap-2.5 p-3 bg-emerald-50/50 border border-emerald-100 rounded-lg" data-testid="meet-calendar-note">
-            <Video className="w-4 h-4 text-emerald-600 mt-0.5 flex-shrink-0" />
+          <div className={`mt-3 flex items-start gap-2.5 p-3 rounded-lg border ${
+            googleConnection?.status === 'connected'
+              ? 'bg-emerald-50/50 border-emerald-100'
+              : 'bg-slate-50 border-slate-200'
+          }`} data-testid="meet-calendar-note">
+            <Video className={`w-4 h-4 mt-0.5 flex-shrink-0 ${
+              googleConnection?.status === 'connected' ? 'text-emerald-600' : 'text-slate-400'
+            }`} />
             <div>
-              <p className="text-xs text-emerald-800 font-medium">Google Meet</p>
-              <p className="text-xs text-emerald-700 mt-0.5">
+              <p className={`text-xs font-medium ${
+                googleConnection?.status === 'connected' ? 'text-emerald-800' : 'text-slate-600'
+              }`}>Google Meet</p>
+              <p className={`text-xs mt-0.5 ${
+                googleConnection?.status === 'connected' ? 'text-emerald-700' : 'text-slate-500'
+              }`}>
                 {googleConnection?.status === 'connected'
                   ? 'Activé via votre connexion Google Calendar. Les liens Google Meet sont créés automatiquement pour vos RDV visio Google.'
                   : 'Connectez Google Calendar ci-dessus pour activer la création automatique de liens Google Meet.'
@@ -685,6 +694,55 @@ export default function Integrations() {
               )}
             </div>
           </div>
+
+          {/* Microsoft Teams note — tied to Outlook */}
+          {(() => {
+            const teamsInfo = videoProviders?.teams;
+            const teamsLevel = teamsInfo?.level;
+            const isActive = teamsLevel === 'advanced' || teamsLevel === 'standard';
+            return (
+              <div className={`mt-3 flex items-start gap-2.5 p-3 rounded-lg border ${
+                isActive ? 'bg-emerald-50/50 border-emerald-100' : 'bg-slate-50 border-slate-200'
+              }`} data-testid="teams-calendar-note">
+                <Video className={`w-4 h-4 mt-0.5 flex-shrink-0 ${
+                  isActive ? 'text-emerald-600' : 'text-slate-400'
+                }`} />
+                <div>
+                  <p className={`text-xs font-medium ${
+                    isActive ? 'text-emerald-800' : 'text-slate-600'
+                  }`}>Microsoft Teams</p>
+                  <p className={`text-xs mt-0.5 ${
+                    isActive ? 'text-emerald-700' : 'text-slate-500'
+                  }`}>
+                    {teamsLevel === 'advanced'
+                      ? 'Activé via votre connexion Outlook. Les liens Teams sont créés automatiquement pour vos RDV visio Microsoft.'
+                      : teamsLevel === 'standard'
+                        ? 'Activé via votre connexion Outlook. Les liens Teams sont créés automatiquement pour vos RDV visio Microsoft.'
+                        : 'La création automatique de liens Teams nécessite un compte Microsoft 365 professionnel connecté via Outlook. Connectez un compte Outlook compatible ci-dessus.'
+                    }
+                  </p>
+                  {isActive && (
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <CheckCircle className="w-3 h-3 text-emerald-600" />
+                      <span className="text-xs text-emerald-600 font-medium">Création de liens Teams active</span>
+                    </div>
+                  )}
+                  {teamsLevel === 'advanced' && teamsInfo?.has_attendance && (
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <CheckCircle className="w-3 h-3 text-emerald-600" />
+                      <span className="text-xs text-emerald-600 font-medium">Récupération de présences disponible</span>
+                    </div>
+                  )}
+                  {teamsLevel === 'standard' && (
+                    <div className="flex items-center gap-1.5 mt-1.5">
+                      <Info className="w-3 h-3 text-slate-400" />
+                      <span className="text-xs text-slate-500">Compte Microsoft 365 Pro ? Activez Teams avancé pour la récupération de présences.</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
         </div>
 
         {/* ========= Apple Calendar & autres (ICS Export) ========= */}
