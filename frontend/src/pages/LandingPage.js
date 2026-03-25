@@ -25,7 +25,7 @@ export default function LandingPage() {
       <nav className="border-b border-white/5">
         <div className="max-w-6xl mx-auto px-6 lg:px-8 py-5 flex items-center justify-between">
           <span className="text-xl font-bold tracking-tight text-white" data-testid="nav-logo">
-            NLYT
+            <span className="tracking-[0.25em]">N<span className="text-slate-500 mx-[2px]">·</span>L<span className="text-slate-500 mx-[2px]">·</span>Y<span className="text-slate-500 mx-[2px]">·</span>T</span>
             <span className="block text-[9px] font-normal tracking-[0.2em] text-slate-500 uppercase">Never Lose Your Time</span>
           </span>
           <div className="flex items-center gap-3">
