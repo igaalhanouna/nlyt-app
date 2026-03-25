@@ -241,7 +241,7 @@ export default function AppointmentWizard() {
     { number: 1, title: 'Participants', icon: Users },
     { number: 2, title: 'Informations de base', icon: Calendar },
     { number: 3, title: 'Règles d\'engagement', icon: Shield },
-    { number: 4, title: 'Répartition des pénalités', icon: DollarSign },
+    { number: 4, title: 'Répartition des compensations', icon: DollarSign },
     { number: 5, title: 'Révision', icon: Check }
   ];
 
@@ -335,11 +335,11 @@ export default function AppointmentWizard() {
         }
         // Reject past dates — datetime-local values are local time
         if (new Date(formData.start_datetime) <= new Date()) {
-          toast.error('La date et l\'heure du rendez-vous doivent être dans le futur');
+          toast.error('La date et l\'heure de l\'engagement doivent être dans le futur');
           return false;
         }
         if (formData.appointment_type === 'physical' && !formData.location.trim()) {
-          toast.error('Le lieu est requis pour un rendez-vous physique');
+          toast.error('Le lieu est requis pour un engagement physique');
           return false;
         }
         if (formData.appointment_type === 'video' && !formData.meeting_provider) {
@@ -360,7 +360,7 @@ export default function AppointmentWizard() {
         return true;
       case 3:
         if (formData.penalty_amount <= 0) {
-          toast.error('Le montant de la pénalité doit être supérieur à 0');
+          toast.error('Le montant de l\'engagement doit être supérieur à 0');
           return false;
         }
         return true;
@@ -425,7 +425,7 @@ export default function AppointmentWizard() {
       }
     } catch (error) {
       console.error('Appointment creation error:', error);
-      const errorMessage = error.response?.data?.detail || 'Erreur lors de la création du rendez-vous';
+      const errorMessage = error.response?.data?.detail || 'Erreur lors de la création de l\'engagement';
       toast.error(typeof errorMessage === 'string' ? errorMessage : JSON.stringify(errorMessage));
     } finally {
       setLoading(false);
@@ -470,7 +470,7 @@ export default function AppointmentWizard() {
       }
     } catch (error) {
       console.error('Quick create error:', error);
-      const errorMessage = error.response?.data?.detail || 'Erreur lors de la création du rendez-vous';
+      const errorMessage = error.response?.data?.detail || 'Erreur lors de la création de l\'engagement';
       toast.error(typeof errorMessage === 'string' ? errorMessage : JSON.stringify(errorMessage));
     } finally {
       setLoading(false);
@@ -482,7 +482,7 @@ export default function AppointmentWizard() {
     <div className="space-y-4">
       <div className="p-3 bg-blue-50 border border-blue-100 rounded-lg">
         <p className="text-sm text-blue-800">
-          Ajoutez les personnes qui participeront à ce rendez-vous. Chaque participant recevra une invitation par email.
+          Ajoutez les personnes qui participeront à cet engagement. Chaque participant recevra une invitation par email.
         </p>
       </div>
 
@@ -552,7 +552,7 @@ export default function AppointmentWizard() {
   const renderStep2 = () => (
     <div className="space-y-6">
       <div>
-        <Label htmlFor="title">Titre du rendez-vous *</Label>
+        <Label htmlFor="title">Titre de l'engagement *</Label>
         <Input
           id="title"
           data-testid="appointment-title-input"
@@ -564,7 +564,7 @@ export default function AppointmentWizard() {
       </div>
 
       <div>
-        <Label htmlFor="appointment_type">Type de rendez-vous *</Label>
+        <Label htmlFor="appointment_type">Type d'engagement *</Label>
         <Select
           value={formData.appointment_type}
           onValueChange={(value) => setFormData({ ...formData, appointment_type: value })}
@@ -818,7 +818,7 @@ export default function AppointmentWizard() {
         />
         {formData.start_datetime && new Date(formData.start_datetime) <= new Date() && (
           <p className="text-sm text-red-600 mt-1" data-testid="datetime-past-error">
-            La date et l'heure du rendez-vous doivent être dans le futur
+            La date et l'heure de l'engagement doivent être dans le futur
           </p>
         )}
       </div>
@@ -992,7 +992,7 @@ export default function AppointmentWizard() {
       </div>
 
       <div>
-        <Label htmlFor="tolerated_delay_minutes">Retard toléré (minutes) *</Label>
+        <Label htmlFor="tolerated_delay_minutes">Dépassement toléré (minutes) *</Label>
         <Input
           id="tolerated_delay_minutes"
           type="number"
@@ -1003,12 +1003,12 @@ export default function AppointmentWizard() {
           className="mt-1"
         />
         <p className="text-sm text-slate-500 mt-1">
-          Délai de grâce avant application de la pénalité
+          Délai de grâce avant application de la compensation
         </p>
       </div>
 
       <div>
-        <Label htmlFor="cancellation_deadline_hours">Délai d'annulation (heures) *</Label>
+        <Label htmlFor="cancellation_deadline_hours">Délai de désengagement (heures) *</Label>
         <Input
           id="cancellation_deadline_hours"
           type="number"
@@ -1030,8 +1030,8 @@ export default function AppointmentWizard() {
               <div className="flex items-start gap-2 mt-2 p-2.5 bg-amber-50 border border-amber-200 rounded-lg" data-testid="short-notice-warning">
                 <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
                 <p className="text-xs text-amber-700">
-                  Le rendez-vous est dans <strong>{hoursUntil < 1 ? `${Math.round(hoursUntil * 60)} min` : `${hoursUntil.toFixed(1)}h`}</strong>.
-                  Le délai d'annulation sera automatiquement réduit à <strong>{effective}h</strong> (au lieu de {configured}h).
+                  L'engagement est dans <strong>{hoursUntil < 1 ? `${Math.round(hoursUntil * 60)} min` : `${hoursUntil.toFixed(1)}h`}</strong>.
+                  Le délai de désengagement sera automatiquement réduit à <strong>{effective}h</strong> (au lieu de {configured}h).
                 </p>
               </div>
             );
@@ -1039,12 +1039,12 @@ export default function AppointmentWizard() {
           return null;
         })()}
         <p className="text-sm text-slate-500 mt-1">
-          Délai minimum pour annuler sans pénalité
+          Délai minimum pour se désengager sans compensation
         </p>
       </div>
 
       <div>
-        <Label htmlFor="penalty_amount">Montant de la pénalité (€) *</Label>
+        <Label htmlFor="penalty_amount">Montant de l'engagement (€) *</Label>
         <Input
           id="penalty_amount"
           type="number"
@@ -1056,7 +1056,7 @@ export default function AppointmentWizard() {
           className="mt-1"
         />
         <p className="text-sm text-slate-500 mt-1">
-          Montant appliqué en cas de retard excessif ou d'absence
+          Montant de la garantie d'engagement en cas de dépassement ou d'absence
         </p>
       </div>
     </div>
@@ -1090,7 +1090,7 @@ export default function AppointmentWizard() {
       <div className="space-y-6">
         <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
           <p className="text-sm text-emerald-900">
-            Définissez comment les pénalités collectées seront réparties.
+            Définissez comment les compensations collectées seront réparties.
           </p>
         </div>
 
@@ -1203,7 +1203,7 @@ export default function AppointmentWizard() {
     return (
       <div className="space-y-6">
         <div className="p-6 bg-white border-t-4 border-slate-900 rounded-lg shadow-sm">
-          <h3 className="text-xl font-semibold text-slate-900 mb-6">Récapitulatif du rendez-vous</h3>
+          <h3 className="text-xl font-semibold text-slate-900 mb-6">Récapitulatif de l'engagement</h3>
           
           <div className="space-y-4">
             <div className="border-b border-slate-200 pb-4">
@@ -1267,7 +1267,7 @@ export default function AppointmentWizard() {
               <h4 className="font-medium text-slate-700 mb-2">Règles d'engagement</h4>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-slate-600">Retard toléré:</span>
+                  <span className="text-slate-600">Dépassement toléré:</span>
                   <span className="font-medium text-slate-900">{formData.tolerated_delay_minutes} minutes</span>
                 </div>
                 <div className="flex justify-between">
@@ -1275,14 +1275,14 @@ export default function AppointmentWizard() {
                   <span className="font-medium text-slate-900">{formData.cancellation_deadline_hours} heures</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-600">Pénalité:</span>
+                  <span className="text-slate-600">Compensation:</span>
                   <span className="font-medium text-emerald-600">{formData.penalty_amount} {formData.penalty_currency.toUpperCase()}</span>
                 </div>
               </div>
             </div>
 
             <div>
-              <h4 className="font-medium text-slate-700 mb-2">Répartition des pénalités</h4>
+              <h4 className="font-medium text-slate-700 mb-2">Répartition des compensations</h4>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-slate-600">Compensation participants:</span>
@@ -1360,8 +1360,8 @@ export default function AppointmentWizard() {
         ) : (
           <>
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-slate-900 mb-2">Créer un rendez-vous avec engagement</h1>
-          <p className="text-slate-600 mb-4">Définissez les conditions d'engagement pour votre rendez-vous</p>
+          <h1 className="text-3xl font-bold text-slate-900 mb-2">Créer un engagement</h1>
+          <p className="text-slate-600 mb-4">Définissez les conditions de votre engagement</p>
           
           {/* Workspace Selector */}
           <div className="relative inline-block">
@@ -1564,7 +1564,7 @@ export default function AppointmentWizard() {
                 </Button>
               ) : (
                 <Button type="button" onClick={handleSubmit} disabled={loading} data-testid="wizard-create-btn">
-                  {loading ? 'Création...' : 'Créer le rendez-vous'}
+                  {loading ? 'Création...' : 'Créer l\'engagement'}
                 </Button>
               )}
             </div>

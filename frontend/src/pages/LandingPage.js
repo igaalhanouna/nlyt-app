@@ -1,100 +1,198 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ShieldCheck, CalendarClock, Handshake, CreditCard, Gavel, ArrowRight, Heart } from 'lucide-react';
+import { ArrowRight, Heart, Shield, Clock, CheckCircle, Users, Zap } from 'lucide-react';
 import { Button } from '../components/ui/button';
 
+const API = process.env.REACT_APP_BACKEND_URL;
+
 export default function LandingPage() {
+  const [impactCents, setImpactCents] = useState(0);
+
+  useEffect(() => {
+    fetch(`${API}/api/impact`)
+      .then(r => r.json())
+      .then(d => setImpactCents(d.total_charity_cents || 0))
+      .catch(() => {});
+  }, []);
+
+  const impactFormatted = new Intl.NumberFormat('fr-FR', {
+    style: 'currency', currency: 'EUR', minimumFractionDigits: 0, maximumFractionDigits: 0,
+  }).format(impactCents / 100);
+
   return (
-    <div className="min-h-screen bg-background">
-      <nav className="border-b border-border bg-white">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8 py-4 flex items-center justify-between">
-          <div className="text-2xl font-bold text-slate-900">NLYT</div>
-          <div className="flex items-center gap-4">
+    <div className="min-h-screen bg-[#0A0A0B] text-white">
+      {/* ── Nav ── */}
+      <nav className="border-b border-white/5">
+        <div className="max-w-6xl mx-auto px-6 lg:px-8 py-5 flex items-center justify-between">
+          <span className="text-xl font-bold tracking-tight text-white" data-testid="nav-logo">NLYT</span>
+          <div className="flex items-center gap-3">
             <Link to="/impact">
-              <Button variant="ghost" data-testid="nav-impact-btn"><Heart className="w-4 h-4 mr-1.5 text-rose-500" />Impact</Button>
+              <Button variant="ghost" className="text-slate-400 hover:text-white hover:bg-white/5 h-9 text-sm" data-testid="nav-impact-btn">
+                <Heart className="w-3.5 h-3.5 mr-1.5 text-rose-400" />Gestes solidaires
+              </Button>
             </Link>
             <Link to="/signin">
-              <Button variant="ghost" data-testid="nav-signin-btn">Connexion</Button>
+              <Button variant="ghost" className="text-slate-400 hover:text-white hover:bg-white/5 h-9 text-sm" data-testid="nav-signin-btn">Connexion</Button>
             </Link>
             <Link to="/signup">
-              <Button data-testid="nav-signup-btn">Créer un compte</Button>
+              <Button className="bg-white text-[#0A0A0B] hover:bg-slate-200 h-9 text-sm font-semibold" data-testid="nav-signup-btn">
+                Créer un engagement
+              </Button>
             </Link>
           </div>
         </div>
       </nav>
 
-      <section className="py-20 lg:py-32 px-6">
-        <div className="max-w-6xl mx-auto text-center">
-          <h1 className="font-serif text-5xl md:text-7xl font-bold tracking-tight leading-tight text-slate-900 mb-6">
-            Fini les retards et absences non justifiés
+      {/* ── Hero ── */}
+      <section className="pt-28 pb-20 px-6" data-testid="hero-section">
+        <div className="max-w-3xl mx-auto text-center">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-medium text-slate-400 mb-10">
+            <Shield className="w-3 h-3" />
+            Infrastructure d'engagement
+          </div>
+          <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.05] mb-8" data-testid="hero-title">
+            Le temps ne se<br />perd plus.
           </h1>
-          <p className="text-lg md:text-xl leading-relaxed text-slate-600 max-w-3xl mx-auto mb-12">
-            NLYT transforme vos rendez-vous en engagements contraignants avec garanties financières, 
-            règles de retard claires et workflows de pénalités basés sur des preuves.
+          <p className="text-lg sm:text-xl text-slate-400 leading-relaxed max-w-xl mx-auto mb-12" data-testid="hero-subtitle">
+            Votre temps est protégé. Toujours.<br className="hidden sm:block" />
+            Et chaque absence peut aussi devenir un geste solidaire.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link to="/signup">
-              <Button size="lg" className="text-lg px-8 py-6" data-testid="hero-cta-btn">
-                Commencer gratuitement <ArrowRight className="ml-2" size={20} />
+              <Button size="lg" className="bg-white text-[#0A0A0B] hover:bg-slate-200 text-base px-8 h-13 font-semibold" data-testid="hero-cta-btn">
+                Créer un engagement <ArrowRight className="ml-2 w-4 h-4" />
               </Button>
             </Link>
-            <Button size="lg" variant="outline" className="text-lg px-8 py-6" data-testid="hero-demo-btn">
-              Voir la démo
-            </Button>
           </div>
         </div>
       </section>
 
-      <section className="py-20 bg-white px-6">
-        <div className="max-w-6xl mx-auto">
-          <h2 className="text-3xl md:text-5xl font-serif font-semibold tracking-tight text-slate-900 text-center mb-16">
-            Comment ça fonctionne
-          </h2>
-          <div className="grid md:grid-cols-3 gap-8">
-            <div className="p-8 border border-slate-200 rounded-lg hover:border-slate-300 transition-colors">
-              <CalendarClock className="w-12 h-12 text-emerald-600 mb-4" />
-              <h3 className="text-xl font-semibold text-slate-900 mb-3">1. Créez un rendez-vous</h3>
-              <p className="text-slate-600 leading-relaxed">
-                Définissez les règles : retard toléré, délai d'annulation, montant de la pénalité et répartition des paiements.
+      {/* ── Promesse ── */}
+      <section className="py-20 px-6 border-t border-white/5" data-testid="promise-section">
+        <div className="max-w-3xl mx-auto">
+          <div className="grid sm:grid-cols-2 gap-6">
+            <div className="p-8 rounded-2xl bg-white/[0.03] border border-white/5">
+              <CheckCircle className="w-5 h-5 text-emerald-400 mb-5" />
+              <p className="text-lg font-semibold text-white mb-2">Engagement tenu</p>
+              <p className="text-sm text-slate-400 leading-relaxed">
+                Du temps de qualité pour tous. La garantie est libérée.
               </p>
             </div>
-            <div className="p-8 border border-slate-200 rounded-lg hover:border-slate-300 transition-colors">
-              <Handshake className="w-12 h-12 text-emerald-600 mb-4" />
-              <h3 className="text-xl font-semibold text-slate-900 mb-3">2. Invitez les participants</h3>
-              <p className="text-slate-600 leading-relaxed">
-                Les participants reçoivent un lien, consultent le contrat et acceptent les conditions avec garantie de paiement.
+            <div className="p-8 rounded-2xl bg-white/[0.03] border border-white/5">
+              <Heart className="w-5 h-5 text-rose-400 mb-5" />
+              <p className="text-lg font-semibold text-white mb-2">Engagement non tenu</p>
+              <p className="text-sm text-slate-400 leading-relaxed">
+                Vous êtes compensé. Et si vous le souhaitez, une part devient un geste solidaire.
               </p>
             </div>
-            <div className="p-8 border border-slate-200 rounded-lg hover:border-slate-300 transition-colors">
-              <ShieldCheck className="w-12 h-12 text-emerald-600 mb-4" />
-              <h3 className="text-xl font-semibold text-slate-900 mb-3">3. Engagement automatique</h3>
-              <p className="text-slate-600 leading-relaxed">
-                NLYT collecte les preuves de présence et applique les pénalités selon les règles définies. Contestations possibles.
-              </p>
+          </div>
+          <p className="text-center text-sm text-slate-500 mt-8">
+            Dans tous les cas, votre temps est valorisé.
+          </p>
+        </div>
+      </section>
+
+      {/* ── Comment ça marche ── */}
+      <section className="py-20 px-6 border-t border-white/5" data-testid="how-section">
+        <div className="max-w-3xl mx-auto">
+          <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-center mb-16">Comment ça marche</h2>
+          <div className="space-y-12">
+            <div className="flex gap-6 items-start">
+              <div className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center flex-shrink-0">
+                <span className="text-sm font-bold text-white">1</span>
+              </div>
+              <div>
+                <p className="text-base font-semibold text-white mb-1">Créez un engagement</p>
+                <p className="text-sm text-slate-400">Définissez les conditions : horaire, durée, montant de l'engagement. En 2 minutes.</p>
+              </div>
+            </div>
+            <div className="flex gap-6 items-start">
+              <div className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center flex-shrink-0">
+                <span className="text-sm font-bold text-white">2</span>
+              </div>
+              <div>
+                <p className="text-base font-semibold text-white mb-1">Chacun confirme sa présence</p>
+                <p className="text-sm text-slate-400">Les participants découvrent les conditions et confirment avec une garantie réciproque.</p>
+              </div>
+            </div>
+            <div className="flex gap-6 items-start">
+              <div className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center flex-shrink-0">
+                <span className="text-sm font-bold text-white">3</span>
+              </div>
+              <div>
+                <p className="text-base font-semibold text-white mb-1">Le temps crée toujours de la valeur</p>
+                <p className="text-sm text-slate-400">Présent ? Garantie libérée. Absent ? Compensation automatique et geste solidaire possible.</p>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      <section className="py-20 px-6 bg-slate-900 text-white">
-        <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-3xl md:text-5xl font-serif font-semibold mb-6">
-            Prêt à éliminer les absences ?
-          </h2>
-          <p className="text-lg text-slate-300 mb-8">
-            Rejoignez les professionnels qui valorisent leur temps et celui de leurs clients.
+      {/* ── Preuve sociale / Compteur ── */}
+      {impactCents > 0 && (
+        <section className="py-20 px-6 border-t border-white/5" data-testid="proof-section">
+          <div className="max-w-3xl mx-auto text-center">
+            <Heart className="w-5 h-5 text-rose-400 mx-auto mb-6" />
+            <p className="text-4xl sm:text-5xl font-bold tracking-tight text-white mb-3" data-testid="proof-amount">
+              {impactFormatted}
+            </p>
+            <p className="text-sm text-slate-400">
+              reversés à des associations grâce aux gestes solidaires sur NLYT.
+            </p>
+            <Link to="/impact" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-white mt-6 transition-colors">
+              Voir le détail <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+        </section>
+      )}
+
+      {/* ── Cas d'usage ── */}
+      <section className="py-20 px-6 border-t border-white/5" data-testid="usecases-section">
+        <div className="max-w-3xl mx-auto text-center">
+          <h2 className="text-2xl sm:text-3xl font-bold tracking-tight mb-4">Pour tous ceux dont le temps compte</h2>
+          <p className="text-sm text-slate-400 mb-12">Coachs, consultants, thérapeutes, avocats, recruteurs, freelances...</p>
+          <div className="grid sm:grid-cols-3 gap-4">
+            <div className="p-6 rounded-xl bg-white/[0.03] border border-white/5">
+              <Users className="w-4 h-4 text-slate-500 mb-3" />
+              <p className="text-sm font-medium text-white">Consultants</p>
+              <p className="text-xs text-slate-500 mt-1">Fini les créneaux bloqués pour rien</p>
+            </div>
+            <div className="p-6 rounded-xl bg-white/[0.03] border border-white/5">
+              <Clock className="w-4 h-4 text-slate-500 mb-3" />
+              <p className="text-sm font-medium text-white">Coachs</p>
+              <p className="text-xs text-slate-500 mt-1">Chaque session est un vrai engagement</p>
+            </div>
+            <div className="p-6 rounded-xl bg-white/[0.03] border border-white/5">
+              <Zap className="w-4 h-4 text-slate-500 mb-3" />
+              <p className="text-sm font-medium text-white">Professions libérales</p>
+              <p className="text-xs text-slate-500 mt-1">Votre temps retrouve sa juste valeur</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── CTA Final ── */}
+      <section className="py-24 px-6 border-t border-white/5" data-testid="cta-section">
+        <div className="max-w-2xl mx-auto text-center">
+          <p className="text-2xl sm:text-3xl font-bold tracking-tight text-white mb-4">
+            Même quand ça se passe mal,<br />quelque chose de bien en sort.
+          </p>
+          <p className="text-sm text-slate-500 mb-10">
+            Votre temps est protégé. Vous choisissez ce qu'il devient.
           </p>
           <Link to="/signup">
-            <Button size="lg" variant="secondary" className="text-lg px-8 py-6" data-testid="footer-cta-btn">
-              Créer mon compte gratuitement
+            <Button size="lg" className="bg-white text-[#0A0A0B] hover:bg-slate-200 text-base px-8 h-13 font-semibold" data-testid="footer-cta-btn">
+              Créer mon premier engagement <ArrowRight className="ml-2 w-4 h-4" />
             </Button>
           </Link>
         </div>
       </section>
 
-      <footer className="bg-white border-t border-border py-12 px-6">
-        <div className="max-w-6xl mx-auto text-center text-slate-600">
-          <p>© 2026 NLYT. Tous droits réservés.</p>
+      {/* ── Footer ── */}
+      <footer className="border-t border-white/5 py-10 px-6">
+        <div className="max-w-6xl mx-auto flex items-center justify-between">
+          <p className="text-xs text-slate-600">© 2026 NLYT. Le temps ne se perd plus.</p>
+          <p className="text-xs text-slate-600">Chaque minute compte. Littéralement.</p>
         </div>
       </footer>
     </div>

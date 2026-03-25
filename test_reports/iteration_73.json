@@ -1,0 +1,142 @@
+{
+  "summary": "NLYT rebrand wording verification. Landing page and Impact page are correctly updated with new wording. Dashboard impact card is correct. However, several OLD WORDING instances remain in: (1) Dashboard Statistics tab - 'Fléchés pour des associations', (2) Settings Profile page - 'Retard toléré', 'Montant de pénalité', 'Délai d'annulation', (3) InvitationPage - 'Retard toléré', 'pénalité'. Wizard step labels are correct.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "OrganizerDashboard.js",
+        "issue": "Line 685: Comment says 'Impact caritatif' (should be 'Gestes solidaires')",
+        "selector": "[data-testid='kpi-charity']",
+        "priority": "LOW"
+      },
+      {
+        "component": "OrganizerDashboard.js",
+        "issue": "Line 690: Label says 'Fléchés pour des associations' (should be 'Reversés à des associations')",
+        "selector": "[data-testid='kpi-charity']",
+        "priority": "HIGH"
+      },
+      {
+        "component": "Profile.js",
+        "issue": "Line 301: Label says 'Retard toléré (minutes)' (should be 'Dépassement toléré (minutes)')",
+        "selector": "[data-testid='profile-late-tolerance']",
+        "priority": "HIGH"
+      },
+      {
+        "component": "Profile.js",
+        "issue": "Line 316: Label says 'Montant de pénalité par défaut (€)' (should be 'Montant de l'engagement par défaut (€)')",
+        "selector": "[data-testid='profile-penalty-amount']",
+        "priority": "HIGH"
+      },
+      {
+        "component": "InvitationPage.js",
+        "issue": "Line 1105: Text says 'Retard toléré' (should be 'Dépassement toléré')",
+        "selector": "engagement rules list",
+        "priority": "HIGH"
+      },
+      {
+        "component": "InvitationPage.js",
+        "issue": "Line 1109: Text says 'Pénalité en cas d'absence' (should be 'Compensation en cas d'absence')",
+        "selector": "engagement rules list",
+        "priority": "HIGH"
+      },
+      {
+        "component": "InvitationPage.js",
+        "issue": "Line 1323: Text says 'La pénalité de' (should be 'La compensation de')",
+        "selector": "guarantee notice",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": {
+    "landing_page": [
+      "✅ Dark theme applied (bg-[#0A0A0B])",
+      "✅ Hero title: 'Le temps ne se perd plus.'",
+      "✅ Hero subtitle mentions 'geste solidaire'",
+      "✅ CTA button: 'Créer un engagement'",
+      "✅ Nav button: 'Gestes solidaires' (not 'Impact')",
+      "✅ Promise section: 'Engagement tenu' / 'Engagement non tenu'",
+      "✅ How section: 'Comment ça marche' with 3 steps",
+      "✅ Proof section: 'reversés à des associations' (not 'fléchés')",
+      "✅ Use cases section present",
+      "✅ Final CTA present"
+    ],
+    "impact_page": [
+      "✅ Title: 'Quand le temps perdu fait du bien' (not 'Impact caritatif')",
+      "✅ Uses 'reversés' (not 'fléchés')",
+      "✅ Uses 'gestes solidaires'",
+      "✅ No 'Impact caritatif' found"
+    ],
+    "dashboard": [
+      "✅ Impact card: 'Vos gestes solidaires'",
+      "✅ Impact card: 'reversés à des associations'",
+      "✅ Create button: 'Créer un engagement'",
+      "✅ No 'Votre impact' found",
+      "✅ No 'fléché' in impact card"
+    ],
+    "wizard": [
+      "✅ Title: 'Créer un engagement' (not 'Créer un rendez-vous')",
+      "✅ Step label: 'Répartition des compensations' (not 'pénalités')",
+      "✅ Step 3 label: 'Dépassement toléré' (in code)",
+      "✅ Step 3 label: 'Délai de désengagement' (in code)",
+      "✅ Step 3 label: 'Montant de l'engagement' (in code)"
+    ],
+    "settings_profile": [
+      "✅ Section title: 'Paramètres par défaut des engagements'",
+      "✅ Section title: 'Répartition des compensations par défaut'"
+    ]
+  },
+  "failed_tests": {
+    "dashboard_statistics": [
+      "❌ 'Fléchés pour des associations' should be 'Reversés à des associations'"
+    ],
+    "settings_profile": [
+      "❌ 'Retard toléré (minutes)' should be 'Dépassement toléré (minutes)'",
+      "❌ 'Montant de pénalité par défaut (€)' should be 'Montant de l'engagement par défaut (€)'"
+    ],
+    "invitation_page": [
+      "❌ 'Retard toléré' should be 'Dépassement toléré'",
+      "❌ 'Pénalité en cas d'absence' should be 'Compensation en cas d'absence'",
+      "❌ 'La pénalité de' should be 'La compensation de'"
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "FIX OrganizerDashboard.js line 690: Change 'Fléchés pour des associations' to 'Reversés à des associations'",
+    "FIX Profile.js line 301: Change 'Retard toléré (minutes)' to 'Dépassement toléré (minutes)'",
+    "FIX Profile.js line 316: Change 'Montant de pénalité par défaut (€)' to 'Montant de l'engagement par défaut (€)'",
+    "FIX InvitationPage.js line 1105: Change 'Retard toléré' to 'Dépassement toléré'",
+    "FIX InvitationPage.js line 1109: Change 'Pénalité en cas d'absence' to 'Compensation en cas d'absence'",
+    "FIX InvitationPage.js line 1323: Change 'La pénalité de' to 'La compensation de'"
+  ],
+  "critical_code_review_comments": [
+    "OrganizerDashboard.js line 685: Comment still says 'Impact caritatif' - should update to 'Gestes solidaires' for consistency",
+    "Profile.js: The 'Délai d'annulation' label is correct in the code but the 'Retard toléré' and 'Montant de pénalité' labels need updating"
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "N/A (frontend only test)",
+    "frontend": "70% (7 wording issues found across 3 files)"
+  },
+  "test_credentials": {
+    "user": "clara.deschamps@demo-nlyt.fr / Demo2026!"
+  },
+  "seed_data_creation": "None",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "NLYT rebrand wording verification. Main pages (Landing, Impact, Dashboard impact card, Wizard) are correctly updated. Remaining issues in: OrganizerDashboard.js (statistics tab), Profile.js (settings), InvitationPage.js (participant view). All issues are simple text replacements.",
+  "mocked_apis": {
+    "has_mocked_apis": false,
+    "mocked_apis_list": []
+  },
+  "screenshots": [
+    ".screenshots/landing_page.png - Dark theme landing page with correct wording",
+    ".screenshots/impact_page.png - Impact page with correct wording",
+    ".screenshots/dashboard_stats.png - Dashboard statistics tab showing 'Fléchés' issue",
+    ".screenshots/settings_profile.png - Settings profile showing old wording issues"
+  ]
+}

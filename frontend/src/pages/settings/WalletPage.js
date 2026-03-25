@@ -150,7 +150,7 @@ function DistributionCard({ dist, currentUserId, onContest, onRefresh }) {
           </div>
           <div className="min-w-0">
             <p className="text-sm font-medium text-slate-900 truncate">
-              {isNoShow ? 'Pénalité capturée' : `Crédit reçu`}
+              {isNoShow ? 'Compensation capturée' : `Crédit reçu`}
             </p>
             <p className="text-xs text-slate-500 truncate">
               {dist.appointment_title || 'Rendez-vous'} — {fmtDateShort(dist.captured_at)}
@@ -291,15 +291,15 @@ function _buildExplanation(dist, isNoShow, isBeneficiary, userBeneficiary) {
     return `Cette distribution de ${amount} a été annulée. Les fonds crédités ont été remboursés.`;
   }
   if (dist.status === 'contested') {
-    if (isNoShow) return `Votre pénalité de ${amount} a fait l'objet d'un signalement. La distribution est suspendue en attente de résolution par l'équipe NLYT.`;
+    if (isNoShow) return `Votre compensation de ${amount} a fait l'objet d'un signalement. La distribution est suspendue en attente de résolution par l'équipe NLYT.`;
     return `Cette distribution est suspendue suite à un signalement. Les fonds restent en attente dans votre wallet.`;
   }
   if (dist.status === 'completed') {
-    if (isNoShow) return `Votre pénalité de ${amount} a été distribuée aux bénéficiaires. La période de vérification est terminée.`;
+    if (isNoShow) return `Votre compensation de ${amount} a été distribuée aux bénéficiaires. La période de vérification est terminée.`;
     return `Les fonds de ${fmt(userBeneficiary?.amount_cents || 0, dist.capture_currency)} sont maintenant disponibles dans votre wallet.`;
   }
   if (dist.status === 'pending_hold') {
-    if (isNoShow) return `Votre pénalité de ${amount} a été capturée. Les fonds sont en période de vérification (15 jours) avant distribution définitive. Vous pouvez contester pendant cette période.`;
+    if (isNoShow) return `Votre compensation de ${amount} a été capturée. Les fonds sont en période de vérification (15 jours) avant distribution définitive. Vous pouvez contester pendant cette période.`;
     return `Vous avez reçu un crédit de ${fmt(userBeneficiary?.amount_cents || 0, dist.capture_currency)} suite à une absence. Ce montant passera en disponible après la période de vérification de 15 jours.`;
   }
   return `Distribution de ${amount} en cours de traitement.`;
@@ -357,7 +357,7 @@ function ImpactSection({ impact }) {
             <Heart className="w-4.5 h-4.5 text-rose-500" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-slate-900">Votre impact solidaire</p>
+            <p className="text-sm font-semibold text-slate-900">Vos gestes solidaires</p>
             <p className="text-xs text-slate-500">Contributions aux associations via NLYT</p>
           </div>
         </div>

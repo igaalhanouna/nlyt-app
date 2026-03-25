@@ -82,7 +82,7 @@ export default function PaymentSettings() {
   };
 
   const handleRemove = async () => {
-    if (!window.confirm("Supprimer votre carte par défaut ? Vos futurs rendez-vous nécessiteront une saisie manuelle.")) return;
+    if (!window.confirm("Supprimer votre carte par défaut ? Vos futurs engagements nécessiteront une saisie manuelle.")) return;
     setRemoving(true);
     try {
       await api.delete('/api/user-settings/me/payment-method');
@@ -159,7 +159,7 @@ export default function PaymentSettings() {
               <div>
                 <p className="text-sm font-medium text-emerald-800">Utilisation automatique activée</p>
                 <p className="text-xs text-emerald-700 mt-1">
-                  Cette carte sera utilisée automatiquement pour couvrir votre garantie lorsque vous créez un rendez-vous en tant qu'organisateur. Aucune ressaisie nécessaire.
+                  Cette carte sera utilisée automatiquement pour couvrir votre garantie lorsque vous créez un engagement en tant qu'organisateur. Aucune ressaisie nécessaire.
                 </p>
               </div>
             </div>
@@ -196,7 +196,7 @@ export default function PaymentSettings() {
               </div>
               <h3 className="font-semibold text-slate-900 mb-2">Aucune carte enregistrée</h3>
               <p className="text-sm text-slate-500 mb-6 max-w-sm mx-auto">
-                Enregistrez un moyen de paiement pour créer vos rendez-vous instantanément, sans passer par Stripe à chaque fois.
+                Enregistrez un moyen de paiement pour créer vos engagements instantanément, sans passer par Stripe à chaque fois.
               </p>
               <Button onClick={handleSetup} disabled={settingUp} data-testid="add-card-btn">
                 {settingUp ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <CreditCard className="w-4 h-4 mr-2" />}
@@ -210,7 +210,7 @@ export default function PaymentSettings() {
               <div>
                 <p className="text-sm font-medium text-amber-800">Sans carte par défaut</p>
                 <p className="text-xs text-amber-700 mt-1">
-                  Vous devrez passer par Stripe à chaque création de rendez-vous avec pénalité. Les invitations ne seront envoyées qu'après validation de votre garantie.
+                  Vous devrez passer par Stripe à chaque création d'engagement avec compensation. Les invitations ne seront envoyées qu'après validation de votre garantie.
                 </p>
               </div>
             </div>

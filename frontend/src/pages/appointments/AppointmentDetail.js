@@ -407,8 +407,8 @@ export default function AppointmentDetail() {
   const getOutcomeBadge = (outcome, decisionBasis) => {
     const badges = {
       on_time: { bg: 'bg-emerald-100', text: 'text-emerald-800', icon: <UserCheck className="w-3 h-3" />, label: 'Présent' },
-      late: { bg: 'bg-amber-100', text: 'text-amber-800', icon: <Clock className="w-3 h-3" />, label: 'En retard' },
-      no_show: { bg: 'bg-red-100', text: 'text-red-800', icon: <UserX className="w-3 h-3" />, label: decisionBasis === 'cancelled_late' ? 'Annulation tardive' : 'Absent' },
+      late: { bg: 'bg-amber-100', text: 'text-amber-800', icon: <Clock className="w-3 h-3" />, label: 'Dépassement' },
+      no_show: { bg: 'bg-red-100', text: 'text-red-800', icon: <UserX className="w-3 h-3" />, label: decisionBasis === 'cancelled_late' ? 'Désengagement tardif' : 'Absent' },
       manual_review: { bg: 'bg-yellow-100', text: 'text-yellow-800', icon: <Eye className="w-3 h-3" />, label: 'À vérifier' },
       waived: { bg: 'bg-slate-100', text: 'text-slate-600', icon: <HelpCircle className="w-3 h-3" />, label: 'Dispensé' },
     };
@@ -427,19 +427,19 @@ export default function AppointmentDetail() {
       no_response: 'N\'a jamais répondu',
       cancelled_in_time: 'Annulé dans les délais',
       cancelled_late: 'Annulé hors délai',
-      cancellation_date_parse_error: 'Date d\'annulation non lisible',
+      cancellation_date_parse_error: 'Date de désengagement non lisible',
       accepted_no_guarantee: 'Accepté sans garantie',
       pending_guarantee: 'Garantie en attente',
       no_proof_of_attendance: 'Pas de preuve de présence',
       strong_evidence_on_time: 'Preuve forte — à l\'heure',
-      strong_evidence_late: 'Preuve forte — en retard',
+      strong_evidence_late: 'Preuve forte — dépassement',
       medium_evidence_on_time: 'Preuve moyenne — à l\'heure',
-      medium_evidence_late: 'Preuve moyenne — en retard',
+      medium_evidence_late: 'Preuve moyenne — dépassement',
       weak_evidence: 'Preuve faible',
       video_strong_on_time: 'Visio — preuve forte, connecté à l\'heure',
-      video_strong_late: 'Visio — preuve forte, connecté en retard',
+      video_strong_late: 'Visio — preuve forte, connecté en dépassement',
       video_medium_joined_on_time: 'Visio — preuve moyenne, connecté à l\'heure',
-      video_medium_joined_late: 'Visio — preuve moyenne, connecté en retard',
+      video_medium_joined_late: 'Visio — preuve moyenne, connecté en dépassement',
       video_ambiguous: 'Visio — signal ambigu, revue manuelle',
       meet_assisted_only: 'Google Meet — preuve assistée uniquement',
     };
@@ -532,7 +532,7 @@ export default function AppointmentDetail() {
 
   const reclassifyOptions = [
     { value: 'on_time', label: 'Présent', color: 'text-emerald-700' },
-    { value: 'late', label: 'En retard', color: 'text-amber-700' },
+    { value: 'late', label: 'Dépassement', color: 'text-amber-700' },
     { value: 'no_show', label: 'Absent', color: 'text-red-700' },
     { value: 'waived', label: 'Dispensé', color: 'text-slate-600' },
   ];
@@ -570,7 +570,7 @@ export default function AppointmentDetail() {
   const getTimingBadge = (timing) => {
     if (!timing) return null;
     if (timing === 'on_time') return <span className="text-xs px-2.5 py-1 rounded-full border bg-emerald-50 border-emerald-200 text-emerald-700 font-medium">À l'heure</span>;
-    return <span className="text-xs px-2.5 py-1 rounded-full border bg-amber-50 border-amber-200 text-amber-700 font-medium">En retard</span>;
+    return <span className="text-xs px-2.5 py-1 rounded-full border bg-amber-50 border-amber-200 text-amber-700 font-medium">Dépassement</span>;
   };
 
   const formatSourceLabel = (source) => {
@@ -608,7 +608,7 @@ export default function AppointmentDetail() {
   const getVideoOutcomeBadge = (outcome) => {
     const badges = {
       joined_on_time: { bg: 'bg-emerald-100', text: 'text-emerald-800', label: 'Connecté à l\'heure' },
-      joined_late: { bg: 'bg-amber-100', text: 'text-amber-800', label: 'Connecté en retard' },
+      joined_late: { bg: 'bg-amber-100', text: 'text-amber-800', label: 'Connecté en dépassement' },
       no_join_detected: { bg: 'bg-red-100', text: 'text-red-800', label: 'Aucune connexion' },
       manual_review: { bg: 'bg-yellow-100', text: 'text-yellow-800', label: 'Revue manuelle' },
       partial_attendance: { bg: 'bg-orange-100', text: 'text-orange-800', label: 'Présence partielle' },
@@ -800,9 +800,9 @@ export default function AppointmentDetail() {
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 flex items-center gap-3">
             <Ban className="w-6 h-6 text-red-600" />
             <div>
-              <p className="font-semibold text-red-800">Ce rendez-vous a été annulé</p>
+              <p className="font-semibold text-red-800">Cet engagement a été annulé</p>
               <p className="text-sm text-red-600">
-                Les participants ont été notifiés. Ce rendez-vous n'aura pas lieu.
+                Les participants ont été notifiés. Cet engagement n'aura pas lieu.
               </p>
             </div>
           </div>
@@ -918,7 +918,7 @@ export default function AppointmentDetail() {
                   data-testid="cancel-appointment-btn"
                 >
                   <Ban className="w-4 h-4 mr-2" />
-                  Annuler le rendez-vous
+                  Annuler l'engagement
                 </Button>
               </>
             )}
@@ -983,7 +983,7 @@ export default function AppointmentDetail() {
               </div>
               <div>
                 <p className="text-2xl font-bold text-slate-900">{appointment.tolerated_delay_minutes}</p>
-                <p className="text-sm text-slate-600">Minutes de retard</p>
+                <p className="text-sm text-slate-600">Minutes de dépassement</p>
               </div>
             </div>
             <div className="text-xs text-slate-500">Tolérance autorisée</div>
@@ -996,7 +996,7 @@ export default function AppointmentDetail() {
               </div>
               <div>
                 <p className="text-2xl font-bold text-slate-900">{appointment.cancellation_deadline_hours}h</p>
-                <p className="text-sm text-slate-600">Délai d'annulation</p>
+                <p className="text-sm text-slate-600">Délai de désengagement</p>
                 {appointment.cancellation_deadline_hours_original && appointment.cancellation_deadline_hours_original !== appointment.cancellation_deadline_hours && (
                   <p className="text-xs text-amber-600 mt-0.5" data-testid="deadline-adjusted-note">
                     Ajusté de {appointment.cancellation_deadline_hours_original}h (short notice)
@@ -1004,7 +1004,7 @@ export default function AppointmentDetail() {
                 )}
               </div>
             </div>
-            <div className="text-xs text-slate-500">Avant pénalité</div>
+            <div className="text-xs text-slate-500">Avant compensation</div>
           </div>
         </div>
 
@@ -1261,7 +1261,7 @@ export default function AppointmentDetail() {
             <h2 className="text-lg font-semibold text-slate-900 mb-4">Conditions financières</h2>
             <div className="space-y-3">
               <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg">
-                <p className="text-sm font-medium text-rose-900">Pénalité</p>
+                <p className="text-sm font-medium text-rose-900">Compensation</p>
                 <p className="text-2xl font-bold text-rose-900">
                   {appointment.penalty_amount} {appointment.penalty_currency.toUpperCase()}
                 </p>
@@ -1292,7 +1292,7 @@ export default function AppointmentDetail() {
                       {appointment.charity_association_name || 'Association sélectionnée'}
                     </p>
                     <p className="text-xs text-teal-700 mt-0.5">
-                      {appointment.charity_percent}% de la pénalité reversée
+                      {appointment.charity_percent}% de la compensation reversée
                     </p>
                   </div>
                 </div>
@@ -1338,7 +1338,7 @@ export default function AppointmentDetail() {
                         Distance : {organizerCheckinData.derived_facts.distance_km < 1
                           ? `${Math.round(organizerCheckinData.derived_facts.distance_km * 1000)} m`
                           : `${organizerCheckinData.derived_facts.distance_km.toFixed(2)} km`
-                        } du lieu de rendez-vous
+                        } du lieu de l'engagement
                       </p>
                     )}
                     {organizerCheckinData.derived_facts.address_label && (
@@ -1581,12 +1581,12 @@ export default function AppointmentDetail() {
               <div className="p-2 bg-red-100 rounded-full">
                 <AlertTriangle className="w-6 h-6 text-red-600" />
               </div>
-              <h3 className="text-lg font-semibold text-red-800">Annuler le rendez-vous</h3>
+              <h3 className="text-lg font-semibold text-red-800">Annuler l'engagement</h3>
             </div>
             
             <div className="p-6">
               <p className="text-slate-700 mb-4">
-                Voulez-vous vraiment annuler ce rendez-vous ?
+                Voulez-vous vraiment annuler cet engagement ?
               </p>
               <ul className="text-sm text-slate-600 space-y-2 mb-6">
                 <li className="flex items-start gap-2">
@@ -1595,7 +1595,7 @@ export default function AppointmentDetail() {
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-red-500">•</span>
-                  Le rendez-vous sera conservé dans l'historique avec le statut "Annulé".
+                  L'engagement sera conservé dans l'historique avec le statut "Annulé".
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-red-500">•</span>

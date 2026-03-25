@@ -45,7 +45,7 @@ export default function CheckinPage() {
           setHeartbeatCount(res.data.active_session.heartbeat_count || 0);
         }
       })
-      .catch(err => setError(err.response?.data?.detail || "Impossible de charger les informations du rendez-vous."))
+      .catch(err => setError(err.response?.data?.detail || "Impossible de charger les informations de l'engagement."))
       .finally(() => setLoading(false));
   }, [appointmentId, token]);
 

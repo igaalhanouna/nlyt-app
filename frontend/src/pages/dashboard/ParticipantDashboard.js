@@ -15,7 +15,7 @@ export default function ParticipantDashboard() {
         </Link>
         <h1 className="text-3xl font-bold mb-4">Mes invitations</h1>
         <div className="bg-white p-8 rounded-lg border border-slate-200">
-          <p className="text-slate-600">Vos invitations aux rendez-vous apparaîtront ici.</p>
+          <p className="text-slate-600">Vos invitations aux engagements apparaîtront ici.</p>
         </div>
       </div>
     </div>

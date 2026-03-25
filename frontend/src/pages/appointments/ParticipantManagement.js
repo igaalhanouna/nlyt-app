@@ -109,7 +109,7 @@ export default function ParticipantManagement() {
         <Link to={`/appointments/${id}`}>
           <Button variant="ghost" className="mb-6">
             <ArrowLeft className="w-4 h-4 mr-2" />
-            Retour au rendez-vous
+            Retour à l'engagement
           </Button>
         </Link>
 
@@ -125,7 +125,7 @@ export default function ParticipantManagement() {
             <div>
               <h2 className="text-xl font-semibold text-slate-900">Gestion des participants ({participants.length})</h2>
               <p className="text-sm text-slate-600 mt-1">
-                Invitez les participants à ce rendez-vous
+                Invitez les participants à cet engagement
               </p>
             </div>
             
@@ -265,7 +265,7 @@ export default function ParticipantManagement() {
         <div className="flex justify-center">
           <Button onClick={() => navigate(`/appointments/${id}`)} data-testid="back-to-appointment-btn">
             <ArrowLeft className="w-4 h-4 mr-2" />
-            Retour au rendez-vous
+            Retour à l'engagement
           </Button>
         </div>
       </div>

@@ -201,7 +201,7 @@ export default function Integrations() {
                 {isConnected && <span className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0" />}
               </div>
               <p className="text-sm text-slate-500">
-                Synchronisez vos rendez-vous avec {isGoogle ? 'votre agenda Google' : 'votre calendrier Outlook'}.
+                Synchronisez vos engagements avec {isGoogle ? 'votre agenda Google' : 'votre calendrier Outlook'}.
               </p>
               {/* Capabilities badges */}
               <div className="flex flex-wrap gap-1.5 mt-2">
@@ -664,7 +664,7 @@ export default function Integrations() {
                   <div className="flex-1">
                     <h3 className="text-base font-semibold text-slate-900 mb-1">Apple Calendar & autres calendriers</h3>
                     <p className="text-sm text-slate-500">
-                      Exportez vos rendez-vous au format iCalendar (.ics). Compatible avec Apple Calendar, Thunderbird et tout calendrier standard.
+                      Exportez vos engagements au format iCalendar (.ics). Compatible avec Apple Calendar, Thunderbird et tout calendrier standard.
                     </p>
                   </div>
                 </div>
@@ -673,11 +673,11 @@ export default function Integrations() {
                 <div className="flex items-center gap-3 text-sm text-slate-600">
                   <Calendar className="w-4 h-4 text-slate-400 flex-shrink-0" />
                   <span>
-                    Un bouton <strong>"Autres calendriers (.ics)"</strong> est disponible sur chaque rendez-vous et chaque invitation. Le fichier .ics téléchargé s'ouvre directement dans votre application calendrier.
+                    Un bouton <strong>"Autres calendriers (.ics)"</strong> est disponible sur chaque engagement et chaque invitation. Le fichier .ics téléchargé s'ouvre directement dans votre application calendrier.
                   </span>
                 </div>
                 <p className="text-xs text-slate-400 mt-3 ml-7">
-                  Cet export est manuel. En cas de modification du rendez-vous, ajoutez-le à nouveau pour mettre à jour votre calendrier.
+                  Cet export est manuel. En cas de modification de l'engagement, ajoutez-le à nouveau pour mettre à jour votre calendrier.
                 </p>
               </div>
             </div>
@@ -693,7 +693,7 @@ export default function Integrations() {
                     <div className="flex-1">
                       <h3 className="text-base font-semibold text-slate-900 mb-1">Auto-sync calendrier</h3>
                       <p className="text-sm text-slate-500">
-                        Chaque nouveau rendez-vous sera ajouté automatiquement aux calendriers activés ci-dessous.
+                        Chaque nouvel engagement sera ajouté automatiquement aux calendriers activés ci-dessous.
                       </p>
                     </div>
                   </div>
@@ -865,7 +865,7 @@ export default function Integrations() {
 
         <div className="p-3 bg-amber-50 border border-amber-100 rounded-lg">
           <p className="text-xs text-amber-700">
-            <strong>Alternative :</strong> Exportez chaque rendez-vous en fichier ICS depuis la page de détail (compatible avec tous les calendriers).
+            <strong>Alternative :</strong> Exportez chaque engagement en fichier ICS depuis la page de détail (compatible avec tous les calendriers).
           </p>
         </div>
       </div>

@@ -122,7 +122,7 @@ function TransparencyBlock() {
             Transparence sur les montants
           </h3>
           <p className="text-sm text-amber-700 leading-relaxed">
-            Les montants affichés sur cette page sont <strong>fléchés pour des associations</strong> et accumulés
+            Les montants affichés sur cette page sont <strong>reversés à des associations</strong> et accumulés
             sur la plateforme NLYT. Le transfert vers les associations n'a pas encore eu lieu.
           </p>
           <p className="text-sm text-amber-700 leading-relaxed mt-2">
@@ -197,11 +197,11 @@ export default function ImpactPage() {
             className="text-4xl sm:text-5xl font-bold tracking-tight mb-4"
             data-testid="impact-hero-title"
           >
-            Impact caritatif
+            Quand le temps perdu fait du bien
           </h1>
           <p className="text-lg text-slate-400 max-w-xl mx-auto">
-            Chaque engagement non honoré sur NLYT génère des montants fléchés pour des associations.
-            Transparence totale sur les sommes accumulées.
+            Chaque engagement non tenu sur NLYT génère des gestes solidaires
+            reversés à des associations. Transparence totale.
           </p>
         </div>
       </div>
@@ -215,7 +215,7 @@ export default function ImpactPage() {
               <StatCard
                 icon={Heart}
                 value={fmt(data.total_charity_cents)}
-                label="Fléchés pour des associations"
+                label="Reversés à des associations"
                 accent
                 testId="kpi-total-charity"
               />
@@ -234,7 +234,7 @@ export default function ImpactPage() {
               <StatCard
                 icon={TrendingUp}
                 value={data.total_no_show_contributions?.toLocaleString('fr-FR') || '0'}
-                label="Non tenus avec contribution caritative"
+                label="Absences transformées en gestes solidaires"
                 testId="kpi-no-show-contributions"
               />
             </div>
@@ -261,7 +261,7 @@ export default function ImpactPage() {
                   ))}
                 </div>
                 <p className="text-xs text-slate-400 mt-3 text-center">
-                  Total fléché pour les associations : <span className="font-semibold text-slate-600">{fmtPrecise(data.total_charity_cents)}</span>
+                  Total reversé aux associations : <span className="font-semibold text-slate-600">{fmtPrecise(data.total_charity_cents)}</span>
                 </p>
               </div>
             )}
@@ -307,10 +307,10 @@ export default function ImpactPage() {
           /* ── Empty State ── */
           <div className="bg-white border border-slate-200 rounded-xl p-12 text-center -mt-8" data-testid="charity-empty">
             <Heart className="w-10 h-10 text-slate-300 mx-auto mb-4" />
-            <p className="text-lg font-medium text-slate-700 mb-2">L'impact caritatif commence ici</p>
+            <p className="text-lg font-medium text-slate-700 mb-2">Les gestes solidaires commencent ici</p>
             <p className="text-sm text-slate-500 max-w-md mx-auto mb-6">
-              Dès que des garanties de présence seront traitées avec une part caritative,
-              les montants fléchés pour les associations apparaîtront ici.
+              Dès que des garanties d'engagement seront traitées avec une part solidaire,
+              les montants reversés aux associations apparaîtront ici.
             </p>
             <TransparencyBlock />
           </div>
@@ -325,27 +325,27 @@ export default function ImpactPage() {
                 <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-3">
                   <span className="text-sm font-bold text-slate-600">1</span>
                 </div>
-                <p className="text-sm font-medium text-slate-900 mb-1">Garantie de présence</p>
+                <p className="text-sm font-medium text-slate-900 mb-1">Garantie d'engagement</p>
                 <p className="text-xs text-slate-500">
-                  Chaque participant dépose une garantie financière lors de son inscription.
+                  Chaque participant dépose une garantie lors de sa confirmation.
                 </p>
               </div>
               <div className="text-center">
                 <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-3">
                   <span className="text-sm font-bold text-slate-600">2</span>
                 </div>
-                <p className="text-sm font-medium text-slate-900 mb-1">Absence détectée</p>
+                <p className="text-sm font-medium text-slate-900 mb-1">Absence constatée</p>
                 <p className="text-xs text-slate-500">
-                  En cas d'absence, la garantie est capturée. Une part est fléchée pour une association.
+                  En cas d'absence, la garantie est capturée. Une part devient un geste solidaire.
                 </p>
               </div>
               <div className="text-center">
                 <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-3">
                   <span className="text-sm font-bold text-slate-600">3</span>
                 </div>
-                <p className="text-sm font-medium text-slate-900 mb-1">Montants accumulés</p>
+                <p className="text-sm font-medium text-slate-900 mb-1">Gestes solidaires cumulés</p>
                 <p className="text-xs text-slate-500">
-                  Les montants fléchés sont comptabilisés et traçables. Le reversement automatique sera bientôt disponible.
+                  Les montants reversés sont comptabilisés et traçables. Le reversement automatique sera bientôt disponible.
                 </p>
               </div>
             </div>

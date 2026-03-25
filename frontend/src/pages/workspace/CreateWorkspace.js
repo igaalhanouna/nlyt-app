@@ -36,7 +36,7 @@ export default function CreateWorkspace() {
       <div className="max-w-2xl mx-auto">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-slate-900 mb-2">Créer un workspace</h1>
-          <p className="text-slate-600">Organisez vos rendez-vous dans des espaces dédiés</p>
+          <p className="text-slate-600">Organisez vos engagements dans des espaces dédiés</p>
         </div>
 
         <div className="bg-white p-8 rounded-lg shadow-sm border border-slate-200">

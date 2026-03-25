@@ -74,10 +74,10 @@ function ImpactCard({ totalCharityCents }) {
     <div className="mb-6 bg-emerald-50 border border-emerald-200 rounded-lg p-5" data-testid="impact-card">
       <div className="flex items-center gap-2 mb-2">
         <Heart className="w-4.5 h-4.5 text-red-500 fill-red-500" />
-        <span className="text-sm font-semibold text-emerald-700">Votre impact lié à vos engagements sur NLYT</span>
+        <span className="text-sm font-semibold text-emerald-700">Vos gestes solidaires</span>
       </div>
       <p className="text-3xl font-bold text-emerald-800 mb-1" data-testid="impact-amount">{amount}</p>
-      <p className="text-sm text-emerald-600">fléchés pour des associations</p>
+      <p className="text-sm text-emerald-600">reversés à des associations</p>
       <Link to="/settings/wallet" className="inline-block mt-3 text-xs text-emerald-600 hover:text-emerald-800 underline underline-offset-2 transition-colors" data-testid="impact-detail-link">
         Voir le détail →
       </Link>

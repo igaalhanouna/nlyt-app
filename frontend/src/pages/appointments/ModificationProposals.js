@@ -85,7 +85,7 @@ export default function ModificationProposals({
           </div>
           {proposalForm.start_datetime && new Date(proposalForm.start_datetime) <= new Date() && (
             <p className="text-sm text-red-600 mt-2" data-testid="proposal-datetime-past-error">
-              La date et l'heure du rendez-vous doivent être dans le futur
+              La date et l'heure de l'engagement doivent être dans le futur
             </p>
           )}
           <div className="flex gap-2 mt-4">

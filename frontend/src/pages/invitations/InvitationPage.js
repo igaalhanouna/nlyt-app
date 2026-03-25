@@ -569,11 +569,11 @@ export default function InvitationPage() {
                 <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3">
                   <Clock className="w-6 h-6 text-slate-400" />
                 </div>
-                <p className="text-sm font-semibold text-slate-700">Accès au rendez-vous verrouillé</p>
+                <p className="text-sm font-semibold text-slate-700">Accès à l'engagement verrouillé</p>
                 <p className="text-xs text-slate-500 mt-1">
                   {effectiveStatus === 'accepted_pending_guarantee'
-                    ? 'Finalisez votre garantie pour débloquer l\'accès au rendez-vous, au calendrier et à la visio.'
-                    : 'Acceptez l\'invitation pour accéder au rendez-vous.'}
+                    ? 'Finalisez votre garantie pour débloquer l\'accès à l\'engagement, au calendrier et à la visio.'
+                    : 'Acceptez l\'invitation pour accéder à l\'engagement.'}
                 </p>
               </div>
             );
@@ -663,7 +663,7 @@ export default function InvitationPage() {
                     Le check-in ouvrira dans <span className="font-bold text-slate-900">{formatCountdown()}</span>
                   </p>
                   <p className="text-xs text-slate-500 mt-2">
-                    Disponible à partir du {formatDate(windowOpen)} à {formatTime(windowOpen)}, soit 30 min avant le rendez-vous
+                    Disponible à partir du {formatDate(windowOpen)} à {formatTime(windowOpen)}, soit 30 min avant l'engagement
                   </p>
                   <div className="flex items-center justify-center gap-3 mt-4 opacity-50">
                     <button disabled className="flex items-center gap-2 px-4 py-2.5 bg-slate-200 text-slate-400 rounded-xl text-sm font-medium cursor-not-allowed">
@@ -814,7 +814,7 @@ export default function InvitationPage() {
           <div className="bg-white rounded-2xl shadow-xl overflow-hidden mb-6" data-testid="appointment-unavailable">
             <div className={`px-6 py-4 ${isAppointmentCancelled ? 'bg-red-600' : 'bg-slate-600'} text-white text-center`}>
               <h2 className="text-xl font-semibold">
-                {isAppointmentCancelled ? 'Ce rendez-vous a été annulé' : 'Ce rendez-vous n\'est plus disponible'}
+                {isAppointmentCancelled ? 'Cet engagement a été annulé' : 'Cet engagement n\'est plus disponible'}
               </h2>
             </div>
             <div className="p-6">
@@ -825,8 +825,8 @@ export default function InvitationPage() {
                 <h3 className="text-lg font-semibold text-slate-800 mb-2">{appointment.title}</h3>
                 <p className="text-slate-600 mb-4">
                   {isAppointmentCancelled 
-                    ? `L'organisateur (${organizer.name}) a annulé ce rendez-vous.`
-                    : 'Ce rendez-vous a été supprimé par l\'organisateur.'}
+                    ? `L'organisateur (${organizer.name}) a annulé cet engagement.`
+                    : 'Cet engagement a été supprimé par l\'organisateur.'}
                 </p>
                 <p className="text-sm text-slate-500">
                   <strong>Prévu le :</strong> {formatDateTimeFr(appointment.start_datetime)}
@@ -837,7 +837,7 @@ export default function InvitationPage() {
                   </p>
                 )}
                 <p className="text-slate-600 mt-4 font-medium">
-                  Vous n'avez plus besoin de vous présenter à ce rendez-vous.
+                  Vous n'avez plus besoin de vous présenter à cet engagement.
                 </p>
               </div>
             </div>
@@ -874,7 +874,7 @@ export default function InvitationPage() {
                 <div className="flex-1">
                   <h3 className="font-semibold text-amber-900 mb-1">Garantie à reconfirmer</h3>
                   <p className="text-sm text-amber-800 mb-3">
-                    Les conditions du rendez-vous ont changé de manière significative. Veuillez reconfirmer votre garantie.
+                    Les conditions de l'engagement ont changé de manière significative. Veuillez reconfirmer votre garantie.
                   </p>
                   <div className="flex flex-wrap gap-2 mb-3">
                     {(guaranteeRevalidation.reason || '').split(', ').map((r, i) => {
@@ -1093,7 +1093,7 @@ export default function InvitationPage() {
                 <h3 className="font-semibold text-amber-800 mb-2">Règles d'engagement</h3>
                 <ul className="space-y-2 text-sm text-amber-700">
                   <li>
-                    <strong>Délai d'annulation :</strong> {engagement_rules.cancellation_deadline_hours}h avant le rendez-vous
+                    <strong>Délai de désengagement :</strong> {engagement_rules.cancellation_deadline_hours}h avant l'engagement
                     {engagement_rules.cancellation_deadline_formatted && (
                       <span className="block text-xs mt-0.5">
                         (Limite : {engagement_rules.cancellation_deadline_formatted})
@@ -1146,7 +1146,7 @@ export default function InvitationPage() {
                       <AlertTriangle className="w-8 h-8 text-amber-600" />
                     </div>
                     <h3 className="text-xl font-semibold text-amber-800 mb-2" data-testid="guarantee-status-revalidation">Garantie à reconfirmer</h3>
-                    <p className="text-slate-600">Votre garantie doit être reconfirmée suite à un changement majeur du rendez-vous.</p>
+                    <p className="text-slate-600">Votre garantie doit être reconfirmée suite à un changement majeur de l'engagement.</p>
                     <p className="text-xs text-amber-600 mt-2">
                       Tant que vous n'avez pas reconfirmé, votre garantie est considérée comme partiellement invalide.
                     </p>
@@ -1330,7 +1330,7 @@ export default function InvitationPage() {
                 
                 <p className="text-sm text-slate-600 text-center mb-6">
                   En acceptant, vous vous engagez à respecter les règles ci-dessus. 
-                  En cas de non-respect, la pénalité définie sera appliquée.
+                  En cas de non-respect, la compensation définie sera appliquée.
                 </p>
                 <div className="flex gap-4 justify-center">
                   <button

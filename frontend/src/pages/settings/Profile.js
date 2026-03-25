@@ -262,14 +262,14 @@ export default function Profile() {
           </div>
         </div>
 
-        {/* Section 2: Paramètres par défaut des rendez-vous */}
+        {/* Section 2: Paramètres par défaut des engagements */}
         <div className="bg-white rounded-xl border border-slate-200 p-6 mb-6">
           <div className="flex items-center gap-3 mb-6">
             <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center">
               <Settings className="w-5 h-5 text-emerald-600" />
             </div>
             <div>
-              <h2 className="text-lg font-semibold text-slate-900">Paramètres par défaut des rendez-vous</h2>
+              <h2 className="text-lg font-semibold text-slate-900">Paramètres par défaut des engagements</h2>
               <p className="text-sm text-slate-500">Ces valeurs seront préremplies dans le wizard de création</p>
             </div>
           </div>
@@ -329,11 +329,11 @@ export default function Profile() {
             </div>
           </div>
 
-          {/* Répartition des pénalités */}
+          {/* Répartition des compensations */}
           <div className="mb-8">
             <h3 className="text-md font-medium text-slate-800 mb-4 flex items-center gap-2">
               <Euro className="w-4 h-4" />
-              Répartition des pénalités par défaut
+              Répartition des compensations par défaut
             </h3>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -444,8 +444,8 @@ export default function Profile() {
                 </SelectContent>
               </Select>
               <p className="text-xs text-slate-400 mt-2">
-                Cette association recevra la part caritative des pénalités de vos rendez-vous par défaut.
-                Vous pourrez toujours changer l'association pour chaque rendez-vous.
+                Cette association recevra la part solidaire des compensations de vos engagements par défaut.
+                Vous pourrez toujours changer l'association pour chaque engagement.
               </p>
             </div>
           </div>
@@ -460,8 +460,8 @@ export default function Profile() {
             <div>
               <h4 className="font-medium text-blue-900">Comment ça marche ?</h4>
               <p className="text-sm text-blue-700 mt-1">
-                Ces paramètres seront automatiquement préremplis lorsque vous créez un nouveau rendez-vous.
-                Vous pouvez toujours les modifier pour chaque rendez-vous individuel, sans que cela n'affecte vos paramètres par défaut.
+                Ces paramètres seront automatiquement préremplis lorsque vous créez un nouvel engagement.
+                Vous pouvez toujours les modifier pour chaque engagement individuel, sans que cela n'affecte vos paramètres par défaut.
               </p>
             </div>
           </div>
