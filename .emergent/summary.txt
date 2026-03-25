@@ -1,97 +1,95 @@
-<analysis>**original_problem_statement**: 
-The user wanted to complete several key product enhancements and a massive branding repositioning. Initial tasks included fixing the Microsoft Teams UX logic, separating auto-sync settings for Google/Outlook calendars, and fixing the dashboard impact calculation to show personal impact rather than global. The core of the session then shifted to a complete repositioning of the SaaS: changing the punitive penalty framing into a premium solidarity engagement framing. Finally, the user requested updating the platform's logo typography () across all pages. 
+<analysis>**original_problem_statement:** 
+The user requested a fix for a broken root domain link () causing an ERR_CONNECTION_CLOSED error, followed by a complete Mobile UX audit and refactoring (P0 & P1). The goal was to make the entire application mobile-first with strict requirements: no horizontal overflow, minimum 44px touch targets for all interactive elements, and accessible CTAs. After completing the app's internal pages, the user requested a structural mobile UX overhaul of the public Homepage () to make it shorter and more conversion-oriented, with a strict constraint to **never modify the existing wording, branding, or business logic**.
 
-**User's preferred language**: French (You MUST automatically detect the user's primary language from their messages inside the <trajectory> tag and INSTRUCT next agent to respond in French only).
+**User's preferred language:** French (You MUST respond in French only).
 
 **what currently exists?** 
-A full-stack React/FastAPI/MongoDB application. The application has just undergone a massive copywriting and design rebranding. The platform no longer talks about rendez-vous and pénalités, but rather engagements solidaires and temps valorisé. The Landing and Impact pages now use a premium dark theme. The default compensation sliders prioritize the charity donation. The application logo is being systematically updated to a specific typographic format:  (large, bold) with  (small, grey, uppercase) underneath it.
+A React/FastAPI/MongoDB SaaS application for managing attendance with financial guarantees. All outbound  links have been updated to  to bypass DNS issues. The app has undergone a massive Mobile UX overhaul (Navbar with hamburger drawer, optimized Settings layouts, fully responsive Wizard, Dashboard, and Auth pages). All interactive elements now respect the 44px touch target rule, and there are no horizontal overflows on viewports of 375px, 390px, and 414px.
 
-**Last working item**: 
-    - Last item agent was working: The agent was adding the new typographic N·L·Y·T logo to the top right of , , , and . Also, restoring the title Wallet on the  page. The agent made 3 out of 4 file edits before the session ended.
+**Last working item:**
+    - Last item agent was working: Restructuring the mobile UX of the Homepage (). The agent viewed the file but the context ended before implementing the changes.
     - Status: IN PROGRESS
     - Agent Testing Done: N
-    - Which testing method agent to use? screenshot tool (Frontend testing)
+    - Which testing method agent to use? screenshot tool (crucial to check at 375px mobile viewport and 1280px desktop to ensure no regressions).
     - User Testing Done: N
 
-**All Pending/In progress Issue list**:
-  Issue 1: Finish Logo Placement and Wallet Title (P0)
-  
-  Issues Detail:
-  - Issue 1: 
-     - Attempted fixes: The agent initiated  edits for the 4 settings pages but the context cut off before verifying if all 4 pages (, , , ) were properly updated.
-     - Next debug checklist: 
-        - Check , , , and the workspace settings page.
-        - Ensure the logo is placed at the top right of the screen.
-        - Ensure  has the title Wallet placed appropriately above Vos fonds internes, distributions reçues et compte de paiement.
-     - Why fix this issue and what will be achieved with the fix? Completes the user's request to harmonize the brand identity across all application views.
+**All Pending/In progress Issue list:**
+  Issue 1: Mobile UX Restructure of  (P0)
+     - Attempted fixes: Agent read the file but made no edits.
+     - Next debug checklist: Modify  based on user instructions:
+       1. Hero: Reduce vertical height, make CTA visible without scrolling, demote/hide header CTA on mobile.
+       2. Move Comment ça marche (How it works) right after the Hero.
+       3. Group Engagement tenu / non tenu into a compact section.
+       4. Move the proof (344€) higher in the flow.
+       5. Reduce overall vertical spacing/padding on mobile.
+       6. Keep only 1 main CTA at the top and 1 at the bottom.
+       *CRITICAL:* Do NOT change any text, wording, or global branding. Only change structural/layout classes (Tailwind).
+     - Why fix this issue and what will be achieved with the fix? It will improve mobile conversion by allowing users to understand the product in a single scroll.
      - Status: IN PROGRESS
      - Is recurring issue? N
-     - Should Test frontend/backend/both after fix? Frontend (Screenshot tool)
+     - Should Test frontend/backend/both after fix? frontend (screenshot tool for mobile and desktop viewports)
      - Blocked on other issue: None
 
-**In progress Task List**:
-None
+**In progress Task List:**
+None.
 
 **Upcoming and Future Tasks**
     Upcoming Tasks:
-    - **P1: Aligner les emails transactionnels backend**: Update backend email templates (e.g., in ) to fully adopt the new engagement solidaire and temps valorisé wording.
-    - **P1: Refactor **: Break down the large component (1400+ lines). This is a known piece of technical debt.
-    - **P2: Test réel du mode calendar Teams**: Manually test the standard Teams integration with a real, non-pro Outlook account.
-
+    - P1: Refactor  (Break down the 1400+ line component into modular components. Known technical debt).
+    - P2: Test réel du mode calendar Teams (Manually test the standard Teams integration with a real, non-pro Outlook account).
+    
     Future Tasks:
-    - **P3: Charity Payouts V2**: Implement Stripe Transfers for charity payouts.
-    - **P3: Webhooks temps réel Zoom/Teams**: For instant attendance updates.
-    - **P3: Pages dédiées charité & Leaderboard**: Public-facing pages for social proof.
+    - P3: Charity Payouts V2 (Stripe Transfers for automated charity payouts).
+    - P3: Webhooks temps réel Zoom/Teams (Instant attendance updates).
+    - P3: Pages dédiées charité & Leaderboard (Public social proof pages).
 
 **Completed work in this session**
-- Teams UX logic bug fixed for standard/non-pro accounts (DONE)
-- Calendar auto-sync settings separated by provider (Google/Outlook toggles) (DONE)
-- Dashboard personal impact calculation fixed (points to wallet impact instead of global) (DONE)
-- Complete Product Repositioning / Wording Overhaul (Rendez-vous -> Engagement) (DONE)
-- Dark theme applied to ImpactPage to match LandingPage (DONE)
-- Default compensation sliders reordered to show Charity/Geste solidaire first (DONE)
-- Custom typography logo () applied to Landing, Auth, Dashboard, and Profile pages (DONE)
+- Swapped all  links to  in frontend and backend emails while keeping display text as  (DONE).
+- Corrected Email Design System baseline color to grey to match homepage branding (DONE).
+- Implemented Mobile Navbar with Hamburger Menu and slide-in drawer (DONE).
+- Fixed Dashboard mobile UX (horizontal scrollable tabs, 44px CTA targets, stacked cards) (DONE).
+- Fixed  and  mobile UX (no overflow, full-width buttons, scrollable stepper) (DONE).
+- Upgraded all Auth pages (, , ) inputs and links to minimum 44px touch targets (DONE).
 
 **Earlier issues found/mentioned but not fixed**
-None
+None.
 
 **Known issue recurrence from previous fork**
-  - Issue recurrence in previous fork: None
-  - Recurrence count: 0
-  - Status: RESOLVED
+  - Issue recurrence in previous fork: Agent mistakenly used  and altered wording/text to fit mobile screens. The user explicitly forbade altering text, wording, or branding for the sake of mobile layouts.
+  - Recurrence count: 1
+  - Status: RESOLVED (Agent reverted the text changes).
+  - Note: **NEVER modify labels, text, or branding elements** when doing mobile responsive work. Use wrapping, stacking, or horizontal scrolling () instead of hiding text.
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
-- **React Frontend**: Heavily styled with Tailwind CSS. The app uses Dark mode on public pages (Landing, Impact) and a clean light mode for the dashboard/settings.
-- **FastAPI Backend**: Handles routing and business logic.
-- **Environments**: The custom domain  is routed to the production deployment. The agent is in the preview environment, so  must remain as the  URL to avoid breaking auth loops.
+- React Frontend (Tailwind CSS heavily utilized). 
+- Mobile-first approach: Rely on default utility classes for mobile, and use , ,  for desktop scaling.
+- Strict touch target rules: Minimum height of  (Tailwind  or ) for all interactive elements on mobile.
 
 **key DB schema**
-No changes to DB schema in this session.
+No changes.
 
 **changes in tech stack**
 None.
 
 **All files of reference**
-- 
-- 
-- 
-- 
--  (For upcoming email wording update)
--  (For upcoming refactor)
+-  (Current target for structural refactoring).
+-  (Upcoming tech debt refactor).
+-  (Updated with latest mobile UX progress).
 
 **Areas that need refactoring**:
--  is over 1400 lines and is marked as P1 tech debt to be broken down.
+-  (Over 1400 lines; P1 priority for next phases).
 
 **key api endpoints**
-- : Used to calculate the user's personal charity contribution.
+Standard frontend routing.
 
 **Critical Info for New Agent**
 - **Language**: You MUST respond in French.
-- **Branding**: The logo format is strict. It must be  in large bold text with  directly beneath it in smaller, uppercase, grey text ( or similar). Do not deviate from this typographic lockup.
-- **URLs**: Do NOT change the   in the preview environment to the user's production domain (). Doing so will break the preview environment's authentication redirects.
+- **Strict Rule on Wording/Branding**: When modifying the UX for mobile, you are strictly forbidden from changing the actual wording, labels, texts, or branding. Do not use shorter labels for mobile. 
+- **Mobile Best Practices**: Prevent horizontal overflow at all costs. For elements that must overflow (like steppers or tabs), use  with a subtle visual cue.
+- **Testing**: When making responsive layout changes, test both the mobile viewport (e.g., 375px) AND the desktop viewport (e.g., 1280px) to ensure you didn't break the desktop layout.
 
 **documents and test reports created in this job**
 - 
@@ -99,34 +97,34 @@ None.
 - 
 
 **Last 10 User Messages and any pending HUMAN messages**
-10. User asked to move the Créateur dengagements solidaires" badge and adjust logo typography in the navbar.
-9. User noted the logo sizing was wrong (`N·L·Y·T` should be larger than `Never Lose Your Time`).
-8. User provided an image for exact typography reference.
-7. User requested "Créateur dengagements solidaires in the hero instead of Never Lose Your Time.
-6. User asked to remove the old badge from the navbar.
-5. User asked for more vertical spacing in the hero section.
-4. User inquired about custom domain routing / invisible redirects.
-3. User clarified  is already active; agent reverted a mistaken  preview environment change.
-2. User requested the new typography logo be added to the dashboard, auth pages, and all other pages.
-1. User specifically asked to add the logo to the top right of , , , and , and to restore the Wallet title on the Wallet page. (Pending completion)
+10. User selected Option A to fit Dashboard tabs cleanly on one line without horizontal scroll.
+9. Agent implemented the tab fix and verified 0 overflow.
+8. User validated the tabs fix and asked the agent to fix the remaining 3 micro-frictions (Auth pages, Dashboard buttons, TabsList height) to hit the 44px touch target rule.
+7. Agent implemented the fixes in Auth pages, Dashboard, and Tabs.
+6. Agent ran precise measurements via screenshot tool and proved all touch targets were >=44px.
+5. (Pending) User requested a structural Mobile UX refactor of the Homepage () to make it shorter and more conversion-focused without changing wording or global design. 
+4. Agent opened  to begin work but context ended.
 
 **Project Health Check:**
-- All core functionalities are working. The app underwent a massive frontend redesign and copy rewrite successfully.
+Healthy. No functional regressions. Mobile UI is highly optimized.
 
 **3rd Party Integrations**
+- Resend (Emails) — requires User API Key
 - Stripe (Payments) — requires User API Key
 - Microsoft Graph API (Teams/Outlook)
 - Google Calendar API
 - Zoom API
 
 **Testing status**
-  - Testing agent used after significant changes: YES (iterations 71, 72, 73)
+  - Testing agent used after significant changes: YES (iterations 76, 77)
   - Troubleshoot agent used after agent stuck in loop: NO
   - Test files created: None
   - Known regressions: None
 
 **Credentials to test flow:**
-Use standard test users created via the  script. (e.g.,  / ).
+Use standard test users created via the  script. 
+Email: 
+Password: 
 
 **What agent forgot to execute**
-The agent initiated the search/replace for the final logo placements on the settings pages but the job ended before they could be validated and screenshotted. This is the immediate P0 task.</analysis>
+The agent read  but didn't execute the layout restructuring requested by the user for the Homepage. The user wants the hero shorter, the how it works and proof sections moved up, and CTAs consolidated. This is the immediate task.</analysis>

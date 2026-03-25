@@ -32,7 +32,7 @@ sys.path.append('/app/backend')
 from dotenv import load_dotenv
 load_dotenv('/app/frontend/.env')
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://link-redirect-fix-3.preview.emergentagent.com').rstrip('/')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://homepage-mobile-1.preview.emergentagent.com').rstrip('/')
 
 
 class TestHealthEndpoint:

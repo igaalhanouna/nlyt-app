@@ -56,6 +56,10 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API
 - [x] P0 Mobile: AppNavbar hamburger, AppBreadcrumb compact, SettingsPageLayout responsive, Dashboard CTAs, Landing/Impact nav
 - [x] P1 Mobile: Dashboard tabs scroll+fade, AppointmentDetail layout, AppointmentWizard stepper+nav+inputs, ParticipantManagement, Settings sub-pages padding+buttons
 
+## Completed — Homepage Mobile UX (Mars 2026)
+- [x] Restructuration mobile LandingPage.js : Hero compact (CTA visible above fold), réordonnancement sections, preuve sociale remontée, espacement réduit, nav CTA masqué mobile
+- [x] Vérifié : 0 overflow horizontal (375px), desktop (1280px) intact, aucun texte/wording modifié
+
 ## Upcoming Tasks
 - [ ] Refactorer InvitationPage.js (1400+ lignes → modules)
 - [ ] Test réel Teams (compte non-pro)
