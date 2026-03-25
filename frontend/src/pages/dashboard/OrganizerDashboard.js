@@ -536,32 +536,26 @@ export default function OrganizerDashboard() {
             </div>
           ) : (
             <Tabs defaultValue="upcoming">
-              <div className="relative">
-                <div className="overflow-x-auto scrollbar-none -mx-1 px-1 pb-1">
-                  <TabsList className="mb-6 w-max pr-4">
-                    <TabsTrigger value="upcoming" data-testid="tab-upcoming">
-                      <Calendar className="w-4 h-4 mr-1.5" />
-                      À venir
-                      {upcomingTotal > 0 && (
-                        <span className="ml-1.5 px-1.5 py-0.5 text-xs font-semibold bg-slate-900 text-white rounded-full">{upcomingTotal}</span>
-                      )}
-                    </TabsTrigger>
-                    <TabsTrigger value="past" data-testid="tab-past">
-                      <History className="w-4 h-4 mr-1.5" />
-                      Passés
-                      {pastTotal > 0 && (
-                        <span className="ml-1.5 px-1.5 py-0.5 text-xs font-semibold bg-slate-200 text-slate-600 rounded-full">{pastTotal}</span>
-                      )}
-                    </TabsTrigger>
-                    <TabsTrigger value="stats" data-testid="tab-stats" onClick={() => { if (!analytics) loadAnalytics(); }}>
-                      <Eye className="w-4 h-4 mr-1.5" />
-                      Statistiques
-                    </TabsTrigger>
-                  </TabsList>
-                </div>
-                {/* Fade hint — scroll indicator */}
-                <div className="absolute right-0 top-0 bottom-1 w-8 bg-gradient-to-l from-white to-transparent pointer-events-none md:hidden" />
-              </div>
+              <TabsList className="mb-6 w-full md:w-auto">
+                <TabsTrigger value="upcoming" data-testid="tab-upcoming" className="px-2 md:px-3 text-xs md:text-sm">
+                  <Calendar className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1 md:mr-1.5" />
+                  À venir
+                  {upcomingTotal > 0 && (
+                    <span className="ml-1 md:ml-1.5 px-1 md:px-1.5 py-0.5 text-[10px] md:text-xs font-semibold bg-slate-900 text-white rounded-full">{upcomingTotal}</span>
+                  )}
+                </TabsTrigger>
+                <TabsTrigger value="past" data-testid="tab-past" className="px-2 md:px-3 text-xs md:text-sm">
+                  <History className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1 md:mr-1.5" />
+                  Passés
+                  {pastTotal > 0 && (
+                    <span className="ml-1 md:ml-1.5 px-1 md:px-1.5 py-0.5 text-[10px] md:text-xs font-semibold bg-slate-200 text-slate-600 rounded-full">{pastTotal}</span>
+                  )}
+                </TabsTrigger>
+                <TabsTrigger value="stats" data-testid="tab-stats" className="px-2 md:px-3 text-xs md:text-sm" onClick={() => { if (!analytics) loadAnalytics(); }}>
+                  <Eye className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1 md:mr-1.5" />
+                  Statistiques
+                </TabsTrigger>
+              </TabsList>
 
               <TabsContent value="upcoming">
                 {upcoming.length === 0 ? (
