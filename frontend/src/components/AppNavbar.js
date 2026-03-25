@@ -45,7 +45,7 @@ export default function AppNavbar() {
             <span className="text-lg font-bold tracking-[0.35em] text-slate-900">
               N<span className="text-slate-400">·</span>L<span className="text-slate-400">·</span>Y<span className="text-slate-400">·</span>T
             </span>
-            <span className="text-[10px] font-medium tracking-[0.25em] text-slate-400 uppercase hidden sm:block">
+            <span className="text-[10px] font-medium tracking-[0.25em] text-slate-400 uppercase">
               Never Lose Your Time
             </span>
           </Link>

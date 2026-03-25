@@ -14,15 +14,13 @@ export default function AppBreadcrumb({ items }) {
             <li key={i} className="flex items-center gap-1 md:gap-1.5 flex-shrink-0">
               {i > 0 && <ChevronRight className="w-3 h-3 md:w-3.5 md:h-3.5 text-slate-300 flex-shrink-0" />}
               {isLast ? (
-                <span className="text-slate-900 font-medium truncate max-w-[180px] md:max-w-none">{item.label}</span>
+                <span className="text-slate-900 font-medium truncate max-w-[200px] md:max-w-none">{item.label}</span>
               ) : (
                 <Link
                   to={item.href}
                   className="text-slate-400 hover:text-slate-600 transition-colors whitespace-nowrap"
                 >
-                  {/* On mobile, show short label for first item */}
-                  <span className="hidden sm:inline">{item.label}</span>
-                  <span className="sm:hidden">{item.shortLabel || item.label}</span>
+                  {item.label}
                 </Link>
               )}
             </li>

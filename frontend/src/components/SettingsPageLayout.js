@@ -7,7 +7,7 @@ export default function SettingsPageLayout({ title, description, breadcrumbLabel
     <div className="min-h-screen bg-background">
       <AppNavbar />
       <AppBreadcrumb items={[
-        { label: 'Tableau de bord', shortLabel: 'Accueil', href: '/dashboard' },
+        { label: 'Tableau de bord', href: '/dashboard' },
         { label: 'Paramètres', href: '/settings' },
         { label: breadcrumbLabel || title },
       ]} />

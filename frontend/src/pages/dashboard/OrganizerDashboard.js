@@ -161,7 +161,7 @@ function EngagementCard({ appointment, isPast, onDelete, onRemind, now }) {
             {!isPast && (
               <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium rounded-full border ${riskCfg.className}`} data-testid={`risk-badge-${appointment.appointment_id}`}>
                 <RiskIcon className="w-3 h-3" />
-                <span className="hidden sm:inline">{riskCfg.label}</span>
+                {riskCfg.label}
               </span>
             )}
             <span className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${badge.className}`}>
@@ -554,7 +554,7 @@ export default function OrganizerDashboard() {
                   </TabsTrigger>
                   <TabsTrigger value="stats" data-testid="tab-stats" onClick={() => { if (!analytics) loadAnalytics(); }}>
                     <Eye className="w-4 h-4 mr-1.5" />
-                    Stats
+                    Statistiques
                   </TabsTrigger>
                 </TabsList>
               </div>

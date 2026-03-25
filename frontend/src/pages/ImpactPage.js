@@ -68,27 +68,27 @@ export default function ImpactPage() {
   return (
     <div className="min-h-screen bg-[#0A0A0B] text-white">
       {/* ── Nav (identique à Landing) ── */}
-      <nav className="border-b border-white/5">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
+      <nav className="border-b border-white/5 overflow-hidden">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-wrap items-center justify-between gap-y-3">
           <Link to="/" data-testid="nav-logo" className="flex-shrink-0">
             <span className="block text-lg font-bold tracking-[0.35em] text-white">N<span className="text-white/60">·</span>L<span className="text-white/60">·</span>Y<span className="text-white/60">·</span>T</span>
-            <span className="block text-[10px] font-medium tracking-[0.25em] text-slate-500 uppercase hidden sm:block">Never Lose Your Time</span>
+            <span className="block text-[10px] font-medium tracking-[0.25em] text-slate-500 uppercase">Never Lose Your Time</span>
           </Link>
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             <Link to="/impact">
               <Button variant="ghost" className="text-white hover:bg-white/5 h-9 text-xs sm:text-sm px-2 sm:px-3">
-                <Heart className="w-3.5 h-3.5 mr-1 text-rose-400" /><span className="hidden sm:inline">Gestes solidaires</span><span className="sm:hidden">Impact</span>
+                <Heart className="w-3.5 h-3.5 mr-1 text-rose-400" />Gestes solidaires
               </Button>
             </Link>
             <Link to="/signin">
-              <Button variant="ghost" className="text-slate-400 hover:text-white hover:bg-white/5 h-9 text-xs sm:text-sm px-2 sm:px-3 hidden sm:inline-flex" data-testid="nav-signin-btn">Connexion</Button>
-            </Link>
-            <Link to="/signup">
-              <Button className="bg-white text-[#0A0A0B] hover:bg-slate-200 h-9 text-xs sm:text-sm font-semibold px-3 sm:px-4" data-testid="nav-signup-btn">
-                <span className="hidden sm:inline">Créer un engagement</span><span className="sm:hidden">S'inscrire</span>
-              </Button>
+              <Button variant="ghost" className="text-slate-400 hover:text-white hover:bg-white/5 h-9 text-xs sm:text-sm px-2 sm:px-3" data-testid="nav-signin-btn">Connexion</Button>
             </Link>
           </div>
+          <Link to="/signup" className="w-full sm:w-auto order-last sm:order-none">
+            <Button className="bg-white text-[#0A0A0B] hover:bg-slate-200 h-10 sm:h-9 text-xs sm:text-sm font-semibold w-full sm:w-auto" data-testid="nav-signup-btn">
+              Créer un engagement
+            </Button>
+          </Link>
         </div>
       </nav>
 
