@@ -338,6 +338,20 @@ export default function Profile() {
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div>
+                <Label htmlFor="charity_percent">Part geste solidaire (%)</Label>
+                <Input
+                  id="charity_percent"
+                  type="number"
+                  min="0"
+                  max={maxDistributable}
+                  value={profileData.default_charity_percent}
+                  onChange={(e) => handleCharityChange(e.target.value)}
+                  className="mt-1"
+                  data-testid="profile-charity-percent"
+                />
+              </div>
+              
+              <div>
                 <Label htmlFor="participant_percent">Part participant affecté (%)</Label>
                 <Input
                   id="participant_percent"
@@ -348,20 +362,6 @@ export default function Profile() {
                   onChange={(e) => handleParticipantChange(e.target.value)}
                   className="mt-1"
                   data-testid="profile-participant-percent"
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="charity_percent">Part don caritatif (%)</Label>
-                <Input
-                  id="charity_percent"
-                  type="number"
-                  min="0"
-                  max={maxDistributable}
-                  value={profileData.default_charity_percent}
-                  onChange={(e) => handleCharityChange(e.target.value)}
-                  className="mt-1"
-                  data-testid="profile-charity-percent"
                 />
               </div>
               
@@ -386,14 +386,14 @@ export default function Profile() {
               </div>
               <div className="h-3 bg-slate-100 rounded-full overflow-hidden flex">
                   <div 
+                    className="bg-pink-500 transition-all"
+                    style={{ width: `${profileData.default_charity_percent}%` }}
+                    title={`Geste solidaire: ${profileData.default_charity_percent}%`}
+                  />
+                  <div 
                     className="bg-emerald-500 transition-all"
                     style={{ width: `${profileData.default_participant_percent}%` }}
                     title={`Participant: ${profileData.default_participant_percent}%`}
-                  />
-                  <div 
-                    className="bg-pink-500 transition-all"
-                    style={{ width: `${profileData.default_charity_percent}%` }}
-                    title={`Charity: ${profileData.default_charity_percent}%`}
                   />
                   <div 
                     className="bg-slate-400 transition-all"
@@ -403,12 +403,12 @@ export default function Profile() {
                 </div>
                 <div className="flex justify-between text-xs text-slate-500 mt-2">
                   <span className="flex items-center gap-1">
-                    <span className="w-2 h-2 bg-emerald-500 rounded-full"></span>
-                    Participant
+                    <span className="w-2 h-2 bg-pink-500 rounded-full"></span>
+                    Geste solidaire
                   </span>
                   <span className="flex items-center gap-1">
-                    <span className="w-2 h-2 bg-pink-500 rounded-full"></span>
-                    Caritatif
+                    <span className="w-2 h-2 bg-emerald-500 rounded-full"></span>
+                    Participant
                   </span>
                   <span className="flex items-center gap-1">
                     <span className="w-2 h-2 bg-slate-400 rounded-full"></span>
