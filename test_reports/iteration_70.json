@@ -1,0 +1,108 @@
+{
+  "summary": "Teams Level Feature testing complete. Backend: 25/25 tests pass. Frontend: All 3 user scenarios verified (advanced, standard, null). The new 'level' field correctly replaces 'connection_mode' and all UI wording matches the specification.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": {
+    "backend": [
+      "test_clara_teams_level_is_advanced - Clara has level='advanced'",
+      "test_clara_teams_has_attendance_true - Clara has has_attendance=True",
+      "test_clara_teams_can_auto_generate_true - Clara has can_auto_generate=True",
+      "test_clara_teams_connected_true - Clara has connected=True",
+      "test_clara_teams_email_from_outlook - Clara's email from Outlook",
+      "test_clara_teams_no_unavailable_reason - Clara has no unavailable_reason",
+      "test_sandrine_teams_level_is_standard - Sandrine has level='standard'",
+      "test_sandrine_teams_has_attendance_false - Sandrine has has_attendance=False",
+      "test_sandrine_teams_can_auto_generate_true - Sandrine has can_auto_generate=True",
+      "test_sandrine_teams_connected_true - Sandrine has connected=True",
+      "test_sandrine_teams_email_from_outlook - Sandrine's email from Outlook",
+      "test_sandrine_teams_no_unavailable_reason - Sandrine has no unavailable_reason",
+      "test_marie_teams_level_is_null - Marie has level=null",
+      "test_marie_teams_has_attendance_false - Marie has has_attendance=False",
+      "test_marie_teams_can_auto_generate_false - Marie has can_auto_generate=False",
+      "test_marie_teams_connected_false - Marie has connected=False",
+      "test_marie_teams_has_unavailable_reason - Marie has unavailable_reason about Outlook",
+      "test_marie_teams_email_is_none - Marie has no email",
+      "test_teams_has_level_field - Response has 'level' field",
+      "test_teams_has_has_attendance_field - Response has 'has_attendance' field",
+      "test_teams_has_can_auto_generate_field - Response has 'can_auto_generate' field",
+      "test_teams_has_connected_field - Response has 'connected' field",
+      "test_teams_has_unavailable_reason_field - Response has 'unavailable_reason' field",
+      "test_teams_has_email_field - Response has 'email' field",
+      "test_teams_has_label_field - Response has label='Microsoft Teams'"
+    ],
+    "frontend": [
+      "Clara (advanced): Shows 'Réunion Teams créée automatiquement via votre compte Microsoft Pro'",
+      "Clara (advanced): Shows 'Création automatique' badge",
+      "Clara (advanced): Shows 'Récupération de présences' badge",
+      "Clara (advanced): Shows 'Teams avancé activé' banner in Outlook card",
+      "Sandrine (standard): Shows 'Microsoft Teams disponible via votre compte Outlook'",
+      "Sandrine (standard): Shows 'Création de réunion' badge (not 'Création automatique')",
+      "Sandrine (standard): No 'Récupération de présences' badge",
+      "Sandrine (standard): Shows upgrade prompt about Teams avancé",
+      "Sandrine (standard): Shows 'Teams avancé (optionnel)' banner with 'Activer Teams avancé' button",
+      "Marie (null): Shows 'Connectez votre calendrier Outlook pour activer Microsoft Teams'",
+      "Marie (null): Shows 'Configuration avancée (Azure AD)' link instead of direct config button",
+      "Marie (null): No creation badges shown",
+      "Marie (null): Info box mentions connecting Outlook"
+    ]
+  },
+  "api_response_verified": {
+    "GET /api/video-evidence/provider-status (Clara - advanced)": {
+      "teams.level": "advanced",
+      "teams.has_attendance": true,
+      "teams.can_auto_generate": true,
+      "teams.connected": true,
+      "teams.email": "clara.deschamps@demo-nlyt.fr",
+      "teams.unavailable_reason": null
+    },
+    "GET /api/video-evidence/provider-status (Sandrine - standard)": {
+      "teams.level": "standard",
+      "teams.has_attendance": false,
+      "teams.can_auto_generate": true,
+      "teams.connected": true,
+      "teams.email": "sandrine.bonnet@demo-nlyt.fr",
+      "teams.unavailable_reason": null
+    },
+    "GET /api/video-evidence/provider-status (Marie - null)": {
+      "teams.level": null,
+      "teams.has_attendance": false,
+      "teams.can_auto_generate": false,
+      "teams.connected": false,
+      "teams.email": null,
+      "teams.unavailable_reason": "Connectez votre calendrier Outlook pour activer Microsoft Teams."
+    }
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_teams_level_feature.py",
+    "/app/test_reports/pytest/pytest_teams_level_feature.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_teams_level_feature.py"
+  ],
+  "success_rate": {
+    "backend": "100% (25/25 tests passed)",
+    "frontend": "100% (13/13 UI checks passed)"
+  },
+  "test_credentials": {
+    "advanced_user": "clara.deschamps@demo-nlyt.fr / Demo2026!",
+    "standard_user": "sandrine.bonnet@demo-nlyt.fr / Demo2026!",
+    "null_user": "marie.morel@demo-nlyt.fr / Demo2026!"
+  },
+  "seed_data_creation": "None - used existing demo users with pre-configured calendar connections",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Teams Level Feature verified. Key changes from previous iteration: (1) 'level' field replaces 'connection_mode' with values: 'advanced' (Outlook + has_online_meetings_scope), 'standard' (Outlook without scope), 'application' (legacy Azure AD form), null (no connection), (2) 'has_attendance' is true only for level=advanced, (3) 'can_auto_generate' is true for both advanced and standard levels (calendar mode works for standard), (4) Frontend wording: advanced='Réunion Teams créée automatiquement via votre compte Microsoft Pro', standard='Microsoft Teams disponible via votre compte Outlook', null='Connectez votre calendrier Outlook pour activer Microsoft Teams', (5) Feature badges: advanced shows 'Création automatique' + 'Récupération de présences', standard shows only 'Création de réunion', (6) Not-connected state shows 'Configuration avancée (Azure AD)' link instead of direct config button. Test users: Clara (advanced), Sandrine (standard), Marie (null).",
+  "mocked_apis": {
+    "has_mocked_apis": false,
+    "mocked_apis_list": []
+  }
+}

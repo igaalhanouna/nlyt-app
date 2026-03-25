@@ -381,17 +381,36 @@ export default function Integrations() {
               <p className="text-sm text-slate-500">
                 {isZoom
                   ? 'Créez des réunions Zoom et récupérez les présences directement depuis NLYT.'
-                  : 'Créez des réunions Teams et récupérez les présences via Microsoft Graph.'
+                  : info.level === 'advanced'
+                    ? 'Réunion Teams créée automatiquement via votre compte Microsoft Pro.'
+                    : info.level === 'standard'
+                      ? 'Microsoft Teams disponible via votre compte Outlook.'
+                      : 'Connectez votre calendrier Outlook pour activer Microsoft Teams.'
                 }
               </p>
               {/* Feature badges */}
               <div className="flex flex-wrap gap-1.5 mt-2">
-                {canCreate && (
-                  <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${isConnected ? `bg-${accentColor === 'blue' ? 'blue' : 'violet'}-50 text-${accentColor === 'blue' ? 'blue' : 'violet'}-700` : 'bg-slate-100 text-slate-500'}`}>
+                {isTeams && info.level === 'advanced' && (
+                  <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium bg-violet-50 text-violet-700">
+                    <Video className="w-3 h-3" /> Création automatique
+                  </span>
+                )}
+                {isTeams && info.level === 'standard' && (
+                  <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium bg-violet-50 text-violet-700">
                     <Video className="w-3 h-3" /> Création de réunion
                   </span>
                 )}
-                {canAttendance && (
+                {isTeams && info.has_attendance && (
+                  <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium bg-emerald-50 text-emerald-700">
+                    <Users className="w-3 h-3" /> Récupération de présences
+                  </span>
+                )}
+                {isZoom && canCreate && (
+                  <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${isConnected ? 'bg-blue-50 text-blue-700' : 'bg-slate-100 text-slate-500'}`}>
+                    <Video className="w-3 h-3" /> Création de réunion
+                  </span>
+                )}
+                {isZoom && canAttendance && (
                   <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${isConnected ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
                     <Users className="w-3 h-3" /> Présences auto
                   </span>
@@ -413,13 +432,16 @@ export default function Integrations() {
                   {info.connected_at && (
                     <p className="text-xs text-slate-400">Connecté le {formatDateLongFr(info.connected_at)}</p>
                   )}
-                  {isTeams && info.connection_mode === 'delegated' && (
-                    <p className="text-xs text-emerald-600 mt-0.5">Via Teams avancé (identité Microsoft)</p>
+                  {isTeams && info.level === 'advanced' && (
+                    <p className="text-xs text-emerald-600 mt-0.5">Réunion Teams créée automatiquement via votre compte Microsoft Pro</p>
                   )}
-                  {isTeams && info.connection_mode === 'application' && (
+                  {isTeams && info.level === 'standard' && (
+                    <p className="text-xs text-violet-600 mt-0.5">Microsoft Teams disponible via votre compte Outlook</p>
+                  )}
+                  {isTeams && info.level === 'application' && (
                     <p className="text-xs text-slate-500 mt-0.5">Via identifiant Azure AD (mode application)</p>
                   )}
-                  {isPlatformConfigured && !email && (
+                  {isPlatformConfigured && !email && !isTeams && (
                     <p className="text-xs text-slate-400">Configuration serveur active</p>
                   )}
                 </div>
@@ -436,18 +458,44 @@ export default function Integrations() {
               </Button>
             </div>
             {/* Warning if connected but server credentials missing (application mode only) */}
-            {isTeams && info.connection_mode === 'application' && !isPlatformConfigured && (
+            {isTeams && info.level === 'application' && !isPlatformConfigured && (
               <div className="flex items-start gap-2 mt-3 p-2 bg-amber-50 border border-amber-200 rounded-md" data-testid="teams-connected-no-server-warning">
                 <AlertTriangle className="w-3.5 h-3.5 text-amber-600 mt-0.5 flex-shrink-0" />
                 <p className="text-xs text-amber-700">
-                  Identifiant enregistré. La <strong>création automatique de réunions</strong> et la <strong>récupération des présences</strong> ne seront pas disponibles tant que les credentials Azure serveur ne sont pas configurés.
+                  Identifiant enregistré. La <strong>création automatique de réunions</strong> ne sera pas disponible tant que les credentials Azure serveur ne sont pas configurés.
+                </p>
+              </div>
+            )}
+            {/* Upgrade to advanced — shown for standard level */}
+            {isTeams && info.level === 'standard' && !info.has_attendance && (
+              <div className="flex items-start gap-2 mt-3 p-2 bg-slate-50 border border-slate-200 rounded-md">
+                <Info className="w-3.5 h-3.5 text-slate-500 mt-0.5 flex-shrink-0" />
+                <p className="text-xs text-slate-600">
+                  Vous avez un compte Microsoft 365 Pro ? <strong>Activez Teams avancé</strong> dans la section Calendriers pour bénéficier de la récupération automatique des présences.
                 </p>
               </div>
             )}
           </div>
         ) : (
           <div className="border-t border-slate-100 px-5 py-3">
-            {!isExpanded ? (
+            {isTeams && !isExpanded && (
+              <div className="space-y-2">
+                <div className="flex items-start gap-2 p-2.5 bg-slate-50 border border-slate-200 rounded-md">
+                  <Info className="w-3.5 h-3.5 text-slate-500 mt-0.5 flex-shrink-0" />
+                  <p className="text-xs text-slate-600">
+                    Connectez votre calendrier <strong>Outlook</strong> dans la section Calendriers ci-dessus pour activer automatiquement Microsoft Teams.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setExpandedProvider(providerKey)}
+                  className="text-xs text-slate-400 hover:text-slate-600 underline underline-offset-2 transition-colors"
+                  data-testid="teams-advanced-config-link"
+                >
+                  Configuration avancée (Azure AD)
+                </button>
+              </div>
+            )}
+            {isZoom && !isExpanded && (
               <Button
                 onClick={() => setExpandedProvider(providerKey)}
                 size="sm" className="h-8 text-xs"
@@ -456,7 +504,8 @@ export default function Integrations() {
                 <Settings2 className="w-3.5 h-3.5 mr-1" />
                 Configurer {label}
               </Button>
-            ) : (
+            )}
+            {isExpanded && (
               <div className="space-y-3" data-testid={`${providerKey}-config-form`}>
                 <p className="text-xs text-slate-600">
                   {isZoom

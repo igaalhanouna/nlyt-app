@@ -406,16 +406,9 @@ def create_meeting_for_appointment(
             end_dt = start_dt + timedelta(minutes=duration_minutes) if start_dt else None
             end_time = end_dt.isoformat() if end_dt else start_datetime
 
-            meeting_payload = {
-                "subject": title,
-                "startDateTime": start_datetime,
-                "endDateTime": end_time,
-                "lobbyBypassSettings": {"scope": "everyone"},
-                "allowedPresenters": "organizer",
-                "isEntryExitAnnounced": False,
-            }
+            result = None
 
-            # --- Priority 1: Delegated mode (user's own token with OnlineMeetings.ReadWrite) ---
+            # --- Resolve Outlook connection (shared by Priority 0 and 1) ---
             outlook_conn = db.calendar_connections.find_one(
                 {"user_id": organizer_user_id, "provider": "outlook", "status": "connected"},
                 {"_id": 0},
@@ -425,23 +418,102 @@ def create_meeting_for_appointment(
                 and outlook_conn.get("has_online_meetings_scope") is True
                 and outlook_conn.get("access_token")
             )
+            has_outlook = bool(outlook_conn and outlook_conn.get("access_token"))
 
-            if has_delegated_scope:
-                print(f"[MEETING] Teams DELEGATED mode for user {organizer_user_id[:8]}")
+            # Helper: refresh Outlook token
+            def _refresh_outlook_token():
+                access_token = outlook_conn["access_token"]
+                refresh_token = outlook_conn.get("refresh_token")
+                if refresh_token:
+                    from adapters.outlook_calendar_adapter import OutlookCalendarAdapter
+                    refreshed = OutlookCalendarAdapter.refresh_access_token(refresh_token)
+                    if refreshed:
+                        db.calendar_connections.update_one(
+                            {"user_id": organizer_user_id, "provider": "outlook"},
+                            {"$set": {"access_token": refreshed}},
+                        )
+                        return refreshed
+                return access_token
+
+            # --- Priority 0: Calendar event mode (isOnlineMeeting: true) ---
+            # Works for ALL Outlook accounts (personal + pro), requires only Calendars.ReadWrite
+            # Try this FIRST when Outlook is connected but no OnlineMeetings scope
+            if has_outlook and not has_delegated_scope:
+                logger.info(f"[MEETING] Teams CALENDAR mode for user {organizer_user_id[:8]}")
                 try:
-                    # Ensure fresh token
-                    access_token = outlook_conn["access_token"]
-                    refresh_token = outlook_conn.get("refresh_token")
-                    if refresh_token:
-                        from adapters.outlook_calendar_adapter import OutlookCalendarAdapter
-                        refreshed = OutlookCalendarAdapter.refresh_access_token(refresh_token)
-                        if refreshed:
-                            access_token = refreshed
-                            db.calendar_connections.update_one(
-                                {"user_id": organizer_user_id, "provider": "outlook"},
-                                {"$set": {"access_token": access_token}},
-                            )
+                    access_token = _refresh_outlook_token()
+                    from adapters.outlook_calendar_adapter import to_windows_timezone
+                    win_tz = to_windows_timezone(timezone_str or "UTC")
 
+                    cal_payload = {
+                        "subject": title,
+                        "start": {"dateTime": start_datetime, "timeZone": win_tz},
+                        "end": {"dateTime": end_time, "timeZone": win_tz},
+                        "isOnlineMeeting": True,
+                        # Do NOT set onlineMeetingProvider — let Microsoft choose automatically
+                    }
+                    headers = {"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"}
+                    resp = requests.post(
+                        "https://graph.microsoft.com/v1.0/me/events",
+                        json=cal_payload, headers=headers, timeout=15,
+                    )
+                    resp.raise_for_status()
+                    data = resp.json()
+
+                    join_url = None
+                    online_meeting = data.get("onlineMeeting")
+                    if online_meeting:
+                        join_url = online_meeting.get("joinUrl")
+
+                    if join_url:
+                        creator_email = outlook_conn.get("outlook_email", "")
+                        creator_name = outlook_conn.get("outlook_name", "")
+                        result = {
+                            "external_meeting_id": data.get("id"),
+                            "join_url": join_url,
+                            "host_url": None,
+                            "password": None,
+                            "metadata": {
+                                "subject": data.get("subject"),
+                                "created_at": data.get("createdDateTime"),
+                                "creation_mode": "calendar",
+                                "calendar_event_id": data.get("id"),
+                                "creator_email": creator_email,
+                                "creator_name": creator_name,
+                            },
+                        }
+                        logger.info(f"[MEETING] Teams CALENDAR success: {creator_email} -> {join_url[:50]}")
+                    else:
+                        # Calendar event created but no Teams link — clean up
+                        logger.warning(f"[MEETING] Teams CALENDAR: event created but no joinUrl. Deleting event.")
+                        try:
+                            requests.delete(
+                                f"https://graph.microsoft.com/v1.0/me/events/{data.get('id')}",
+                                headers=headers, timeout=10,
+                            )
+                        except Exception:
+                            pass
+                        # Fall through to next priority
+
+                except requests.exceptions.HTTPError as e:
+                    status_code = e.response.status_code if e.response is not None else 0
+                    logger.warning(f"[MEETING] Teams CALENDAR failed (HTTP {status_code}): {e}")
+                except Exception as e:
+                    logger.warning(f"[MEETING] Teams CALENDAR error: {e}")
+
+            # --- Priority 1: Delegated mode (OnlineMeetings.ReadWrite) ---
+            if result is None and has_delegated_scope:
+                logger.info(f"[MEETING] Teams DELEGATED mode for user {organizer_user_id[:8]}")
+                try:
+                    access_token = _refresh_outlook_token()
+                    meeting_payload = {
+                        "subject": title,
+                        "startDateTime": start_datetime,
+                        "endDateTime": end_time,
+                        "lobbyBypassSettings": {"scope": "everyone"},
+                        "allowedPresenters": "organizer",
+                        "isEntryExitAnnounced": False,
+                    }
                     headers = {"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"}
                     resp = requests.post(
                         "https://graph.microsoft.com/v1.0/me/onlineMeetings",
@@ -469,34 +541,30 @@ def create_meeting_for_appointment(
                             "creator_name": creator_name,
                         },
                     }
-                    print(f"[MEETING] Teams DELEGATED success: {creator_email}")
+                    logger.info(f"[MEETING] Teams DELEGATED success: {creator_email}")
 
                 except requests.exceptions.HTTPError as e:
                     status_code = e.response.status_code if e.response is not None else 0
-                    print(f"[MEETING] Teams DELEGATED failed (HTTP {status_code}): {e}")
+                    logger.warning(f"[MEETING] Teams DELEGATED failed (HTTP {status_code}): {e}")
                     if status_code == 403:
-                        # Scope might have been revoked, mark connection
                         db.calendar_connections.update_one(
                             {"user_id": organizer_user_id, "provider": "outlook"},
                             {"$set": {"has_online_meetings_scope": False}},
                         )
-                        print("[MEETING] Marked has_online_meetings_scope=False, will use fallback next time")
-                    # Fall through to application fallback below
-                    has_delegated_scope = False
+                        logger.info("[MEETING] Marked has_online_meetings_scope=False")
                 except Exception as e:
-                    print(f"[MEETING] Teams DELEGATED error: {e}")
-                    has_delegated_scope = False
+                    logger.warning(f"[MEETING] Teams DELEGATED error: {e}")
 
             # --- Priority 2: Application fallback (legacy azure_user_id) ---
-            if not has_delegated_scope or not result:
+            if result is None:
                 if not _teams_client.is_configured():
-                    return {"error": "Teams API non configurée. Ajoutez MICROSOFT_TENANT_ID, MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET.", "needs_config": True}
+                    return {"error": "Impossible de générer le lien Teams automatiquement. Vous pouvez ajouter un lien de visioconférence manuellement.", "needs_config": True}
 
                 azure_user_id = _resolve_teams_user_id(organizer_user_id)
                 if not azure_user_id:
-                    return {"error": "Azure AD User ID introuvable. Reconnectez votre compte Outlook pour permettre la création de réunions Teams sous votre propre identité.", "needs_config": True}
+                    return {"error": "Impossible de générer le lien Teams automatiquement. Vous pouvez ajouter un lien de visioconférence manuellement.", "needs_config": True}
 
-                print(f"[MEETING] Teams APPLICATION FALLBACK for user {organizer_user_id[:8]} (azure_user_id={azure_user_id[:8]})")
+                logger.info(f"[MEETING] Teams APPLICATION FALLBACK for user {organizer_user_id[:8]}")
                 result = _teams_client.create_meeting(
                     subject=title,
                     start_time=start_datetime,
@@ -504,7 +572,6 @@ def create_meeting_for_appointment(
                     user_id=azure_user_id,
                 )
 
-                # Enrich with real Azure AD identity
                 if result.get("metadata"):
                     result["metadata"]["creation_mode"] = "application_fallback"
                     try:
@@ -517,7 +584,7 @@ def create_meeting_for_appointment(
                         result["metadata"]["creator_name"] = graph_user.get("displayName")
                         result["metadata"]["azure_user_id"] = azure_user_id
                     except Exception as e:
-                        print(f"[MEETING] Could not resolve Azure AD email for {azure_user_id}: {e}")
+                        logger.warning(f"[MEETING] Could not resolve Azure AD email: {e}")
                         if outlook_conn:
                             result["metadata"]["creator_email"] = outlook_conn.get("outlook_email")
                             result["metadata"]["creator_name"] = outlook_conn.get("outlook_name")

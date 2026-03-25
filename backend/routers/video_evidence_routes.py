@@ -256,27 +256,38 @@ async def provider_status_endpoint(request: Request):
     )
     teams_user_configured = bool(user_settings.get("teams_connected") and user_settings.get("azure_user_id"))
     teams_platform_configured = platform_status["teams"]["configured"]
-    # Connected = delegated scope (best) OR user config saved
-    teams_connected = teams_has_scope or teams_user_configured
-    # Can auto-generate = delegated scope OR (user config + platform credentials)
-    teams_can_auto = teams_has_scope or (teams_user_configured and teams_platform_configured)
+    teams_has_outlook = bool(outlook_conn)
+
+    # Level: advanced (pro + scopes) > standard (Outlook connected) > application (legacy form) > null
+    if teams_has_scope:
+        teams_level = "advanced"
+    elif teams_has_outlook:
+        teams_level = "standard"
+    elif teams_user_configured:
+        teams_level = "application"
+    else:
+        teams_level = None
+
+    # Connected = any viable path
+    teams_connected = teams_has_scope or teams_has_outlook or teams_user_configured
+    # Can auto-generate = Outlook connected (calendar mode) OR delegated scope OR (application + server ok)
+    teams_can_auto = teams_has_outlook or teams_has_scope or (teams_user_configured and teams_platform_configured)
+    # Attendance = pro feature, requires delegated scope
+    teams_has_attendance = teams_has_scope
 
     teams_email = None
     teams_connected_at = None
-    teams_connection_mode = None
-    if teams_has_scope:
-        teams_email = outlook_conn.get("outlook_email") if outlook_conn else None
-        teams_connected_at = outlook_conn.get("connected_at") if outlook_conn else None
-        teams_connection_mode = "delegated"
+    if outlook_conn:
+        teams_email = outlook_conn.get("outlook_email")
+        teams_connected_at = outlook_conn.get("connected_at")
     elif teams_user_configured:
         teams_email = user_settings.get("teams_email") or user_settings.get("azure_user_id")
         teams_connected_at = user_settings.get("teams_connected_at")
-        teams_connection_mode = "application"
 
     teams_unavailable = None
     if not teams_connected:
-        teams_unavailable = "Configurez votre compte Teams ci-dessous ou activez Teams avancé via Outlook."
-    elif not teams_can_auto:
+        teams_unavailable = "Connectez votre calendrier Outlook pour activer Microsoft Teams."
+    elif teams_level == "application" and not teams_platform_configured:
         teams_unavailable = "Identifiant enregistré, mais les credentials Azure serveur ne sont pas configurés. La création automatique de réunions n'est pas disponible pour le moment."
 
     # ── Meet ──
@@ -293,7 +304,8 @@ async def provider_status_endpoint(request: Request):
             "features": platform_status["teams"]["features"],
             "can_auto_generate": teams_can_auto,
             "connected": teams_connected,
-            "connection_mode": teams_connection_mode,
+            "level": teams_level,
+            "has_attendance": teams_has_attendance,
             "email": teams_email,
             "connected_at": teams_connected_at,
             "label": "Microsoft Teams",
