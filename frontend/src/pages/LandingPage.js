@@ -23,36 +23,36 @@ export default function LandingPage() {
     <div className="min-h-screen bg-[#0A0A0B] text-white">
       {/* ── Nav ── */}
       <nav className="border-b border-white/5">
-        <div className="max-w-6xl mx-auto px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xl font-bold tracking-tight text-white" data-testid="nav-logo">
-              <span className="tracking-[0.25em]">N <span className="mx-[2px]">·</span> L <span className="mx-[2px]">·</span> Y <span className="mx-[2px]">·</span> T</span>
-              <span className="block text-[9px] font-normal tracking-[0.2em] text-slate-500 uppercase">Never Lose Your Time</span>
-            </span>
-            <div className="flex items-center gap-3">
-              <Link to="/impact">
-                <Button variant="ghost" className="text-slate-400 hover:text-white hover:bg-white/5 h-9 text-sm" data-testid="nav-impact-btn">
-                  <Heart className="w-3.5 h-3.5 mr-1.5 text-rose-400" />Gestes solidaires
-                </Button>
-              </Link>
-              <Link to="/signin">
-                <Button variant="ghost" className="text-slate-400 hover:text-white hover:bg-white/5 h-9 text-sm" data-testid="nav-signin-btn">Connexion</Button>
-              </Link>
-              <Link to="/signup">
-                <Button className="bg-white text-[#0A0A0B] hover:bg-slate-200 h-9 text-sm font-semibold" data-testid="nav-signup-btn">
-                  Créer un engagement
-                </Button>
-              </Link>
-            </div>
-          </div>
-          <div className="flex justify-center mt-3">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-medium text-slate-400">
-              <Shield className="w-3 h-3" />
-              Créateur d'engagements solidaires
-            </div>
+        <div className="max-w-6xl mx-auto px-6 lg:px-8 py-4 flex items-center justify-between">
+          <span className="text-xl font-bold tracking-tight text-white" data-testid="nav-logo">
+            <span className="tracking-[0.25em]">N <span className="mx-[2px]">·</span> L <span className="mx-[2px]">·</span> Y <span className="mx-[2px]">·</span> T</span>
+            <span className="block text-[9px] font-normal tracking-[0.2em] text-slate-500 uppercase">Never Lose Your Time</span>
+          </span>
+          <div className="flex items-center gap-3">
+            <Link to="/impact">
+              <Button variant="ghost" className="text-slate-400 hover:text-white hover:bg-white/5 h-9 text-sm" data-testid="nav-impact-btn">
+                <Heart className="w-3.5 h-3.5 mr-1.5 text-rose-400" />Gestes solidaires
+              </Button>
+            </Link>
+            <Link to="/signin">
+              <Button variant="ghost" className="text-slate-400 hover:text-white hover:bg-white/5 h-9 text-sm" data-testid="nav-signin-btn">Connexion</Button>
+            </Link>
+            <Link to="/signup">
+              <Button className="bg-white text-[#0A0A0B] hover:bg-slate-200 h-9 text-sm font-semibold" data-testid="nav-signup-btn">
+                Créer un engagement
+              </Button>
+            </Link>
           </div>
         </div>
       </nav>
+
+      {/* ── Badge ── */}
+      <div className="flex justify-center py-4 border-b border-white/5">
+        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-medium text-slate-400">
+          <Shield className="w-3 h-3" />
+          Créateur d'engagements solidaires
+        </div>
+      </div>
 
       {/* ── Hero ── */}
       <section className="pt-28 pb-20 px-6" data-testid="hero-section">
