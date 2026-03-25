@@ -46,7 +46,7 @@ resend.api_key = RESEND_API_KEY
 # ─────────────────────────────────────────────────────────────
 
 LOGO_URL = "https://static.prod-images.emergentagent.com/jobs/8d993bdc-837f-49f8-85bc-15685d06a6d0/images/50e29436225480c1937c68846acd3259ae9d907f89eceebb9fd6313f99583083.png"
-SITE_URL = "https://nlyt.io"
+SITE_URL = "https://app.nlyt.io"
 
 ACCENT_COLORS = {
     "neutral": "#64748B",

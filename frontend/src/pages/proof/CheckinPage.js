@@ -260,7 +260,7 @@ export default function CheckinPage() {
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
       <div className="max-w-md w-full bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="bg-slate-900 px-6 py-5 text-white text-center">
-          <a href="https://nlyt.io" target="_blank" rel="noopener noreferrer" className="inline-block mb-2">
+          <a href="https://app.nlyt.io" target="_blank" rel="noopener noreferrer" className="inline-block mb-2">
             <span className="block text-lg font-bold tracking-[0.35em] text-white">N<span className="text-white/40">·</span>L<span className="text-white/40">·</span>Y<span className="text-white/40">·</span>T</span>
             <span className="block text-[10px] font-medium tracking-[0.25em] text-slate-400 uppercase">Never Lose Your Time</span>
           </a>
@@ -340,7 +340,7 @@ export default function CheckinPage() {
             Je rejoins la réunion
           </Button>
           <div className="text-center mt-4 pt-4 border-t border-slate-100">
-            <a href="https://nlyt.io" target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:text-blue-800 font-medium">nlyt.io</a>
+            <a href="https://app.nlyt.io" target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:text-blue-800 font-medium">nlyt.io</a>
           </div>
         </div>
       </div>
