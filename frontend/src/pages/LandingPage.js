@@ -28,6 +28,10 @@ export default function LandingPage() {
             <span className="tracking-[0.25em]">N <span className="mx-[2px]">·</span> L <span className="mx-[2px]">·</span> Y <span className="mx-[2px]">·</span> T</span>
             <span className="block text-[9px] font-normal tracking-[0.2em] text-slate-500 uppercase">Never Lose Your Time</span>
           </span>
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-medium text-slate-400">
+            <Shield className="w-3 h-3" />
+            Créateur d'engagements solidaires
+          </div>
           <div className="flex items-center gap-3">
             <Link to="/impact">
               <Button variant="ghost" className="text-slate-400 hover:text-white hover:bg-white/5 h-9 text-sm" data-testid="nav-impact-btn">
@@ -56,10 +60,6 @@ export default function LandingPage() {
             <p className="text-[11px] tracking-[0.25em] uppercase text-slate-500">
               Never Lose Your Time
             </p>
-          </div>
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-medium text-slate-400 mb-10">
-            <Shield className="w-3 h-3" />
-            Créateur d'engagements solidaires
           </div>
           <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.05] mb-8" data-testid="hero-title">
             Votre temps<br /> ne se perd plus.
