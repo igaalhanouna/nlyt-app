@@ -24,7 +24,10 @@ export default function LandingPage() {
       {/* ── Nav ── */}
       <nav className="border-b border-white/5">
         <div className="max-w-6xl mx-auto px-6 lg:px-8 py-5 flex items-center justify-between">
-          <span className="text-xl font-bold tracking-tight text-white" data-testid="nav-logo">NLYT</span>
+          <span className="text-xl font-bold tracking-tight text-white" data-testid="nav-logo">
+            NLYT
+            <span className="block text-[9px] font-normal tracking-[0.2em] text-slate-500 uppercase">Never Lose Your Time</span>
+          </span>
           <div className="flex items-center gap-3">
             <Link to="/impact">
               <Button variant="ghost" className="text-slate-400 hover:text-white hover:bg-white/5 h-9 text-sm" data-testid="nav-impact-btn">
@@ -46,6 +49,14 @@ export default function LandingPage() {
       {/* ── Hero ── */}
       <section className="pt-28 pb-20 px-6" data-testid="hero-section">
         <div className="max-w-3xl mx-auto text-center">
+          <div className="mb-6">
+            <p className="text-sm tracking-[0.35em] font-semibold text-white/80 mb-1">
+              <span className="text-white">N</span> · <span className="text-white">L</span> · <span className="text-white">Y</span> · <span className="text-white">T</span>
+            </p>
+            <p className="text-[11px] tracking-[0.25em] uppercase text-slate-500">
+              Never Lose Your Time
+            </p>
+          </div>
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-medium text-slate-400 mb-10">
             <Shield className="w-3 h-3" />
             Créateur d'engagements solidaires
@@ -191,7 +202,7 @@ export default function LandingPage() {
       {/* ── Footer ── */}
       <footer className="border-t border-white/5 py-10 px-6">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <p className="text-xs text-slate-600">© 2026 NLYT. Votre temps ne se perd plus.</p>
+          <p className="text-xs text-slate-600">© 2026 NLYT — Never Lose Your Time. Votre temps ne se perd plus.</p>
           <p className="text-xs text-slate-600">Votre temps est compté. Ne le gaspillez pas.</p>
         </div>
       </footer>
