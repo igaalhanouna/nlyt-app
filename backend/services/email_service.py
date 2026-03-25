@@ -73,9 +73,9 @@ def _base_template(body_html: str, accent: str = "neutral") -> str:
 <!-- HEADER -->
 <tr><td style="background-color:#0A0A0B;padding:28px 32px;text-align:center;">
   <a href="{SITE_URL}" target="_blank" style="text-decoration:none;">
-    <span style="font-size:22px;font-weight:700;letter-spacing:0.35em;color:#FFFFFF;">N<span style="color:rgba(255,255,255,0.4);">&middot;</span>L<span style="color:rgba(255,255,255,0.4);">&middot;</span>Y<span style="color:rgba(255,255,255,0.4);">&middot;</span>T</span>
+    <span style="font-size:22px;font-weight:700;letter-spacing:0.35em;color:#FFFFFF;">N<span style="color:rgba(255,255,255,0.6);">&middot;</span>L<span style="color:rgba(255,255,255,0.6);">&middot;</span>Y<span style="color:rgba(255,255,255,0.6);">&middot;</span>T</span>
     <br/>
-    <span style="font-size:10px;font-weight:500;letter-spacing:0.25em;color:rgba(255,255,255,0.35);text-transform:uppercase;">Never Lose Your Time</span>
+    <span style="font-size:10px;font-weight:500;letter-spacing:0.25em;color:#64748B;text-transform:uppercase;">Never Lose Your Time</span>
   </a>
 </td></tr>
 
