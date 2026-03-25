@@ -413,6 +413,12 @@ export default function Integrations() {
                   {info.connected_at && (
                     <p className="text-xs text-slate-400">Connecté le {formatDateLongFr(info.connected_at)}</p>
                   )}
+                  {isTeams && info.connection_mode === 'delegated' && (
+                    <p className="text-xs text-emerald-600 mt-0.5">Via Teams avancé (identité Microsoft)</p>
+                  )}
+                  {isTeams && info.connection_mode === 'application' && (
+                    <p className="text-xs text-slate-500 mt-0.5">Via identifiant Azure AD (mode application)</p>
+                  )}
                   {isPlatformConfigured && !email && (
                     <p className="text-xs text-slate-400">Configuration serveur active</p>
                   )}
@@ -429,6 +435,15 @@ export default function Integrations() {
                 Déconnecter
               </Button>
             </div>
+            {/* Warning if connected but server credentials missing (application mode only) */}
+            {isTeams && info.connection_mode === 'application' && !isPlatformConfigured && (
+              <div className="flex items-start gap-2 mt-3 p-2 bg-amber-50 border border-amber-200 rounded-md" data-testid="teams-connected-no-server-warning">
+                <AlertTriangle className="w-3.5 h-3.5 text-amber-600 mt-0.5 flex-shrink-0" />
+                <p className="text-xs text-amber-700">
+                  Identifiant enregistré. La <strong>création automatique de réunions</strong> et la <strong>récupération des présences</strong> ne seront pas disponibles tant que les credentials Azure serveur ne sont pas configurés.
+                </p>
+              </div>
+            )}
           </div>
         ) : (
           <div className="border-t border-slate-100 px-5 py-3">
@@ -446,7 +461,7 @@ export default function Integrations() {
                 <p className="text-xs text-slate-600">
                   {isZoom
                     ? 'Configurez votre intégration Zoom. Les credentials serveur (Account ID, Client ID, Client Secret) doivent être configurés par un administrateur.'
-                    : 'Configurez votre intégration Microsoft Teams. Renseignez votre identifiant Azure AD pour permettre la création de réunions Teams.'
+                    : 'Renseignez votre identifiant Azure AD pour le mode application Teams.'
                   }
                 </p>
 
@@ -478,6 +493,13 @@ export default function Integrations() {
 
                 {isTeams && (
                   <div className="space-y-2">
+                    {/* Flow clarification */}
+                    <div className="flex items-start gap-2 p-2 bg-slate-50 border border-slate-200 rounded-md">
+                      <Info className="w-3.5 h-3.5 text-slate-500 mt-0.5 flex-shrink-0" />
+                      <p className="text-xs text-slate-600">
+                        <strong>Méthode recommandée :</strong> activez <em>Teams avancé</em> via votre connexion Outlook dans la section Calendriers ci-dessus. Ce formulaire est un mode alternatif pour les configurations avancées.
+                      </p>
+                    </div>
                     <div>
                       <Label htmlFor="teams-azure-id" className="text-xs text-slate-600">Identifiant utilisateur Azure AD</Label>
                       <Input
@@ -488,7 +510,7 @@ export default function Integrations() {
                         className="mt-1 h-8 text-sm"
                         data-testid="teams-azure-id-input"
                       />
-                      <p className="text-xs text-slate-400 mt-1">Email Microsoft ou Object ID Azure AD (portal.azure.com)</p>
+                      <p className="text-xs text-slate-400 mt-1">Email Microsoft 365 ou Object ID Azure AD (portal.azure.com)</p>
                     </div>
                     <div>
                       <Label htmlFor="teams-email" className="text-xs text-slate-600">Email Teams (optionnel)</Label>
@@ -503,11 +525,11 @@ export default function Integrations() {
                       />
                     </div>
                     {!isPlatformConfigured && (
-                      <div className="flex items-start gap-2 p-2 bg-amber-50 border border-amber-200 rounded-md">
+                      <div className="flex items-start gap-2 p-2 bg-amber-50 border border-amber-200 rounded-md" data-testid="teams-server-warning">
                         <AlertTriangle className="w-3.5 h-3.5 text-amber-600 mt-0.5 flex-shrink-0" />
                         <p className="text-xs text-amber-700">
-                          Les credentials Azure (Tenant ID, Client ID, Secret) ne sont pas encore configurés sur le serveur.
-                          Contactez votre administrateur.
+                          Les credentials Azure serveur (Tenant ID, Client ID, Secret) ne sont pas encore configurés.
+                          Votre identifiant sera enregistré, mais la <strong>création automatique de réunions Teams</strong> ne sera pas disponible tant que la configuration serveur n'est pas finalisée.
                         </p>
                       </div>
                     )}

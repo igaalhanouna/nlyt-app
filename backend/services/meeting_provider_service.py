@@ -143,12 +143,32 @@ class TeamsMeetingClient:
         self.graph_url = "https://graph.microsoft.com/v1.0"
 
     def is_configured(self) -> bool:
-        placeholder_values = {"detect-presence", "guarantee-first", "placeholder", "your-tenant-id", "your-client-id"}
-        return bool(
-            self.tenant_id and self.client_id and self.client_secret
-            and self.tenant_id not in placeholder_values
-            and self.client_id not in placeholder_values
-        )
+        """Check if Teams/Azure credentials are present and structurally valid.
+        Tenant ID must be a UUID or verified domain, Client ID must be a UUID,
+        Client Secret must be at least 16 chars."""
+        if not (self.tenant_id and self.client_id and self.client_secret):
+            return False
+        # Reject known placeholders and test values
+        reject_values = {
+            "detect-presence", "guarantee-first", "placeholder",
+            "your-tenant-id", "your-client-id", "your-client-secret",
+            "common", "organizations", "consumers",
+            "datetime-debug", "test", "todo", "fixme",
+        }
+        if self.tenant_id.lower() in reject_values or self.client_id.lower() in reject_values:
+            return False
+        # Structural: Client ID must look like a UUID (8-4-4-4-12 hex)
+        import re
+        uuid_pattern = re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', re.IGNORECASE)
+        if not uuid_pattern.match(self.client_id):
+            return False
+        # Tenant ID: UUID or verified domain (contains a dot)
+        if not (uuid_pattern.match(self.tenant_id) or '.' in self.tenant_id):
+            return False
+        # Secret must be substantial (Azure secrets are 30+ chars)
+        if len(self.client_secret) < 16:
+            return False
+        return True
 
     def _get_token(self) -> str:
         if self.access_token and self.token_expiry and datetime.utcnow() < self.token_expiry - timedelta(seconds=60):

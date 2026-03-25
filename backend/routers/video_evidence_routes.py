@@ -244,34 +244,64 @@ async def provider_status_endpoint(request: Request):
         {"user_id": user["user_id"], "provider": "outlook", "status": "connected"},
         {"_id": 0, "outlook_email": 1, "connected_at": 1, "has_online_meetings_scope": 1}
     )
-    zoom_user_config = db.user_settings.find_one(
+    user_settings = db.user_settings.find_one(
         {"user_id": user["user_id"]},
-        {"_id": 0, "zoom_connected": 1, "zoom_email": 1, "zoom_connected_at": 1}
-    )
+        {"_id": 0, "zoom_connected": 1, "zoom_email": 1, "zoom_connected_at": 1,
+         "teams_connected": 1, "azure_user_id": 1, "teams_email": 1, "teams_connected_at": 1}
+    ) or {}
 
-    # ── Teams: can_auto_generate ONLY if delegated scope is granted ──
+    # ── Teams ──
     teams_has_scope = bool(
         outlook_conn and outlook_conn.get("has_online_meetings_scope") is True
     )
+    teams_user_configured = bool(user_settings.get("teams_connected") and user_settings.get("azure_user_id"))
+    teams_platform_configured = platform_status["teams"]["configured"]
+    # Connected = delegated scope (best) OR user config saved
+    teams_connected = teams_has_scope or teams_user_configured
+    # Can auto-generate = delegated scope OR (user config + platform credentials)
+    teams_can_auto = teams_has_scope or (teams_user_configured and teams_platform_configured)
 
-    # ── Meet: can_auto_generate if Google Calendar connected ──
+    teams_email = None
+    teams_connected_at = None
+    teams_connection_mode = None
+    if teams_has_scope:
+        teams_email = outlook_conn.get("outlook_email") if outlook_conn else None
+        teams_connected_at = outlook_conn.get("connected_at") if outlook_conn else None
+        teams_connection_mode = "delegated"
+    elif teams_user_configured:
+        teams_email = user_settings.get("teams_email") or user_settings.get("azure_user_id")
+        teams_connected_at = user_settings.get("teams_connected_at")
+        teams_connection_mode = "application"
+
+    teams_unavailable = None
+    if not teams_connected:
+        teams_unavailable = "Configurez votre compte Teams ci-dessous ou activez Teams avancé via Outlook."
+    elif not teams_can_auto:
+        teams_unavailable = "Identifiant enregistré, mais les credentials Azure serveur ne sont pas configurés. La création automatique de réunions n'est pas disponible pour le moment."
+
+    # ── Meet ──
     meet_available = bool(google_conn)
 
-    # ── Zoom: can_auto_generate if platform configured AND user has active connection ──
+    # ── Zoom ──
     zoom_platform_ok = platform_status["zoom"]["configured"]
-    zoom_user_ok = bool(zoom_user_config and zoom_user_config.get("zoom_connected") is True)
+    zoom_user_ok = bool(user_settings.get("zoom_connected") is True)
     zoom_available = zoom_platform_ok and zoom_user_ok
 
     return {
         "teams": {
-            "can_auto_generate": teams_has_scope,
-            "connected": teams_has_scope,
-            "email": outlook_conn.get("outlook_email") if outlook_conn else None,
-            "connected_at": outlook_conn.get("connected_at") if outlook_conn else None,
+            "configured": teams_platform_configured,
+            "features": platform_status["teams"]["features"],
+            "can_auto_generate": teams_can_auto,
+            "connected": teams_connected,
+            "connection_mode": teams_connection_mode,
+            "email": teams_email,
+            "connected_at": teams_connected_at,
             "label": "Microsoft Teams",
-            "unavailable_reason": None if teams_has_scope else "Réservé aux comptes Microsoft 365 professionnels avec Teams avancé activé",
+            "unavailable_reason": teams_unavailable,
         },
         "meet": {
+            "configured": platform_status["meet"]["configured"],
+            "features": platform_status["meet"]["features"],
             "can_auto_generate": meet_available,
             "connected": meet_available,
             "email": google_conn.get("google_email") if google_conn else None,
@@ -280,14 +310,18 @@ async def provider_status_endpoint(request: Request):
             "unavailable_reason": None if meet_available else "Connectez un compte Google dans les paramètres",
         },
         "zoom": {
+            "configured": platform_status["zoom"]["configured"],
+            "features": platform_status["zoom"]["features"],
             "can_auto_generate": zoom_available,
             "connected": zoom_available,
-            "email": (zoom_user_config or {}).get("zoom_email") if zoom_available else None,
-            "connected_at": (zoom_user_config or {}).get("zoom_connected_at") if zoom_available else None,
+            "email": user_settings.get("zoom_email") if zoom_available else None,
+            "connected_at": user_settings.get("zoom_connected_at") if zoom_available else None,
             "label": "Zoom",
             "unavailable_reason": None if zoom_available else "Connectez votre compte Zoom dans les paramètres",
         },
         "external": {
+            "configured": True,
+            "features": [],
             "can_auto_generate": True,
             "connected": True,
             "label": "Autre plateforme",
