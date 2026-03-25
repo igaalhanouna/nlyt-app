@@ -36,7 +36,7 @@ export default function AppointmentEssentials({
             <p className="text-xs text-slate-500">Durée : {appointment.duration_minutes} min</p>
           </div>
           {canEdit && (
-            <button onClick={onEdit} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors" title="Modifier" data-testid="edit-general-info-btn">
+            <button onClick={onEdit} className="p-3 -m-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors" title="Modifier" data-testid="edit-general-info-btn">
               <Pencil className="w-3.5 h-3.5" />
             </button>
           )}

@@ -61,6 +61,12 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API
 - [x] Impact (ImpactPage.js) : Hero compact + CTA above fold, Comment ça fonctionne remonté, 344€ proéminent, KPIs compacts (3 cols), Associations 3 max + toggle, Historique 3 max + toggle, CTA doublon supprimé, Transparence compacte
 - [x] Vérifié : 0 overflow horizontal (375px), desktop (1280px) intact, aucun texte/wording modifié sur les 2 pages
 
+## Completed — AppointmentDetail Refactoring (Mars 2026)
+- [x] Décomposition de AppointmentDetail.js (1633 lignes → 8 fichiers, orchestrateur ~280 lignes)
+- [x] 7 sous-composants: AppointmentHeader, AppointmentEssentials, EngagementSummary, FinancialBreakdown, ParticipantsSection, SecondaryActions, CancelModal
+- [x] Layout mobile-first: 3.9 écrans → 1.4 écrans (−64%), 0 overflow, CTA dynamique, grid asymétrique, signal confiance, signal social, preuves repliées
+- [x] Test agent: 100% pass rate, 0 régression desktop
+
 ## Upcoming Tasks
 - [ ] Refactorer InvitationPage.js (1400+ lignes → modules)
 - [ ] Test réel Teams (compte non-pro)

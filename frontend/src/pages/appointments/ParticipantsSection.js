@@ -60,7 +60,7 @@ export default function ParticipantsSection({
                   title="Renvoyer"
                   disabled={resendingToken === p.invitation_token}
                   onClick={() => onResend(p.invitation_token)}
-                  className="p-1.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors disabled:opacity-50"
+                  className="p-3 -m-1.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors disabled:opacity-50"
                   data-testid={`resend-detail-btn-${p.participant_id}`}
                 >
                   <RefreshCw className={`w-3 h-3 ${resendingToken === p.invitation_token ? 'animate-spin' : ''}`} />
