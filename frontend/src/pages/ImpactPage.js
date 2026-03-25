@@ -103,10 +103,10 @@ export default function ImpactPage() {
             className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.05] mb-8"
             data-testid="impact-hero-title"
           >
-            Chaque absence<br />devient un geste.
+            Faites profiter de votre temps perdu
           </h1>
           <p className="text-lg sm:text-xl text-slate-400 leading-relaxed max-w-xl mx-auto mb-12">
-            Les engagements non tenus sur NLYT génèrent des gestes solidaires
+            Chaque engagement non tenu sur NLYT génère des gestes solidaires
             reversés à des associations. Transparence totale.
           </p>
           {hasData && (
@@ -187,7 +187,7 @@ export default function ImpactPage() {
           {/* ── Historique des gestes solidaires ── */}
           <section className="py-20 px-6 border-t border-white/5" data-testid="contributions-section">
             <div className="max-w-3xl mx-auto">
-              <h2 className="text-2xl sm:text-3xl font-bold tracking-tight mb-8" data-testid="contributions-title">Historique des gestes</h2>
+              <h2 className="text-2xl sm:text-3xl font-bold tracking-tight mb-8" data-testid="contributions-title">Historique des gestes solidaires</h2>
               {contributions.length > 0 ? (
                 <div className="space-y-3">
                   {contributions.map((c) => (
@@ -269,7 +269,7 @@ export default function ImpactPage() {
                   </div>
                   <div>
                     <p className="text-base font-semibold text-white mb-1">Gestes solidaires cumulés</p>
-                    <p className="text-sm text-slate-400">Les montants reversés sont comptabilisés, traçables et transparents.</p>
+                    <p className="text-sm text-slate-400">Les montants reversés sont comptabilisés et traçables. Le reversement automatique sera bientôt disponible.</p>
                   </div>
                 </div>
               </div>
@@ -285,8 +285,12 @@ export default function ImpactPage() {
                   <div>
                     <h3 className="text-base font-semibold text-white mb-2">Transparence sur les montants</h3>
                     <p className="text-sm text-slate-400 leading-relaxed">
-                      Les montants affichés sont <strong className="text-white">reversés à des associations</strong> et accumulés
-                      sur la plateforme NLYT. Le transfert vers les associations sera bientôt automatisé.
+                      Les montants affichés sur cette page sont <strong className="text-white">reversés à des associations</strong> et accumulés
+                      sur la plateforme NLYT. Le transfert vers les associations n'a pas encore eu lieu.
+                    </p>
+                    <p className="text-sm text-slate-400 leading-relaxed mt-2">
+                      Le <strong className="text-white">reversement automatique</strong> vers les associations partenaires sera implémenté dans une
+                      prochaine version de la plateforme. En attendant, chaque euro est comptabilisé et traçable.
                     </p>
                     <div className="flex items-center gap-1.5 mt-4">
                       <Clock className="w-3.5 h-3.5 text-slate-500" />
@@ -318,10 +322,10 @@ export default function ImpactPage() {
       <section className="py-24 px-6 border-t border-white/5" data-testid="impact-cta-section">
         <div className="max-w-2xl mx-auto text-center">
           <p className="text-2xl sm:text-3xl font-bold tracking-tight text-white mb-4">
-            Faites de chaque absence un acte solidaire.
+            Faites de chaque absence une possibilité de faire une bonne action.
           </p>
           <p className="text-sm text-slate-500 mb-10">
-            Créez votre premier engagement et protégez votre temps.
+            Votre temps est garanti. Faites en profiter qui vous voulez.
           </p>
           <Link to="/signup">
             <Button size="lg" className="bg-white text-[#0A0A0B] hover:bg-slate-200 text-base px-8 h-13 font-semibold" data-testid="impact-cta-btn">
