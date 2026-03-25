@@ -4,146 +4,27 @@ import {
   Heart, Shield, ArrowRight, Loader2, Info, Clock,
   Building2, ChevronDown, CalendarCheck, TrendingUp,
 } from 'lucide-react';
+import { Button } from '../components/ui/button';
 import axios from 'axios';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
-function fmt(cents, currency = 'eur') {
+function fmt(cents) {
   if (!cents) return '0 €';
   return new Intl.NumberFormat('fr-FR', {
-    style: 'currency', currency, minimumFractionDigits: 0, maximumFractionDigits: 0,
+    style: 'currency', currency: 'EUR', minimumFractionDigits: 0, maximumFractionDigits: 0,
   }).format(cents / 100);
 }
 
-function fmtPrecise(cents, currency = 'eur') {
-  return new Intl.NumberFormat('fr-FR', { style: 'currency', currency }).format(cents / 100);
+function fmtPrecise(cents) {
+  return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(cents / 100);
 }
 
 function fmtDate(iso) {
   if (!iso) return '';
-  return new Date(iso).toLocaleDateString('fr-FR', {
-    day: 'numeric', month: 'short', year: 'numeric',
-  });
+  return new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-/* ─── KPI Card ── */
-function StatCard({ icon: Icon, value, label, accent = false, testId }) {
-  return (
-    <div
-      className={`rounded-xl p-6 text-center ${
-        accent
-          ? 'bg-rose-500/10 border border-rose-500/20'
-          : 'bg-white/[0.03] border border-white/5'
-      }`}
-      data-testid={testId}
-    >
-      <Icon className={`w-5 h-5 mx-auto mb-3 ${accent ? 'text-rose-400' : 'text-slate-500'}`} />
-      <p
-        className={`text-3xl font-bold tracking-tight ${accent ? 'text-rose-300' : 'text-white'}`}
-        style={{ fontVariantNumeric: 'tabular-nums' }}
-      >
-        {value}
-      </p>
-      <p className={`text-sm mt-1 ${accent ? 'text-rose-400/70' : 'text-slate-500'}`}>{label}</p>
-    </div>
-  );
-}
-
-/* ─── Association Row ── */
-function AssociationRow({ association, rank }) {
-  const name = association.name || `Association #${rank}`;
-  return (
-    <div
-      className="flex items-center justify-between py-4 px-5 bg-white/[0.03] rounded-lg border border-white/5"
-      data-testid={`assoc-row-${association.association_id}`}
-    >
-      <div className="flex items-center gap-4">
-        <div className="w-9 h-9 rounded-full bg-rose-500/10 flex items-center justify-center flex-shrink-0">
-          <Heart className="w-4 h-4 text-rose-400" />
-        </div>
-        <div>
-          <p className="text-sm font-medium text-white">{name}</p>
-          <p className="text-xs text-slate-500">
-            {association.distributions_count} geste{association.distributions_count > 1 ? 's' : ''} solidaire{association.distributions_count > 1 ? 's' : ''}
-            {' · '}
-            {association.events_count} engagement{association.events_count > 1 ? 's' : ''}
-          </p>
-        </div>
-      </div>
-      <p className="text-sm font-bold text-rose-300 tabular-nums">{fmtPrecise(association.total_cents)}</p>
-    </div>
-  );
-}
-
-/* ─── Contribution Row ── */
-function ContributionRow({ contribution }) {
-  return (
-    <div
-      className="flex items-center justify-between py-3 px-4 bg-white/[0.03] rounded-lg border border-white/5"
-      data-testid={`contribution-${contribution.distribution_id}`}
-    >
-      <div className="flex items-center gap-3 min-w-0">
-        <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center flex-shrink-0">
-          <CalendarCheck className="w-3.5 h-3.5 text-slate-500" />
-        </div>
-        <div className="min-w-0">
-          <p className="text-sm text-white truncate">{contribution.appointment_title}</p>
-          <p className="text-xs text-slate-500">
-            {contribution.association_name && (
-              <span className="text-rose-400">{contribution.association_name} · </span>
-            )}
-            {fmtDate(contribution.created_at)}
-          </p>
-        </div>
-      </div>
-      <div className="flex items-center gap-2 flex-shrink-0 ml-3">
-        <span className="text-sm font-semibold text-white tabular-nums">
-          {fmtPrecise(contribution.amount_cents)}
-        </span>
-        <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
-          contribution.status === 'completed'
-            ? 'bg-rose-500/10 text-rose-400'
-            : 'bg-amber-500/10 text-amber-400'
-        }`}>
-          {contribution.status === 'completed' ? 'confirmé' : 'en attente'}
-        </span>
-      </div>
-    </div>
-  );
-}
-
-/* ─── Transparency Block ── */
-function TransparencyBlock() {
-  return (
-    <div
-      className="bg-white/[0.03] border border-white/10 rounded-xl p-6"
-      data-testid="transparency-block"
-    >
-      <div className="flex gap-3">
-        <Info className="w-5 h-5 text-slate-500 flex-shrink-0 mt-0.5" />
-        <div>
-          <h3 className="text-sm font-semibold text-white mb-2">
-            Transparence sur les montants
-          </h3>
-          <p className="text-sm text-slate-400 leading-relaxed">
-            Les montants affichés sur cette page sont <strong className="text-white">reversés à des associations</strong> et accumulés
-            sur la plateforme NLYT. Le transfert vers les associations n'a pas encore eu lieu.
-          </p>
-          <p className="text-sm text-slate-400 leading-relaxed mt-2">
-            Le <strong className="text-white">reversement automatique</strong> vers les associations partenaires sera implémenté dans une
-            prochaine version de la plateforme. En attendant, chaque euro est comptabilisé et traçable.
-          </p>
-          <div className="flex items-center gap-1.5 mt-3">
-            <Clock className="w-3.5 h-3.5 text-slate-500" />
-            <span className="text-xs text-slate-500 font-medium">Reversement automatique — bientôt disponible</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ─── Main Page ── */
 export default function ImpactPage() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -169,11 +50,7 @@ export default function ImpactPage() {
           items: [...prev.contributions.items, ...res.data.contributions.items],
         },
       }));
-    } catch {
-      // silently fail
-    } finally {
-      setLoadingMore(false);
-    }
+    } catch { /* silent */ } finally { setLoadingMore(false); }
   }, [data, loadingMore]);
 
   if (loading) {
@@ -190,103 +67,156 @@ export default function ImpactPage() {
 
   return (
     <div className="min-h-screen bg-[#0A0A0B] text-white">
-      {/* ── Nav ── */}
+      {/* ── Nav (identique à Landing) ── */}
       <nav className="border-b border-white/5">
-        <div className="max-w-4xl mx-auto px-6 py-5 flex items-center justify-between">
-          <Link to="/" className="text-xl font-bold tracking-tight text-white">NLYT</Link>
-          <Link to="/signin" className="text-sm text-slate-400 hover:text-white transition-colors">Connexion</Link>
+        <div className="max-w-6xl mx-auto px-6 lg:px-8 py-4 flex items-center justify-between">
+          <Link to="/" data-testid="nav-logo">
+            <span className="block text-lg font-bold tracking-[0.35em] text-white">N<span className="text-white/60">·</span>L<span className="text-white/60">·</span>Y<span className="text-white/60">·</span>T</span>
+            <span className="block text-[10px] font-medium tracking-[0.25em] text-slate-500 uppercase">Never Lose Your Time</span>
+          </Link>
+          <div className="flex items-center gap-3">
+            <Link to="/impact">
+              <Button variant="ghost" className="text-white hover:bg-white/5 h-9 text-sm">
+                <Heart className="w-3.5 h-3.5 mr-1.5 text-rose-400" />Gestes solidaires
+              </Button>
+            </Link>
+            <Link to="/signin">
+              <Button variant="ghost" className="text-slate-400 hover:text-white hover:bg-white/5 h-9 text-sm" data-testid="nav-signin-btn">Connexion</Button>
+            </Link>
+            <Link to="/signup">
+              <Button className="bg-white text-[#0A0A0B] hover:bg-slate-200 h-9 text-sm font-semibold" data-testid="nav-signup-btn">
+                Créer un engagement
+              </Button>
+            </Link>
+          </div>
         </div>
       </nav>
 
       {/* ── Hero ── */}
-      <div className="border-b border-white/5">
-        <div className="max-w-4xl mx-auto px-6 py-16 sm:py-24 text-center">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-medium text-slate-400 mb-8">
+      <section className="pt-16 pb-20 px-6" data-testid="impact-hero-section">
+        <div className="max-w-3xl mx-auto text-center">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-medium text-slate-400 mb-10">
             <Shield className="w-3.5 h-3.5" />
             Données auditables et traçables
           </div>
           <h1
-            className="text-4xl sm:text-5xl font-bold tracking-tight mb-4"
+            className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.05] mb-8"
             data-testid="impact-hero-title"
           >
-            Faites profiter de votre temps perdu
+            Chaque absence<br />devient un geste.
           </h1>
-          <p className="text-lg text-slate-400 max-w-xl mx-auto">
-            Chaque engagement non tenu sur NLYT génère des gestes solidaires
+          <p className="text-lg sm:text-xl text-slate-400 leading-relaxed max-w-xl mx-auto mb-12">
+            Les engagements non tenus sur NLYT génèrent des gestes solidaires
             reversés à des associations. Transparence totale.
           </p>
+          {hasData && (
+            <div className="flex flex-col items-center">
+              <Heart className="w-5 h-5 text-rose-400 mb-4" />
+              <p className="text-4xl sm:text-5xl font-bold tracking-tight text-white mb-2" data-testid="impact-hero-amount">
+                {fmt(data.total_charity_cents)}
+              </p>
+              <p className="text-sm text-slate-500">reversés à des associations</p>
+            </div>
+          )}
         </div>
-      </div>
+      </section>
 
-      {/* ── Content ── */}
-      <div className="max-w-4xl mx-auto px-6 py-12">
-        {hasData ? (
-          <>
-            {/* KPIs */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4" data-testid="charity-kpis">
-              <StatCard
-                icon={Heart}
-                value={fmt(data.total_charity_cents)}
-                label="Reversés à des associations"
-                accent
-                testId="kpi-total-charity"
-              />
-              <StatCard
-                icon={Building2}
-                value={associations.length.toString()}
-                label={associations.length > 1 ? 'Associations soutenues' : 'Association soutenue'}
-                testId="kpi-associations-count"
-              />
-              <StatCard
-                icon={CalendarCheck}
-                value={data.total_appointments?.toLocaleString('fr-FR') || '0'}
-                label="Engagements totaux"
-                testId="kpi-total-appointments"
-              />
-              <StatCard
-                icon={TrendingUp}
-                value={data.total_no_show_contributions?.toLocaleString('fr-FR') || '0'}
-                label="Absences transformées en gestes solidaires"
-                testId="kpi-no-show-contributions"
-              />
-            </div>
-
-            {/* Transparency Block */}
-            <div className="mt-10">
-              <TransparencyBlock />
-            </div>
-
-            {/* Associations */}
-            {associations.length > 0 && (
-              <div className="mt-12" data-testid="associations-section">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-base font-semibold text-white" data-testid="associations-title">
-                    Associations bénéficiaires
-                  </h2>
-                  <span className="text-xs text-slate-500">
-                    {associations.length} association{associations.length > 1 ? 's' : ''}
-                  </span>
+      {hasData ? (
+        <>
+          {/* ── KPIs ── */}
+          <section className="py-20 px-6 border-t border-white/5" data-testid="charity-kpis">
+            <div className="max-w-3xl mx-auto">
+              <div className="grid sm:grid-cols-3 gap-6">
+                <div className="p-8 rounded-2xl bg-white/[0.03] border border-white/5 text-center">
+                  <Building2 className="w-5 h-5 text-slate-500 mx-auto mb-4" />
+                  <p className="text-3xl font-bold tracking-tight text-white" style={{ fontVariantNumeric: 'tabular-nums' }}>{associations.length}</p>
+                  <p className="text-sm text-slate-500 mt-1">{associations.length > 1 ? 'Associations soutenues' : 'Association soutenue'}</p>
                 </div>
-                <div className="space-y-2" data-testid="associations-list">
+                <div className="p-8 rounded-2xl bg-white/[0.03] border border-white/5 text-center">
+                  <CalendarCheck className="w-5 h-5 text-slate-500 mx-auto mb-4" />
+                  <p className="text-3xl font-bold tracking-tight text-white" style={{ fontVariantNumeric: 'tabular-nums' }}>{data.total_appointments?.toLocaleString('fr-FR') || '0'}</p>
+                  <p className="text-sm text-slate-500 mt-1">Engagements totaux</p>
+                </div>
+                <div className="p-8 rounded-2xl bg-white/[0.03] border border-white/5 text-center">
+                  <TrendingUp className="w-5 h-5 text-slate-500 mx-auto mb-4" />
+                  <p className="text-3xl font-bold tracking-tight text-white" style={{ fontVariantNumeric: 'tabular-nums' }}>{data.total_no_show_contributions?.toLocaleString('fr-FR') || '0'}</p>
+                  <p className="text-sm text-slate-500 mt-1">Absences transformées</p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* ── Associations bénéficiaires ── */}
+          {associations.length > 0 && (
+            <section className="py-20 px-6 border-t border-white/5" data-testid="associations-section">
+              <div className="max-w-3xl mx-auto">
+                <div className="flex items-center justify-between mb-8">
+                  <h2 className="text-2xl sm:text-3xl font-bold tracking-tight" data-testid="associations-title">Associations bénéficiaires</h2>
+                  <span className="text-sm text-slate-500">{associations.length} association{associations.length > 1 ? 's' : ''}</span>
+                </div>
+                <div className="space-y-3">
                   {associations.map((a, i) => (
-                    <AssociationRow key={a.association_id} association={a} rank={i + 1} />
+                    <div
+                      key={a.association_id}
+                      className="flex items-center justify-between p-5 rounded-2xl bg-white/[0.03] border border-white/5"
+                      data-testid={`assoc-row-${a.association_id}`}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-full bg-rose-500/10 flex items-center justify-center flex-shrink-0">
+                          <Heart className="w-4 h-4 text-rose-400" />
+                        </div>
+                        <div>
+                          <p className="text-base font-semibold text-white">{a.name || `Association #${i + 1}`}</p>
+                          <p className="text-sm text-slate-500">
+                            {a.distributions_count} geste{a.distributions_count > 1 ? 's' : ''} solidaire{a.distributions_count > 1 ? 's' : ''}
+                            {' · '}{a.events_count} engagement{a.events_count > 1 ? 's' : ''}
+                          </p>
+                        </div>
+                      </div>
+                      <p className="text-lg font-bold text-rose-400 tabular-nums">{fmtPrecise(a.total_cents)}</p>
+                    </div>
                   ))}
                 </div>
-                <p className="text-xs text-slate-500 mt-3 text-center">
-                  Total reversé aux associations : <span className="font-semibold text-rose-400">{fmtPrecise(data.total_charity_cents)}</span>
+                <p className="text-sm text-slate-500 mt-6 text-center">
+                  Total reversé : <span className="font-semibold text-rose-400">{fmtPrecise(data.total_charity_cents)}</span>
                 </p>
               </div>
-            )}
+            </section>
+          )}
 
-            {/* Contributions History */}
-            <div className="mt-12 mb-6" data-testid="contributions-section">
-              <h2 className="text-base font-semibold text-white mb-4" data-testid="contributions-title">
-                Historique des gestes solidaires
-              </h2>
+          {/* ── Historique des gestes solidaires ── */}
+          <section className="py-20 px-6 border-t border-white/5" data-testid="contributions-section">
+            <div className="max-w-3xl mx-auto">
+              <h2 className="text-2xl sm:text-3xl font-bold tracking-tight mb-8" data-testid="contributions-title">Historique des gestes</h2>
               {contributions.length > 0 ? (
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {contributions.map((c) => (
-                    <ContributionRow key={c.distribution_id} contribution={c} />
+                    <div
+                      key={c.distribution_id}
+                      className="flex items-center justify-between p-5 rounded-2xl bg-white/[0.03] border border-white/5"
+                      data-testid={`contribution-${c.distribution_id}`}
+                    >
+                      <div className="flex items-center gap-4 min-w-0">
+                        <div className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center flex-shrink-0">
+                          <CalendarCheck className="w-4 h-4 text-slate-500" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-base font-medium text-white truncate">{c.appointment_title}</p>
+                          <p className="text-sm text-slate-500">
+                            {c.association_name && <span className="text-rose-400">{c.association_name} · </span>}
+                            {fmtDate(c.created_at)}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3 flex-shrink-0 ml-4">
+                        <span className="text-base font-semibold text-white tabular-nums">{fmtPrecise(c.amount_cents)}</span>
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                          c.status === 'completed' ? 'bg-rose-500/10 text-rose-400' : 'bg-amber-500/10 text-amber-400'
+                        }`}>
+                          {c.status === 'completed' ? 'confirmé' : 'en attente'}
+                        </span>
+                      </div>
+                    </div>
                   ))}
                 </div>
               ) : (
@@ -294,88 +224,124 @@ export default function ImpactPage() {
               )}
 
               {data.contributions?.has_more && (
-                <div className="mt-6 text-center">
+                <div className="mt-8 text-center">
                   <button
                     onClick={loadMore}
                     disabled={loadingMore}
-                    className="inline-flex items-center gap-2 px-4 py-2 text-sm text-slate-400 bg-white/[0.03] border border-white/10 rounded-lg hover:bg-white/[0.06] transition-colors disabled:opacity-50"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 text-sm text-slate-400 bg-white/[0.03] border border-white/10 rounded-full hover:bg-white/[0.06] transition-colors disabled:opacity-50"
                     data-testid="load-more-contributions"
                   >
-                    {loadingMore ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <ChevronDown className="w-4 h-4" />
-                    )}
+                    {loadingMore ? <Loader2 className="w-4 h-4 animate-spin" /> : <ChevronDown className="w-4 h-4" />}
                     Voir plus
                   </button>
-                  <p className="text-xs text-slate-600 mt-1">
-                    {contributions.length} sur {data.contributions.total}
-                  </p>
+                  <p className="text-xs text-slate-600 mt-2">{contributions.length} sur {data.contributions.total}</p>
                 </div>
               )}
             </div>
+          </section>
 
-            {/* How it works */}
-            <div className="bg-white/[0.03] border border-white/5 rounded-xl p-8 mb-10" data-testid="how-it-works">
-              <h2 className="text-base font-semibold text-white mb-8 text-center">Comment ça fonctionne</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">
-                <div className="text-center">
-                  <div className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mx-auto mb-3">
+          {/* ── Comment ça marche ── */}
+          <section className="py-20 px-6 border-t border-white/5" data-testid="how-it-works">
+            <div className="max-w-3xl mx-auto">
+              <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-center mb-16">Comment ça fonctionne</h2>
+              <div className="space-y-12">
+                <div className="flex gap-6 items-start">
+                  <div className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center flex-shrink-0">
                     <span className="text-sm font-bold text-white">1</span>
                   </div>
-                  <p className="text-sm font-medium text-white mb-1">Garantie d'engagement</p>
-                  <p className="text-xs text-slate-500">
-                    Chaque participant dépose une garantie lors de sa confirmation.
-                  </p>
+                  <div>
+                    <p className="text-base font-semibold text-white mb-1">Garantie d'engagement</p>
+                    <p className="text-sm text-slate-400">Chaque participant dépose une garantie lors de sa confirmation.</p>
+                  </div>
                 </div>
-                <div className="text-center">
-                  <div className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mx-auto mb-3">
+                <div className="flex gap-6 items-start">
+                  <div className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center flex-shrink-0">
                     <span className="text-sm font-bold text-white">2</span>
                   </div>
-                  <p className="text-sm font-medium text-white mb-1">Absence constatée</p>
-                  <p className="text-xs text-slate-500">
-                    En cas d'absence, la garantie est capturée. Une part devient un geste solidaire.
-                  </p>
+                  <div>
+                    <p className="text-base font-semibold text-white mb-1">Absence constatée</p>
+                    <p className="text-sm text-slate-400">En cas d'absence, la garantie est capturée. Une part devient un geste solidaire.</p>
+                  </div>
                 </div>
-                <div className="text-center">
-                  <div className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mx-auto mb-3">
+                <div className="flex gap-6 items-start">
+                  <div className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center flex-shrink-0">
                     <span className="text-sm font-bold text-white">3</span>
                   </div>
-                  <p className="text-sm font-medium text-white mb-1">Gestes solidaires cumulés</p>
-                  <p className="text-xs text-slate-500">
-                    Les montants reversés sont comptabilisés et traçables. Le reversement automatique sera bientôt disponible.
-                  </p>
+                  <div>
+                    <p className="text-base font-semibold text-white mb-1">Gestes solidaires cumulés</p>
+                    <p className="text-sm text-slate-400">Les montants reversés sont comptabilisés, traçables et transparents.</p>
+                  </div>
                 </div>
               </div>
             </div>
-          </>
-        ) : (
-          /* ── Empty State ── */
-          <div className="bg-white/[0.03] border border-white/5 rounded-xl p-12 text-center" data-testid="charity-empty">
-            <Heart className="w-10 h-10 text-rose-400/30 mx-auto mb-4" />
-            <p className="text-lg font-medium text-white mb-2">Les gestes solidaires commencent ici</p>
-            <p className="text-sm text-slate-500 max-w-md mx-auto mb-6">
-              Dès que des garanties d'engagement seront traitées avec une part solidaire,
-              les montants reversés aux associations apparaîtront ici.
-            </p>
-            <TransparencyBlock />
-          </div>
-        )}
-      </div>
+          </section>
 
-      {/* ── Footer ── */}
-      <div className="border-t border-white/5 py-8">
-        <div className="max-w-4xl mx-auto px-6 flex items-center justify-between">
-          <p className="text-xs text-slate-600">
-            {data?.refreshed_at
-              ? `Dernière mise à jour : ${new Date(data.refreshed_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`
-              : ''}
+          {/* ── Transparence ── */}
+          <section className="py-20 px-6 border-t border-white/5" data-testid="transparency-section">
+            <div className="max-w-3xl mx-auto">
+              <div className="p-8 rounded-2xl bg-white/[0.03] border border-white/5">
+                <div className="flex gap-4">
+                  <Info className="w-5 h-5 text-slate-500 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <h3 className="text-base font-semibold text-white mb-2">Transparence sur les montants</h3>
+                    <p className="text-sm text-slate-400 leading-relaxed">
+                      Les montants affichés sont <strong className="text-white">reversés à des associations</strong> et accumulés
+                      sur la plateforme NLYT. Le transfert vers les associations sera bientôt automatisé.
+                    </p>
+                    <div className="flex items-center gap-1.5 mt-4">
+                      <Clock className="w-3.5 h-3.5 text-slate-500" />
+                      <span className="text-xs text-slate-500 font-medium">Reversement automatique — bientôt disponible</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+        </>
+      ) : (
+        /* ── Empty State ── */
+        <section className="py-20 px-6 border-t border-white/5">
+          <div className="max-w-3xl mx-auto">
+            <div className="p-12 rounded-2xl bg-white/[0.03] border border-white/5 text-center" data-testid="charity-empty">
+              <Heart className="w-10 h-10 text-rose-400/30 mx-auto mb-6" />
+              <p className="text-lg font-semibold text-white mb-2">Les gestes solidaires commencent ici</p>
+              <p className="text-sm text-slate-400 max-w-md mx-auto">
+                Dès que des garanties d'engagement seront traitées avec une part solidaire,
+                les montants reversés aux associations apparaîtront ici.
+              </p>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ── CTA Final (identique à Landing) ── */}
+      <section className="py-24 px-6 border-t border-white/5" data-testid="impact-cta-section">
+        <div className="max-w-2xl mx-auto text-center">
+          <p className="text-2xl sm:text-3xl font-bold tracking-tight text-white mb-4">
+            Faites de chaque absence un acte solidaire.
           </p>
-          <Link to="/" className="text-xs text-slate-500 hover:text-white flex items-center gap-1 transition-colors">
-            nlyt.app <ArrowRight className="w-3 h-3" />
+          <p className="text-sm text-slate-500 mb-10">
+            Créez votre premier engagement et protégez votre temps.
+          </p>
+          <Link to="/signup">
+            <Button size="lg" className="bg-white text-[#0A0A0B] hover:bg-slate-200 text-base px-8 h-13 font-semibold" data-testid="impact-cta-btn">
+              Créer un engagement solidaire <ArrowRight className="ml-2 w-4 h-4" />
+            </Button>
           </Link>
         </div>
-      </div>
+      </section>
+
+      {/* ── Footer (identique à Landing) ── */}
+      <footer className="border-t border-white/5 py-10 px-6">
+        <div className="max-w-6xl mx-auto flex items-center justify-between">
+          <p className="text-xs text-slate-600">© 2026 NLYT — Never Lose Your Time. Votre temps ne se perd plus.</p>
+          <p className="text-xs text-slate-600">
+            {data?.refreshed_at
+              ? `Mis à jour : ${new Date(data.refreshed_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}`
+              : 'Votre temps est compté. Ne le gaspillez pas.'}
+          </p>
+        </div>
+      </footer>
     </div>
   );
 }
