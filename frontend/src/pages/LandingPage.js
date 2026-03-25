@@ -24,9 +24,9 @@ export default function LandingPage() {
       {/* ── Nav ── */}
       <nav className="border-b border-white/5">
         <div className="max-w-6xl mx-auto px-6 lg:px-8 py-4 flex items-center justify-between">
-          <span className="text-xl font-bold tracking-tight text-white" data-testid="nav-logo">
-            <span className="tracking-[0.25em]">N <span className="mx-[2px]">·</span> L <span className="mx-[2px]">·</span> Y <span className="mx-[2px]">·</span> T</span>
-            <span className="block text-[9px] font-normal tracking-[0.2em] text-slate-500 uppercase">Never Lose Your Time</span>
+          <span className="text-white" data-testid="nav-logo">
+            <span className="block text-[10px] font-semibold tracking-[0.3em] text-slate-400">N · L · Y · T</span>
+            <span className="block text-base font-bold tracking-wide text-white">Never Lose Your Time</span>
           </span>
           <div className="flex items-center gap-3">
             <Link to="/impact">
