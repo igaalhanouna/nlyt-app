@@ -218,6 +218,19 @@ Les APIs calendrier (Google/Outlook) interprétaient la valeur comme heure local
 - **UX simplifiée** : formulaire Azure AD masqué derrière "Configuration avancée", message Outlook en priorité
 - Tests : 25/25 backend + 13/13 frontend (testing agent iteration_70)
 
+## Fix UX Teams non-pro accounts (Mars 2026)
+- **Bug** : L'encart Teams s'affichait en vert "actif" pour les comptes non-pro (standard) dans les Intégrations ET le wizard de création de RDV
+- **Fix Wizard** : `AppointmentWizard.js` — condition Teams changée de `p?.can_auto_generate` à `p?.level === 'advanced'`
+  - Auto-sélection : Teams n'est auto-sélectionné que pour `level === 'advanced'`
+  - Message adapté pour `standard` : "Réservé aux comptes Microsoft 365 Pro. Activez Teams avancé dans Paramètres > Intégrations."
+  - Confirmation auto-création : même logique `level === 'advanced'` pour Teams
+- **Fix Intégrations** : `Integrations.js` — carte Teams note utilise `teamsLevel === 'advanced'` pour l'état vert (déjà corrigé par l'agent précédent)
+- **Résultat** :
+  - `advanced` → Teams vert, sélectionnable, badge "Automatique"
+  - `standard` → Teams grisé, non-sélectionnable, message informatif
+  - `null` → Teams grisé, message "Connectez Outlook"
+- Tests : 17/17 frontend (testing agent iteration_71)
+
 ## Roadmap
 
 ### P1
