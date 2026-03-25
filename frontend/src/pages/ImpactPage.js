@@ -162,6 +162,32 @@ export default function ImpactPage() {
             </div>
           </section>
 
+          {/* ── Transparence (réassurance avant la preuve) ── */}
+          <section className="py-10 sm:py-16 px-4 sm:px-6 border-t border-white/5" data-testid="transparency-section">
+            <div className="max-w-3xl mx-auto">
+              <div className="p-4 sm:p-8 rounded-xl sm:rounded-2xl bg-white/[0.03] border border-white/5">
+                <div className="flex gap-3 sm:gap-4">
+                  <Info className="w-5 h-5 text-slate-500 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <h3 className="text-sm sm:text-base font-semibold text-white mb-2">Transparence sur les montants</h3>
+                    <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
+                      Les montants affichés sur cette page sont <strong className="text-white">reversés à des associations</strong> et accumulés
+                      sur la plateforme NLYT. Le transfert vers les associations n'a pas encore eu lieu.
+                    </p>
+                    <p className="text-xs sm:text-sm text-slate-400 leading-relaxed mt-2">
+                      Le <strong className="text-white">reversement automatique</strong> vers les associations partenaires sera implémenté dans une
+                      prochaine version de la plateforme. En attendant, chaque euro est comptabilisé et traçable.
+                    </p>
+                    <div className="flex items-center gap-1.5 mt-3 sm:mt-4">
+                      <Clock className="w-3.5 h-3.5 text-slate-500" />
+                      <span className="text-[10px] sm:text-xs text-slate-500 font-medium">Reversement automatique — bientôt disponible</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
           {/* ── Impact global (montant total proéminent + KPIs compacts) ── */}
           <section className="py-10 sm:py-20 px-4 sm:px-6 border-t border-white/5" data-testid="charity-kpis">
             <div className="max-w-3xl mx-auto">
@@ -310,32 +336,6 @@ export default function ImpactPage() {
               ) : (
                 <p className="text-sm text-slate-500">Aucun geste solidaire enregistré pour le moment.</p>
               )}
-            </div>
-          </section>
-
-          {/* ── Transparence (compact) ── */}
-          <section className="py-10 sm:py-16 px-4 sm:px-6 border-t border-white/5" data-testid="transparency-section">
-            <div className="max-w-3xl mx-auto">
-              <div className="p-4 sm:p-8 rounded-xl sm:rounded-2xl bg-white/[0.03] border border-white/5">
-                <div className="flex gap-3 sm:gap-4">
-                  <Info className="w-5 h-5 text-slate-500 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <h3 className="text-sm sm:text-base font-semibold text-white mb-2">Transparence sur les montants</h3>
-                    <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
-                      Les montants affichés sur cette page sont <strong className="text-white">reversés à des associations</strong> et accumulés
-                      sur la plateforme NLYT. Le transfert vers les associations n'a pas encore eu lieu.
-                    </p>
-                    <p className="text-xs sm:text-sm text-slate-400 leading-relaxed mt-2">
-                      Le <strong className="text-white">reversement automatique</strong> vers les associations partenaires sera implémenté dans une
-                      prochaine version de la plateforme. En attendant, chaque euro est comptabilisé et traçable.
-                    </p>
-                    <div className="flex items-center gap-1.5 mt-3 sm:mt-4">
-                      <Clock className="w-3.5 h-3.5 text-slate-500" />
-                      <span className="text-[10px] sm:text-xs text-slate-500 font-medium">Reversement automatique — bientôt disponible</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
             </div>
           </section>
 
