@@ -506,7 +506,7 @@ def create_appointments(users):
             if status == "active" and start_dt < NOW:
                 p_status = random.choices(
                     ["accepted_guaranteed", "accepted_pending_guarantee", "cancelled_by_participant"],
-                    weights=[55, 25, 20])[0]
+                    weights=[75, 15, 10])[0]
             elif status == "active":
                 p_status = random.choices(
                     ["accepted_guaranteed", "accepted_pending_guarantee", "invited"],
@@ -570,6 +570,10 @@ def create_appointments(users):
 
     # ─── CATEGORY 2: Past evaluated (60) ──────────────────
     log.info("    Passés évalués (60)...")
+    # Budget no-show: 15-20% of total apts (142) = 21-28
+    no_show_target = random.randint(22, 27)
+    no_show_count = 0
+
     for _ in range(60):
         org = random.choice(organizers)
         t = random.choice(APPOINTMENT_TITLES)
@@ -591,7 +595,12 @@ def create_appointments(users):
                  and p["status"] == "accepted_guaranteed"]
         summary = {"on_time": 0, "late": 0, "no_show": 0, "waived": 0, "manual_review": 0}
         for p in parts:
-            outcome = random.choices(["on_time", "late", "no_show"], weights=[60, 25, 15])[0]
+            # Force no-show if budget remains, with diminishing probability
+            budget_remaining = no_show_target - no_show_count
+            if budget_remaining > 0 and random.random() < (budget_remaining / max(1, no_show_target)):
+                outcome = "no_show"
+            else:
+                outcome = random.choices(["on_time", "late"], weights=[70, 30])[0]
             summary[outcome] += 1
             all_attendance.append({
                 **DEMO_MARKER,
@@ -608,6 +617,7 @@ def create_appointments(users):
             })
             if outcome == "no_show" and p.get("_guarantee_doc"):
                 create_distribution_for_noshow(apt, p, p["_guarantee_doc"])
+                no_show_count += 1
 
         apt["attendance_summary"] = summary
 
