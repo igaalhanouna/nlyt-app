@@ -452,7 +452,10 @@ export default function OrganizerDashboard() {
       <nav className="bg-white border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-8">
-            <h1 className="text-2xl font-bold text-slate-900">NLYT</h1>
+            <div>
+              <span className="block text-lg font-bold tracking-[0.35em] text-slate-900">N<span className="text-slate-400">·</span>L<span className="text-slate-400">·</span>Y<span className="text-slate-400">·</span>T</span>
+              <span className="block text-[10px] font-medium tracking-[0.25em] text-slate-400 uppercase">Never Lose Your Time</span>
+            </div>
             <div className="flex items-center gap-6">
               <Link to="/dashboard" className="text-sm font-medium text-slate-900">Tableau de bord</Link>
             </div>
