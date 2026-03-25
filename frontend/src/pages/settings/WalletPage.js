@@ -713,7 +713,10 @@ export default function WalletPage() {
 
         <div className="flex items-center gap-3 mb-1">
           <Wallet className="w-6 h-6 text-slate-700" />
-          <h1 className="text-xl font-bold text-slate-900">Mon Wallet NLYT</h1>
+          <div>
+            <span className="block text-lg font-bold tracking-[0.35em] text-slate-900">N<span className="text-slate-400">·</span>L<span className="text-slate-400">·</span>Y<span className="text-slate-400">·</span>T</span>
+            <span className="block text-[10px] font-medium tracking-[0.25em] text-slate-400 uppercase">Never Lose Your Time</span>
+          </div>
         </div>
         <p className="text-xs text-slate-500 mb-6">Vos fonds internes, distributions reçues et compte de paiement</p>
 

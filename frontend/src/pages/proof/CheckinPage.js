@@ -262,7 +262,7 @@ export default function CheckinPage() {
         <div className="bg-slate-900 px-6 py-5 text-white text-center">
           <Shield className="w-8 h-8 mx-auto mb-2 text-blue-400" />
           <h1 className="text-lg font-bold">Preuve de présence</h1>
-          <p className="text-xs text-slate-300 mt-1">NLYT — Système de vérification</p>
+          <p className="text-xs text-slate-300 mt-1">N·L·Y·T — Système de vérification</p>
         </div>
 
         <div className="p-6 space-y-4">

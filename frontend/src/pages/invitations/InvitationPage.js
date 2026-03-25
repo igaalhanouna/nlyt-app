@@ -805,7 +805,10 @@ export default function InvitationPage() {
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-slate-800 mb-2">NLYT</h1>
+          <div className="mb-2">
+            <span className="block text-lg font-bold tracking-[0.35em] text-slate-800">N<span className="text-slate-400">·</span>L<span className="text-slate-400">·</span>Y<span className="text-slate-400">·</span>T</span>
+            <span className="block text-[10px] font-medium tracking-[0.25em] text-slate-400 uppercase">Never Lose Your Time</span>
+          </div>
           <p className="text-slate-600">Rendez-vous avec engagement solidaire</p>
         </div>
 
@@ -1366,7 +1369,7 @@ export default function InvitationPage() {
         {/* Footer */}
         <div className="text-center mt-8 text-sm text-slate-500">
           <p>Besoin d'aide ? Contactez l'organisateur directement.</p>
-          <p className="mt-2">© 2026 NLYT. Tous droits réservés.</p>
+          <p className="mt-2">© 2026 N·L·Y·T — Never Lose Your Time. Tous droits réservés.</p>
         </div>
       </div>
 

@@ -7,8 +7,13 @@ export default function Settings() {
   return (
     <div className="min-h-screen bg-background p-8">
       <div className="max-w-4xl mx-auto">
-        <Link to="/dashboard"><Button variant="ghost" className="mb-6"><ArrowLeft className="w-4 h-4 mr-2" />Retour</Button></Link>
-        <h1 className="text-3xl font-bold mb-8">Paramètres</h1>
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <span className="block text-lg font-bold tracking-[0.35em] text-slate-900">N<span className="text-slate-400">·</span>L<span className="text-slate-400">·</span>Y<span className="text-slate-400">·</span>T</span>
+            <span className="block text-[10px] font-medium tracking-[0.25em] text-slate-400 uppercase">Never Lose Your Time</span>
+          </div>
+          <h1 className="text-3xl font-bold">Paramètres</h1>
+        </div>
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
           <Link to="/settings/profile" className="p-6 bg-white rounded-lg border border-slate-200 hover:border-slate-300 transition-colors" data-testid="settings-profile-link">
             <User className="w-8 h-8 text-slate-700 mb-3" />
