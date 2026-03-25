@@ -62,7 +62,7 @@ export default function LandingPage() {
               N<span className="text-white/60">·</span>L<span className="text-white/60">·</span>Y<span className="text-white/60">·</span>T
             </p>
             <p className="text-xs tracking-[0.3em] uppercase text-slate-500 font-medium">
-              Never Lose Your Time
+              Créateur d'engagements solidaires
             </p>
           </div>
           <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.05] mb-8" data-testid="hero-title">
