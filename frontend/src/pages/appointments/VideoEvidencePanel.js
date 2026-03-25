@@ -64,10 +64,10 @@ export default function VideoEvidencePanel({
 
   return (
     <div className="bg-white rounded-lg border border-slate-200 p-6 mt-6" data-testid="video-evidence-section">
-      <div className="flex items-center justify-between mb-5">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-5">
+        <div className="flex items-center gap-2 flex-wrap">
           <Monitor className="w-5 h-5 text-indigo-700" />
-          <h2 className="text-lg font-semibold text-slate-900">Preuves de présence visio</h2>
+          <h2 className="text-base sm:text-lg font-semibold text-slate-900">Preuves de présence visio</h2>
           {appointment.meeting_provider && (
             <span className={`text-xs px-2 py-0.5 rounded-full ${getProviderIcon(appointment.meeting_provider).bg} ${getProviderIcon(appointment.meeting_provider).color} font-medium`}>
               {getProviderIcon(appointment.meeting_provider).label}
@@ -76,8 +76,8 @@ export default function VideoEvidencePanel({
         </div>
         <div className="flex gap-2">
           {!appointment.meeting_join_url && appointment.meeting_provider && (
-            <Button variant="default" size="sm" onClick={onCreateMeeting} disabled={creatingMeeting} data-testid="create-meeting-btn">
-              {creatingMeeting ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <PlayCircle className="w-4 h-4 mr-1" />}
+            <Button variant="default" size="sm" onClick={onCreateMeeting} disabled={creatingMeeting} className="whitespace-normal h-auto min-h-[36px]" data-testid="create-meeting-btn">
+              {creatingMeeting ? <Loader2 className="w-4 h-4 animate-spin mr-1 flex-shrink-0" /> : <PlayCircle className="w-4 h-4 mr-1 flex-shrink-0" />}
               Créer la réunion
             </Button>
           )}
@@ -88,8 +88,8 @@ export default function VideoEvidencePanel({
       <div className="mb-5" data-testid="video-evidence-action-bar">
         {hasAutoFetch ? (
           <div className={`rounded-lg border p-4 ${hasEvidence ? 'bg-emerald-50 border-emerald-200' : isMeetingEnded ? 'bg-blue-50 border-blue-200' : 'bg-slate-50 border-slate-200'}`}>
-            <div className="flex items-center justify-between">
-              <div>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="min-w-0">
                 {hasEvidence ? (
                   <p className="text-sm font-medium text-emerald-800" data-testid="evidence-status-fetched">Présences récupérées via {providerLabel}</p>
                 ) : isMeetingEnded ? (
@@ -104,15 +104,15 @@ export default function VideoEvidencePanel({
                   </>
                 )}
               </div>
-              <div className="flex gap-2 ml-4 shrink-0">
+              <div className="flex flex-wrap gap-2">
                 {appointment.meeting_join_url && (
-                  <Button variant={isMeetingEnded && !hasEvidence ? 'default' : 'outline'} size="sm" onClick={onFetchAttendance} disabled={fetchingAttendance} data-testid="fetch-attendance-btn">
-                    {fetchingAttendance ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <RefreshCw className="w-4 h-4 mr-1" />}
+                  <Button variant={isMeetingEnded && !hasEvidence ? 'default' : 'outline'} size="sm" onClick={onFetchAttendance} disabled={fetchingAttendance} className="whitespace-normal text-left h-auto min-h-[36px]" data-testid="fetch-attendance-btn">
+                    {fetchingAttendance ? <Loader2 className="w-4 h-4 animate-spin mr-1 flex-shrink-0" /> : <RefreshCw className="w-4 h-4 mr-1 flex-shrink-0" />}
                     Récupérer les présences
                   </Button>
                 )}
-                <Button variant="outline" size="sm" onClick={() => setShowVideoIngest(!showVideoIngest)} data-testid="toggle-video-ingest-btn">
-                  <Upload className="w-4 h-4 mr-1" />
+                <Button variant="outline" size="sm" onClick={() => setShowVideoIngest(!showVideoIngest)} className="whitespace-normal text-left h-auto min-h-[36px]" data-testid="toggle-video-ingest-btn">
+                  <Upload className="w-4 h-4 mr-1 flex-shrink-0" />
                   Import manuel
                 </Button>
               </div>
@@ -150,8 +150,8 @@ export default function VideoEvidencePanel({
           </div>
         ) : (
           <div className={`rounded-lg border p-4 ${hasEvidence ? 'bg-emerald-50 border-emerald-200' : 'bg-amber-50 border-amber-200'}`}>
-            <div className="flex items-center justify-between">
-              <div>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="min-w-0">
                 {hasEvidence ? (
                   <p className="text-sm font-medium text-emerald-800" data-testid="evidence-status-fetched">Présences importées pour {providerLabel}</p>
                 ) : (
@@ -161,12 +161,12 @@ export default function VideoEvidencePanel({
                   </>
                 )}
               </div>
-              <div className="ml-4 shrink-0">
+              <div className="flex-shrink-0">
                 <Button variant={!hasEvidence ? 'default' : 'outline'} size="sm"
                   onClick={() => setShowVideoIngest(!showVideoIngest)}
-                  className={!hasEvidence ? 'bg-amber-600 hover:bg-amber-700' : ''}
+                  className={`whitespace-normal h-auto min-h-[36px] ${!hasEvidence ? 'bg-amber-600 hover:bg-amber-700' : ''}`}
                   data-testid="toggle-video-ingest-btn">
-                  <Upload className="w-4 h-4 mr-1" />
+                  <Upload className="w-4 h-4 mr-1 flex-shrink-0" />
                   Importer le rapport de présence
                 </Button>
               </div>
