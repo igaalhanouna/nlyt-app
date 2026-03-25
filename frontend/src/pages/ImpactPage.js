@@ -142,6 +142,32 @@ export default function ImpactPage() {
             </div>
           </section>
 
+          {/* ── Transparence ── */}
+          <section className="py-20 px-6 border-t border-white/5" data-testid="transparency-section">
+            <div className="max-w-3xl mx-auto">
+              <div className="p-8 rounded-2xl bg-white/[0.03] border border-white/5">
+                <div className="flex gap-4">
+                  <Info className="w-5 h-5 text-slate-500 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <h3 className="text-base font-semibold text-white mb-2">Transparence sur les montants</h3>
+                    <p className="text-sm text-slate-400 leading-relaxed">
+                      Les montants affichés sur cette page sont <strong className="text-white">reversés à des associations</strong> et accumulés
+                      sur la plateforme NLYT. Le transfert vers les associations n'a pas encore eu lieu.
+                    </p>
+                    <p className="text-sm text-slate-400 leading-relaxed mt-2">
+                      Le <strong className="text-white">reversement automatique</strong> vers les associations partenaires sera implémenté dans une
+                      prochaine version de la plateforme. En attendant, chaque euro est comptabilisé et traçable.
+                    </p>
+                    <div className="flex items-center gap-1.5 mt-4">
+                      <Clock className="w-3.5 h-3.5 text-slate-500" />
+                      <span className="text-xs text-slate-500 font-medium">Reversement automatique — bientôt disponible</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
           {/* ── Associations bénéficiaires ── */}
           {associations.length > 0 && (
             <section className="py-20 px-6 border-t border-white/5" data-testid="associations-section">
@@ -266,32 +292,6 @@ export default function ImpactPage() {
                   <div>
                     <p className="text-base font-semibold text-white mb-1">Gestes solidaires cumulés</p>
                     <p className="text-sm text-slate-400">Les montants reversés sont comptabilisés et traçables. Le reversement automatique sera bientôt disponible.</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* ── Transparence ── */}
-          <section className="py-20 px-6 border-t border-white/5" data-testid="transparency-section">
-            <div className="max-w-3xl mx-auto">
-              <div className="p-8 rounded-2xl bg-white/[0.03] border border-white/5">
-                <div className="flex gap-4">
-                  <Info className="w-5 h-5 text-slate-500 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <h3 className="text-base font-semibold text-white mb-2">Transparence sur les montants</h3>
-                    <p className="text-sm text-slate-400 leading-relaxed">
-                      Les montants affichés sur cette page sont <strong className="text-white">reversés à des associations</strong> et accumulés
-                      sur la plateforme NLYT. Le transfert vers les associations n'a pas encore eu lieu.
-                    </p>
-                    <p className="text-sm text-slate-400 leading-relaxed mt-2">
-                      Le <strong className="text-white">reversement automatique</strong> vers les associations partenaires sera implémenté dans une
-                      prochaine version de la plateforme. En attendant, chaque euro est comptabilisé et traçable.
-                    </p>
-                    <div className="flex items-center gap-1.5 mt-4">
-                      <Clock className="w-3.5 h-3.5 text-slate-500" />
-                      <span className="text-xs text-slate-500 font-medium">Reversement automatique — bientôt disponible</span>
-                    </div>
                   </div>
                 </div>
               </div>
