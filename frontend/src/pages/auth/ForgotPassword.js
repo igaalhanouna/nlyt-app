@@ -64,16 +64,16 @@ export default function ForgotPassword() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="mt-1"
+                  className="mt-1 h-11 sm:h-9"
                 />
               </div>
 
-              <Button type="submit" className="w-full" disabled={loading} data-testid="forgot-submit-btn">
+              <Button type="submit" className="w-full min-h-[44px] sm:min-h-0" disabled={loading} data-testid="forgot-submit-btn">
                 {loading ? 'Envoi...' : 'Envoyer le lien'}
               </Button>
 
               <div className="text-center">
-                <Link to="/signin" className="text-sm text-blue-600 hover:text-blue-800 hover:underline font-medium">
+                <Link to="/signin" className="inline-flex items-center min-h-[44px] sm:min-h-0 text-sm text-blue-600 hover:text-blue-800 hover:underline font-medium">
                   Retour à la connexion
                 </Link>
               </div>

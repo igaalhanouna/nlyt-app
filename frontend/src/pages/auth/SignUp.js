@@ -111,7 +111,7 @@ export default function SignUp() {
                   onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
                   required
                   disabled={!!unverifiedEmail}
-                  className="mt-1"
+                  className="mt-1 h-11 sm:h-9"
                 />
               </div>
               <div>
@@ -123,7 +123,7 @@ export default function SignUp() {
                   onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
                   required
                   disabled={!!unverifiedEmail}
-                  className="mt-1"
+                  className="mt-1 h-11 sm:h-9"
                 />
               </div>
             </div>
@@ -138,7 +138,7 @@ export default function SignUp() {
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 required
                 disabled={!!unverifiedEmail}
-                className="mt-1"
+                className="mt-1 h-11 sm:h-9"
               />
             </div>
 
@@ -151,7 +151,7 @@ export default function SignUp() {
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                 disabled={!!unverifiedEmail}
-                className="mt-1"
+                className="mt-1 h-11 sm:h-9"
               />
             </div>
 
@@ -165,12 +165,12 @@ export default function SignUp() {
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 required
                 disabled={!!unverifiedEmail}
-                className="mt-1"
+                className="mt-1 h-11 sm:h-9"
               />
             </div>
 
             {!unverifiedEmail && (
-              <Button type="submit" className="w-full" disabled={loading} data-testid="signup-submit-btn">
+              <Button type="submit" className="w-full min-h-[44px] sm:min-h-0" disabled={loading} data-testid="signup-submit-btn">
                 {loading ? 'Création...' : 'Créer mon compte'}
               </Button>
             )}
@@ -178,7 +178,7 @@ export default function SignUp() {
 
           <div className="mt-6 text-center text-sm text-slate-600">
             Déjà un compte ?{' '}
-            <Link to="/signin" className="text-blue-600 hover:text-blue-800 hover:underline font-semibold">
+            <Link to="/signin" className="inline-flex items-center min-h-[44px] sm:min-h-0 text-blue-600 hover:text-blue-800 hover:underline font-semibold">
               Se connecter
             </Link>
           </div>

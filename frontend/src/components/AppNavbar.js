@@ -74,7 +74,7 @@ export default function AppNavbar() {
           {/* Mobile hamburger */}
           <button
             onClick={() => setMobileOpen(true)}
-            className="md:hidden flex items-center justify-center w-10 h-10 rounded-lg text-slate-600 hover:bg-slate-100 active:bg-slate-200 transition-colors"
+            className="md:hidden flex items-center justify-center w-11 h-11 rounded-lg text-slate-600 hover:bg-slate-100 active:bg-slate-200 transition-colors"
             data-testid="navbar-mobile-menu-btn"
             aria-label="Menu"
           >

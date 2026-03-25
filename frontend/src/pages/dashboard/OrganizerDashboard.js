@@ -119,11 +119,11 @@ function PriorityCard({ appointment, onRemind }) {
         </div>
       </div>
       <div className="flex items-center gap-2 mt-2 md:mt-0">
-        <Button size="sm" variant="outline" className="h-9 md:h-7 text-xs flex-1 md:flex-none border-red-200 text-red-600 hover:bg-red-50" onClick={(e) => { e.stopPropagation(); onRemind(appointment); }} data-testid={`remind-priority-${appointment.appointment_id}`}>
+        <Button size="sm" variant="outline" className="h-11 md:h-7 text-xs flex-1 md:flex-none border-red-200 text-red-600 hover:bg-red-50" onClick={(e) => { e.stopPropagation(); onRemind(appointment); }} data-testid={`remind-priority-${appointment.appointment_id}`}>
           <Bell className="w-3.5 h-3.5 mr-1.5" /> Relancer
         </Button>
         <Link to={`/appointments/${appointment.appointment_id}`} className="flex-1 md:flex-none">
-          <Button size="sm" variant="ghost" className="h-9 md:h-7 text-xs w-full" data-testid={`view-priority-${appointment.appointment_id}`}>
+          <Button size="sm" variant="ghost" className="h-11 md:h-7 text-xs w-full" data-testid={`view-priority-${appointment.appointment_id}`}>
             <Eye className="w-3.5 h-3.5 mr-1.5" /> Voir
           </Button>
         </Link>
@@ -219,7 +219,7 @@ function EngagementCard({ appointment, isPast, onDelete, onRemind, now }) {
       {/* Actions row */}
       <div className="flex items-center gap-2 px-4 pb-3 pt-1">
         <Link to={`/appointments/${appointment.appointment_id}`} className="flex-1 md:flex-none">
-          <Button size="sm" variant="outline" className="h-9 md:h-7 text-xs w-full md:w-auto" data-testid={`view-details-${appointment.appointment_id}`}>
+          <Button size="sm" variant="outline" className="h-11 md:h-7 text-xs w-full md:w-auto" data-testid={`view-details-${appointment.appointment_id}`}>
             <Eye className="w-3.5 h-3.5 mr-1.5" /> Voir détails
           </Button>
         </Link>
@@ -227,7 +227,7 @@ function EngagementCard({ appointment, isPast, onDelete, onRemind, now }) {
           <Button
             size="sm"
             variant="outline"
-            className="h-9 md:h-7 text-xs flex-1 md:flex-none border-amber-200 text-amber-700 hover:bg-amber-50"
+            className="h-11 md:h-7 text-xs flex-1 md:flex-none border-amber-200 text-amber-700 hover:bg-amber-50"
             onClick={(e) => { e.preventDefault(); e.stopPropagation(); onRemind(appointment); }}
             data-testid={`remind-btn-${appointment.appointment_id}`}
           >
@@ -236,7 +236,7 @@ function EngagementCard({ appointment, isPast, onDelete, onRemind, now }) {
         )}
         <button
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDelete(appointment); }}
-          className="ml-auto p-2.5 md:p-1.5 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors"
+          className="ml-auto flex items-center justify-center w-11 h-11 md:w-auto md:h-auto md:p-1.5 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-lg md:rounded transition-colors"
           title="Supprimer"
           data-testid={`delete-appointment-${appointment.appointment_id}`}
         >
@@ -536,7 +536,7 @@ export default function OrganizerDashboard() {
             </div>
           ) : (
             <Tabs defaultValue="upcoming">
-              <TabsList className="mb-6 w-full md:w-auto">
+              <TabsList className="mb-6 w-full md:w-auto h-11 md:h-9">
                 <TabsTrigger value="upcoming" data-testid="tab-upcoming" className="px-2 md:px-3 text-xs md:text-sm">
                   <Calendar className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1 md:mr-1.5" />
                   À venir

@@ -110,7 +110,7 @@ export default function SignIn() {
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 required
-                className="mt-1"
+                className="mt-1 h-11 sm:h-9"
               />
             </div>
 
@@ -123,24 +123,24 @@ export default function SignIn() {
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 required
-                className="mt-1"
+                className="mt-1 h-11 sm:h-9"
               />
             </div>
 
             <div className="text-right">
-              <Link to="/forgot-password" className="text-sm text-blue-600 hover:text-blue-800 hover:underline font-medium" data-testid="forgot-password-link">
+              <Link to="/forgot-password" className="inline-flex items-center min-h-[44px] sm:min-h-0 text-sm text-blue-600 hover:text-blue-800 hover:underline font-medium" data-testid="forgot-password-link">
                 Mot de passe oublié ?
               </Link>
             </div>
 
-            <Button type="submit" className="w-full" disabled={loading} data-testid="signin-submit-btn">
+            <Button type="submit" className="w-full min-h-[44px] sm:min-h-0" disabled={loading} data-testid="signin-submit-btn">
               {loading ? 'Connexion...' : 'Se connecter'}
             </Button>
           </form>
 
           <div className="mt-6 text-center text-sm text-slate-600">
             Pas encore de compte ?{' '}
-            <Link to="/signup" className="text-blue-600 hover:text-blue-800 hover:underline font-semibold">
+            <Link to="/signup" className="inline-flex items-center min-h-[44px] sm:min-h-0 text-blue-600 hover:text-blue-800 hover:underline font-semibold">
               Créer un compte
             </Link>
           </div>
