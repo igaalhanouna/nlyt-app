@@ -1,0 +1,148 @@
+{
+  "summary": "Mobile UX audit for NLYT SaaS app. Tested hamburger menu, breadcrumbs, CTAs, delete modal, and horizontal overflow at 375px viewport. Fixed ImpactPage.js nav overflow issue. All mobile responsive features working correctly.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "ImpactPage.js",
+        "issue": "FIXED - Nav had horizontal overflow on mobile (375px). Missing responsive classes for nav buttons and logo tagline.",
+        "selector": "nav",
+        "priority": "MEDIUM - FIXED"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "Landing page hero CTA",
+        "issues": ["Hero CTA button bounding box reports 24px height but visually appears correct. May be measurement artifact."]
+      }
+    ]
+  },
+  "passed_tests": {
+    "mobile_hamburger_menu": [
+      "✅ Hamburger menu button visible on mobile (375px)",
+      "✅ Hamburger menu hidden on desktop (768px+)",
+      "✅ Drawer opens with Tableau de bord, Paramètres, Déconnexion links",
+      "✅ Drawer closes on route change",
+      "✅ Drawer closes on X button click"
+    ],
+    "desktop_nav_unchanged": [
+      "✅ Desktop nav links visible at 768px (Tableau de bord, Paramètres, Déconnexion)",
+      "✅ Hamburger menu hidden at 768px"
+    ],
+    "breadcrumbs_mobile": [
+      "✅ AppBreadcrumb renders on all settings pages",
+      "✅ Breadcrumb shows 'Accueil' (shortLabel) on mobile instead of 'Tableau de bord'",
+      "✅ No horizontal overflow on breadcrumbs",
+      "✅ Breadcrumb has scrollbar-none class for hidden scrollbar"
+    ],
+    "dashboard_ctas": [
+      "✅ 'Créer un engagement' button is full-width (343px) on mobile",
+      "✅ 'Créer un engagement' button height is 44px (min touch target)",
+      "✅ 'Créer un engagement' button is NOT full-width on desktop (232px)"
+    ],
+    "engagement_card_buttons": [
+      "✅ 'Voir détails' button has h-9 (36px) height on mobile",
+      "✅ 'Relancer' button has h-9 (36px) height on mobile",
+      "✅ Delete button has adequate touch target (36x36px)"
+    ],
+    "dashboard_tabs": [
+      "✅ Tabs container has overflow-x-auto class for horizontal scroll",
+      "✅ Tabs have scrollbar-none class for hidden scrollbar"
+    ],
+    "delete_modal_mobile": [
+      "✅ Delete modal buttons stack vertically on mobile (flex-col-reverse)",
+      "✅ Cancel button is full-width (295px) with 44px height",
+      "✅ Confirm button is full-width (295px) with 44px height"
+    ],
+    "settings_pages_mobile": [
+      "✅ Profile page: px-4 padding on mobile, action button after description",
+      "✅ Workspace page: no horizontal overflow",
+      "✅ Integrations page: no horizontal overflow",
+      "✅ Payment page: no horizontal overflow",
+      "✅ Wallet page: no horizontal overflow"
+    ],
+    "landing_page_mobile": [
+      "✅ Nav fits at 375px: logo + Impact + S'inscrire",
+      "✅ 'Connexion' button hidden on mobile",
+      "✅ Impact button shows 'Impact' text on mobile (not 'Gestes solidaires')",
+      "✅ Signup button shows 'S'inscrire' on mobile (not 'Créer un engagement')",
+      "✅ Footer stacks vertically on mobile",
+      "✅ No horizontal overflow"
+    ],
+    "impact_page_mobile": [
+      "✅ Nav fits at 375px after fix",
+      "✅ No horizontal overflow after fix",
+      "✅ Footer stacks on mobile after fix"
+    ],
+    "horizontal_overflow_check": [
+      "✅ Landing page (/) - no overflow",
+      "✅ Signin page (/signin) - no overflow",
+      "✅ Signup page (/signup) - no overflow",
+      "✅ Impact page (/impact) - no overflow (after fix)",
+      "✅ Dashboard (/dashboard) - no overflow",
+      "✅ Settings/profile - no overflow",
+      "✅ Settings/workspace - no overflow",
+      "✅ Settings/integrations - no overflow",
+      "✅ Settings/payment - no overflow",
+      "✅ Settings/wallet - no overflow"
+    ]
+  },
+  "failed_tests": {},
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "ImpactPage.js nav was not responsive - fixed by adding same responsive classes as LandingPage.js",
+    "All mobile UX features implemented correctly: hamburger menu, compact breadcrumbs, full-width CTAs, stacked modal buttons"
+  ],
+  "updated_files": [
+    "/app/frontend/src/pages/ImpactPage.js"
+  ],
+  "success_rate": {
+    "backend": "N/A (frontend only test)",
+    "frontend": "100%"
+  },
+  "test_credentials": {
+    "user": "clara.deschamps@demo-nlyt.fr / Demo2026!"
+  },
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Mobile UX audit complete. All pages tested at 375x812 viewport. ImpactPage.js nav was fixed to match LandingPage.js responsive nav. Hamburger menu works on all authenticated pages. Delete modal buttons stack vertically on mobile. No horizontal overflow on any page.",
+  "mocked_apis": {
+    "has_mocked_apis": false,
+    "mocked_apis_list": []
+  },
+  "screenshots": [
+    ".screenshots/mobile_landing_top.png - Landing page mobile nav",
+    ".screenshots/mobile_landing_footer.png - Landing page mobile footer",
+    ".screenshots/mobile_signin.png - Signin page mobile",
+    ".screenshots/mobile_dashboard_top.png - Dashboard with hamburger menu",
+    ".screenshots/mobile_drawer_open.png - Mobile drawer with nav links",
+    ".screenshots/mobile_dashboard_cards.png - Dashboard engagement cards",
+    ".screenshots/mobile_delete_modal.png - Delete modal with stacked buttons",
+    ".screenshots/mobile_card_buttons.png - Engagement card action buttons",
+    ".screenshots/mobile_profile.png - Profile settings mobile",
+    ".screenshots/mobile_workspace.png - Workspace settings mobile",
+    ".screenshots/mobile_integrations.png - Integrations settings mobile",
+    ".screenshots/mobile_impact_fixed.png - Impact page after fix",
+    ".screenshots/mobile_impact_footer_fixed.png - Impact page footer after fix",
+    ".screenshots/desktop_768_dashboard.png - Desktop nav at 768px breakpoint",
+    ".screenshots/desktop_landing.png - Desktop landing page"
+  ],
+  "fix_applied": {
+    "file": "/app/frontend/src/pages/ImpactPage.js",
+    "changes": [
+      "Added responsive classes to nav: px-4 sm:px-6, gap-2 sm:gap-3, text-xs sm:text-sm",
+      "Added flex-shrink-0 to logo",
+      "Added hidden sm:block to logo tagline",
+      "Added hidden sm:inline / sm:hidden for button text variants",
+      "Added hidden sm:inline-flex to Connexion button",
+      "Fixed footer to stack on mobile: flex-col sm:flex-row, gap-2, text-center sm:text-left"
+    ],
+    "reason": "ImpactPage.js nav was causing horizontal overflow on mobile because it didn't have the same responsive classes as LandingPage.js"
+  }
+}

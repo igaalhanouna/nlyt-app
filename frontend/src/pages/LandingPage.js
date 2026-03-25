@@ -23,23 +23,23 @@ export default function LandingPage() {
     <div className="min-h-screen bg-[#0A0A0B] text-white">
       {/* ── Nav ── */}
       <nav className="border-b border-white/5">
-        <div className="max-w-6xl mx-auto px-6 lg:px-8 py-4 flex items-center justify-between">
-          <span className="text-white" data-testid="nav-logo">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
+          <span className="text-white flex-shrink-0" data-testid="nav-logo">
             <span className="block text-lg font-bold tracking-[0.35em] text-white">N<span className="text-white/60">·</span>L<span className="text-white/60">·</span>Y<span className="text-white/60">·</span>T</span>
-            <span className="block text-[10px] font-medium tracking-[0.25em] text-slate-500 uppercase">Never Lose Your Time</span>
+            <span className="block text-[10px] font-medium tracking-[0.25em] text-slate-500 uppercase hidden sm:block">Never Lose Your Time</span>
           </span>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <Link to="/impact">
-              <Button variant="ghost" className="text-slate-400 hover:text-white hover:bg-white/5 h-9 text-sm" data-testid="nav-impact-btn">
-                <Heart className="w-3.5 h-3.5 mr-1.5 text-rose-400" />Gestes solidaires
+              <Button variant="ghost" className="text-slate-400 hover:text-white hover:bg-white/5 h-9 text-xs sm:text-sm px-2 sm:px-3" data-testid="nav-impact-btn">
+                <Heart className="w-3.5 h-3.5 mr-1 text-rose-400" /><span className="hidden sm:inline">Gestes solidaires</span><span className="sm:hidden">Impact</span>
               </Button>
             </Link>
             <Link to="/signin">
-              <Button variant="ghost" className="text-slate-400 hover:text-white hover:bg-white/5 h-9 text-sm" data-testid="nav-signin-btn">Connexion</Button>
+              <Button variant="ghost" className="text-slate-400 hover:text-white hover:bg-white/5 h-9 text-xs sm:text-sm px-2 sm:px-3 hidden sm:inline-flex" data-testid="nav-signin-btn">Connexion</Button>
             </Link>
             <Link to="/signup">
-              <Button className="bg-white text-[#0A0A0B] hover:bg-slate-200 h-9 text-sm font-semibold" data-testid="nav-signup-btn">
-                Créer un engagement
+              <Button className="bg-white text-[#0A0A0B] hover:bg-slate-200 h-9 text-xs sm:text-sm font-semibold px-3 sm:px-4" data-testid="nav-signup-btn">
+                <span className="hidden sm:inline">Créer un engagement</span><span className="sm:hidden">S'inscrire</span>
               </Button>
             </Link>
           </div>
@@ -47,7 +47,7 @@ export default function LandingPage() {
       </nav>
 
       {/* ── Hero ── */}
-      <section className="pt-16 pb-20 px-6" data-testid="hero-section">
+      <section className="pt-12 sm:pt-16 pb-16 sm:pb-20 px-4 sm:px-6" data-testid="hero-section">
         <div className="max-w-3xl mx-auto text-center">
           <div className="mb-24">
             <p className="text-2xl sm:text-3xl font-bold tracking-[0.4em] text-white mb-2">
@@ -100,9 +100,9 @@ export default function LandingPage() {
       </section>
 
       {/* ── Comment ça marche ── */}
-      <section className="py-20 px-6 border-t border-white/5" data-testid="how-section">
+      <section className="py-16 sm:py-20 px-4 sm:px-6 border-t border-white/5" data-testid="how-section">
         <div className="max-w-3xl mx-auto">
-          <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-center mb-16">Comment ça marche</h2>
+          <h2 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight text-center mb-10 sm:mb-16">Comment ça marche</h2>
           <div className="space-y-12">
             <div className="flex gap-6 items-start">
               <div className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center flex-shrink-0">
@@ -137,7 +137,7 @@ export default function LandingPage() {
 
       {/* ── Preuve sociale / Compteur ── */}
       {impactCents > 0 && (
-        <section className="py-20 px-6 border-t border-white/5" data-testid="proof-section">
+        <section className="py-16 sm:py-20 px-4 sm:px-6 border-t border-white/5" data-testid="proof-section">
           <div className="max-w-3xl mx-auto text-center">
             <Heart className="w-5 h-5 text-rose-400 mx-auto mb-6" />
             <p className="text-4xl sm:text-5xl font-bold tracking-tight text-white mb-3" data-testid="proof-amount">
@@ -154,7 +154,7 @@ export default function LandingPage() {
       )}
 
       {/* ── Cas d'usage ── */}
-      <section className="py-20 px-6 border-t border-white/5" data-testid="usecases-section">
+      <section className="py-16 sm:py-20 px-4 sm:px-6 border-t border-white/5" data-testid="usecases-section">
         <div className="max-w-3xl mx-auto text-center">
           <h2 className="text-2xl sm:text-3xl font-bold tracking-tight mb-4">Pour tous ceux dont le temps compte</h2>
           <p className="text-sm text-slate-400 mb-12">Coachs, consultants, thérapeutes, avocats, recruteurs, freelances...</p>
@@ -179,16 +179,16 @@ export default function LandingPage() {
       </section>
 
       {/* ── CTA Final ── */}
-      <section className="py-24 px-6 border-t border-white/5" data-testid="cta-section">
+      <section className="py-16 sm:py-24 px-4 sm:px-6 border-t border-white/5" data-testid="cta-section">
         <div className="max-w-2xl mx-auto text-center">
-          <p className="text-2xl sm:text-3xl font-bold tracking-tight text-white mb-4">
+          <p className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight text-white mb-4">
             Chaque occasion perdue devient une possibilité de faire une bonne action.
           </p>
-          <p className="text-sm text-slate-500 mb-10">
+          <p className="text-sm text-slate-500 mb-8 sm:mb-10">
             Votre temps est garanti. Faites en profiter qui vous voulez.
           </p>
-          <Link to="/signup">
-            <Button size="lg" className="bg-white text-[#0A0A0B] hover:bg-slate-200 text-base px-8 h-13 font-semibold" data-testid="footer-cta-btn">
+          <Link to="/signup" className="block sm:inline-block">
+            <Button size="lg" className="bg-white text-[#0A0A0B] hover:bg-slate-200 text-sm sm:text-base px-6 sm:px-8 h-12 sm:h-13 font-semibold w-full sm:w-auto" data-testid="footer-cta-btn">
               Créer mon premier engagement solidaire <ArrowRight className="ml-2 w-4 h-4" />
             </Button>
           </Link>
@@ -196,9 +196,9 @@ export default function LandingPage() {
       </section>
 
       {/* ── Footer ── */}
-      <footer className="border-t border-white/5 py-10 px-6">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <p className="text-xs text-slate-600">© 2026 NLYT — Never Lose Your Time. Votre temps ne se perd plus.</p>
+      <footer className="border-t border-white/5 py-8 sm:py-10 px-4 sm:px-6">
+        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center sm:justify-between gap-2 text-center sm:text-left">
+          <p className="text-xs text-slate-600">© 2026 NLYT — Never Lose Your Time.</p>
           <p className="text-xs text-slate-600">Votre temps est compté. Ne le gaspillez pas.</p>
         </div>
       </footer>

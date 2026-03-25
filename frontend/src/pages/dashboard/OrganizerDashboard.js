@@ -107,22 +107,24 @@ function PrioritySection({ items, onRemind }) {
 function PriorityCard({ appointment, onRemind }) {
   const { total, accepted, pending } = getParticipantCounts(appointment);
   return (
-    <div className="flex items-center gap-4 bg-white border border-red-100 rounded-lg p-3" data-testid={`priority-card-${appointment.appointment_id}`}>
-      <div className="flex-1 min-w-0">
-        <p className="font-semibold text-sm text-slate-900 truncate">{appointment.title}</p>
-        <p className="text-xs text-slate-500">{formatDateTimeCompactFr(appointment.start_datetime)} · {appointment.duration_minutes} min</p>
+    <div className="bg-white border border-red-100 rounded-lg p-3 md:p-3" data-testid={`priority-card-${appointment.appointment_id}`}>
+      <div className="flex items-start gap-3 mb-2 md:mb-0">
+        <div className="flex-1 min-w-0">
+          <p className="font-semibold text-sm text-slate-900 truncate">{appointment.title}</p>
+          <p className="text-xs text-slate-500 mt-0.5">{formatDateTimeCompactFr(appointment.start_datetime)} · {appointment.duration_minutes} min</p>
+        </div>
+        <div className="text-xs text-right whitespace-nowrap flex-shrink-0">
+          <span className="text-red-600 font-semibold">{pending} en attente</span>
+          <span className="text-slate-400"> / {total}</span>
+        </div>
       </div>
-      <div className="text-xs text-right whitespace-nowrap">
-        <span className="text-red-600 font-semibold">{pending} en attente</span>
-        <span className="text-slate-400"> / {total}</span>
-      </div>
-      <div className="flex items-center gap-1.5">
-        <Button size="sm" variant="outline" className="h-7 text-xs border-red-200 text-red-600 hover:bg-red-50" onClick={(e) => { e.stopPropagation(); onRemind(appointment); }} data-testid={`remind-priority-${appointment.appointment_id}`}>
-          <Bell className="w-3 h-3 mr-1" /> Relancer
+      <div className="flex items-center gap-2 mt-2 md:mt-0">
+        <Button size="sm" variant="outline" className="h-9 md:h-7 text-xs flex-1 md:flex-none border-red-200 text-red-600 hover:bg-red-50" onClick={(e) => { e.stopPropagation(); onRemind(appointment); }} data-testid={`remind-priority-${appointment.appointment_id}`}>
+          <Bell className="w-3.5 h-3.5 mr-1.5" /> Relancer
         </Button>
-        <Link to={`/appointments/${appointment.appointment_id}`}>
-          <Button size="sm" variant="ghost" className="h-7 text-xs" data-testid={`view-priority-${appointment.appointment_id}`}>
-            <Eye className="w-3 h-3 mr-1" /> Voir
+        <Link to={`/appointments/${appointment.appointment_id}`} className="flex-1 md:flex-none">
+          <Button size="sm" variant="ghost" className="h-9 md:h-7 text-xs w-full" data-testid={`view-priority-${appointment.appointment_id}`}>
+            <Eye className="w-3.5 h-3.5 mr-1.5" /> Voir
           </Button>
         </Link>
       </div>
@@ -150,16 +152,16 @@ function EngagementCard({ appointment, isPast, onDelete, onRemind, now }) {
     >
       <Link to={`/appointments/${appointment.appointment_id}`} className="block p-4">
         {/* Row 1: Title + Risk badge */}
-        <div className="flex items-start justify-between gap-3 mb-2">
+        <div className="flex items-start justify-between gap-2 mb-2">
           <h4 className={`font-semibold text-sm leading-tight ${isPast && !isOngoing ? 'text-slate-500' : 'text-slate-900'}`}>
             {isOngoing && <Play className="w-3.5 h-3.5 inline mr-1 text-blue-600" />}
             {appointment.title}
           </h4>
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex items-center gap-1.5 flex-shrink-0 flex-wrap justify-end">
             {!isPast && (
               <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium rounded-full border ${riskCfg.className}`} data-testid={`risk-badge-${appointment.appointment_id}`}>
                 <RiskIcon className="w-3 h-3" />
-                {riskCfg.label}
+                <span className="hidden sm:inline">{riskCfg.label}</span>
               </span>
             )}
             <span className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${badge.className}`}>
@@ -169,7 +171,7 @@ function EngagementCard({ appointment, isPast, onDelete, onRemind, now }) {
         </div>
 
         {/* Row 2: Meta */}
-        <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 mb-3">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500 mb-3">
           <span>{formatDateTimeCompactFr(appointment.start_datetime)}</span>
           <span className="text-slate-300">·</span>
           <span>{appointment.duration_minutes} min</span>
@@ -216,29 +218,29 @@ function EngagementCard({ appointment, isPast, onDelete, onRemind, now }) {
 
       {/* Actions row */}
       <div className="flex items-center gap-2 px-4 pb-3 pt-1">
-        <Link to={`/appointments/${appointment.appointment_id}`}>
-          <Button size="sm" variant="outline" className="h-7 text-xs" data-testid={`view-details-${appointment.appointment_id}`}>
-            <Eye className="w-3 h-3 mr-1" /> Voir détails
+        <Link to={`/appointments/${appointment.appointment_id}`} className="flex-1 md:flex-none">
+          <Button size="sm" variant="outline" className="h-9 md:h-7 text-xs w-full md:w-auto" data-testid={`view-details-${appointment.appointment_id}`}>
+            <Eye className="w-3.5 h-3.5 mr-1.5" /> Voir détails
           </Button>
         </Link>
         {!isPast && pending > 0 && (
           <Button
             size="sm"
             variant="outline"
-            className="h-7 text-xs border-amber-200 text-amber-700 hover:bg-amber-50"
+            className="h-9 md:h-7 text-xs flex-1 md:flex-none border-amber-200 text-amber-700 hover:bg-amber-50"
             onClick={(e) => { e.preventDefault(); e.stopPropagation(); onRemind(appointment); }}
             data-testid={`remind-btn-${appointment.appointment_id}`}
           >
-            <Bell className="w-3 h-3 mr-1" /> Relancer
+            <Bell className="w-3.5 h-3.5 mr-1.5" /> Relancer
           </Button>
         )}
         <button
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDelete(appointment); }}
-          className="ml-auto p-1.5 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors"
+          className="ml-auto p-2.5 md:p-1.5 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors"
           title="Supprimer"
           data-testid={`delete-appointment-${appointment.appointment_id}`}
         >
-          <Trash2 className="w-3.5 h-3.5" />
+          <Trash2 className="w-4 h-4 md:w-3.5 md:h-3.5" />
         </button>
       </div>
     </div>
@@ -439,9 +441,9 @@ export default function OrganizerDashboard() {
             </div>
             <p className="text-slate-600 mb-1">Voulez-vous vraiment supprimer cet engagement ?</p>
             <p className="text-sm text-slate-500 mb-6"><strong>"{deleteModal.appointment?.title}"</strong><br />Cette action est irréversible.</p>
-            <div className="flex gap-3 justify-end">
-              <Button variant="outline" onClick={() => setDeleteModal({ open: false, appointment: null })} disabled={deleting}>Annuler</Button>
-              <Button variant="destructive" onClick={handleConfirmDelete} disabled={deleting} className="bg-rose-600 hover:bg-rose-700 text-white" data-testid="confirm-delete-btn">
+            <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 sm:justify-end">
+              <Button variant="outline" onClick={() => setDeleteModal({ open: false, appointment: null })} disabled={deleting} className="min-h-[44px] sm:min-h-0">Annuler</Button>
+              <Button variant="destructive" onClick={handleConfirmDelete} disabled={deleting} className="bg-rose-600 hover:bg-rose-700 text-white min-h-[44px] sm:min-h-0" data-testid="confirm-delete-btn">
                 {deleting ? 'Suppression...' : 'Supprimer'}
               </Button>
             </div>
@@ -451,9 +453,9 @@ export default function OrganizerDashboard() {
 
       <AppNavbar />
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
+      <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-8">
         {/* Header + Workspace Switcher */}
-        <div className="flex items-start justify-between mb-2">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-2">
           <HeaderStats user={user} stats={{ upcoming: upcomingTotal, atRisk: computed.atRiskCount, totalEngaged: computed.totalEngaged }} />
           <div className="relative flex-shrink-0">
             <button
@@ -507,8 +509,8 @@ export default function OrganizerDashboard() {
         {!loading && <ImpactCard totalCharityCents={impactCents} />}
 
         <div className="mb-6">
-          <Link to="/appointments/create">
-            <Button size="lg" data-testid="create-appointment-btn">
+          <Link to="/appointments/create" className="block sm:inline-block">
+            <Button size="lg" className="w-full sm:w-auto min-h-[44px]" data-testid="create-appointment-btn">
               <CalendarPlus className="w-5 h-5 mr-2" />
               Créer un engagement
             </Button>
@@ -519,7 +521,7 @@ export default function OrganizerDashboard() {
         {!loading && <PrioritySection items={computed.priorityItems} onRemind={handleRemind} />}
 
         {/* Main list */}
-        <div className="bg-white rounded-lg border border-slate-200 p-6">
+        <div className="bg-white rounded-lg border border-slate-200 p-4 md:p-6">
           <h3 className="text-lg font-semibold text-slate-900 mb-4">Engagements</h3>
 
           {loading ? (
@@ -534,26 +536,28 @@ export default function OrganizerDashboard() {
             </div>
           ) : (
             <Tabs defaultValue="upcoming">
-              <TabsList className="mb-6">
-                <TabsTrigger value="upcoming" data-testid="tab-upcoming">
-                  <Calendar className="w-4 h-4 mr-2" />
-                  À venir
-                  {upcomingTotal > 0 && (
-                    <span className="ml-2 px-2 py-0.5 text-xs font-semibold bg-slate-900 text-white rounded-full">{upcomingTotal}</span>
-                  )}
-                </TabsTrigger>
-                <TabsTrigger value="past" data-testid="tab-past">
-                  <History className="w-4 h-4 mr-2" />
-                  Passés
-                  {pastTotal > 0 && (
-                    <span className="ml-2 px-2 py-0.5 text-xs font-semibold bg-slate-200 text-slate-600 rounded-full">{pastTotal}</span>
-                  )}
-                </TabsTrigger>
-                <TabsTrigger value="stats" data-testid="tab-stats" onClick={() => { if (!analytics) loadAnalytics(); }}>
-                  <Eye className="w-4 h-4 mr-2" />
-                  Statistiques
-                </TabsTrigger>
-              </TabsList>
+              <div className="overflow-x-auto scrollbar-none -mx-1 px-1">
+                <TabsList className="mb-6 w-max">
+                  <TabsTrigger value="upcoming" data-testid="tab-upcoming">
+                    <Calendar className="w-4 h-4 mr-1.5" />
+                    À venir
+                    {upcomingTotal > 0 && (
+                      <span className="ml-1.5 px-1.5 py-0.5 text-xs font-semibold bg-slate-900 text-white rounded-full">{upcomingTotal}</span>
+                    )}
+                  </TabsTrigger>
+                  <TabsTrigger value="past" data-testid="tab-past">
+                    <History className="w-4 h-4 mr-1.5" />
+                    Passés
+                    {pastTotal > 0 && (
+                      <span className="ml-1.5 px-1.5 py-0.5 text-xs font-semibold bg-slate-200 text-slate-600 rounded-full">{pastTotal}</span>
+                    )}
+                  </TabsTrigger>
+                  <TabsTrigger value="stats" data-testid="tab-stats" onClick={() => { if (!analytics) loadAnalytics(); }}>
+                    <Eye className="w-4 h-4 mr-1.5" />
+                    Stats
+                  </TabsTrigger>
+                </TabsList>
+              </div>
 
               <TabsContent value="upcoming">
                 {upcoming.length === 0 ? (

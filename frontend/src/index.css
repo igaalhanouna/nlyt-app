@@ -156,3 +156,22 @@ code {
         border-bottom-color: inherit;
     }
 }
+
+
+/* Mobile utilities */
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+/* Slide-in animation for mobile drawer */
+@keyframes slideInFromRight {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+.animate-in.slide-in-from-right {
+  animation: slideInFromRight 0.2s ease-out;
+}
