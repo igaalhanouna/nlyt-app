@@ -172,20 +172,6 @@ export default function ParticipantManagement() {
                       className="mt-1"
                     />
                   </div>
-                  <div>
-                    <Label htmlFor="role">Rôle</Label>
-                    <select
-                      id="role"
-                      data-testid="participant-role-input"
-                      value={newParticipant.role}
-                      onChange={(e) => setNewParticipant({ ...newParticipant, role: e.target.value })}
-                      className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
-                    >
-                      <option value="participant">Participant</option>
-                      <option value="organizer">Organisateur</option>
-                      <option value="observer">Observateur</option>
-                    </select>
-                  </div>
                   <div className="flex gap-3 pt-4">
                     <Button
                       variant="outline"
