@@ -1,7 +1,7 @@
 # NLYT — Product Requirements Document
 
 ## Vision
-SaaS de gestion d'assiduité avec garanties financières. NLYT vérifie la présence des participants via des preuves indépendantes. Repositionné en "engagements solidaires" avec un framing premium.
+SaaS de gestion d'assiduité avec garanties financières. Repositionné en "engagements solidaires" avec un framing premium.
 
 ## Technical Stack
 Frontend: React + TailwindCSS + Shadcn/UI
@@ -9,53 +9,37 @@ Backend: FastAPI + Python + MongoDB + slowapi
 Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API
 
 ## Branding
-- Logo typographique: `N·L·Y·T` (text-lg font-bold tracking-[0.35em]) avec `NEVER LOSE YOUR TIME` (text-[10px] uppercase tracking-[0.25em] text-slate-400/500) en dessous
-- Pages publiques (Landing, Impact): dark theme (#0A0A0B)
-- Dashboard/Settings: light theme propre
-- Wording: "Engagement solidaire" au lieu de "rendez-vous", "Geste solidaire" au lieu de "pénalité", "Temps valorisé"
-- Custom domain: app.nlyt.io (production)
+- Logo typographique: N·L·Y·T + "Never Lose Your Time"
+- Site: dark theme (#0A0A0B) public, light theme dashboard
+- Wording: "Engagement solidaire", "Geste solidaire", "Temps valorisé"
 
-## Navigation Architecture (Mars 2026)
-- **AppNavbar** (`/src/components/AppNavbar.js`): Top bar persistante, logo cliquable, état actif
-- **AppBreadcrumb** (`/src/components/AppBreadcrumb.js`): Fil d'Ariane contextuel
-- **SettingsPageLayout** (`/src/components/SettingsPageLayout.js`): Layout standardisé pour toutes les pages /settings/*
+## Email Design System (Mars 2026)
+- Base template: `_base_template()` in email_service.py
+- Header: #0A0A0B dark with N·L·Y·T typographic logo
+- Accent bars: info (blue), success (green), warning (amber), danger (red), neutral (slate)
+- Buttons: `_btn()` dark bg, `_btn_secondary()` outline
+- Helpers: `_greeting()`, `_paragraph()`, `_section_title()`, `_info_box()`, `_alert_box()`, `_detail_row()`, `_small()`, `_fallback_link()`
+- Footer: "© 2026 N·L·Y·T — Never Lose Your Time"
+- 9 emails refactored: verification, password_reset, invitation, acceptance, checkin, participant_cancellation, appointment_cancelled, appointment_deleted, guarantee_revalidation
 
-## Settings Design System Rules
-- Container: max-w-4xl mx-auto px-6 pb-16
-- Background: bg-background (toujours, jamais bg-slate-50)
-- Title: text-2xl font-bold text-slate-900
-- Description: text-sm text-slate-500 mb-8
-- Action CTA: aligné à droite du titre via prop `action`
-- Cards: bg-white rounded-xl border border-slate-200 p-6 mb-6
-- No icons before page titles
-- Spacing: mb-8 between header and content, mb-6 between sections
+## Navigation
+- AppNavbar: persistent top bar, logo clickable
+- AppBreadcrumb: contextual breadcrumb
+- SettingsPageLayout: standardized settings pages
 
 ## Completed Features
-- [x] Stripe Connect (Phases 1-5)
-- [x] Physical attendance evidence engine
-- [x] Video Conference Attendance Evidence MVP
-- [x] Meeting API Integration
-- [x] Smart Conflict Detection V1 & V2
-- [x] Dashboard UX overhaul
-- [x] Complete Product Repositioning
-- [x] N·L·Y·T typographic logo on ALL app pages
-- [x] Navigation globale: AppNavbar + AppBreadcrumb sur toutes les pages authentifiées
-- [x] SettingsPageLayout: Harmonisation complète des 6 pages /settings/*
-
-## P0 — Configuration Pending
-- [ ] Zoom credentials
-- [ ] Teams credentials
+- [x] All core features (Stripe, evidence, meetings, calendars, conflicts)
+- [x] Product repositioning ("engagement solidaire")
+- [x] Navigation globale (AppNavbar + AppBreadcrumb)
+- [x] SettingsPageLayout harmonization
+- [x] Impact page aligned with Landing DA
+- [x] Email design system: 9 templates refactored
 
 ## P1 — Next Up
-- [ ] Aligner les emails transactionnels backend (wording "engagement solidaire")
 - [ ] Refactorer InvitationPage.js (1400+ lignes)
 - [ ] Test réel Teams (compte non-pro)
-
-## P2 — Planned
-- [ ] Zoom webhook auto-ingestion
-- [ ] Teams webhook auto-ingestion
 
 ## P3 — Backlog
 - [ ] Charity Payouts V2 (Stripe Transfers)
 - [ ] Webhooks temps réel Zoom/Teams
-- [ ] Pages dédiées charité & Leaderboard
+- [ ] Pages charité & Leaderboard

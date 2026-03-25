@@ -41,7 +41,117 @@ SENDER_EMAIL = os.environ.get('SENDER_EMAIL', 'onboarding@resend.dev')
 
 resend.api_key = RESEND_API_KEY
 
+# ─────────────────────────────────────────────────────────────
+# EMAIL DESIGN SYSTEM — Single source of truth
+# ─────────────────────────────────────────────────────────────
+# accent_color: thin bar under header for semantic context
+#   neutral  → #64748B (slate)
+#   success  → #10B981 (emerald)
+#   warning  → #F59E0B (amber)
+#   danger   → #EF4444 (red)
+#   info     → #3B82F6 (blue)
+# ─────────────────────────────────────────────────────────────
+
+ACCENT_COLORS = {
+    "neutral": "#64748B",
+    "success": "#10B981",
+    "warning": "#F59E0B",
+    "danger":  "#EF4444",
+    "info":    "#3B82F6",
+}
+
+def _base_template(body_html: str, accent: str = "neutral") -> str:
+    """Wrap any email body in the NLYT branded template."""
+    bar_color = ACCENT_COLORS.get(accent, ACCENT_COLORS["neutral"])
+    return f"""<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>NLYT</title>
+</head>
+<body style="margin:0;padding:0;background-color:#F1F5F9;font-family:'Inter',Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#F1F5F9;">
+<tr><td align="center" style="padding:32px 16px;">
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08);">
+
+<!-- HEADER -->
+<tr><td style="background-color:#0A0A0B;padding:28px 32px;text-align:center;">
+  <span style="font-size:20px;font-weight:700;letter-spacing:0.35em;color:#FFFFFF;">N<span style="color:rgba(255,255,255,0.4);">&middot;</span>L<span style="color:rgba(255,255,255,0.4);">&middot;</span>Y<span style="color:rgba(255,255,255,0.4);">&middot;</span>T</span>
+  <br/>
+  <span style="font-size:10px;font-weight:500;letter-spacing:0.25em;color:rgba(255,255,255,0.4);text-transform:uppercase;">Never Lose Your Time</span>
+</td></tr>
+
+<!-- ACCENT BAR -->
+<tr><td style="height:3px;background-color:{bar_color};font-size:0;line-height:0;">&nbsp;</td></tr>
+
+<!-- BODY -->
+<tr><td style="background-color:#FFFFFF;padding:32px 32px 24px 32px;">
+{body_html}
+</td></tr>
+
+<!-- FOOTER -->
+<tr><td style="background-color:#F8FAFC;padding:20px 32px;text-align:center;border-top:1px solid #E2E8F0;">
+  <p style="margin:0;font-size:12px;color:#94A3B8;line-height:1.6;">
+    &copy; 2026 N&middot;L&middot;Y&middot;T &mdash; Never Lose Your Time
+  </p>
+</td></tr>
+
+</table>
+</td></tr>
+</table>
+</body>
+</html>"""
+
+
+def _btn(href: str, label: str, bg: str = "#0A0A0B", color: str = "#FFFFFF") -> str:
+    """Standard CTA button."""
+    return f'<div style="text-align:center;margin:24px 0;"><a href="{href}" style="display:inline-block;padding:13px 28px;background-color:{bg};color:{color};text-decoration:none;border-radius:8px;font-size:15px;font-weight:600;line-height:1;">{label}</a></div>'
+
+
+def _btn_secondary(href: str, label: str) -> str:
+    """Secondary / outline-style button."""
+    return f'<div style="text-align:center;margin:16px 0;"><a href="{href}" style="display:inline-block;padding:11px 24px;background-color:#F1F5F9;color:#334155;text-decoration:none;border-radius:8px;font-size:14px;font-weight:500;border:1px solid #E2E8F0;line-height:1;">{label}</a></div>'
+
+
+def _info_box(inner_html: str) -> str:
+    """Neutral info card."""
+    return f'<div style="background:#F8FAFC;padding:20px;border-radius:8px;border:1px solid #E2E8F0;margin:20px 0;">{inner_html}</div>'
+
+
+def _alert_box(inner_html: str, border_color: str = "#F59E0B", bg: str = "#FFFBEB") -> str:
+    """Alert / warning box."""
+    return f'<div style="background:{bg};border-left:4px solid {border_color};padding:16px;margin:20px 0;border-radius:0 8px 8px 0;">{inner_html}</div>'
+
+
+def _detail_row(label: str, value: str) -> str:
+    """Single label:value row for info boxes."""
+    return f'<p style="margin:6px 0;color:#475569;font-size:14px;"><strong style="color:#1E293B;">{label}</strong> {value}</p>'
+
+
+def _section_title(text: str) -> str:
+    return f'<h2 style="margin:0 0 8px 0;font-size:20px;font-weight:700;color:#0F172A;line-height:1.3;">{text}</h2>'
+
+
+def _greeting(name: str) -> str:
+    return f'<p style="margin:0 0 16px 0;font-size:16px;color:#1E293B;">Bonjour {name},</p>'
+
+
+def _paragraph(text: str) -> str:
+    return f'<p style="margin:0 0 16px 0;font-size:15px;color:#475569;line-height:1.6;">{text}</p>'
+
+
+def _small(text: str) -> str:
+    return f'<p style="margin:8px 0 0 0;font-size:12px;color:#94A3B8;line-height:1.5;">{text}</p>'
+
+
+def _fallback_link(url: str) -> str:
+    return f'<p style="margin:8px 0 0 0;font-size:12px;color:#94A3B8;word-break:break-all;">Ou copiez ce lien : <a href="{url}" style="color:#3B82F6;">{url}</a></p>'
+
+
+# ─────────────────────────────────────────────────────────────
 # MongoDB for tracking email attempts
+# ─────────────────────────────────────────────────────────────
 
 class EmailService:
     @staticmethod
@@ -51,20 +161,18 @@ class EmailService:
             "attempt_id": str(uuid.uuid4()),
             "email": email,
             "email_type": email_type,
-            "status": status,  # 'success', 'failed', 'error'
+            "status": status,
             "resend_response": resend_response,
             "error_message": error,
             "attempted_at": datetime.now(timezone.utc).isoformat(),
             "sender_email": SENDER_EMAIL,
             "resend_api_key_present": bool(RESEND_API_KEY)
         }
-        
         try:
             db.email_attempts.insert_one(attempt)
             logger.info(f"[EMAIL_ATTEMPT] Logged: {email_type} to {email} - Status: {status}")
         except Exception as e:
             logger.error(f"[EMAIL_ATTEMPT] Failed to log attempt: {str(e)}")
-        
         return attempt
     
     @staticmethod
@@ -84,120 +192,67 @@ class EmailService:
         try:
             logger.info(f"[EMAIL_SERVICE] Calling Resend API for {to_email}...")
             email = await asyncio.to_thread(resend.Emails.send, params)
-            logger.info(f"[EMAIL_SERVICE] ✅ Resend API call successful for {to_email}")
+            logger.info(f"[EMAIL_SERVICE] Resend API call successful for {to_email}")
             logger.info(f"[EMAIL_SERVICE] Resend response: {email}")
-            
-            # Log success
             EmailService._log_email_attempt(
-                email=to_email,
-                email_type=email_type,
-                status="success",
-                resend_response=email
+                email=to_email, email_type=email_type,
+                status="success", resend_response=email
             )
-            
             return {"success": True, "email_id": email.get('id'), "resend_response": email}
         except Exception as e:
-            logger.error(f"[EMAIL_SERVICE] ❌ Failed to send email to {to_email}: {str(e)}")
-            logger.error(f"[EMAIL_SERVICE] Error type: {type(e).__name__}")
-            logger.error(f"[EMAIL_SERVICE] Error details: {repr(e)}")
-            
-            # Log failure
+            logger.error(f"[EMAIL_SERVICE] Failed to send email to {to_email}: {str(e)}")
             EmailService._log_email_attempt(
-                email=to_email,
-                email_type=email_type,
-                status="failed",
-                error=str(e)
+                email=to_email, email_type=email_type,
+                status="failed", error=str(e)
             )
-            
             return {"success": False, "error": str(e)}
-    
+
+    # ─────────────────────────────────────────────────────────
+    # 1. VERIFICATION EMAIL
+    # ─────────────────────────────────────────────────────────
     @staticmethod
     async def send_verification_email(to_email: str, verification_token: str, base_url: str):
         logger.info(f"[VERIFICATION_EMAIL] Starting for {to_email}")
         logger.info(f"[VERIFICATION_EMAIL] Token length: {len(verification_token)}")
         logger.info(f"[VERIFICATION_EMAIL] Base URL: {base_url}")
-        
+
         verification_link = f"{base_url}/verify-email?token={verification_token}"
-        subject = "Vérifiez votre adresse email - NLYT"
-        html_content = f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <style>
-                body {{ font-family: 'Inter', Arial, sans-serif; line-height: 1.6; color: #334155; }}
-                .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
-                .header {{ background: #0F172A; color: white; padding: 30px; text-align: center; }}
-                .content {{ background: #ffffff; padding: 30px; border: 1px solid #E2E8F0; }}
-                .button {{ display: inline-block; padding: 12px 24px; background: #0F172A; color: white; text-decoration: none; border-radius: 6px; margin: 20px 0; }}
-                .footer {{ text-align: center; color: #64748B; font-size: 14px; padding: 20px; }}
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <div class="header">
-                    <h1>NLYT</h1>
-                </div>
-                <div class="content">
-                    <h2>Bienvenue sur NLYT !</h2>
-                    <p>Merci de vous être inscrit. Veuillez vérifier votre adresse email en cliquant sur le bouton ci-dessous :</p>
-                    <a href="{verification_link}" class="button">Vérifier mon email</a>
-                    <p>Ou copiez ce lien dans votre navigateur :</p>
-                    <p style="word-break: break-all; color: #6366F1;">{verification_link}</p>
-                    <p>Ce lien expirera dans 24 heures.</p>
-                </div>
-                <div class="footer">
-                    <p>© 2026 NLYT. Tous droits réservés.</p>
-                </div>
-            </div>
-        </body>
-        </html>
-        """
-        
+        subject = "Confirmez votre adresse email — NLYT"
+
+        body = (
+            _section_title("Bienvenue sur NLYT")
+            + _paragraph("Merci de vous être inscrit. Confirmez votre adresse email pour commencer à protéger votre temps.")
+            + _btn(verification_link, "Confirmer mon email")
+            + _fallback_link(verification_link)
+            + _small("Ce lien expirera dans 24 heures.")
+        )
+        html_content = _base_template(body, accent="info")
+
         result = await EmailService.send_email(to_email, subject, html_content, email_type="verification")
-        
         logger.info(f"[VERIFICATION_EMAIL] Result for {to_email}: {result}")
         return result
-    
+
+    # ─────────────────────────────────────────────────────────
+    # 2. PASSWORD RESET
+    # ─────────────────────────────────────────────────────────
     @staticmethod
     async def send_password_reset_email(to_email: str, reset_token: str, base_url: str):
         reset_link = f"{base_url}/reset-password?token={reset_token}"
-        subject = "Réinitialisation de votre mot de passe - NLYT"
-        html_content = f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <style>
-                body {{ font-family: 'Inter', Arial, sans-serif; line-height: 1.6; color: #334155; }}
-                .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
-                .header {{ background: #0F172A; color: white; padding: 30px; text-align: center; }}
-                .content {{ background: #ffffff; padding: 30px; border: 1px solid #E2E8F0; }}
-                .button {{ display: inline-block; padding: 12px 24px; background: #0F172A; color: white; text-decoration: none; border-radius: 6px; margin: 20px 0; }}
-                .footer {{ text-align: center; color: #64748B; font-size: 14px; padding: 20px; }}
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <div class="header">
-                    <h1>NLYT</h1>
-                </div>
-                <div class="content">
-                    <h2>Réinitialisation de mot de passe</h2>
-                    <p>Vous avez demandé la réinitialisation de votre mot de passe. Cliquez sur le bouton ci-dessous pour continuer :</p>
-                    <a href="{reset_link}" class="button">Réinitialiser mon mot de passe</a>
-                    <p>Ou copiez ce lien dans votre navigateur :</p>
-                    <p style="word-break: break-all; color: #6366F1;">{reset_link}</p>
-                    <p>Ce lien expirera dans 1 heure.</p>
-                    <p>Si vous n'avez pas demandé cette réinitialisation, ignorez cet email.</p>
-                </div>
-                <div class="footer">
-                    <p>© 2026 NLYT. Tous droits réservés.</p>
-                </div>
-            </div>
-        </body>
-        </html>
-        """
+        subject = "Réinitialisez votre mot de passe — NLYT"
+
+        body = (
+            _section_title("Réinitialisation de mot de passe")
+            + _paragraph("Vous avez demandé la réinitialisation de votre mot de passe. Cliquez sur le bouton ci-dessous pour continuer.")
+            + _btn(reset_link, "Réinitialiser mon mot de passe")
+            + _fallback_link(reset_link)
+            + _small("Ce lien expirera dans 1 heure. Si vous n'avez pas fait cette demande, ignorez cet email.")
+        )
+        html_content = _base_template(body, accent="neutral")
         return await EmailService.send_email(to_email, subject, html_content, email_type="password_reset")
-    
+
+    # ─────────────────────────────────────────────────────────
+    # 3. INVITATION
+    # ─────────────────────────────────────────────────────────
     @staticmethod
     async def send_invitation_email(
         to_email: str, 
@@ -217,156 +272,68 @@ class EmailService:
         meeting_provider: str = None,
         proof_link: str = None,
     ):
-        """Send invitation email with full appointment details and ICS calendar link"""
         formatted_date = format_email_datetime(appointment_datetime, appointment_timezone)
-        
-        # Build penalty info
-        penalty_info = ""
-        if penalty_amount and penalty_amount > 0:
-            penalty_info = f"""
-            <p style="margin: 8px 0; color: #64748B;">
-                <strong>Pénalité en cas d'absence :</strong> {penalty_amount} {penalty_currency.upper()}
-            </p>
-            """
-        
-        # Build deadline info
-        deadline_info = ""
-        if cancellation_deadline_hours:
-            deadline_info = f"""
-            <p style="margin: 8px 0; color: #64748B;">
-                <strong>Délai d'annulation :</strong> {cancellation_deadline_hours}h avant le rendez-vous
-            </p>
-            """
-        
-        # Build location info
         location_display = location if location else "Non spécifié"
-        
-        # Build meeting link section for video appointments
+
+        # Meeting info
         meeting_section = ""
         if meeting_join_url:
             provider_label = {"zoom": "Zoom", "teams": "Microsoft Teams", "meet": "Google Meet"}.get(
                 (meeting_provider or "").lower(), meeting_provider or "Visioconférence"
             )
-            if proof_link:
-                # Video with NLYT Proof: show provider info only, no direct link (proof link is the entry point)
-                meeting_section = f"""
-                        <p style="margin: 8px 0; color: #64748B;">
-                            <strong>Visioconference :</strong> {provider_label}
-                        </p>
-                """
-            else:
-                # Fallback: no proof link (shouldn't happen for video, but safety net)
-                meeting_section = f"""
-                        <p style="margin: 8px 0; color: #64748B;">
-                            <strong>Visioconference :</strong> {provider_label}
-                        </p>
-                        <div style="text-align: center; margin: 12px 0;">
-                            <a href="{meeting_join_url}" style="display: inline-block; padding: 10px 24px; background: #6366F1; color: white; text-decoration: none; border-radius: 6px; font-size: 14px; font-weight: bold;">
-                                Rejoindre la reunion {provider_label}
-                            </a>
-                        </div>
-                """
+            meeting_section = _detail_row("Visioconférence :", provider_label)
             location_display = f"En ligne ({provider_label})"
-        
-        # Build ICS calendar link section
-        calendar_section = ""
-        if ics_link:
-            calendar_section = f"""
-                    <div style="text-align: center; margin-top: 15px; padding-top: 15px; border-top: 1px solid #E2E8F0;">
-                        <a href="{ics_link}" style="display: inline-block; padding: 10px 20px; background: #64748B; color: white; text-decoration: none; border-radius: 6px; font-size: 13px;">
-                            Ajouter au calendrier (ICS)
-                        </a>
-                        <p style="color: #94A3B8; font-size: 11px; margin-top: 8px;">
-                            Compatible Google Calendar, Outlook, Apple Calendar
-                        </p>
-                    </div>
-            """
 
-        # Build NLYT Proof section
+        # Guarantee info
+        guarantee_info = ""
+        if penalty_amount and penalty_amount > 0:
+            guarantee_info = _detail_row("Garantie d'engagement :", f"{penalty_amount} {penalty_currency.upper()}")
+
+        # Deadline info
+        deadline_info = ""
+        if cancellation_deadline_hours:
+            deadline_info = _detail_row("Délai d'annulation :", f"{cancellation_deadline_hours}h avant l'engagement")
+
+        # ICS section
+        calendar_section = _btn_secondary(ics_link, "Ajouter au calendrier (ICS)") if ics_link else ""
+
+        # Proof section
         proof_section = ""
         if proof_link:
-            proof_section = f"""
-                    <div style="background: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: center;">
-                        <p style="margin: 0 0 8px 0; color: #1E40AF; font-weight: bold; font-size: 14px;">
-                            Confirmer ma presence le jour J
-                        </p>
-                        <p style="margin: 0 0 12px 0; color: #3B82F6; font-size: 12px;">
-                            Le jour du rendez-vous, utilisez ce lien pour prouver votre presence. La visio s'ouvrira automatiquement.
-                        </p>
-                        <a href="{proof_link}" style="display: inline-block; padding: 12px 28px; background: #2563EB; color: white; text-decoration: none; border-radius: 8px; font-size: 14px; font-weight: bold;">
-                            Mon lien de presence NLYT
-                        </a>
-                    </div>
-            """
-        
-        subject = f"Invitation à un rendez-vous - {appointment_title}"
-        html_content = f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <style>
-                body {{ font-family: 'Inter', Arial, sans-serif; line-height: 1.6; color: #334155; }}
-                .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
-                .header {{ background: #0F172A; color: white; padding: 30px; text-align: center; }}
-                .content {{ background: #ffffff; padding: 30px; border: 1px solid #E2E8F0; }}
-                .button {{ display: inline-block; padding: 14px 28px; background: #10B981; color: white; text-decoration: none; border-radius: 8px; margin: 20px 0; font-weight: bold; }}
-                .info-box {{ background: #F8FAFC; padding: 20px; border-radius: 8px; border: 1px solid #E2E8F0; margin: 20px 0; }}
-                .warning-box {{ background: #FEF3C7; border-left: 4px solid #F59E0B; padding: 15px; margin: 20px 0; }}
-                .footer {{ text-align: center; color: #64748B; font-size: 14px; padding: 20px; }}
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <div class="header">
-                    <h1 style="margin: 0;">NLYT</h1>
-                    <p style="margin: 10px 0 0 0; opacity: 0.9;">Rendez-vous avec engagement solidaire</p>
-                </div>
-                <div class="content">
-                    <h2 style="color: #1E293B;">Bonjour {to_name},</h2>
-                    <p style="color: #475569;">{organizer_name} vous invite à un rendez-vous avec contrat d'engagement.</p>
-                    
-                    <div class="info-box">
-                        <h3 style="margin: 0 0 15px 0; color: #1E293B;">{appointment_title}</h3>
-                        <p style="margin: 8px 0; color: #64748B;">
-                            <strong>📅 Date :</strong> {formatted_date}
-                        </p>
-                        <p style="margin: 8px 0; color: #64748B;">
-                            <strong>📍 Lieu :</strong> {location_display}
-                        </p>
-                        {meeting_section}
-                        {penalty_info}
-                        {deadline_info}
-                    </div>
-                    
-                    <div class="warning-box">
-                        <p style="margin: 0; color: #92400E;">
-                            <strong>⚠️ Attention :</strong> Ce rendez-vous inclut un contrat d'engagement. 
-                            En acceptant, vous vous engagez à respecter les conditions définies par l'organisateur.
-                        </p>
-                    </div>
-                    
-                    <div style="text-align: center;">
-                        <a href="{invitation_link}" class="button">Voir et répondre à l'invitation</a>
-                    </div>
-                    
-                    <p style="color: #94A3B8; font-size: 13px; text-align: center;">
-                        Vous pourrez consulter toutes les conditions avant d'accepter ou de refuser.
-                    </p>
-                    
-                    {calendar_section}
-                    {proof_section}
-                </div>
-                <div class="footer">
-                    <p>© 2026 NLYT. Tous droits réservés.</p>
-                    <p style="font-size: 12px;">Si vous n'êtes pas concerné par cette invitation, ignorez cet email.</p>
-                </div>
-            </div>
-        </body>
-        </html>
-        """
+            proof_section = (
+                '<div style="background:#F0F9FF;border:1px solid #BAE6FD;border-radius:8px;padding:20px;margin:20px 0;text-align:center;">'
+                '<p style="margin:0 0 8px 0;color:#0369A1;font-weight:600;font-size:14px;">Confirmer ma présence le jour J</p>'
+                '<p style="margin:0 0 12px 0;color:#0284C7;font-size:13px;">Ce lien vous permettra de prouver votre présence. La visio s\'ouvrira automatiquement.</p>'
+                + _btn(proof_link, "Mon lien de présence NLYT", bg="#0369A1")
+                + '</div>'
+            )
+
+        subject = f"Vous êtes invité — {appointment_title}"
+
+        details = (
+            _detail_row("Date :", formatted_date)
+            + _detail_row("Lieu :", location_display)
+            + meeting_section
+            + guarantee_info
+            + deadline_info
+        )
+
+        body = (
+            _greeting(to_name)
+            + _paragraph(f"<strong>{organizer_name}</strong> vous invite à un engagement solidaire.")
+            + _info_box(f'<p style="margin:0 0 12px 0;font-size:16px;font-weight:700;color:#0F172A;">{appointment_title}</p>{details}')
+            + _alert_box('<p style="margin:0;color:#92400E;font-size:14px;">En acceptant, vous vous engagez à respecter les conditions définies par l\'organisateur. Une garantie peut être requise.</p>')
+            + _btn(invitation_link, "Voir et répondre à l'invitation")
+            + _small("Vous pourrez consulter toutes les conditions avant d'accepter ou de refuser.")
+            + calendar_section
+            + proof_section
+        )
+        html_content = _base_template(body, accent="info")
         return await EmailService.send_email(to_email, subject, html_content, email_type="invitation")
 
-
+    # ─────────────────────────────────────────────────────────
+    # 4. ACCEPTANCE CONFIRMATION
+    # ─────────────────────────────────────────────────────────
     @staticmethod
     async def send_acceptance_confirmation_email(
         to_email: str,
@@ -385,200 +352,88 @@ class EmailService:
         appointment_type: str = 'physical',
         meeting_provider: str = None,
     ):
-        """
-        Send the DEFINITIVE confirmation email after engagement is finalized.
-        This is the participant's reference email with all actionable links.
-        Triggered after:
-          - Direct acceptance (no guarantee)
-          - Stripe webhook confirmation (with guarantee)
-        """
         formatted_date = format_email_datetime(appointment_datetime, appointment_timezone)
-
         is_video = appointment_type == 'video'
         provider_label = {
             'zoom': 'Zoom', 'teams': 'Microsoft Teams', 'meet': 'Google Meet'
         }.get((meeting_provider or '').lower(), meeting_provider or 'Visioconférence')
 
-        # ── Location display ──
         if is_video:
             location_display = f"En ligne — {provider_label}"
         else:
             location_display = location if location else "Non spécifié"
 
-        # ── Penalty reminder ──
-        penalty_reminder = ""
-        if penalty_amount and penalty_amount > 0:
-            cancel_note = f" Vous pouvez annuler sans pénalité jusqu'à {cancellation_deadline_hours}h avant le rendez-vous." if cancellation_deadline_hours else ""
-            penalty_reminder = f"""
-                    <div style="background: #FEF3C7; border-left: 4px solid #F59E0B; padding: 15px; margin: 20px 0;">
-                        <p style="margin: 0; color: #92400E;">
-                            <strong>Rappel d'engagement :</strong> Une pénalité de {penalty_amount} {penalty_currency.upper()}
-                            s'appliquera en cas d'absence ou de retard excessif.{cancel_note}
-                        </p>
-                    </div>
-            """
-
-        # ── ICS calendar button ──
-        ics_button = ""
-        if ics_link:
-            ics_button = f"""
-                    <div style="text-align: center; margin: 25px 0;">
-                        <a href="{ics_link}" style="display: inline-block; padding: 14px 28px; background: #3B82F6; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 15px;">
-                            Ajouter a mon calendrier
-                        </a>
-                        <p style="color: #94A3B8; font-size: 12px; margin-top: 10px;">
-                            Telechargez le fichier .ics — compatible Google Calendar, Outlook, Apple Calendar
-                        </p>
-                    </div>
-            """
-
-        # ── View invitation link ──
-        view_link = ""
-        if invitation_link:
-            view_link = f"""
-                    <p style="text-align: center; margin-top: 20px;">
-                        <a href="{invitation_link}" style="color: #3B82F6; text-decoration: underline; font-size: 13px;">
-                            Voir tous les details du rendez-vous
-                        </a>
-                    </p>
-            """
-
-        # ── Timezone note ──
+        # Timezone note
         tz_note = ""
         if appointment_timezone and appointment_timezone != 'UTC':
             tz_display = appointment_timezone.replace('_', ' ').split('/')[-1]
-            tz_note = f"""
-                        <p style="margin: 4px 0 0 0; color: #94A3B8; font-size: 11px;">
-                            Fuseau horaire : {appointment_timezone} ({tz_display})
-                        </p>
-            """
+            tz_note = f'<p style="margin:2px 0 0 0;color:#94A3B8;font-size:11px;">Fuseau horaire : {appointment_timezone} ({tz_display})</p>'
 
-        # ── MAIN SECTION: different content for video vs physical ──
+        details = (
+            _detail_row("Date :", formatted_date)
+            + tz_note
+            + _detail_row("Réunion :" if is_video else "Lieu :", location_display)
+        )
+
+        # Guarantee reminder
+        guarantee_reminder = ""
+        if penalty_amount and penalty_amount > 0:
+            cancel_note = f" Vous pouvez annuler sans frais jusqu'à {cancellation_deadline_hours}h avant." if cancellation_deadline_hours else ""
+            guarantee_reminder = _alert_box(
+                f'<p style="margin:0;color:#92400E;font-size:14px;"><strong>Rappel :</strong> Une garantie de {penalty_amount} {penalty_currency.upper()} s\'appliquera en cas d\'absence.{cancel_note}</p>'
+            )
+
+        # Access section
         access_section = ""
         if is_video and proof_link:
-            # VIDEO: NLYT Proof is the unique entry point
-            access_section = f"""
-                    <div style="background: #EFF6FF; border: 2px solid #BFDBFE; border-radius: 10px; padding: 24px; margin: 24px 0; text-align: center;">
-                        <p style="margin: 0 0 6px 0; color: #1E40AF; font-weight: bold; font-size: 16px;">
-                            Votre lien de reunion
-                        </p>
-                        <p style="margin: 0 0 16px 0; color: #3B82F6; font-size: 13px; line-height: 1.5;">
-                            Le jour du rendez-vous, cliquez sur ce bouton pour :<br/>
-                            1. Confirmer votre presence<br/>
-                            2. Ouvrir automatiquement la visio {provider_label}
-                        </p>
-                        <a href="{proof_link}" style="display: inline-block; padding: 14px 32px; background: #2563EB; color: white; text-decoration: none; border-radius: 10px; font-size: 15px; font-weight: bold;">
-                            Confirmer ma presence et rejoindre
-                        </a>
-                        <p style="margin: 12px 0 0 0; color: #64748B; font-size: 11px;">
-                            Ce lien est votre point d'entree unique. Il sera actif 30 minutes avant le debut.
-                            <br/>Conservez cet email — c'est votre reference pour le jour J.
-                        </p>
-                    </div>
-            """
+            access_section = (
+                '<div style="background:#F0F9FF;border:2px solid #BAE6FD;border-radius:10px;padding:24px;margin:24px 0;text-align:center;">'
+                '<p style="margin:0 0 6px 0;color:#0369A1;font-weight:700;font-size:16px;">Votre lien de réunion</p>'
+                f'<p style="margin:0 0 16px 0;color:#0284C7;font-size:13px;line-height:1.5;">Le jour de l\'engagement, cliquez pour confirmer votre présence et ouvrir la visio {provider_label}.</p>'
+                + _btn(proof_link, "Confirmer ma présence et rejoindre", bg="#0369A1")
+                + '<p style="margin:12px 0 0 0;color:#64748B;font-size:11px;">Ce lien sera actif 30 minutes avant le début. Conservez cet email.</p>'
+                + '</div>'
+            )
         elif not is_video:
-            # PHYSICAL: GPS / QR check-in info with direct action link
-            loc_text = f"a l'adresse : <strong>{location_display}</strong>" if location else ""
-            # Build the check-in action link (invitation page is the check-in entry point)
-            checkin_link = invitation_link if invitation_link else ""
-            checkin_button = ""
-            if checkin_link:
-                checkin_button = f"""
-                        <div style="text-align: center; margin-top: 16px;">
-                            <a href="{checkin_link}" style="display: inline-block; padding: 14px 32px; background: #16A34A; color: white; text-decoration: none; border-radius: 10px; font-size: 15px; font-weight: bold;">
-                                Je suis arrive — confirmer ma presence
-                            </a>
-                        </div>
-                """
-            access_section = f"""
-                    <div style="background: #F0FDF4; border: 2px solid #BBF7D0; border-radius: 10px; padding: 24px; margin: 24px 0;">
-                        <p style="margin: 0 0 8px 0; color: #166534; font-weight: bold; font-size: 15px;">
-                            Comment confirmer votre presence
-                        </p>
-                        <p style="margin: 0 0 12px 0; color: #15803D; font-size: 13px; line-height: 1.5;">
-                            Le jour du rendez-vous {loc_text}, confirmez votre arrivee via :
-                        </p>
-                        <ul style="margin: 0; padding-left: 20px; color: #15803D; font-size: 13px; line-height: 1.8;">
-                            <li>Le bouton ci-dessous <strong>"Je suis arrive"</strong></li>
-                            <li>Le <strong>scan du QR code</strong> fourni par l'organisateur</li>
-                        </ul>
-                        {checkin_button}
-                        <p style="margin: 12px 0 0 0; color: #64748B; font-size: 11px;">
-                            La position GPS sera capturee automatiquement si autorisee. Le check-in est disponible 30 min avant le debut.
-                            <br/>Conservez cet email — c'est votre reference pour le jour J.
-                        </p>
-                    </div>
-            """
+            loc_text = f"à l'adresse : <strong>{location_display}</strong>" if location else ""
+            checkin_button = _btn(invitation_link, "Je suis arrivé — confirmer ma présence", bg="#059669") if invitation_link else ""
+            access_section = (
+                '<div style="background:#F0FDF4;border:2px solid #BBF7D0;border-radius:10px;padding:24px;margin:24px 0;">'
+                '<p style="margin:0 0 8px 0;color:#166534;font-weight:700;font-size:15px;">Comment confirmer votre présence</p>'
+                f'<p style="margin:0 0 12px 0;color:#15803D;font-size:13px;line-height:1.5;">Le jour de l\'engagement {loc_text}, confirmez votre arrivée via le bouton ci-dessous ou le scan du QR code.</p>'
+                + checkin_button
+                + '<p style="margin:12px 0 0 0;color:#64748B;font-size:11px;">Le check-in est disponible 30 min avant le début. Conservez cet email.</p>'
+                + '</div>'
+            )
 
-        # ── Subject ──
-        subject = f"Confirmation d'acces — {appointment_title}"
+        # ICS button
+        ics_button = _btn_secondary(ics_link, "Ajouter à mon calendrier") if ics_link else ""
 
-        # ── Header subtitle ──
-        header_subtitle = f"Visioconference {provider_label}" if is_video else "Rendez-vous confirme"
+        # View link
+        view_link = ""
+        if invitation_link:
+            view_link = f'<p style="text-align:center;margin-top:16px;"><a href="{invitation_link}" style="color:#3B82F6;text-decoration:underline;font-size:13px;">Voir tous les détails de l\'engagement</a></p>'
 
-        html_content = f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <style>
-                body {{ font-family: 'Inter', Arial, sans-serif; line-height: 1.6; color: #334155; }}
-                .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
-                .header {{ background: #059669; color: white; padding: 30px; text-align: center; }}
-                .content {{ background: #ffffff; padding: 30px; border: 1px solid #E2E8F0; }}
-                .info-box {{ background: #F8FAFC; padding: 20px; border-radius: 8px; border: 1px solid #E2E8F0; margin: 20px 0; }}
-                .footer {{ text-align: center; color: #64748B; font-size: 14px; padding: 20px; }}
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <div class="header">
-                    <h1 style="margin: 0; font-size: 22px;">Votre acces est confirme</h1>
-                    <p style="margin: 10px 0 0 0; opacity: 0.9; font-size: 14px;">{header_subtitle} — NLYT</p>
-                </div>
-                <div class="content">
-                    <h2 style="color: #1E293B; margin-top: 0;">Bonjour {to_name},</h2>
-                    <p style="color: #475569;">
-                        Votre participation au rendez-vous de <strong>{organizer_name}</strong> est maintenant
-                        <strong>entierement confirmee</strong>. Vous trouverez ci-dessous toutes les informations
-                        necessaires pour le jour J.
-                    </p>
+        subject = f"Votre accès est confirmé — {appointment_title}"
 
-                    <div class="info-box">
-                        <h3 style="margin: 0 0 15px 0; color: #1E293B;">{appointment_title}</h3>
-                        <p style="margin: 8px 0; color: #334155;">
-                            <strong>Date :</strong> {formatted_date}
-                        </p>
-                        {tz_note}
-                        <p style="margin: 8px 0; color: #334155;">
-                            <strong>{'Reunion' if is_video else 'Lieu'} :</strong> {location_display}
-                        </p>
-                    </div>
-
-                    {access_section}
-
-                    {penalty_reminder}
-
-                    {ics_button}
-
-                    {view_link}
-
-                    <div style="background: #F1F5F9; border-radius: 8px; padding: 16px; margin-top: 24px; text-align: center;">
-                        <p style="margin: 0; color: #64748B; font-size: 12px;">
-                            Cet email est votre <strong>confirmation d'acces definitive</strong>.
-                            Conservez-le pour retrouver facilement vos liens le jour du rendez-vous.
-                        </p>
-                    </div>
-                </div>
-                <div class="footer">
-                    <p>&copy; 2026 NLYT. Tous droits reserves.</p>
-                </div>
-            </div>
-        </body>
-        </html>
-        """
+        body = (
+            _greeting(to_name)
+            + _paragraph(f'Votre participation à l\'engagement de <strong>{organizer_name}</strong> est <strong>confirmée</strong>. Voici toutes les informations pour le jour J.')
+            + _info_box(f'<p style="margin:0 0 12px 0;font-size:16px;font-weight:700;color:#0F172A;">{appointment_title}</p>{details}')
+            + access_section
+            + guarantee_reminder
+            + ics_button
+            + view_link
+            + '<div style="background:#F8FAFC;border-radius:8px;padding:14px;margin-top:20px;text-align:center;">'
+            + '<p style="margin:0;color:#64748B;font-size:12px;">Cet email est votre <strong>confirmation d\'accès définitive</strong>. Conservez-le.</p>'
+            + '</div>'
+        )
+        html_content = _base_template(body, accent="success")
         return await EmailService.send_email(to_email, subject, html_content, email_type="acceptance_confirmation")
 
-
+    # ─────────────────────────────────────────────────────────
+    # 5. CHECK-IN NOTIFICATION
+    # ─────────────────────────────────────────────────────────
     @staticmethod
     async def send_checkin_notification_email(
         to_email: str,
@@ -594,37 +449,21 @@ class EmailService:
         appointment_timezone: str = 'Europe/Paris',
         evidence_details: dict = None,
     ):
-        """
-        Notify others when someone checks in.
-        evidence_details may contain:
-          Physical: latitude, longitude, address_label, distance_km, source
-          Video: video_display_name, checkin_time
-        """
         formatted_date = format_email_datetime(appointment_datetime, appointment_timezone)
         is_video = appointment_type == 'video'
         details = evidence_details or {}
 
         provider_label = {
             'zoom': 'Zoom', 'teams': 'Microsoft Teams', 'meet': 'Google Meet'
-        }.get((meeting_provider or '').lower(), meeting_provider or 'visioconference')
+        }.get((meeting_provider or '').lower(), meeting_provider or 'visioconférence')
 
-        # Wording adapté au type
+        role = " (organisateur)" if checkin_is_organizer else ""
         if is_video:
-            if checkin_is_organizer:
-                action_text = f"<strong>{checkin_person_name}</strong> (organisateur) a confirme sa presence pour la reunion."
-            else:
-                action_text = f"<strong>{checkin_person_name}</strong> a confirme sa presence pour la reunion."
-            subtitle = f"Reunion {provider_label}"
-            icon_color = "#2563EB"
+            action_text = f"<strong>{checkin_person_name}</strong>{role} a confirmé sa présence pour la réunion."
         else:
-            if checkin_is_organizer:
-                action_text = f"<strong>{checkin_person_name}</strong> (organisateur) est arrive au rendez-vous."
-            else:
-                action_text = f"<strong>{checkin_person_name}</strong> est arrive au rendez-vous."
-            subtitle = "Rendez-vous en presentiel"
-            icon_color = "#059669"
+            action_text = f"<strong>{checkin_person_name}</strong>{role} est arrivé à l'engagement."
 
-        # Checkin time display
+        # Checkin time
         checkin_display = ""
         if checkin_time:
             try:
@@ -637,112 +476,59 @@ class EmailService:
             except Exception:
                 checkin_display = ""
 
-        time_line = f"<p style='margin: 4px 0 0 0; color: #64748B; font-size: 12px;'>Check-in a {checkin_display}</p>" if checkin_display else ""
-
-        # ── Evidence details section ──
-        evidence_section = ""
+        # Evidence details
+        evidence_rows = ""
         if is_video:
-            # Video: display name + connection time
             display_name = details.get('video_display_name')
-            rows = []
+            items = []
             if display_name:
-                rows.append(f"<tr><td style='color:#64748B;padding:3px 8px 3px 0;font-size:12px;'>Nom de connexion</td><td style='color:#1E293B;padding:3px 0;font-size:12px;font-weight:600;'>{display_name}</td></tr>")
+                items.append(_detail_row("Nom de connexion :", display_name))
             if checkin_display:
-                rows.append(f"<tr><td style='color:#64748B;padding:3px 8px 3px 0;font-size:12px;'>Heure de connexion</td><td style='color:#1E293B;padding:3px 0;font-size:12px;font-weight:600;'>{checkin_display}</td></tr>")
-            rows.append(f"<tr><td style='color:#64748B;padding:3px 8px 3px 0;font-size:12px;'>Plateforme</td><td style='color:#1E293B;padding:3px 0;font-size:12px;font-weight:600;'>{provider_label}</td></tr>")
-            if rows:
-                evidence_section = f"""
-                    <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;padding:14px 16px;margin:16px 0;">
-                        <p style="margin:0 0 8px 0;color:#1E40AF;font-weight:bold;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Details de connexion</p>
-                        <table style="border-collapse:collapse;">{''.join(rows)}</table>
-                    </div>
-                """
+                items.append(_detail_row("Heure :", checkin_display))
+            items.append(_detail_row("Plateforme :", provider_label))
+            if items:
+                evidence_rows = '<div style="background:#F0F9FF;border:1px solid #BAE6FD;border-radius:8px;padding:16px;margin:16px 0;">' + '<p style="margin:0 0 8px 0;color:#0369A1;font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Détails de connexion</p>' + ''.join(items) + '</div>'
         else:
-            # Physical: GPS coordinates + address + distance + source
-            rows = []
+            items = []
             source_label = {'gps': 'GPS', 'qr': 'QR Code', 'manual_checkin': 'Check-in manuel'}.get(details.get('source', ''), details.get('source', ''))
             if source_label:
-                rows.append(f"<tr><td style='color:#64748B;padding:3px 8px 3px 0;font-size:12px;'>Methode</td><td style='color:#1E293B;padding:3px 0;font-size:12px;font-weight:600;'>{source_label}</td></tr>")
+                items.append(_detail_row("Méthode :", source_label))
             if checkin_display:
-                rows.append(f"<tr><td style='color:#64748B;padding:3px 8px 3px 0;font-size:12px;'>Heure d'arrivee</td><td style='color:#1E293B;padding:3px 0;font-size:12px;font-weight:600;'>{checkin_display}</td></tr>")
+                items.append(_detail_row("Heure d'arrivée :", checkin_display))
             addr = details.get('address_label')
             if addr:
-                rows.append(f"<tr><td style='color:#64748B;padding:3px 8px 3px 0;font-size:12px;vertical-align:top;'>Localisation</td><td style='color:#1E293B;padding:3px 0;font-size:12px;font-weight:600;'>{addr}</td></tr>")
+                items.append(_detail_row("Localisation :", addr))
             lat = details.get('latitude')
             lon = details.get('longitude')
             if lat is not None and lon is not None:
                 maps_url = f"https://www.google.com/maps?q={lat},{lon}"
-                rows.append(f"<tr><td style='color:#64748B;padding:3px 8px 3px 0;font-size:12px;'>Coordonnees</td><td style='padding:3px 0;font-size:12px;'><a href='{maps_url}' style='color:#2563EB;text-decoration:underline;'>{lat:.5f}, {lon:.5f}</a></td></tr>")
+                items.append(f'<p style="margin:6px 0;color:#475569;font-size:14px;"><strong style="color:#1E293B;">Coordonnées :</strong> <a href="{maps_url}" style="color:#3B82F6;">{lat:.5f}, {lon:.5f}</a></p>')
             dist = details.get('distance_km')
             if dist is not None:
-                rows.append(f"<tr><td style='color:#64748B;padding:3px 8px 3px 0;font-size:12px;'>Distance au lieu</td><td style='color:#1E293B;padding:3px 0;font-size:12px;font-weight:600;'>{dist:.1f} km</td></tr>")
-            if rows:
-                evidence_section = f"""
-                    <div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;padding:14px 16px;margin:16px 0;">
-                        <p style="margin:0 0 8px 0;color:#166534;font-weight:bold;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Preuves de presence</p>
-                        <table style="border-collapse:collapse;">{''.join(rows)}</table>
-                    </div>
-                """
+                items.append(_detail_row("Distance au lieu :", f"{dist:.1f} km"))
+            if items:
+                evidence_rows = '<div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;padding:16px;margin:16px 0;">' + '<p style="margin:0 0 8px 0;color:#166534;font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Preuves de présence</p>' + ''.join(items) + '</div>'
 
         link_section = ""
         if appointment_link:
-            link_section = f"""
-                    <p style="text-align: center; margin-top: 20px;">
-                        <a href="{appointment_link}" style="color: #3B82F6; text-decoration: underline; font-size: 13px;">
-                            Voir les details du rendez-vous
-                        </a>
-                    </p>
-            """
+            link_section = f'<p style="text-align:center;margin-top:16px;"><a href="{appointment_link}" style="color:#3B82F6;text-decoration:underline;font-size:13px;">Voir les détails de l\'engagement</a></p>'
 
-        subject = f"{checkin_person_name} a confirme sa presence — {appointment_title}"
+        accent = "info" if is_video else "success"
+        subject = f"{checkin_person_name} a confirmé sa présence — {appointment_title}"
 
-        html_content = f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <style>
-                body {{ font-family: 'Inter', Arial, sans-serif; line-height: 1.6; color: #334155; }}
-                .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
-                .header {{ background: {icon_color}; color: white; padding: 24px; text-align: center; }}
-                .content {{ background: #ffffff; padding: 30px; border: 1px solid #E2E8F0; }}
-                .footer {{ text-align: center; color: #94A3B8; font-size: 12px; padding: 15px; }}
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <div class="header">
-                    <h1 style="margin: 0; font-size: 18px;">Confirmation de presence</h1>
-                    <p style="margin: 8px 0 0 0; opacity: 0.9; font-size: 13px;">{subtitle} — NLYT</p>
-                </div>
-                <div class="content">
-                    <p style="color: #475569; margin-top: 0;">Bonjour {to_name},</p>
-
-                    <div style="background: #F0FDF4; border-left: 4px solid {icon_color}; padding: 16px; margin: 20px 0; border-radius: 0 8px 8px 0;">
-                        <p style="margin: 0; color: #1E293B; font-size: 15px;">
-                            {action_text}
-                        </p>
-                        {time_line}
-                    </div>
-
-                    {evidence_section}
-
-                    <div style="background: #F8FAFC; padding: 16px; border-radius: 8px; border: 1px solid #E2E8F0; margin: 20px 0;">
-                        <p style="margin: 0 0 6px 0; color: #1E293B; font-weight: bold;">{appointment_title}</p>
-                        <p style="margin: 0; color: #64748B; font-size: 13px;">{formatted_date}</p>
-                    </div>
-
-                    {link_section}
-                </div>
-                <div class="footer">
-                    <p>&copy; 2026 NLYT</p>
-                </div>
-            </div>
-        </body>
-        </html>
-        """
+        body = (
+            _greeting(to_name)
+            + _alert_box(f'<p style="margin:0;color:#1E293B;font-size:15px;">{action_text}</p>', border_color=ACCENT_COLORS[accent], bg="#F0FDF4" if not is_video else "#F0F9FF")
+            + evidence_rows
+            + _info_box(f'<p style="margin:0 0 6px 0;color:#0F172A;font-weight:700;">{appointment_title}</p><p style="margin:0;color:#64748B;font-size:13px;">{formatted_date}</p>')
+            + link_section
+        )
+        html_content = _base_template(body, accent=accent)
         return await EmailService.send_email(to_email, subject, html_content, email_type="checkin_notification")
 
-
+    # ─────────────────────────────────────────────────────────
+    # 6. PARTICIPANT CANCELLATION (notif to organizer)
+    # ─────────────────────────────────────────────────────────
     @staticmethod
     async def send_participant_cancellation_notification(
         organizer_email: str,
@@ -755,76 +541,29 @@ class EmailService:
         appointment_link: str = None,
         appointment_timezone: str = 'Europe/Paris'
     ):
-        """Send notification to organizer when a participant cancels their participation"""
         formatted_date = format_email_datetime(appointment_datetime, appointment_timezone)
-        
         location_display = location if location else "Non spécifié"
-        
-        # Build link button if provided
-        link_button = ""
-        if appointment_link:
-            link_button = f"""
-            <div style="text-align: center; margin-top: 25px;">
-                <a href="{appointment_link}" style="display: inline-block; padding: 12px 24px; background: #0F172A; color: white; text-decoration: none; border-radius: 6px; font-weight: 500;">
-                    Voir les détails du rendez-vous
-                </a>
-            </div>
-            """
-        
-        subject = f"Un participant a annulé sa participation - {appointment_title}"
-        html_content = f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <style>
-                body {{ font-family: 'Inter', Arial, sans-serif; line-height: 1.6; color: #334155; }}
-                .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
-                .header {{ background: #F97316; color: white; padding: 25px; text-align: center; }}
-                .content {{ background: #ffffff; padding: 30px; border: 1px solid #E2E8F0; }}
-                .alert-box {{ background: #FEF3C7; border-left: 4px solid #F97316; padding: 15px; margin: 20px 0; }}
-                .info-box {{ background: #F8FAFC; padding: 20px; border-radius: 8px; border: 1px solid #E2E8F0; margin: 20px 0; }}
-                .footer {{ text-align: center; color: #64748B; font-size: 14px; padding: 20px; }}
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <div class="header">
-                    <h1 style="margin: 0; font-size: 22px;">Annulation de participation</h1>
-                </div>
-                <div class="content">
-                    <h2 style="color: #1E293B; margin-top: 0;">Bonjour {organizer_name},</h2>
-                    
-                    <div class="alert-box">
-                        <p style="margin: 0; color: #92400E;">
-                            <strong>Le participant {participant_name}</strong> ({participant_email}) a annulé sa participation à votre rendez-vous.
-                        </p>
-                    </div>
-                    
-                    <div class="info-box">
-                        <h3 style="margin: 0 0 15px 0; color: #1E293B;">{appointment_title}</h3>
-                        <p style="margin: 8px 0; color: #64748B;">
-                            <strong>📅 Date :</strong> {formatted_date}
-                        </p>
-                        <p style="margin: 8px 0; color: #64748B;">
-                            <strong>📍 Lieu :</strong> {location_display}
-                        </p>
-                    </div>
-                    
-                    <p style="color: #475569;">
-                        Le participant a annulé dans les délais prévus. Aucune pénalité ne sera appliquée.
-                    </p>
-                    
-                    {link_button}
-                </div>
-                <div class="footer">
-                    <p>© 2026 NLYT. Tous droits réservés.</p>
-                </div>
-            </div>
-        </body>
-        </html>
-        """
+
+        link_button = _btn(appointment_link, "Voir les détails de l'engagement") if appointment_link else ""
+
+        subject = f"Un participant a annulé — {appointment_title}"
+        body = (
+            _greeting(organizer_name)
+            + _alert_box(f'<p style="margin:0;color:#92400E;font-size:14px;"><strong>{participant_name}</strong> ({participant_email}) a annulé sa participation à votre engagement.</p>')
+            + _info_box(
+                f'<p style="margin:0 0 12px 0;font-size:16px;font-weight:700;color:#0F172A;">{appointment_title}</p>'
+                + _detail_row("Date :", formatted_date)
+                + _detail_row("Lieu :", location_display)
+            )
+            + _paragraph("Le participant a annulé dans les délais prévus. Aucune garantie ne sera capturée.")
+            + link_button
+        )
+        html_content = _base_template(body, accent="warning")
         return await EmailService.send_email(organizer_email, subject, html_content, email_type="participant_cancellation")
 
+    # ─────────────────────────────────────────────────────────
+    # 7. APPOINTMENT CANCELLED BY ORGANIZER
+    # ─────────────────────────────────────────────────────────
     @staticmethod
     async def send_appointment_cancelled_notification(
         participant_email: str,
@@ -835,67 +574,29 @@ class EmailService:
         location: str = None,
         appointment_timezone: str = 'Europe/Paris'
     ):
-        """Send notification to participant when appointment is cancelled by organizer"""
         formatted_date = format_email_datetime(appointment_datetime, appointment_timezone)
-        
         location_display = location if location else "Non spécifié"
-        
-        subject = f"Le rendez-vous a été annulé - {appointment_title}"
-        html_content = f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <style>
-                body {{ font-family: 'Inter', Arial, sans-serif; line-height: 1.6; color: #334155; }}
-                .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
-                .header {{ background: #DC2626; color: white; padding: 25px; text-align: center; }}
-                .content {{ background: #ffffff; padding: 30px; border: 1px solid #E2E8F0; }}
-                .alert-box {{ background: #FEE2E2; border-left: 4px solid #DC2626; padding: 15px; margin: 20px 0; }}
-                .info-box {{ background: #F8FAFC; padding: 20px; border-radius: 8px; border: 1px solid #E2E8F0; margin: 20px 0; }}
-                .footer {{ text-align: center; color: #64748B; font-size: 14px; padding: 20px; }}
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <div class="header">
-                    <h1 style="margin: 0; font-size: 22px;">Rendez-vous annulé</h1>
-                </div>
-                <div class="content">
-                    <h2 style="color: #1E293B; margin-top: 0;">Bonjour {participant_name},</h2>
-                    
-                    <div class="alert-box">
-                        <p style="margin: 0; color: #991B1B;">
-                            <strong>Le rendez-vous suivant a été annulé par l'organisateur ({organizer_name}).</strong>
-                        </p>
-                    </div>
-                    
-                    <div class="info-box">
-                        <h3 style="margin: 0 0 15px 0; color: #1E293B; text-decoration: line-through;">{appointment_title}</h3>
-                        <p style="margin: 8px 0; color: #64748B;">
-                            <strong>📅 Date :</strong> {formatted_date}
-                        </p>
-                        <p style="margin: 8px 0; color: #64748B;">
-                            <strong>📍 Lieu :</strong> {location_display}
-                        </p>
-                    </div>
-                    
-                    <p style="color: #475569;">
-                        <strong>Vous n'avez plus besoin de vous présenter à ce rendez-vous.</strong>
-                    </p>
-                    
-                    <p style="color: #64748B; font-size: 14px;">
-                        Si vous avez des questions, veuillez contacter directement l'organisateur.
-                    </p>
-                </div>
-                <div class="footer">
-                    <p>© 2026 NLYT. Tous droits réservés.</p>
-                </div>
-            </div>
-        </body>
-        </html>
-        """
+
+        subject = f"Engagement annulé — {appointment_title}"
+        body = (
+            _greeting(participant_name)
+            + _alert_box(
+                f'<p style="margin:0;color:#991B1B;font-size:14px;">L\'engagement suivant a été <strong>annulé</strong> par l\'organisateur ({organizer_name}).</p>',
+                border_color="#EF4444", bg="#FEF2F2"
+            )
+            + _info_box(
+                f'<p style="margin:0 0 12px 0;font-size:16px;font-weight:700;color:#94A3B8;text-decoration:line-through;">{appointment_title}</p>'
+                + _detail_row("Date :", formatted_date)
+                + _detail_row("Lieu :", location_display)
+            )
+            + _paragraph("<strong>Vous n'avez plus besoin de vous présenter.</strong> Si vous avez des questions, contactez directement l'organisateur.")
+        )
+        html_content = _base_template(body, accent="danger")
         return await EmailService.send_email(participant_email, subject, html_content, email_type="appointment_cancelled")
 
+    # ─────────────────────────────────────────────────────────
+    # 8. APPOINTMENT DELETED
+    # ─────────────────────────────────────────────────────────
     @staticmethod
     async def send_appointment_deleted_notification(
         participant_email: str,
@@ -906,63 +607,29 @@ class EmailService:
         location: str = None,
         appointment_timezone: str = 'Europe/Paris'
     ):
-        """Send notification to participant when appointment is deleted by organizer"""
         formatted_date = format_email_datetime(appointment_datetime, appointment_timezone)
-        
         location_display = location if location else "Non spécifié"
-        
-        subject = f"Le rendez-vous a été supprimé - {appointment_title}"
-        html_content = f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <style>
-                body {{ font-family: 'Inter', Arial, sans-serif; line-height: 1.6; color: #334155; }}
-                .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
-                .header {{ background: #64748B; color: white; padding: 25px; text-align: center; }}
-                .content {{ background: #ffffff; padding: 30px; border: 1px solid #E2E8F0; }}
-                .alert-box {{ background: #F1F5F9; border-left: 4px solid #64748B; padding: 15px; margin: 20px 0; }}
-                .info-box {{ background: #F8FAFC; padding: 20px; border-radius: 8px; border: 1px solid #E2E8F0; margin: 20px 0; }}
-                .footer {{ text-align: center; color: #64748B; font-size: 14px; padding: 20px; }}
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <div class="header">
-                    <h1 style="margin: 0; font-size: 22px;">Rendez-vous supprimé</h1>
-                </div>
-                <div class="content">
-                    <h2 style="color: #1E293B; margin-top: 0;">Bonjour {participant_name},</h2>
-                    
-                    <div class="alert-box">
-                        <p style="margin: 0; color: #475569;">
-                            <strong>Le rendez-vous suivant a été supprimé par l'organisateur.</strong>
-                        </p>
-                    </div>
-                    
-                    <div class="info-box">
-                        <h3 style="margin: 0 0 15px 0; color: #94A3B8; text-decoration: line-through;">{appointment_title}</h3>
-                        <p style="margin: 8px 0; color: #94A3B8;">
-                            <strong>📅 Date :</strong> {formatted_date}
-                        </p>
-                        <p style="margin: 8px 0; color: #94A3B8;">
-                            <strong>📍 Lieu :</strong> {location_display}
-                        </p>
-                    </div>
-                    
-                    <p style="color: #475569;">
-                        <strong>Ce rendez-vous n'aura pas lieu.</strong>
-                    </p>
-                </div>
-                <div class="footer">
-                    <p>© 2026 NLYT. Tous droits réservés.</p>
-                </div>
-            </div>
-        </body>
-        </html>
-        """
+
+        subject = f"Engagement supprimé — {appointment_title}"
+        body = (
+            _greeting(participant_name)
+            + _alert_box(
+                '<p style="margin:0;color:#475569;font-size:14px;">L\'engagement suivant a été <strong>supprimé</strong> par l\'organisateur.</p>',
+                border_color="#64748B", bg="#F1F5F9"
+            )
+            + _info_box(
+                f'<p style="margin:0 0 12px 0;font-size:16px;font-weight:700;color:#94A3B8;text-decoration:line-through;">{appointment_title}</p>'
+                + _detail_row("Date :", formatted_date)
+                + _detail_row("Lieu :", location_display)
+            )
+            + _paragraph("<strong>Cet engagement n'aura pas lieu.</strong>")
+        )
+        html_content = _base_template(body, accent="neutral")
         return await EmailService.send_email(participant_email, subject, html_content, email_type="appointment_deleted")
 
+    # ─────────────────────────────────────────────────────────
+    # 9. GUARANTEE REVALIDATION
+    # ─────────────────────────────────────────────────────────
     @staticmethod
     async def send_guarantee_revalidation_email(
         participant_email: str,
@@ -971,73 +638,32 @@ class EmailService:
         revalidation_reason: str,
         invitation_link: str
     ):
-        """Send email when a major modification requires guarantee reconfirmation"""
-
         reason_labels = {
             "city_change": "Le lieu a changé de ville",
             "date_shift": "La date a été décalée de plus de 24 heures",
-            "type_change": "Le type de rendez-vous a changé"
+            "type_change": "Le type d'engagement a changé"
         }
 
         reason_parts = revalidation_reason.split(", ") if revalidation_reason else []
         reason_html_items = ""
         for r in reason_parts:
-            key = r.split(":")[0] if ":" in r else r.split("_")[0] + "_" + r.split("_")[1] if "_" in r else r
             for label_key, label_val in reason_labels.items():
                 if label_key in r:
                     detail = r.split(":", 1)[1] if ":" in r else ""
-                    reason_html_items += f'<li style="margin:6px 0;color:#92400E;">{label_val}{" (" + detail + ")" if detail else ""}</li>'
+                    reason_html_items += f'<li style="margin:6px 0;color:#92400E;font-size:14px;">{label_val}{" (" + detail + ")" if detail else ""}</li>'
                     break
 
         if not reason_html_items:
-            reason_html_items = f'<li style="margin:6px 0;color:#92400E;">{revalidation_reason}</li>'
+            reason_html_items = f'<li style="margin:6px 0;color:#92400E;font-size:14px;">{revalidation_reason}</li>'
 
         subject = f"Action requise — Reconfirmez votre garantie pour \"{appointment_title}\""
-        html_content = f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <style>
-                body {{ font-family: 'Inter', Arial, sans-serif; line-height: 1.6; color: #334155; }}
-                .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
-                .header {{ background: #D97706; color: white; padding: 25px; text-align: center; }}
-                .content {{ background: #ffffff; padding: 30px; border: 1px solid #E2E8F0; }}
-                .alert-box {{ background: #FFFBEB; border-left: 4px solid #D97706; padding: 15px; margin: 20px 0; }}
-                .cta-btn {{ display: inline-block; background: #D97706; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; margin-top: 10px; }}
-                .footer {{ text-align: center; color: #64748B; font-size: 14px; padding: 20px; }}
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <div class="header">
-                    <h1 style="margin: 0; font-size: 22px;">Garantie à reconfirmer</h1>
-                </div>
-                <div class="content">
-                    <h2 style="color: #1E293B; margin-top: 0;">Bonjour {participant_name},</h2>
-
-                    <p>Les conditions du rendez-vous <strong>"{appointment_title}"</strong> ont changé de manière significative :</p>
-
-                    <div class="alert-box">
-                        <ul style="margin:0;padding-left:20px;">
-                            {reason_html_items}
-                        </ul>
-                    </div>
-
-                    <p>Votre garantie actuelle nécessite une reconfirmation pour rester valide.</p>
-
-                    <div style="text-align:center;margin:25px 0;">
-                        <a href="{invitation_link}" class="cta-btn">Reconfirmer ma garantie</a>
-                    </div>
-
-                    <p style="color:#64748B;font-size:13px;">
-                        Tant que vous n'avez pas reconfirmé, votre garantie est considérée comme partiellement invalide.
-                    </p>
-                </div>
-                <div class="footer">
-                    <p>© 2026 NLYT. Tous droits réservés.</p>
-                </div>
-            </div>
-        </body>
-        </html>
-        """
+        body = (
+            _greeting(participant_name)
+            + _paragraph(f'Les conditions de l\'engagement <strong>"{appointment_title}"</strong> ont changé de manière significative :')
+            + _alert_box(f'<ul style="margin:0;padding-left:20px;">{reason_html_items}</ul>')
+            + _paragraph("Votre garantie actuelle nécessite une reconfirmation pour rester valide.")
+            + _btn(invitation_link, "Reconfirmer ma garantie", bg="#D97706")
+            + _small("Tant que vous n'avez pas reconfirmé, votre garantie est considérée comme partiellement invalide.")
+        )
+        html_content = _base_template(body, accent="warning")
         return await EmailService.send_email(participant_email, subject, html_content, email_type="guarantee_revalidation")
