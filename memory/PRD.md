@@ -201,6 +201,14 @@ Les APIs calendrier (Google/Outlook) interprétaient la valeur comme heure local
   - `victor.fontaine@demo-nlyt.fr` — créneau optimal entre 10h et 14h
   - `aurelie.marchand@demo-nlyt.fr` — pénalité appliquée (100€, MSF)
 
+## Fix Teams Configuration Flow (Mars 2026)
+- **Bug A** : `provider-status` retourne maintenant `configured`, `features`, `connection_mode` pour Teams
+- **Bug B** : `is_configured()` validé avec format UUID (rejette `datetime-debug`, `common`, etc.)
+- **Bug C** : UX non bloquante — sauvegarde possible sans credentials serveur, warning informatif
+- **Bug D** : Note explicative recommandant le mode délégué (Outlook Teams avancé)
+- **3 modes Teams** : délégué (Outlook scope), application (Azure AD form), non connecté
+- Tests : 20/20 backend + 10/10 frontend (testing agent iteration_69)
+
 ## Roadmap
 
 ### P1
