@@ -59,8 +59,10 @@ export default function SignIn() {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="mb-2">
-            <span className="block text-lg font-bold tracking-[0.35em] text-slate-900">N<span className="text-slate-400">·</span>L<span className="text-slate-400">·</span>Y<span className="text-slate-400">·</span>T</span>
-            <span className="block text-[10px] font-medium tracking-[0.25em] text-slate-400 uppercase">Never Lose Your Time</span>
+            <Link to="/" className="inline-block" data-testid="auth-logo-link">
+              <span className="block text-lg font-bold tracking-[0.35em] text-slate-900">N<span className="text-slate-400">·</span>L<span className="text-slate-400">·</span>Y<span className="text-slate-400">·</span>T</span>
+              <span className="block text-[10px] font-medium tracking-[0.25em] text-slate-400 uppercase">Never Lose Your Time</span>
+            </Link>
           </div>
           <h2 className="text-2xl font-semibold text-slate-800 mb-2">Connexion</h2>
           <p className="text-slate-600">Accédez à votre espace d'engagements solidaires</p>
