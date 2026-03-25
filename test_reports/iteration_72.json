@@ -1,0 +1,71 @@
+{
+  "summary": "Per-provider auto-sync feature verified. Backend API correctly returns auto_sync_providers (array) and connected_providers (array). Frontend shows TWO separate toggle switches for Google Calendar and Outlook in the Auto-sync section. Apple Calendar and Auto-sync sections are now inside the Calendriers section. Teams UX fix from previous iteration still works (Clara=green/advanced, Sandrine=grey/standard).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": {
+    "backend_api_tests": [
+      "GET /api/calendar/auto-sync/settings returns auto_sync_providers (array) and connected_providers (array)",
+      "PUT with {auto_sync_providers: ['google']} enables only Google",
+      "PUT with {auto_sync_providers: ['google','outlook']} enables both",
+      "PUT with {auto_sync_providers: []} disables all",
+      "Legacy format PUT with {auto_sync_enabled: true} enables all connected providers",
+      "Legacy format PUT with {auto_sync_enabled: false} disables all",
+      "PUT with {auto_sync_providers: ['outlook']} enables only Outlook",
+      "GET reflects changes made by PUT",
+      "Invalid provider is filtered out from auto_sync_providers"
+    ],
+    "frontend_ui_tests": [
+      "Clara: Apple Calendar section (data-testid='apple-calendar-section') is inside Calendriers section",
+      "Clara: Auto-sync section (data-testid='auto-sync-section') is inside Calendriers section",
+      "Clara: TWO separate toggle switches visible (Google Calendar and Outlook)",
+      "Clara: Google toggle (data-testid='auto-sync-google-toggle') works - ON=violet, OFF=grey",
+      "Clara: Outlook toggle (data-testid='auto-sync-outlook-toggle') works - ON=violet, OFF=grey",
+      "Clara: Toggle Google OFF shows 'Auto-sync actif vers Outlook' text",
+      "Clara: Toggle Google ON shows 'Auto-sync actif vers Outlook et Google Calendar' text",
+      "Clara: Teams calendar note is GREEN (advanced user)",
+      "Clara: Teams advanced active banner visible",
+      "Sandrine: Teams calendar note is GREY (standard user)",
+      "Sandrine: Teams upgrade banner visible (correct for standard user)",
+      "Sandrine: Teams advanced banner NOT visible (correct for standard user)"
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_per_provider_auto_sync.py",
+    "/app/test_reports/pytest/pytest_per_provider_auto_sync.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_per_provider_auto_sync.py"
+  ],
+  "success_rate": {
+    "backend": "100% (9/9 tests passed, 1 skipped)",
+    "frontend": "100% (12/12 UI checks passed)"
+  },
+  "test_credentials": {
+    "advanced_user": "clara.deschamps@demo-nlyt.fr / Demo2026! (has Google + Outlook connected, teams.level='advanced')",
+    "standard_user": "sandrine.bonnet@demo-nlyt.fr / Demo2026! (has Google + Outlook connected, teams.level='standard')"
+  },
+  "seed_data_creation": "None - used existing demo users",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Per-provider auto-sync feature implemented. Key implementation details: (1) Backend calendar_routes.py lines 424-510 - GET/PUT /auto-sync/settings now supports auto_sync_providers array. (2) Frontend Integrations.js - Auto-sync section with per-provider toggles using data-testid='auto-sync-google-toggle' and 'auto-sync-outlook-toggle'. (3) Apple Calendar section (data-testid='apple-calendar-section') and Auto-sync section (data-testid='auto-sync-section') are now children of the Calendriers section. (4) Teams UX fix verified - Clara (advanced) sees green Teams note, Sandrine (standard) sees grey Teams note.",
+  "mocked_apis": {
+    "has_mocked_apis": false,
+    "mocked_apis_list": []
+  },
+  "screenshots": [
+    ".screenshots/clara_integrations_full.png - Shows full integrations page for Clara",
+    ".screenshots/clara_integrations_scrolled.png - Shows Auto-sync section with both toggles ON",
+    ".screenshots/clara_google_toggle_off.png - Shows Google toggle OFF, Outlook ON",
+    ".screenshots/clara_google_toggle_on.png - Shows both toggles ON",
+    ".screenshots/sandrine_integrations.png - Shows Teams note grey for standard user"
+  ]
+}

@@ -18,7 +18,8 @@ export default function Integrations() {
   const [disconnecting, setDisconnecting] = useState(null);
   const [autoSyncEnabled, setAutoSyncEnabled] = useState(false);
   const [autoSyncProviders, setAutoSyncProviders] = useState([]);
-  const [savingAutoSync, setSavingAutoSync] = useState(false);
+  const [connectedProviders, setConnectedProviders] = useState([]);
+  const [savingAutoSync, setSavingAutoSync] = useState(null);
 
   // Video provider states
   const [videoProviders, setVideoProviders] = useState(null);
@@ -65,7 +66,8 @@ export default function Integrations() {
       setGoogleConnection(connections.find(c => c.provider === 'google') || null);
       setOutlookConnection(connections.find(c => c.provider === 'outlook') || null);
       setAutoSyncEnabled(syncRes.data.auto_sync_enabled || false);
-      setAutoSyncProviders(syncRes.data.connected_providers || []);
+      setAutoSyncProviders(syncRes.data.auto_sync_providers || []);
+      setConnectedProviders(syncRes.data.connected_providers || []);
       if (videoRes.data) setVideoProviders(videoRes.data);
     } catch (error) {
       console.error('Error loading:', error);
@@ -74,17 +76,26 @@ export default function Integrations() {
     }
   };
 
-  const handleToggleAutoSync = async (enabled) => {
-    setSavingAutoSync(true);
+  const handleToggleProviderSync = async (provider) => {
+    setSavingAutoSync(provider);
     try {
-      const res = await calendarAPI.updateAutoSyncSettings({ auto_sync_enabled: enabled });
-      setAutoSyncEnabled(enabled);
-      setAutoSyncProviders(res.data.connected_providers || []);
-      toast.success(enabled ? 'Auto-sync activé pour tous vos calendriers' : 'Auto-sync désactivé');
+      const newList = autoSyncProviders.includes(provider)
+        ? autoSyncProviders.filter(p => p !== provider)
+        : [...autoSyncProviders, provider];
+      const res = await calendarAPI.updateAutoSyncSettings({ auto_sync_providers: newList });
+      setAutoSyncEnabled(res.data.auto_sync_enabled || false);
+      setAutoSyncProviders(res.data.auto_sync_providers || []);
+      setConnectedProviders(res.data.connected_providers || []);
+      const label = provider === 'google' ? 'Google Calendar' : 'Outlook';
+      if (newList.includes(provider)) {
+        toast.success(`Auto-sync activé pour ${label}`);
+      } else {
+        toast.success(`Auto-sync désactivé pour ${label}`);
+      }
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Erreur lors de la sauvegarde');
     } finally {
-      setSavingAutoSync(false);
+      setSavingAutoSync(null);
     }
   };
 
@@ -642,6 +653,118 @@ export default function Integrations() {
           <div className="space-y-3">
             {renderCalendarCard('google', googleConnection, connectingGoogle)}
             {renderCalendarCard('outlook', outlookConnection, connectingOutlook)}
+
+            {/* ── Apple Calendar & autres (ICS Export) ── */}
+            <div className="bg-white rounded-xl border border-slate-200 overflow-hidden" data-testid="apple-calendar-section">
+              <div className="p-5">
+                <div className="flex items-start gap-4">
+                  <div className="w-11 h-11 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0">
+                    <Download className="w-5 h-5 text-slate-600" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-base font-semibold text-slate-900 mb-1">Apple Calendar & autres calendriers</h3>
+                    <p className="text-sm text-slate-500">
+                      Exportez vos rendez-vous au format iCalendar (.ics). Compatible avec Apple Calendar, Thunderbird et tout calendrier standard.
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="border-t border-slate-100 px-5 py-4">
+                <div className="flex items-center gap-3 text-sm text-slate-600">
+                  <Calendar className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                  <span>
+                    Un bouton <strong>"Autres calendriers (.ics)"</strong> est disponible sur chaque rendez-vous et chaque invitation. Le fichier .ics téléchargé s'ouvre directement dans votre application calendrier.
+                  </span>
+                </div>
+                <p className="text-xs text-slate-400 mt-3 ml-7">
+                  Cet export est manuel. En cas de modification du rendez-vous, ajoutez-le à nouveau pour mettre à jour votre calendrier.
+                </p>
+              </div>
+            </div>
+
+            {/* ── Auto-Sync per provider ── */}
+            {(googleConnection?.status === 'connected' || outlookConnection?.status === 'connected') && (
+              <div className="bg-white rounded-xl border border-slate-200 overflow-hidden" data-testid="auto-sync-section">
+                <div className="p-5">
+                  <div className="flex items-start gap-4">
+                    <div className="w-11 h-11 rounded-lg bg-violet-50 flex items-center justify-center flex-shrink-0">
+                      <Zap className="w-5 h-5 text-violet-600" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-base font-semibold text-slate-900 mb-1">Auto-sync calendrier</h3>
+                      <p className="text-sm text-slate-500">
+                        Chaque nouveau rendez-vous sera ajouté automatiquement aux calendriers activés ci-dessous.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border-t border-slate-100 px-5 py-4 space-y-2">
+                  {googleConnection?.status === 'connected' && (() => {
+                    const isOn = autoSyncProviders.includes('google');
+                    return (
+                      <div className="flex items-center justify-between py-2" data-testid="auto-sync-google-row">
+                        <div className="flex items-center gap-2.5">
+                          <Calendar className="w-4 h-4 text-blue-600" />
+                          <span className="text-sm font-medium text-slate-800">Google Calendar</span>
+                          {isOn && <Zap className="w-3.5 h-3.5 text-violet-600" />}
+                        </div>
+                        <button
+                          onClick={() => handleToggleProviderSync('google')}
+                          disabled={savingAutoSync === 'google'}
+                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                            isOn ? 'bg-violet-600' : 'bg-slate-200'
+                          }`}
+                          data-testid="auto-sync-google-toggle"
+                        >
+                          {savingAutoSync === 'google' ? (
+                            <Loader2 className="absolute left-1/2 -translate-x-1/2 w-3.5 h-3.5 animate-spin text-white" />
+                          ) : (
+                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow-sm ${
+                              isOn ? 'translate-x-6' : 'translate-x-1'
+                            }`} />
+                          )}
+                        </button>
+                      </div>
+                    );
+                  })()}
+                  {outlookConnection?.status === 'connected' && (() => {
+                    const isOn = autoSyncProviders.includes('outlook');
+                    return (
+                      <div className="flex items-center justify-between py-2" data-testid="auto-sync-outlook-row">
+                        <div className="flex items-center gap-2.5">
+                          <Calendar className="w-4 h-4 text-sky-600" />
+                          <span className="text-sm font-medium text-slate-800">Outlook</span>
+                          {isOn && <Zap className="w-3.5 h-3.5 text-violet-600" />}
+                        </div>
+                        <button
+                          onClick={() => handleToggleProviderSync('outlook')}
+                          disabled={savingAutoSync === 'outlook'}
+                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                            isOn ? 'bg-violet-600' : 'bg-slate-200'
+                          }`}
+                          data-testid="auto-sync-outlook-toggle"
+                        >
+                          {savingAutoSync === 'outlook' ? (
+                            <Loader2 className="absolute left-1/2 -translate-x-1/2 w-3.5 h-3.5 animate-spin text-white" />
+                          ) : (
+                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow-sm ${
+                              isOn ? 'translate-x-6' : 'translate-x-1'
+                            }`} />
+                          )}
+                        </button>
+                      </div>
+                    );
+                  })()}
+                  {autoSyncProviders.length > 0 && (
+                    <p className="text-xs text-violet-600 pt-1 flex items-center gap-1">
+                      <Zap className="w-3 h-3" />
+                      Auto-sync actif vers {autoSyncProviders.map(p => p === 'google' ? 'Google Calendar' : 'Outlook').join(' et ')}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -739,123 +862,6 @@ export default function Integrations() {
             );
           })()}
         </div>
-
-        {/* ========= Apple Calendar & autres (ICS Export) ========= */}
-        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden mb-8" data-testid="apple-calendar-section">
-          <div className="p-5">
-            <div className="flex items-start gap-4">
-              <div className="w-11 h-11 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0">
-                <Download className="w-5 h-5 text-slate-600" />
-              </div>
-              <div className="flex-1">
-                <h3 className="text-base font-semibold text-slate-900 mb-1">Apple Calendar & autres calendriers</h3>
-                <p className="text-sm text-slate-500">
-                  Exportez vos rendez-vous au format iCalendar (.ics). Compatible avec Apple Calendar, Thunderbird et tout calendrier standard.
-                </p>
-              </div>
-            </div>
-          </div>
-          <div className="border-t border-slate-100 px-5 py-4">
-            <div className="flex items-center gap-3 text-sm text-slate-600">
-              <Calendar className="w-4 h-4 text-slate-400 flex-shrink-0" />
-              <span>
-                Un bouton <strong>"Autres calendriers (.ics)"</strong> est disponible sur chaque rendez-vous et chaque invitation. Le fichier .ics téléchargé s'ouvre directement dans votre application calendrier.
-              </span>
-            </div>
-            <p className="text-xs text-slate-400 mt-3 ml-7">
-              Cet export est manuel. En cas de modification du rendez-vous, ajoutez-le à nouveau pour mettre à jour votre calendrier.
-            </p>
-          </div>
-        </div>
-
-
-        {/* ========= Auto-Sync Section ========= */}
-        {(googleConnection?.status === 'connected' || outlookConnection?.status === 'connected') && (
-          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden mb-8" data-testid="auto-sync-section">
-            <div className="p-5">
-              <div className="flex items-start gap-4">
-                <div className="w-11 h-11 rounded-lg bg-violet-50 flex items-center justify-center flex-shrink-0">
-                  <Zap className="w-5 h-5 text-violet-600" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-base font-semibold text-slate-900 mb-1">Auto-sync calendrier</h3>
-                  <p className="text-sm text-slate-500">
-                    Chaque nouveau rendez-vous sera automatiquement ajouté à <strong>tous</strong> vos calendriers connectés.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="border-t border-slate-100 px-5 py-4 space-y-3">
-              {/* Connected providers list */}
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-2">Calendriers connectés</label>
-                <div className="flex gap-2">
-                  {googleConnection?.status === 'connected' && (
-                    <span className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-medium ${
-                      autoSyncEnabled
-                        ? 'border-violet-300 bg-violet-50 text-violet-800 ring-1 ring-violet-200'
-                        : 'border-slate-200 bg-white text-slate-500'
-                    }`} data-testid="auto-sync-google-badge">
-                      <Calendar className="w-3.5 h-3.5" />
-                      Google Calendar
-                      {autoSyncEnabled && <Zap className="w-3 h-3 text-violet-600" />}
-                    </span>
-                  )}
-                  {outlookConnection?.status === 'connected' && (
-                    <span className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-medium ${
-                      autoSyncEnabled
-                        ? 'border-violet-300 bg-violet-50 text-violet-800 ring-1 ring-violet-200'
-                        : 'border-slate-200 bg-white text-slate-500'
-                    }`} data-testid="auto-sync-outlook-badge">
-                      <Calendar className="w-3.5 h-3.5" />
-                      Outlook
-                      {autoSyncEnabled && <Zap className="w-3 h-3 text-violet-600" />}
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {/* Toggle */}
-              {autoSyncEnabled ? (
-                <div className="flex items-center justify-between pt-2 border-t border-slate-100">
-                  <div className="flex items-center gap-1.5">
-                    <Zap className="w-3.5 h-3.5 text-violet-600" />
-                    <span className="text-xs text-slate-600">
-                      Auto-sync actif vers {[
-                        googleConnection?.status === 'connected' && 'Google Calendar',
-                        outlookConnection?.status === 'connected' && 'Outlook'
-                      ].filter(Boolean).join(' et ')}
-                    </span>
-                  </div>
-                  <Button
-                    variant="outline" size="sm"
-                    onClick={() => handleToggleAutoSync(false)}
-                    disabled={savingAutoSync}
-                    className="text-slate-500 h-7 text-xs"
-                    data-testid="disable-auto-sync-btn"
-                  >
-                    {savingAutoSync ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : <ZapOff className="w-3.5 h-3.5 mr-1" />}
-                    Désactiver
-                  </Button>
-                </div>
-              ) : (
-                <div className="pt-2 border-t border-slate-100">
-                  <Button
-                    variant="outline" size="sm"
-                    onClick={() => handleToggleAutoSync(true)}
-                    disabled={savingAutoSync}
-                    className="text-violet-700 border-violet-200 hover:bg-violet-50 h-8 text-xs"
-                    data-testid="enable-auto-sync-btn"
-                  >
-                    {savingAutoSync ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : <Zap className="w-3.5 h-3.5 mr-1" />}
-                    Activer l'auto-sync
-                  </Button>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
 
         <div className="p-3 bg-amber-50 border border-amber-100 rounded-lg">
           <p className="text-xs text-amber-700">

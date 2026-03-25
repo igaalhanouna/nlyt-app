@@ -423,62 +423,95 @@ async def upgrade_outlook_teams(request: Request, timezone: str = None):
 
 @router.get("/auto-sync/settings")
 async def get_auto_sync_settings(request: Request):
-    """Get the user's auto-sync preferences."""
+    """Get the user's auto-sync preferences (per-provider)."""
     user = await get_current_user(request)
     settings = db.users.find_one(
         {"user_id": user['user_id']},
-        {"_id": 0, "auto_sync_enabled": 1}
+        {"_id": 0, "auto_sync_enabled": 1, "auto_sync_providers": 1}
     )
-    # List connected calendars that will be synced
+    # List connected calendars
     connections = list(db.calendar_connections.find(
         {"user_id": user['user_id'], "status": "connected"},
         {"_id": 0, "provider": 1, "connection_id": 1}
     ))
+    connected = [c["provider"] for c in connections]
+
+    # Migration: old single toggle → per-provider list
+    if settings and "auto_sync_providers" in settings:
+        enabled_providers = settings["auto_sync_providers"]
+    elif settings and settings.get("auto_sync_enabled"):
+        # Legacy: was enabled globally → enable all connected
+        enabled_providers = connected
+    else:
+        enabled_providers = []
+
     return {
-        "auto_sync_enabled": settings.get("auto_sync_enabled", False) if settings else False,
-        "connected_providers": [c["provider"] for c in connections],
+        "auto_sync_enabled": len(enabled_providers) > 0,
+        "auto_sync_providers": enabled_providers,
+        "connected_providers": connected,
     }
 
 
 @router.put("/auto-sync/settings")
 async def update_auto_sync_settings(request: Request):
-    """Update the user's auto-sync preferences (toggle on/off for all connected calendars)."""
+    """Update the user's auto-sync preferences (per-provider toggles)."""
     user = await get_current_user(request)
     body = await request.json()
 
-    enabled = body.get("auto_sync_enabled", False)
-
-    if enabled:
-        connections = db.calendar_connections.find_one(
+    # Support both formats:
+    # { "auto_sync_providers": ["google", "outlook"] }  ← new per-provider
+    # { "auto_sync_enabled": true/false }               ← legacy global toggle
+    if "auto_sync_providers" in body:
+        providers = body["auto_sync_providers"]
+        # Validate that each provider is actually connected
+        connected = list(db.calendar_connections.find(
             {"user_id": user['user_id'], "status": "connected"},
-            {"_id": 0, "connection_id": 1}
-        )
-        if not connections:
-            raise HTTPException(status_code=400, detail="Aucun calendrier connecté. Connectez Google ou Outlook d'abord.")
+            {"_id": 0, "provider": 1}
+        ))
+        connected_set = {c["provider"] for c in connected}
+        providers = [p for p in providers if p in connected_set]
+    else:
+        enabled = body.get("auto_sync_enabled", False)
+        if enabled:
+            conn = db.calendar_connections.find_one(
+                {"user_id": user['user_id'], "status": "connected"},
+                {"_id": 0, "connection_id": 1}
+            )
+            if not conn:
+                raise HTTPException(status_code=400, detail="Aucun calendrier connecté. Connectez Google ou Outlook d'abord.")
+            connected = list(db.calendar_connections.find(
+                {"user_id": user['user_id'], "status": "connected"},
+                {"_id": 0, "provider": 1}
+            ))
+            providers = [c["provider"] for c in connected]
+        else:
+            providers = []
 
     db.users.update_one(
         {"user_id": user['user_id']},
         {"$set": {
-            "auto_sync_enabled": enabled,
+            "auto_sync_enabled": len(providers) > 0,
+            "auto_sync_providers": providers,
             "updated_at": now_utc().isoformat()
         }}
     )
 
-    connections = list(db.calendar_connections.find(
+    all_connected = list(db.calendar_connections.find(
         {"user_id": user['user_id'], "status": "connected"},
         {"_id": 0, "provider": 1}
     ))
 
     return {
         "success": True,
-        "auto_sync_enabled": enabled,
-        "connected_providers": [c["provider"] for c in connections],
+        "auto_sync_enabled": len(providers) > 0,
+        "auto_sync_providers": providers,
+        "connected_providers": [c["provider"] for c in all_connected],
     }
 
 
 def perform_auto_sync(user_id: str, appointment_id: str, appointment_doc: dict):
     """
-    Internal function: auto-sync an appointment to ALL connected calendars.
+    Internal function: auto-sync an appointment to enabled calendars only.
     Called from appointments.py after an appointment becomes active.
     Non-blocking: logs errors but never raises.
     On failure, schedules retry with exponential backoff.
@@ -486,10 +519,15 @@ def perform_auto_sync(user_id: str, appointment_id: str, appointment_doc: dict):
     try:
         user_settings = db.users.find_one(
             {"user_id": user_id},
-            {"_id": 0, "auto_sync_enabled": 1}
+            {"_id": 0, "auto_sync_enabled": 1, "auto_sync_providers": 1}
         )
         if not user_settings or not user_settings.get("auto_sync_enabled"):
             return
+
+        # Per-provider list (with legacy fallback)
+        enabled_providers = user_settings.get("auto_sync_providers")
+        if enabled_providers is None and user_settings.get("auto_sync_enabled"):
+            enabled_providers = None  # will sync to all connected (legacy)
 
         connections = list(db.calendar_connections.find(
             {"user_id": user_id, "status": "connected"},
@@ -503,6 +541,9 @@ def perform_auto_sync(user_id: str, appointment_id: str, appointment_doc: dict):
 
         for connection in connections:
             provider = connection.get("provider")
+            # Skip if provider not in enabled list (per-provider control)
+            if enabled_providers is not None and provider not in enabled_providers:
+                continue
             connection_id = connection.get("connection_id")
             try:
                 # Idempotency check
