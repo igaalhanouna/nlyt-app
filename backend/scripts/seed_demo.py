@@ -570,9 +570,14 @@ def create_appointments(users):
 
     # ─── CATEGORY 2: Past evaluated (60) ──────────────────
     log.info("    Passés évalués (60)...")
-    # Budget no-show: 15-20% of total apts (142) = 21-28
-    no_show_target = random.randint(22, 27)
+    # Budget no-show: 15-20% of ALL appointments in DB (demo + existing)
+    existing_apts = db.appointments.count_documents({"_seed_demo": {"$ne": True}, "status": {"$ne": "deleted"}})
+    existing_noshows = db.distributions.count_documents({"_seed_demo": {"$ne": True}, "beneficiaries.role": "charity", "beneficiaries.amount_cents": {"$gt": 0}})
+    total_apts_projected = existing_apts + 142  # 142 = total demo apts created by this script
+    target_rate = random.uniform(0.16, 0.19)
+    no_show_target = max(0, int(total_apts_projected * target_rate) - existing_noshows)
     no_show_count = 0
+    log.info(f"      Budget no-show: {no_show_target} (pour {target_rate*100:.0f}% de {total_apts_projected} engagements)")
 
     for _ in range(60):
         org = random.choice(organizers)
