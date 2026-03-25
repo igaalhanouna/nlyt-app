@@ -15,15 +15,24 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API
 - Wording: "Engagement solidaire" au lieu de "rendez-vous", "Geste solidaire" au lieu de "pénalité", "Temps valorisé"
 - Custom domain: app.nlyt.io (production)
 
-## Logo Placement (Completed)
-Pages with N·L·Y·T logo (top-right):
-- LandingPage, ImpactPage (white on dark)
-- Auth pages: SignIn, SignUp, ForgotPassword, ResetPassword, ResendVerification, VerifyEmail
-- Dashboard: OrganizerDashboard
-- Settings: Profile, Integrations, PaymentSettings, WalletPage, WorkspaceSettings, Settings hub
-- Appointments: AppointmentWizard, AppointmentDetail, ParticipantManagement
-- SelectWorkspace
-- InvitationPage
+## Navigation Architecture (Completed - Mars 2026)
+- **AppNavbar** (`/src/components/AppNavbar.js`): Top bar persistante sur toutes les pages authentifiées
+  - Logo N·L·Y·T cliquable → /dashboard
+  - Liens: "Tableau de bord" | "Paramètres" (avec état actif)
+  - Bouton Déconnexion
+  - Sticky top avec z-40
+- **AppBreadcrumb** (`/src/components/AppBreadcrumb.js`): Fil d'Ariane contextuel
+  - Chemins cliquables: Tableau de bord > Paramètres > [sous-page]
+  - Dernier élément en texte foncé (non cliquable)
+- Suppression de tous les logos inline N·L·Y·T (remplacés par la navbar)
+- Conservation des boutons "Retour" sur les pages profondes (ParticipantManagement, DisputeDetail)
+
+## Pages avec AppNavbar + AppBreadcrumb
+- OrganizerDashboard, ParticipantDashboard
+- Settings hub, Profile, WorkspaceSettings, Integrations, PaymentSettings, WalletPage
+- AppointmentWizard, AppointmentDetail, ParticipantManagement
+- DisputeCenter, DisputeDetail
+- ReviewerDashboard
 
 ## Completed Features
 - [x] Stripe Connect (Phases 1-5): Wallet, Connect, Distribution, Payouts, Notifications
@@ -43,6 +52,9 @@ Pages with N·L·Y·T logo (top-right):
 - [x] Dark theme on ImpactPage
 - [x] Default compensation sliders: charity/geste solidaire first
 - [x] N·L·Y·T typographic logo on ALL app pages
+- [x] Navigation globale: AppNavbar + AppBreadcrumb sur toutes les pages authentifiées
+- [x] Fix Settings dead-end: breadcrumb + navbar permettent toujours de revenir au dashboard
+- [x] Fix Profile retour: va maintenant vers /settings (via breadcrumb) au lieu de /dashboard
 
 ## P0 — Configuration Pending
 - [ ] Zoom credentials (ZOOM_ACCOUNT_ID, ZOOM_CLIENT_ID, ZOOM_CLIENT_SECRET)
