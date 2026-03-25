@@ -117,10 +117,6 @@ export default function ImpactPage() {
               </Button>
             </Link>
           </div>
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-medium text-slate-400">
-            <Shield className="w-3.5 h-3.5" />
-            Données auditables et traçables
-          </div>
         </div>
       </section>
 
@@ -165,6 +161,12 @@ export default function ImpactPage() {
           {/* ── Transparence (réassurance avant la preuve) ── */}
           <section className="py-10 sm:py-16 px-4 sm:px-6 border-t border-white/5" data-testid="transparency-section">
             <div className="max-w-3xl mx-auto">
+              <div className="flex justify-center mb-4 sm:mb-6">
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-medium text-slate-400">
+                  <Shield className="w-3.5 h-3.5" />
+                  Données auditables et traçables
+                </div>
+              </div>
               <div className="p-4 sm:p-8 rounded-xl sm:rounded-2xl bg-white/[0.03] border border-white/5">
                 <div className="flex gap-3 sm:gap-4">
                   <Info className="w-5 h-5 text-slate-500 flex-shrink-0 mt-0.5" />
