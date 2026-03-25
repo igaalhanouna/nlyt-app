@@ -63,9 +63,9 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API
 
 ## Completed — AppointmentDetail Refactoring (Mars 2026)
 - [x] Décomposition de AppointmentDetail.js (1633 lignes → 8 fichiers, orchestrateur ~280 lignes)
-- [x] 7 sous-composants: AppointmentHeader, AppointmentEssentials, EngagementSummary, FinancialBreakdown, ParticipantsSection, SecondaryActions, CancelModal
-- [x] Layout mobile-first: 3.9 écrans → 1.4 écrans (−64%), 0 overflow, CTA dynamique, grid asymétrique, signal confiance, signal social, preuves repliées
-- [x] Test agent: 100% pass rate, 0 régression desktop
+- [x] Layout mobile-first: 3.9 écrans → 1.3 écrans (−67%), 0 overflow, CTA dynamique, grid asymétrique, signal confiance, signal social, preuves repliées
+- [x] Ordre validé utilisateur: Header+CTA → Essentials → Actions immédiates (calendrier+annuler visible) → Engagement financier → Participants → Checkin #6 → Preuves (replié) → Modifications (replié)
+- [x] 9 sous-composants: AppointmentHeader, AppointmentEssentials, EngagementSummary, FinancialBreakdown, ParticipantsSection, SecondaryActions, OrganizerCheckinBlock, CancelModal, + existants
 
 ## Upcoming Tasks
 - [ ] Refactorer InvitationPage.js (1400+ lignes → modules)

@@ -15,6 +15,7 @@ import EngagementSummary from './EngagementSummary';
 import FinancialBreakdown from './FinancialBreakdown';
 import ParticipantsSection from './ParticipantsSection';
 import SecondaryActions from './SecondaryActions';
+import OrganizerCheckinBlock from './OrganizerCheckinBlock';
 import CancelModal from './CancelModal';
 import ModificationProposals from './ModificationProposals';
 import ProofSessionsPanel from './ProofSessionsPanel';
@@ -409,6 +410,7 @@ export default function AppointmentDetail() {
 
       <div className="max-w-6xl mx-auto px-4 md:px-6 pb-12">
 
+        {/* #1 — Header + CTA */}
         <AppointmentHeader
           appointment={appointment} isCancelled={isCancelled} isPendingGuarantee={isPendingGuarantee}
           organizerParticipant={organizerParticipant} organizerCheckinDone={organizerCheckinDone} checkingIn={checkingIn}
@@ -416,32 +418,40 @@ export default function AppointmentDetail() {
           handleCheckActivation={handleCheckActivation} checkingActivation={checkingActivation} navigate={navigate}
         />
 
+        {/* #2 — Essentials (date, lieu, lien, confiance) */}
         <AppointmentEssentials
           appointment={appointment} isCancelled={isCancelled} organizerParticipant={organizerParticipant}
           guaranteedCount={guaranteedCount} canEdit={canEdit} onEdit={handleOpenProposalForm}
         />
 
-        <EngagementSummary appointment={appointment} isCancelled={isCancelled} />
-
-        <FinancialBreakdown appointment={appointment} isCancelled={isCancelled} />
-
-        {/* Modification Proposals */}
-        <ModificationProposals
-          showProposalForm={showProposalForm} setShowProposalForm={setShowProposalForm}
-          proposalForm={proposalForm} setProposalForm={setProposalForm}
-          submittingProposal={submittingProposal} onSubmitProposal={handleSubmitProposal}
-          activeProposal={activeProposal}
-          respondingProposal={respondingProposal} onRespondProposal={handleRespondProposal} onCancelProposal={handleCancelProposal}
-          proposalHistory={proposalHistory} showHistory={showHistory} setShowHistory={setShowHistory}
+        {/* #3 — Actions immédiates (calendrier + annuler) — visible, compact */}
+        <SecondaryActions
+          appointment={appointment} isCancelled={isCancelled}
+          syncStatus={syncStatus} syncingProvider={syncingProvider}
+          onSyncCalendar={handleSyncCalendar} onDownloadICS={handleDownloadICS}
+          onShowCancelModal={() => setShowCancelModal(true)}
         />
 
+        {/* #4 — Engagement financier */}
+        <EngagementSummary appointment={appointment} isCancelled={isCancelled} />
+        <FinancialBreakdown appointment={appointment} isCancelled={isCancelled} />
+
+        {/* #5 — Participants */}
         <ParticipantsSection
           participants={participants} isCancelled={isCancelled} appointmentId={id}
           resendingToken={resendingToken} onResend={handleResendInvitation}
           acceptedCount={acceptedCount} pendingCount={pendingCount} guaranteedCount={guaranteedCount}
         />
 
-        {/* Preuves & Tracking — folded by default */}
+        {/* #6 — Check-in / Confirmation (juste avant preuves) */}
+        <OrganizerCheckinBlock
+          appointment={appointment} organizerParticipant={organizerParticipant}
+          organizerCheckinDone={organizerCheckinDone} organizerCheckinData={organizerCheckinData}
+          checkingIn={checkingIn} handleOrganizerCheckin={handleOrganizerCheckin}
+          isCancelled={isCancelled} isPendingGuarantee={isPendingGuarantee}
+        />
+
+        {/* #7 — Preuves & Tracking — folded by default */}
         {!isCancelled && (
           <details className="mb-4 bg-white border border-slate-200 rounded-xl overflow-hidden group" data-testid="proof-tracking-details">
             <summary className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-slate-50 transition-colors select-none min-h-[44px]">
@@ -455,15 +465,12 @@ export default function AppointmentDetail() {
               </div>
             </summary>
             <div className="border-t border-slate-100 p-0">
-              {/* Physical: Evidence Dashboard */}
               {appointment.appointment_type === 'physical' && (
                 <EvidenceDashboard participants={participants} evidenceData={evidenceData} appointment={appointment} />
               )}
-              {/* Video: Proof Sessions */}
               {appointment.appointment_type === 'video' && (
                 <ProofSessionsPanel participants={participants} proofSessions={proofSessions} validatingSession={validatingSession} onValidateSession={handleValidateSession} />
               )}
-              {/* Video: Video Evidence */}
               {appointment.appointment_type === 'video' && (
                 <VideoEvidencePanel
                   appointment={appointment} videoEvidence={videoEvidence} videoIngestionLogs={videoIngestionLogs}
@@ -480,7 +487,6 @@ export default function AppointmentDetail() {
                   onFileSelect={handleFileSelect}
                 />
               )}
-              {/* Attendance evaluation (post-meeting) */}
               {isEnded && (
                 <AttendancePanel
                   attendance={attendance} evaluating={evaluating}
@@ -498,12 +504,28 @@ export default function AppointmentDetail() {
           </details>
         )}
 
-        <SecondaryActions
-          appointment={appointment} isCancelled={isCancelled}
-          syncStatus={syncStatus} syncingProvider={syncingProvider}
-          onSyncCalendar={handleSyncCalendar} onDownloadICS={handleDownloadICS}
-          onShowCancelModal={() => setShowCancelModal(true)}
-        />
+        {/* #8 — Secondaire : Modifications (folded) */}
+        {(activeProposal || proposalHistory.length > 0 || showProposalForm) && (
+          <details className="mb-4 bg-white border border-slate-200 rounded-xl overflow-hidden group" data-testid="modifications-details">
+            <summary className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-slate-50 transition-colors select-none min-h-[44px]">
+              <span className="text-sm font-semibold text-slate-900">Modifications</span>
+              <div className="flex items-center gap-2">
+                {activeProposal && <span className="text-xs px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full font-medium">En cours</span>}
+                <ChevronDown className="w-4 h-4 text-slate-400 transition-transform group-open:rotate-180" />
+              </div>
+            </summary>
+            <div className="border-t border-slate-100">
+              <ModificationProposals
+                showProposalForm={showProposalForm} setShowProposalForm={setShowProposalForm}
+                proposalForm={proposalForm} setProposalForm={setProposalForm}
+                submittingProposal={submittingProposal} onSubmitProposal={handleSubmitProposal}
+                activeProposal={activeProposal}
+                respondingProposal={respondingProposal} onRespondProposal={handleRespondProposal} onCancelProposal={handleCancelProposal}
+                proposalHistory={proposalHistory} showHistory={showHistory} setShowHistory={setShowHistory}
+              />
+            </div>
+          </details>
+        )}
       </div>
 
       <CancelModal
