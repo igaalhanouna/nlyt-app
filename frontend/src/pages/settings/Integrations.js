@@ -4,9 +4,11 @@ import { calendarAPI, videoEvidenceAPI } from '../../services/api';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
-import { ArrowLeft, Calendar, CheckCircle, XCircle, Loader2, ExternalLink, Unlink, Zap, ZapOff, Video, Monitor, Shield, Users, ChevronDown, ChevronUp, AlertTriangle, Settings2, Info, Download } from 'lucide-react';
+import { Calendar, CheckCircle, XCircle, Loader2, ExternalLink, Unlink, Zap, ZapOff, Video, Monitor, Shield, Users, ChevronDown, ChevronUp, AlertTriangle, Settings2, Info, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDateLongFr } from '../../utils/dateFormat';
+import AppNavbar from '../../components/AppNavbar';
+import AppBreadcrumb from '../../components/AppBreadcrumb';
 
 export default function Integrations() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -630,22 +632,16 @@ export default function Integrations() {
   }
 
   return (
-    <div className="min-h-screen bg-background py-8 px-4">
-      <div className="max-w-3xl mx-auto">
-        <Link to="/settings">
-          <Button variant="ghost" className="mb-6">
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Retour aux paramètres
-          </Button>
-        </Link>
+    <div className="min-h-screen bg-background">
+      <AppNavbar />
+      <AppBreadcrumb items={[
+        { label: 'Tableau de bord', href: '/dashboard' },
+        { label: 'Paramètres', href: '/settings' },
+        { label: 'Intégrations' },
+      ]} />
 
-        <div className="flex items-center justify-between mb-1">
-          <h1 className="text-2xl font-bold text-slate-900" data-testid="integrations-title">Intégrations</h1>
-          <div>
-            <span className="block text-lg font-bold tracking-[0.35em] text-slate-900 text-right">N<span className="text-slate-400">·</span>L<span className="text-slate-400">·</span>Y<span className="text-slate-400">·</span>T</span>
-            <span className="block text-[10px] font-medium tracking-[0.25em] text-slate-400 uppercase text-right">Never Lose Your Time</span>
-          </div>
-        </div>
+      <div className="max-w-3xl mx-auto px-6 pb-12">
+        <h1 className="text-2xl font-bold text-slate-900 mb-1" data-testid="integrations-title">Intégrations</h1>
         <p className="text-sm text-slate-500 mb-8">
           Connectez vos services pour synchroniser vos calendriers et gérer vos visioconférences.
         </p>

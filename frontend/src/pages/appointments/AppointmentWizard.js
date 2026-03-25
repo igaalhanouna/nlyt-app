@@ -10,6 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { ArrowLeft, ArrowRight, Check, Calendar, MapPin, Video, DollarSign, Shield, Users, Plus, Trash2, Lock, Building2, ChevronDown, Loader2, Zap, Monitor, ExternalLink, AlertTriangle, CheckCircle, Settings2, Link2, Clock, Search, XCircle, Sparkles, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import AddressAutocomplete from '../../components/AddressAutocomplete';
+import AppNavbar from '../../components/AppNavbar';
+import AppBreadcrumb from '../../components/AppBreadcrumb';
 
 import { localInputToUTC, formatDateTimeFr, getUserTimezone } from '../../utils/dateFormat';
 
@@ -1340,21 +1342,14 @@ export default function AppointmentWizard() {
   };
 
   return (
-    <div className="min-h-screen bg-background py-8 px-4">
-      <div className="max-w-4xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
-          <button
-            onClick={() => navigate('/dashboard')}
-            className="flex items-center gap-2 text-slate-600 hover:text-slate-900"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Retour au tableau de bord
-          </button>
-          <div>
-            <span className="block text-lg font-bold tracking-[0.35em] text-slate-900 text-right">N<span className="text-slate-400">·</span>L<span className="text-slate-400">·</span>Y<span className="text-slate-400">·</span>T</span>
-            <span className="block text-[10px] font-medium tracking-[0.25em] text-slate-400 uppercase text-right">Never Lose Your Time</span>
-          </div>
-        </div>
+    <div className="min-h-screen bg-background">
+      <AppNavbar />
+      <AppBreadcrumb items={[
+        { label: 'Tableau de bord', href: '/dashboard' },
+        { label: 'Nouvel engagement' },
+      ]} />
+
+      <div className="max-w-4xl mx-auto px-6 pb-12">
 
         {loadingDefaults ? (
           <div className="flex items-center justify-center py-12">

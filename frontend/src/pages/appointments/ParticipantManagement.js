@@ -8,6 +8,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { ArrowLeft, UserPlus, Mail, Trash2, RefreshCw, CheckCircle, Clock, XCircle, ShieldCheck, CreditCard } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDateTimeCompactFr } from '../../utils/dateFormat';
+import AppNavbar from '../../components/AppNavbar';
+import AppBreadcrumb from '../../components/AppBreadcrumb';
 
 export default function ParticipantManagement() {
   const { id } = useParams();
@@ -104,23 +106,24 @@ export default function ParticipantManagement() {
   }
 
   return (
-    <div className="min-h-screen bg-background py-8 px-4">
-      <div className="max-w-6xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
-          <Link to={`/appointments/${id}`}>
-            <Button variant="ghost">
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Retour à l'engagement
-            </Button>
-          </Link>
-          <div>
-            <span className="block text-lg font-bold tracking-[0.35em] text-slate-900 text-right">N<span className="text-slate-400">·</span>L<span className="text-slate-400">·</span>Y<span className="text-slate-400">·</span>T</span>
-            <span className="block text-[10px] font-medium tracking-[0.25em] text-slate-400 uppercase text-right">Never Lose Your Time</span>
-          </div>
-        </div>
+    <div className="min-h-screen bg-background">
+      <AppNavbar />
+      <AppBreadcrumb items={[
+        { label: 'Tableau de bord', href: '/dashboard' },
+        { label: appointment?.title || 'Engagement', href: `/appointments/${id}` },
+        { label: 'Participants' },
+      ]} />
+
+      <div className="max-w-6xl mx-auto px-6 pb-12">
+        <Link to={`/appointments/${id}`}>
+          <Button variant="ghost" className="mb-4" size="sm">
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Retour à l'engagement
+          </Button>
+        </Link>
 
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-slate-900 mb-2" data-testid="participants-title">
+          <h1 className="text-2xl font-bold text-slate-900 mb-2" data-testid="participants-title">
             Gestion des participants
           </h1>
           <p className="text-slate-600">{appointment?.title}</p>

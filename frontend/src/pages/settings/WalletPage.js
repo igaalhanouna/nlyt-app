@@ -3,12 +3,14 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { walletAPI, connectAPI } from '../../services/api';
 import { Button } from '../../components/ui/button';
 import {
-  ArrowLeft, Wallet, Loader2, ExternalLink, AlertTriangle,
+  Wallet, Loader2, ExternalLink, AlertTriangle,
   CheckCircle, Clock, XCircle, RefreshCw, ArrowUpRight, ArrowDownLeft,
   Banknote, ShieldAlert, ChevronDown, ChevronUp, Flag, Lock,
   Info, Scale, CircleDot, Heart
 } from 'lucide-react';
 import { toast } from 'sonner';
+import AppNavbar from '../../components/AppNavbar';
+import AppBreadcrumb from '../../components/AppBreadcrumb';
 
 /* ─── Config & Helpers ──────────────────────────────────────── */
 
@@ -694,9 +696,14 @@ export default function WalletPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background p-4 sm:p-8">
-        <div className="max-w-2xl mx-auto">
-          <Link to="/settings"><Button variant="ghost" className="mb-6"><ArrowLeft className="w-4 h-4 mr-2" />Retour</Button></Link>
+      <div className="min-h-screen bg-background">
+        <AppNavbar />
+        <AppBreadcrumb items={[
+          { label: 'Tableau de bord', href: '/dashboard' },
+          { label: 'Paramètres', href: '/settings' },
+          { label: 'Wallet' },
+        ]} />
+        <div className="max-w-2xl mx-auto px-6">
           <div className="flex items-center justify-center py-24">
             <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
             <span className="ml-3 text-slate-500">Chargement...</span>
@@ -707,19 +714,18 @@ export default function WalletPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background p-4 sm:p-8">
-      <div className="max-w-2xl mx-auto">
-        <Link to="/settings"><Button variant="ghost" className="mb-6" data-testid="back-to-settings"><ArrowLeft className="w-4 h-4 mr-2" />Retour aux paramètres</Button></Link>
+    <div className="min-h-screen bg-background">
+      <AppNavbar />
+      <AppBreadcrumb items={[
+        { label: 'Tableau de bord', href: '/dashboard' },
+        { label: 'Paramètres', href: '/settings' },
+        { label: 'Wallet' },
+      ]} />
 
-        <div className="flex items-center justify-between mb-1">
-          <div className="flex items-center gap-3">
-            <Wallet className="w-6 h-6 text-slate-700" />
-            <h1 className="text-2xl font-bold text-slate-900">Wallet</h1>
-          </div>
-          <div>
-            <span className="block text-lg font-bold tracking-[0.35em] text-slate-900 text-right">N<span className="text-slate-400">·</span>L<span className="text-slate-400">·</span>Y<span className="text-slate-400">·</span>T</span>
-            <span className="block text-[10px] font-medium tracking-[0.25em] text-slate-400 uppercase text-right">Never Lose Your Time</span>
-          </div>
+      <div className="max-w-2xl mx-auto px-6 pb-12">
+        <div className="flex items-center gap-3 mb-1">
+          <Wallet className="w-6 h-6 text-slate-700" />
+          <h1 className="text-2xl font-bold text-slate-900">Wallet</h1>
         </div>
         <p className="text-xs text-slate-500 mb-6">Vos fonds internes, distributions reçues et compte de paiement</p>
 

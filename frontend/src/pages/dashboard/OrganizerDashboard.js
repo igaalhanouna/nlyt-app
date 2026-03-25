@@ -6,13 +6,14 @@ import { appointmentAPI, walletAPI } from '../../services/api';
 import { Button } from '../../components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/tabs';
 import {
-  CalendarPlus, LogOut, Settings, Calendar, Users, MapPin, Video,
+  CalendarPlus, Calendar, Users, MapPin, Video,
   Trash2, Check, X, Clock, Building2, ChevronDown, Plus, Ban,
   ShieldCheck, CreditCard, History, Play, AlertTriangle, Bell,
   ArrowRight, Flame, Shield, Euro, Eye, Heart, Loader2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDateTimeCompactFr, parseUTC } from '../../utils/dateFormat';
+import AppNavbar from '../../components/AppNavbar';
 
 // ── Helpers ──
 
@@ -259,7 +260,7 @@ function getTemporalBadge(appointment, now) {
 // ── Main Dashboard ──
 
 export default function OrganizerDashboard() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const { currentWorkspace, workspaces, selectWorkspace } = useWorkspace();
   const navigate = useNavigate();
 
@@ -448,24 +449,7 @@ export default function OrganizerDashboard() {
         </div>
       )}
 
-      {/* Nav */}
-      <nav className="bg-white border-b border-slate-200">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-8">
-            <div>
-              <span className="block text-lg font-bold tracking-[0.35em] text-slate-900">N<span className="text-slate-400">·</span>L<span className="text-slate-400">·</span>Y<span className="text-slate-400">·</span>T</span>
-              <span className="block text-[10px] font-medium tracking-[0.25em] text-slate-400 uppercase">Never Lose Your Time</span>
-            </div>
-            <div className="flex items-center gap-6">
-              <Link to="/dashboard" className="text-sm font-medium text-slate-900">Tableau de bord</Link>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <Link to="/settings"><Button variant="ghost" size="sm"><Settings className="w-4 h-4 mr-2" />Paramètres</Button></Link>
-            <Button variant="ghost" size="sm" onClick={logout} data-testid="logout-btn"><LogOut className="w-4 h-4 mr-2" />Déconnexion</Button>
-          </div>
-        </div>
-      </nav>
+      <AppNavbar />
 
       <div className="max-w-7xl mx-auto px-6 py-8">
         {/* Header + Workspace Switcher */}

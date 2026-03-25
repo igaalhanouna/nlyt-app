@@ -3,9 +3,11 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
-import { ArrowLeft, Building2, ChevronDown, Check, Plus, Settings, Trash2, Pencil, X, Loader2 } from 'lucide-react';
+import { Building2, ChevronDown, Check, Plus, Trash2, Pencil, X, Loader2 } from 'lucide-react';
 import { useWorkspace } from '../../contexts/WorkspaceContext';
 import { toast } from 'sonner';
+import AppNavbar from '../../components/AppNavbar';
+import AppBreadcrumb from '../../components/AppBreadcrumb';
 
 export default function WorkspaceSettings() {
   const navigate = useNavigate();
@@ -90,24 +92,17 @@ export default function WorkspaceSettings() {
   };
 
   return (
-    <div className="min-h-screen bg-background p-8">
-      <div className="max-w-4xl mx-auto">
-        <Link to="/settings">
-          <Button variant="ghost" className="mb-6">
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Retour
-          </Button>
-        </Link>
-        
-        <div className="flex justify-end mb-4">
-          <div>
-            <span className="block text-lg font-bold tracking-[0.35em] text-slate-900 text-right">N<span className="text-slate-400">·</span>L<span className="text-slate-400">·</span>Y<span className="text-slate-400">·</span>T</span>
-            <span className="block text-[10px] font-medium tracking-[0.25em] text-slate-400 uppercase text-right">Never Lose Your Time</span>
-          </div>
-        </div>
+    <div className="min-h-screen bg-background">
+      <AppNavbar />
+      <AppBreadcrumb items={[
+        { label: 'Tableau de bord', href: '/dashboard' },
+        { label: 'Paramètres', href: '/settings' },
+        { label: 'Workspace' },
+      ]} />
 
+      <div className="max-w-4xl mx-auto px-6 pb-12">
         <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-bold">Paramètres du workspace</h1>
+          <h1 className="text-2xl font-bold text-slate-900">Paramètres du workspace</h1>
           
           {/* Workspace Selector */}
           <div className="relative">

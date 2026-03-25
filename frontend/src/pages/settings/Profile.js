@@ -4,9 +4,11 @@ import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
-import { ArrowLeft, User, Settings, Clock, Euro, Heart, Save, Loader2, Check } from 'lucide-react';
+import { User, Clock, Euro, Heart, Save, Loader2, Check, Settings } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'sonner';
+import AppNavbar from '../../components/AppNavbar';
+import AppBreadcrumb from '../../components/AppBreadcrumb';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL || '';
 
@@ -176,37 +178,31 @@ export default function Profile() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 p-4 md:p-8">
-      <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen bg-slate-50">
+      <AppNavbar />
+      <AppBreadcrumb items={[
+        { label: 'Tableau de bord', href: '/dashboard' },
+        { label: 'Paramètres', href: '/settings' },
+        { label: 'Profil' },
+      ]} />
+
+      <div className="max-w-4xl mx-auto px-6 pb-12">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-4">
-            <Link to="/dashboard">
-              <Button variant="ghost" size="sm">
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Retour
-              </Button>
-            </Link>
-            <h1 className="text-2xl font-bold text-slate-900">Mon profil</h1>
-            <Button 
-              onClick={handleSave} 
-              disabled={saving || !hasChanges}
-              className="bg-slate-900 hover:bg-slate-800"
-              data-testid="save-profile-btn"
-            >
-              {saving ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <Save className="w-4 h-4 mr-2" />
-              )}
-              Enregistrer
-            </Button>
-          </div>
-          
-          <div>
-            <span className="block text-lg font-bold tracking-[0.35em] text-slate-900 text-right">N<span className="text-slate-400">·</span>L<span className="text-slate-400">·</span>Y<span className="text-slate-400">·</span>T</span>
-            <span className="block text-[10px] font-medium tracking-[0.25em] text-slate-400 uppercase text-right">Never Lose Your Time</span>
-          </div>
+          <h1 className="text-2xl font-bold text-slate-900">Mon profil</h1>
+          <Button 
+            onClick={handleSave} 
+            disabled={saving || !hasChanges}
+            className="bg-slate-900 hover:bg-slate-800"
+            data-testid="save-profile-btn"
+          >
+            {saving ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Save className="w-4 h-4 mr-2" />
+            )}
+            Enregistrer
+          </Button>
         </div>
 
         {/* Section 1: Informations personnelles */}

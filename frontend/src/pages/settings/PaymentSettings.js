@@ -2,8 +2,10 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import api from '../../services/api';
 import { Button } from '../../components/ui/button';
-import { ArrowLeft, CreditCard, Loader2, Trash2, CheckCircle, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { CreditCard, Loader2, Trash2, CheckCircle, AlertTriangle, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
+import AppNavbar from '../../components/AppNavbar';
+import AppBreadcrumb from '../../components/AppBreadcrumb';
 
 export default function PaymentSettings() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -105,9 +107,14 @@ export default function PaymentSettings() {
 
   if (loading || polling) {
     return (
-      <div className="min-h-screen bg-background p-8">
-        <div className="max-w-2xl mx-auto">
-          <Link to="/settings"><Button variant="ghost" className="mb-6"><ArrowLeft className="w-4 h-4 mr-2" />Retour</Button></Link>
+      <div className="min-h-screen bg-background">
+        <AppNavbar />
+        <AppBreadcrumb items={[
+          { label: 'Tableau de bord', href: '/dashboard' },
+          { label: 'Paramètres', href: '/settings' },
+          { label: 'Paiement' },
+        ]} />
+        <div className="max-w-2xl mx-auto px-6">
           <div className="flex items-center justify-center py-24">
             <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
             <span className="ml-3 text-slate-500">{polling ? 'Vérification en cours...' : 'Chargement...'}</span>
@@ -118,19 +125,18 @@ export default function PaymentSettings() {
   }
 
   return (
-    <div className="min-h-screen bg-background p-8">
-      <div className="max-w-2xl mx-auto">
-        <Link to="/settings"><Button variant="ghost" className="mb-6" data-testid="back-to-settings"><ArrowLeft className="w-4 h-4 mr-2" />Retour aux paramètres</Button></Link>
-        
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-3">
-            <CreditCard className="w-7 h-7 text-slate-700" />
-            <h1 className="text-2xl font-bold text-slate-900">Moyen de paiement par défaut</h1>
-          </div>
-          <div>
-            <span className="block text-lg font-bold tracking-[0.35em] text-slate-900 text-right">N<span className="text-slate-400">·</span>L<span className="text-slate-400">·</span>Y<span className="text-slate-400">·</span>T</span>
-            <span className="block text-[10px] font-medium tracking-[0.25em] text-slate-400 uppercase text-right">Never Lose Your Time</span>
-          </div>
+    <div className="min-h-screen bg-background">
+      <AppNavbar />
+      <AppBreadcrumb items={[
+        { label: 'Tableau de bord', href: '/dashboard' },
+        { label: 'Paramètres', href: '/settings' },
+        { label: 'Paiement' },
+      ]} />
+
+      <div className="max-w-2xl mx-auto px-6 pb-12">
+        <div className="flex items-center gap-3 mb-2">
+          <CreditCard className="w-6 h-6 text-slate-700" />
+          <h1 className="text-2xl font-bold text-slate-900">Moyen de paiement par défaut</h1>
         </div>
         <p className="text-sm text-slate-500 mb-8">
           Pour vos garanties en tant qu'organisateur
