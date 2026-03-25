@@ -44,13 +44,9 @@ resend.api_key = RESEND_API_KEY
 # ─────────────────────────────────────────────────────────────
 # EMAIL DESIGN SYSTEM — Single source of truth
 # ─────────────────────────────────────────────────────────────
-# accent_color: thin bar under header for semantic context
-#   neutral  → #64748B (slate)
-#   success  → #10B981 (emerald)
-#   warning  → #F59E0B (amber)
-#   danger   → #EF4444 (red)
-#   info     → #3B82F6 (blue)
-# ─────────────────────────────────────────────────────────────
+
+LOGO_URL = "https://static.prod-images.emergentagent.com/jobs/8d993bdc-837f-49f8-85bc-15685d06a6d0/images/50e29436225480c1937c68846acd3259ae9d907f89eceebb9fd6313f99583083.png"
+SITE_URL = "https://nlyt.io"
 
 ACCENT_COLORS = {
     "neutral": "#64748B",
@@ -76,25 +72,37 @@ def _base_template(body_html: str, accent: str = "neutral") -> str:
 <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08);">
 
 <!-- HEADER -->
-<tr><td style="background-color:#0A0A0B;padding:28px 32px;text-align:center;">
-  <span style="font-size:20px;font-weight:700;letter-spacing:0.35em;color:#FFFFFF;">N<span style="color:rgba(255,255,255,0.4);">&middot;</span>L<span style="color:rgba(255,255,255,0.4);">&middot;</span>Y<span style="color:rgba(255,255,255,0.4);">&middot;</span>T</span>
-  <br/>
-  <span style="font-size:10px;font-weight:500;letter-spacing:0.25em;color:rgba(255,255,255,0.4);text-transform:uppercase;">Never Lose Your Time</span>
+<tr><td style="background-color:#0A0A0B;padding:24px 32px;text-align:center;">
+  <a href="{SITE_URL}" target="_blank" style="text-decoration:none;">
+    <img src="{LOGO_URL}" alt="NLYT" width="200" style="display:block;margin:0 auto;max-width:200px;height:auto;" />
+  </a>
 </td></tr>
 
 <!-- ACCENT BAR -->
 <tr><td style="height:3px;background-color:{bar_color};font-size:0;line-height:0;">&nbsp;</td></tr>
 
 <!-- BODY -->
-<tr><td style="background-color:#FFFFFF;padding:32px 32px 24px 32px;">
+<tr><td style="background-color:#FFFFFF;padding:36px 36px 28px 36px;">
 {body_html}
 </td></tr>
 
 <!-- FOOTER -->
-<tr><td style="background-color:#F8FAFC;padding:20px 32px;text-align:center;border-top:1px solid #E2E8F0;">
-  <p style="margin:0;font-size:12px;color:#94A3B8;line-height:1.6;">
-    &copy; 2026 N&middot;L&middot;Y&middot;T &mdash; Never Lose Your Time
-  </p>
+<tr><td style="background-color:#F8FAFC;padding:24px 36px;border-top:1px solid #E2E8F0;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+    <tr><td style="text-align:center;padding-bottom:12px;">
+      <a href="{SITE_URL}" style="text-decoration:none;">
+        <span style="font-size:14px;font-weight:700;letter-spacing:0.3em;color:#0F172A;">N<span style="color:#94A3B8;">&middot;</span>L<span style="color:#94A3B8;">&middot;</span>Y<span style="color:#94A3B8;">&middot;</span>T</span>
+      </a>
+    </td></tr>
+    <tr><td style="text-align:center;padding-bottom:8px;">
+      <p style="margin:0;font-size:12px;color:#94A3B8;line-height:1.6;">Votre temps a de la valeur. Protégez-le.</p>
+    </td></tr>
+    <tr><td style="text-align:center;">
+      <a href="{SITE_URL}" style="color:#3B82F6;font-size:12px;text-decoration:none;">nlyt.io</a>
+      <span style="color:#CBD5E1;font-size:12px;">&nbsp;&middot;&nbsp;</span>
+      <span style="font-size:12px;color:#CBD5E1;">&copy; 2026 NLYT</span>
+    </td></tr>
+  </table>
 </td></tr>
 
 </table>
@@ -105,23 +113,23 @@ def _base_template(body_html: str, accent: str = "neutral") -> str:
 
 
 def _btn(href: str, label: str, bg: str = "#0A0A0B", color: str = "#FFFFFF") -> str:
-    """Standard CTA button."""
-    return f'<div style="text-align:center;margin:24px 0;"><a href="{href}" style="display:inline-block;padding:13px 28px;background-color:{bg};color:{color};text-decoration:none;border-radius:8px;font-size:15px;font-weight:600;line-height:1;">{label}</a></div>'
+    """Primary CTA button — action-oriented, high contrast."""
+    return f'<div style="text-align:center;margin:28px 0;"><a href="{href}" style="display:inline-block;padding:14px 32px;background-color:{bg};color:{color};text-decoration:none;border-radius:8px;font-size:15px;font-weight:600;line-height:1;letter-spacing:0.01em;">{label}</a></div>'
 
 
 def _btn_secondary(href: str, label: str) -> str:
     """Secondary / outline-style button."""
-    return f'<div style="text-align:center;margin:16px 0;"><a href="{href}" style="display:inline-block;padding:11px 24px;background-color:#F1F5F9;color:#334155;text-decoration:none;border-radius:8px;font-size:14px;font-weight:500;border:1px solid #E2E8F0;line-height:1;">{label}</a></div>'
+    return f'<div style="text-align:center;margin:16px 0;"><a href="{href}" style="display:inline-block;padding:12px 24px;background-color:#F8FAFC;color:#334155;text-decoration:none;border-radius:8px;font-size:14px;font-weight:500;border:1px solid #E2E8F0;line-height:1;">{label}</a></div>'
 
 
 def _info_box(inner_html: str) -> str:
     """Neutral info card."""
-    return f'<div style="background:#F8FAFC;padding:20px;border-radius:8px;border:1px solid #E2E8F0;margin:20px 0;">{inner_html}</div>'
+    return f'<div style="background:#F8FAFC;padding:20px;border-radius:10px;border:1px solid #E2E8F0;margin:20px 0;">{inner_html}</div>'
 
 
 def _alert_box(inner_html: str, border_color: str = "#F59E0B", bg: str = "#FFFBEB") -> str:
     """Alert / warning box."""
-    return f'<div style="background:{bg};border-left:4px solid {border_color};padding:16px;margin:20px 0;border-radius:0 8px 8px 0;">{inner_html}</div>'
+    return f'<div style="background:{bg};border-left:4px solid {border_color};padding:16px 20px;margin:20px 0;border-radius:0 8px 8px 0;">{inner_html}</div>'
 
 
 def _detail_row(label: str, value: str) -> str:
@@ -130,7 +138,7 @@ def _detail_row(label: str, value: str) -> str:
 
 
 def _section_title(text: str) -> str:
-    return f'<h2 style="margin:0 0 8px 0;font-size:20px;font-weight:700;color:#0F172A;line-height:1.3;">{text}</h2>'
+    return f'<h2 style="margin:0 0 12px 0;font-size:22px;font-weight:700;color:#0F172A;line-height:1.3;">{text}</h2>'
 
 
 def _greeting(name: str) -> str:
@@ -138,15 +146,20 @@ def _greeting(name: str) -> str:
 
 
 def _paragraph(text: str) -> str:
-    return f'<p style="margin:0 0 16px 0;font-size:15px;color:#475569;line-height:1.6;">{text}</p>'
+    return f'<p style="margin:0 0 16px 0;font-size:15px;color:#475569;line-height:1.65;">{text}</p>'
 
 
 def _small(text: str) -> str:
-    return f'<p style="margin:8px 0 0 0;font-size:12px;color:#94A3B8;line-height:1.5;">{text}</p>'
+    return f'<p style="margin:12px 0 0 0;font-size:12px;color:#94A3B8;line-height:1.5;">{text}</p>'
 
 
 def _fallback_link(url: str) -> str:
-    return f'<p style="margin:8px 0 0 0;font-size:12px;color:#94A3B8;word-break:break-all;">Ou copiez ce lien : <a href="{url}" style="color:#3B82F6;">{url}</a></p>'
+    return f'<p style="margin:12px 0 0 0;font-size:12px;color:#94A3B8;word-break:break-all;">Ou copiez ce lien : <a href="{url}" style="color:#3B82F6;">{url}</a></p>'
+
+
+def _brand_note(text: str) -> str:
+    """Subtle brand reinforcement line — grey, small, centered."""
+    return f'<p style="margin:24px 0 0 0;font-size:12px;color:#94A3B8;text-align:center;font-style:italic;">{text}</p>'
 
 
 # ─────────────────────────────────────────────────────────────
@@ -221,10 +234,11 @@ class EmailService:
 
         body = (
             _section_title("Bienvenue sur NLYT")
-            + _paragraph("Merci de vous être inscrit. Confirmez votre adresse email pour commencer à protéger votre temps.")
-            + _btn(verification_link, "Confirmer mon email")
+            + _paragraph("Vous y êtes presque. Confirmez votre adresse email pour activer votre compte et commencer à protéger votre temps.")
+            + _btn(verification_link, "Activer mon compte")
             + _fallback_link(verification_link)
             + _small("Ce lien expirera dans 24 heures.")
+            + _brand_note("NLYT — Ne perdez plus jamais votre temps.")
         )
         html_content = _base_template(body, accent="info")
 
@@ -242,8 +256,8 @@ class EmailService:
 
         body = (
             _section_title("Réinitialisation de mot de passe")
-            + _paragraph("Vous avez demandé la réinitialisation de votre mot de passe. Cliquez sur le bouton ci-dessous pour continuer.")
-            + _btn(reset_link, "Réinitialiser mon mot de passe")
+            + _paragraph("Vous avez demandé la réinitialisation de votre mot de passe. Cliquez ci-dessous pour en créer un nouveau et retrouver l'accès à votre compte.")
+            + _btn(reset_link, "Créer un nouveau mot de passe")
             + _fallback_link(reset_link)
             + _small("Ce lien expirera dans 1 heure. Si vous n'avez pas fait cette demande, ignorez cet email.")
         )
@@ -323,7 +337,7 @@ class EmailService:
             + _paragraph(f"<strong>{organizer_name}</strong> vous invite à un engagement solidaire.")
             + _info_box(f'<p style="margin:0 0 12px 0;font-size:16px;font-weight:700;color:#0F172A;">{appointment_title}</p>{details}')
             + _alert_box('<p style="margin:0;color:#92400E;font-size:14px;">En acceptant, vous vous engagez à respecter les conditions définies par l\'organisateur. Une garantie peut être requise.</p>')
-            + _btn(invitation_link, "Voir et répondre à l'invitation")
+            + _btn(invitation_link, "Consulter l'invitation")
             + _small("Vous pourrez consulter toutes les conditions avant d'accepter ou de refuser.")
             + calendar_section
             + proof_section
@@ -418,7 +432,7 @@ class EmailService:
 
         body = (
             _greeting(to_name)
-            + _paragraph(f'Votre participation à l\'engagement de <strong>{organizer_name}</strong> est <strong>confirmée</strong>. Voici toutes les informations pour le jour J.')
+            + _paragraph(f'Votre participation à l\'engagement de <strong>{organizer_name}</strong> est <strong>confirmée</strong>. Votre temps est maintenant protégé. Voici tout ce qu\'il faut savoir pour le jour J.')
             + _info_box(f'<p style="margin:0 0 12px 0;font-size:16px;font-weight:700;color:#0F172A;">{appointment_title}</p>{details}')
             + access_section
             + guarantee_reminder
@@ -511,7 +525,7 @@ class EmailService:
 
         link_section = ""
         if appointment_link:
-            link_section = f'<p style="text-align:center;margin-top:16px;"><a href="{appointment_link}" style="color:#3B82F6;text-decoration:underline;font-size:13px;">Voir les détails de l\'engagement</a></p>'
+            link_section = _btn(appointment_link, "Accéder à l'engagement")
 
         accent = "info" if is_video else "success"
         subject = f"{checkin_person_name} a confirmé sa présence — {appointment_title}"
@@ -557,6 +571,7 @@ class EmailService:
             )
             + _paragraph("Le participant a annulé dans les délais prévus. Aucune garantie ne sera capturée.")
             + link_button
+            + _brand_note("Les engagements pris sur NLYT sont protégés.")
         )
         html_content = _base_template(body, accent="warning")
         return await EmailService.send_email(organizer_email, subject, html_content, email_type="participant_cancellation")
@@ -590,6 +605,7 @@ class EmailService:
                 + _detail_row("Lieu :", location_display)
             )
             + _paragraph("<strong>Vous n'avez plus besoin de vous présenter.</strong> Si vous avez des questions, contactez directement l'organisateur.")
+            + _brand_note("Votre temps reste protégé avec NLYT.")
         )
         html_content = _base_template(body, accent="danger")
         return await EmailService.send_email(participant_email, subject, html_content, email_type="appointment_cancelled")
@@ -662,7 +678,7 @@ class EmailService:
             + _paragraph(f'Les conditions de l\'engagement <strong>"{appointment_title}"</strong> ont changé de manière significative :')
             + _alert_box(f'<ul style="margin:0;padding-left:20px;">{reason_html_items}</ul>')
             + _paragraph("Votre garantie actuelle nécessite une reconfirmation pour rester valide.")
-            + _btn(invitation_link, "Reconfirmer ma garantie", bg="#D97706")
+            + _btn(invitation_link, "Reconfirmer ma participation", bg="#D97706")
             + _small("Tant que vous n'avez pas reconfirmé, votre garantie est considérée comme partiellement invalide.")
         )
         html_content = _base_template(body, accent="warning")
