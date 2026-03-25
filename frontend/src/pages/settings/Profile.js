@@ -188,21 +188,25 @@ export default function Profile() {
               </Button>
             </Link>
             <h1 className="text-2xl font-bold text-slate-900">Mon profil</h1>
+            <Button 
+              onClick={handleSave} 
+              disabled={saving || !hasChanges}
+              className="bg-slate-900 hover:bg-slate-800"
+              data-testid="save-profile-btn"
+            >
+              {saving ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Save className="w-4 h-4 mr-2" />
+              )}
+              Enregistrer
+            </Button>
           </div>
           
-          <Button 
-            onClick={handleSave} 
-            disabled={saving || !hasChanges}
-            className="bg-slate-900 hover:bg-slate-800"
-            data-testid="save-profile-btn"
-          >
-            {saving ? (
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            ) : (
-              <Save className="w-4 h-4 mr-2" />
-            )}
-            Enregistrer
-          </Button>
+          <div>
+            <span className="block text-lg font-bold tracking-[0.35em] text-slate-900 text-right">N<span className="text-slate-400">·</span>L<span className="text-slate-400">·</span>Y<span className="text-slate-400">·</span>T</span>
+            <span className="block text-[10px] font-medium tracking-[0.25em] text-slate-400 uppercase text-right">Never Lose Your Time</span>
+          </div>
         </div>
 
         {/* Section 1: Informations personnelles */}
