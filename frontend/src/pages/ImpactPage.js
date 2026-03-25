@@ -209,7 +209,7 @@ export default function ImpactPage() {
             className="text-4xl sm:text-5xl font-bold tracking-tight mb-4"
             data-testid="impact-hero-title"
           >
-            Quand le temps perdu fait du bien
+            Faites profiter de votre temps perdu
           </h1>
           <p className="text-lg text-slate-400 max-w-xl mx-auto">
             Chaque engagement non tenu sur NLYT génère des gestes solidaires
