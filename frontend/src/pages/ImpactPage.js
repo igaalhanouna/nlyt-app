@@ -142,6 +142,59 @@ export default function ImpactPage() {
             </div>
           </section>
 
+          {/* ── Comment ça marche ── */}
+          <section className="py-20 px-6 border-t border-white/5" data-testid="how-it-works">
+            <div className="max-w-3xl mx-auto">
+              <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-center mb-16">Comment ça fonctionne</h2>
+              <div className="space-y-12">
+                <div className="flex gap-6 items-start">
+                  <div className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center flex-shrink-0">
+                    <span className="text-sm font-bold text-white">1</span>
+                  </div>
+                  <div>
+                    <p className="text-base font-semibold text-white mb-1">Garantie d'engagement</p>
+                    <p className="text-sm text-slate-400">Chaque participant dépose une garantie lors de sa confirmation.</p>
+                  </div>
+                </div>
+                <div className="flex gap-6 items-start">
+                  <div className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center flex-shrink-0">
+                    <span className="text-sm font-bold text-white">2</span>
+                  </div>
+                  <div>
+                    <p className="text-base font-semibold text-white mb-1">Absence constatée</p>
+                    <p className="text-sm text-slate-400">En cas d'absence, la garantie est capturée. Une part devient un geste solidaire.</p>
+                  </div>
+                </div>
+                <div className="flex gap-6 items-start">
+                  <div className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center flex-shrink-0">
+                    <span className="text-sm font-bold text-white">3</span>
+                  </div>
+                  <div>
+                    <p className="text-base font-semibold text-white mb-1">Gestes solidaires cumulés</p>
+                    <p className="text-sm text-slate-400">Les montants reversés sont comptabilisés et traçables. Le reversement automatique sera bientôt disponible.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* ── CTA ── */}
+          <section className="py-24 px-6 border-t border-white/5" data-testid="impact-cta-section">
+            <div className="max-w-2xl mx-auto text-center">
+              <p className="text-2xl sm:text-3xl font-bold tracking-tight text-white mb-4">
+                Faites de chaque absence une possibilité de faire une bonne action.
+              </p>
+              <p className="text-sm text-slate-500 mb-10">
+                Votre temps est garanti. Faites en profiter qui vous voulez.
+              </p>
+              <Link to="/signup">
+                <Button size="lg" className="bg-white text-[#0A0A0B] hover:bg-slate-200 text-base px-8 h-13 font-semibold" data-testid="impact-cta-btn">
+                  Créer un engagement solidaire <ArrowRight className="ml-2 w-4 h-4" />
+                </Button>
+              </Link>
+            </div>
+          </section>
+
           {/* ── Transparence ── */}
           <section className="py-20 px-6 border-t border-white/5" data-testid="transparency-section">
             <div className="max-w-3xl mx-auto">
@@ -261,42 +314,6 @@ export default function ImpactPage() {
               )}
             </div>
           </section>
-
-          {/* ── Comment ça marche ── */}
-          <section className="py-20 px-6 border-t border-white/5" data-testid="how-it-works">
-            <div className="max-w-3xl mx-auto">
-              <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-center mb-16">Comment ça fonctionne</h2>
-              <div className="space-y-12">
-                <div className="flex gap-6 items-start">
-                  <div className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center flex-shrink-0">
-                    <span className="text-sm font-bold text-white">1</span>
-                  </div>
-                  <div>
-                    <p className="text-base font-semibold text-white mb-1">Garantie d'engagement</p>
-                    <p className="text-sm text-slate-400">Chaque participant dépose une garantie lors de sa confirmation.</p>
-                  </div>
-                </div>
-                <div className="flex gap-6 items-start">
-                  <div className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center flex-shrink-0">
-                    <span className="text-sm font-bold text-white">2</span>
-                  </div>
-                  <div>
-                    <p className="text-base font-semibold text-white mb-1">Absence constatée</p>
-                    <p className="text-sm text-slate-400">En cas d'absence, la garantie est capturée. Une part devient un geste solidaire.</p>
-                  </div>
-                </div>
-                <div className="flex gap-6 items-start">
-                  <div className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center flex-shrink-0">
-                    <span className="text-sm font-bold text-white">3</span>
-                  </div>
-                  <div>
-                    <p className="text-base font-semibold text-white mb-1">Gestes solidaires cumulés</p>
-                    <p className="text-sm text-slate-400">Les montants reversés sont comptabilisés et traçables. Le reversement automatique sera bientôt disponible.</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
         </>
       ) : (
         /* ── Empty State ── */
@@ -334,23 +351,6 @@ export default function ImpactPage() {
           </div>
         </section>
       )}
-
-      {/* ── CTA Final (identique à Landing) ── */}
-      <section className="py-24 px-6 border-t border-white/5" data-testid="impact-cta-section">
-        <div className="max-w-2xl mx-auto text-center">
-          <p className="text-2xl sm:text-3xl font-bold tracking-tight text-white mb-4">
-            Faites de chaque absence une possibilité de faire une bonne action.
-          </p>
-          <p className="text-sm text-slate-500 mb-10">
-            Votre temps est garanti. Faites en profiter qui vous voulez.
-          </p>
-          <Link to="/signup">
-            <Button size="lg" className="bg-white text-[#0A0A0B] hover:bg-slate-200 text-base px-8 h-13 font-semibold" data-testid="impact-cta-btn">
-              Créer un engagement solidaire <ArrowRight className="ml-2 w-4 h-4" />
-            </Button>
-          </Link>
-        </div>
-      </section>
 
       {/* ── Footer (identique à Landing) ── */}
       <footer className="border-t border-white/5 py-10 px-6">
