@@ -9,8 +9,7 @@ import {
   Info, Scale, CircleDot, Heart
 } from 'lucide-react';
 import { toast } from 'sonner';
-import AppNavbar from '../../components/AppNavbar';
-import AppBreadcrumb from '../../components/AppBreadcrumb';
+import SettingsPageLayout from '../../components/SettingsPageLayout';
 
 /* ─── Config & Helpers ──────────────────────────────────────── */
 
@@ -696,38 +695,20 @@ export default function WalletPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background">
-        <AppNavbar />
-        <AppBreadcrumb items={[
-          { label: 'Tableau de bord', href: '/dashboard' },
-          { label: 'Paramètres', href: '/settings' },
-          { label: 'Wallet' },
-        ]} />
-        <div className="max-w-2xl mx-auto px-6">
-          <div className="flex items-center justify-center py-24">
-            <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
-            <span className="ml-3 text-slate-500">Chargement...</span>
-          </div>
+      <SettingsPageLayout title="Wallet" description="Vos fonds internes, distributions reçues et compte de paiement">
+        <div className="flex items-center justify-center py-24">
+          <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
+          <span className="ml-3 text-slate-500">Chargement...</span>
         </div>
-      </div>
+      </SettingsPageLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <AppNavbar />
-      <AppBreadcrumb items={[
-        { label: 'Tableau de bord', href: '/dashboard' },
-        { label: 'Paramètres', href: '/settings' },
-        { label: 'Wallet' },
-      ]} />
-
-      <div className="max-w-2xl mx-auto px-6 pb-12">
-        <div className="flex items-center gap-3 mb-1">
-          <Wallet className="w-6 h-6 text-slate-700" />
-          <h1 className="text-2xl font-bold text-slate-900">Wallet</h1>
-        </div>
-        <p className="text-xs text-slate-500 mb-6">Vos fonds internes, distributions reçues et compte de paiement</p>
+    <SettingsPageLayout
+      title="Wallet"
+      description="Vos fonds internes, distributions reçues et compte de paiement"
+    >
 
         <BalanceCards wallet={wallet} onPayout={() => setShowPayoutConfirm(true)} payoutLoading={payoutLoading} />
 
@@ -777,7 +758,6 @@ export default function WalletPage() {
         <PayoutHistory payouts={payouts} />
 
         <TransactionHistory transactions={transactions} txTotal={txTotal} />
-      </div>
-    </div>
+    </SettingsPageLayout>
   );
 }

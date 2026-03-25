@@ -7,8 +7,7 @@ import { Label } from '../../components/ui/label';
 import { Calendar, CheckCircle, XCircle, Loader2, ExternalLink, Unlink, Zap, ZapOff, Video, Monitor, Shield, Users, ChevronDown, ChevronUp, AlertTriangle, Settings2, Info, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDateLongFr } from '../../utils/dateFormat';
-import AppNavbar from '../../components/AppNavbar';
-import AppBreadcrumb from '../../components/AppBreadcrumb';
+import SettingsPageLayout from '../../components/SettingsPageLayout';
 
 export default function Integrations() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -632,19 +631,11 @@ export default function Integrations() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <AppNavbar />
-      <AppBreadcrumb items={[
-        { label: 'Tableau de bord', href: '/dashboard' },
-        { label: 'Paramètres', href: '/settings' },
-        { label: 'Intégrations' },
-      ]} />
-
-      <div className="max-w-3xl mx-auto px-6 pb-12">
-        <h1 className="text-2xl font-bold text-slate-900 mb-1" data-testid="integrations-title">Intégrations</h1>
-        <p className="text-sm text-slate-500 mb-8">
-          Connectez vos services pour synchroniser vos calendriers et gérer vos visioconférences.
-        </p>
+    <SettingsPageLayout
+      title="Intégrations"
+      breadcrumbLabel="Intégrations"
+      description="Connectez vos services pour synchroniser vos calendriers et gérer vos visioconférences."
+    >
 
         {/* ========= SECTION: Calendriers ========= */}
         <div className="mb-8">
@@ -870,7 +861,6 @@ export default function Integrations() {
             <strong>Alternative :</strong> Exportez chaque engagement en fichier ICS depuis la page de détail (compatible avec tous les calendriers).
           </p>
         </div>
-      </div>
-    </div>
+    </SettingsPageLayout>
   );
 }

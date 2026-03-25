@@ -6,8 +6,7 @@ import { Label } from '../../components/ui/label';
 import { Building2, ChevronDown, Check, Plus, Trash2, Pencil, X, Loader2 } from 'lucide-react';
 import { useWorkspace } from '../../contexts/WorkspaceContext';
 import { toast } from 'sonner';
-import AppNavbar from '../../components/AppNavbar';
-import AppBreadcrumb from '../../components/AppBreadcrumb';
+import SettingsPageLayout from '../../components/SettingsPageLayout';
 
 export default function WorkspaceSettings() {
   const navigate = useNavigate();
@@ -91,85 +90,78 @@ export default function WorkspaceSettings() {
     }
   };
 
-  return (
-    <div className="min-h-screen bg-background">
-      <AppNavbar />
-      <AppBreadcrumb items={[
-        { label: 'Tableau de bord', href: '/dashboard' },
-        { label: 'Paramètres', href: '/settings' },
-        { label: 'Workspace' },
-      ]} />
-
-      <div className="max-w-4xl mx-auto px-6 pb-12">
-        <div className="flex items-center justify-between mb-8">
-          <h1 className="text-2xl font-bold text-slate-900">Paramètres du workspace</h1>
+  const workspaceSelectorAction = (
+    <div className="relative">
+      <button
+        onClick={() => setWorkspaceDropdownOpen(!workspaceDropdownOpen)}
+        className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+        data-testid="settings-workspace-switcher-btn"
+      >
+        <Building2 className="w-4 h-4 text-slate-600" />
+        <span className="font-medium text-slate-800">{currentWorkspace?.name}</span>
+        <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform ${workspaceDropdownOpen ? 'rotate-180' : ''}`} />
+      </button>
+      
+      {workspaceDropdownOpen && (
+        <>
+          <div 
+            className="fixed inset-0 z-10" 
+            onClick={() => setWorkspaceDropdownOpen(false)}
+          />
           
-          {/* Workspace Selector */}
-          <div className="relative">
-            <button
-              onClick={() => setWorkspaceDropdownOpen(!workspaceDropdownOpen)}
-              className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
-              data-testid="settings-workspace-switcher-btn"
-            >
-              <Building2 className="w-4 h-4 text-slate-600" />
-              <span className="font-medium text-slate-800">{currentWorkspace?.name}</span>
-              <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform ${workspaceDropdownOpen ? 'rotate-180' : ''}`} />
-            </button>
+          <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-lg shadow-lg border border-slate-200 z-20">
+            <div className="p-2">
+              <p className="text-xs font-medium text-slate-500 uppercase px-2 py-1">Vos workspaces</p>
+              
+              {workspaces.map((workspace) => (
+                <button
+                  key={workspace.workspace_id}
+                  onClick={() => handleSelectWorkspace(workspace)}
+                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-left transition-colors ${
+                    workspace.workspace_id === currentWorkspace?.workspace_id
+                      ? 'bg-slate-100 text-slate-900'
+                      : 'hover:bg-slate-50 text-slate-700'
+                  }`}
+                >
+                  <Building2 className="w-4 h-4 text-slate-500" />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium truncate">{workspace.name}</p>
+                    {workspace.description && (
+                      <p className="text-xs text-slate-500 truncate">{workspace.description}</p>
+                    )}
+                  </div>
+                  {workspace.workspace_id === currentWorkspace?.workspace_id && (
+                    <Check className="w-4 h-4 text-green-600" />
+                  )}
+                </button>
+              ))}
+            </div>
             
-            {/* Dropdown */}
-            {workspaceDropdownOpen && (
-              <>
-                <div 
-                  className="fixed inset-0 z-10" 
-                  onClick={() => setWorkspaceDropdownOpen(false)}
-                />
-                
-                <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-lg shadow-lg border border-slate-200 z-20">
-                  <div className="p-2">
-                    <p className="text-xs font-medium text-slate-500 uppercase px-2 py-1">Vos workspaces</p>
-                    
-                    {workspaces.map((workspace) => (
-                      <button
-                        key={workspace.workspace_id}
-                        onClick={() => handleSelectWorkspace(workspace)}
-                        className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-left transition-colors ${
-                          workspace.workspace_id === currentWorkspace?.workspace_id
-                            ? 'bg-slate-100 text-slate-900'
-                            : 'hover:bg-slate-50 text-slate-700'
-                        }`}
-                      >
-                        <Building2 className="w-4 h-4 text-slate-500" />
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium truncate">{workspace.name}</p>
-                          {workspace.description && (
-                            <p className="text-xs text-slate-500 truncate">{workspace.description}</p>
-                          )}
-                        </div>
-                        {workspace.workspace_id === currentWorkspace?.workspace_id && (
-                          <Check className="w-4 h-4 text-green-600" />
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                  
-                  <div className="border-t border-slate-100 p-2">
-                    <button
-                      onClick={() => {
-                        setWorkspaceDropdownOpen(false);
-                        setShowCreateForm(true);
-                      }}
-                      className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-left hover:bg-slate-50 text-slate-700 transition-colors"
-                      data-testid="settings-create-workspace-btn"
-                    >
-                      <Plus className="w-4 h-4 text-slate-500" />
-                      <span className="font-medium">Créer un nouveau workspace</span>
-                    </button>
-                  </div>
-                </div>
-              </>
-            )}
+            <div className="border-t border-slate-100 p-2">
+              <button
+                onClick={() => {
+                  setWorkspaceDropdownOpen(false);
+                  setShowCreateForm(true);
+                }}
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-left hover:bg-slate-50 text-slate-700 transition-colors"
+                data-testid="settings-create-workspace-btn"
+              >
+                <Plus className="w-4 h-4 text-slate-500" />
+                <span className="font-medium">Créer un nouveau workspace</span>
+              </button>
+            </div>
           </div>
-        </div>
+        </>
+      )}
+    </div>
+  );
+
+  return (
+    <SettingsPageLayout
+      title="Workspace"
+      description="Configuration et gestion de vos workspaces"
+      action={workspaceSelectorAction}
+    >
 
         {/* Current Workspace Info */}
         <div className="bg-white p-6 rounded-lg border border-slate-200 mb-6">
@@ -348,7 +340,6 @@ export default function WorkspaceSettings() {
             </div>
           </div>
         )}
-      </div>
-    </div>
+    </SettingsPageLayout>
   );
 }

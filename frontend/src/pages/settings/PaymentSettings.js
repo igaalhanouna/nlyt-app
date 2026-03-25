@@ -4,8 +4,7 @@ import api from '../../services/api';
 import { Button } from '../../components/ui/button';
 import { CreditCard, Loader2, Trash2, CheckCircle, AlertTriangle, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
-import AppNavbar from '../../components/AppNavbar';
-import AppBreadcrumb from '../../components/AppBreadcrumb';
+import SettingsPageLayout from '../../components/SettingsPageLayout';
 
 export default function PaymentSettings() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -107,40 +106,20 @@ export default function PaymentSettings() {
 
   if (loading || polling) {
     return (
-      <div className="min-h-screen bg-background">
-        <AppNavbar />
-        <AppBreadcrumb items={[
-          { label: 'Tableau de bord', href: '/dashboard' },
-          { label: 'Paramètres', href: '/settings' },
-          { label: 'Paiement' },
-        ]} />
-        <div className="max-w-2xl mx-auto px-6">
-          <div className="flex items-center justify-center py-24">
-            <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
-            <span className="ml-3 text-slate-500">{polling ? 'Vérification en cours...' : 'Chargement...'}</span>
-          </div>
+      <SettingsPageLayout title="Paiement" description="Moyen de paiement pour vos garanties en tant qu'organisateur">
+        <div className="flex items-center justify-center py-24">
+          <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
+          <span className="ml-3 text-slate-500">{polling ? 'Vérification en cours...' : 'Chargement...'}</span>
         </div>
-      </div>
+      </SettingsPageLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <AppNavbar />
-      <AppBreadcrumb items={[
-        { label: 'Tableau de bord', href: '/dashboard' },
-        { label: 'Paramètres', href: '/settings' },
-        { label: 'Paiement' },
-      ]} />
-
-      <div className="max-w-2xl mx-auto px-6 pb-12">
-        <div className="flex items-center gap-3 mb-2">
-          <CreditCard className="w-6 h-6 text-slate-700" />
-          <h1 className="text-2xl font-bold text-slate-900">Moyen de paiement par défaut</h1>
-        </div>
-        <p className="text-sm text-slate-500 mb-8">
-          Pour vos garanties en tant qu'organisateur
-        </p>
+    <SettingsPageLayout
+      title="Paiement"
+      description="Moyen de paiement pour vos garanties en tant qu'organisateur"
+    >
 
         {hasPaymentMethod && paymentMethod ? (
           <div className="space-y-6">
@@ -228,7 +207,6 @@ export default function PaymentSettings() {
             </div>
           </div>
         )}
-      </div>
-    </div>
+    </SettingsPageLayout>
   );
 }

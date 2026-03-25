@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
@@ -7,8 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { User, Clock, Euro, Heart, Save, Loader2, Check, Settings } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'sonner';
-import AppNavbar from '../../components/AppNavbar';
-import AppBreadcrumb from '../../components/AppBreadcrumb';
+import SettingsPageLayout from '../../components/SettingsPageLayout';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL || '';
 
@@ -171,39 +169,37 @@ export default function Profile() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
-      </div>
+      <SettingsPageLayout title="Mon profil" description="Vos informations personnelles et paramètres par défaut">
+        <div className="flex items-center justify-center py-24">
+          <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
+        </div>
+      </SettingsPageLayout>
     );
   }
 
-  return (
-    <div className="min-h-screen bg-slate-50">
-      <AppNavbar />
-      <AppBreadcrumb items={[
-        { label: 'Tableau de bord', href: '/dashboard' },
-        { label: 'Paramètres', href: '/settings' },
-        { label: 'Profil' },
-      ]} />
+  const saveButton = (
+    <Button 
+      onClick={handleSave} 
+      disabled={saving || !hasChanges}
+      className="bg-slate-900 hover:bg-slate-800"
+      data-testid="save-profile-btn"
+    >
+      {saving ? (
+        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+      ) : (
+        <Save className="w-4 h-4 mr-2" />
+      )}
+      Enregistrer
+    </Button>
+  );
 
-      <div className="max-w-4xl mx-auto px-6 pb-12">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <h1 className="text-2xl font-bold text-slate-900">Mon profil</h1>
-          <Button 
-            onClick={handleSave} 
-            disabled={saving || !hasChanges}
-            className="bg-slate-900 hover:bg-slate-800"
-            data-testid="save-profile-btn"
-          >
-            {saving ? (
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            ) : (
-              <Save className="w-4 h-4 mr-2" />
-            )}
-            Enregistrer
-          </Button>
-        </div>
+  return (
+    <SettingsPageLayout
+      title="Mon profil"
+      breadcrumbLabel="Profil"
+      description="Vos informations personnelles et paramètres par défaut"
+      action={saveButton}
+    >
 
         {/* Section 1: Informations personnelles */}
         <div className="bg-white rounded-xl border border-slate-200 p-6 mb-6">
@@ -466,7 +462,6 @@ export default function Profile() {
             </div>
           </div>
         </div>
-      </div>
-    </div>
+    </SettingsPageLayout>
   );
 }
