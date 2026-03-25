@@ -699,7 +699,8 @@ export default function Integrations() {
           {(() => {
             const teamsInfo = videoProviders?.teams;
             const teamsLevel = teamsInfo?.level;
-            const isActive = teamsLevel === 'advanced' || teamsLevel === 'standard';
+            const isActive = teamsLevel === 'advanced';
+            const isStandard = teamsLevel === 'standard';
             return (
               <div className={`mt-3 flex items-start gap-2.5 p-3 rounded-lg border ${
                 isActive ? 'bg-emerald-50/50 border-emerald-100' : 'bg-slate-50 border-slate-200'
@@ -714,10 +715,10 @@ export default function Integrations() {
                   <p className={`text-xs mt-0.5 ${
                     isActive ? 'text-emerald-700' : 'text-slate-500'
                   }`}>
-                    {teamsLevel === 'advanced'
+                    {isActive
                       ? 'Activé via votre connexion Outlook. Les liens Teams sont créés automatiquement pour vos RDV visio Microsoft.'
-                      : teamsLevel === 'standard'
-                        ? 'Activé via votre connexion Outlook. Les liens Teams sont créés automatiquement pour vos RDV visio Microsoft.'
+                      : isStandard
+                        ? 'Les liens Teams ne peuvent pas être créés automatiquement pour vos RDV visio Microsoft. Vous avez besoin d\'un compte Microsoft 365 Pro pour ceci.'
                         : 'La création automatique de liens Teams nécessite un compte Microsoft 365 professionnel connecté via Outlook. Connectez un compte Outlook compatible ci-dessus.'
                     }
                   </p>
@@ -727,16 +728,10 @@ export default function Integrations() {
                       <span className="text-xs text-emerald-600 font-medium">Création de liens Teams active</span>
                     </div>
                   )}
-                  {teamsLevel === 'advanced' && teamsInfo?.has_attendance && (
+                  {isActive && teamsInfo?.has_attendance && (
                     <div className="flex items-center gap-1.5 mt-0.5">
                       <CheckCircle className="w-3 h-3 text-emerald-600" />
                       <span className="text-xs text-emerald-600 font-medium">Récupération de présences disponible</span>
-                    </div>
-                  )}
-                  {teamsLevel === 'standard' && (
-                    <div className="flex items-center gap-1.5 mt-1.5">
-                      <Info className="w-3 h-3 text-slate-400" />
-                      <span className="text-xs text-slate-500">Compte Microsoft 365 Pro ? Activez Teams avancé pour la récupération de présences.</span>
                     </div>
                   )}
                 </div>
