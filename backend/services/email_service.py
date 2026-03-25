@@ -72,9 +72,11 @@ def _base_template(body_html: str, accent: str = "neutral") -> str:
 <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08);">
 
 <!-- HEADER -->
-<tr><td style="background-color:#0A0A0B;padding:24px 32px;text-align:center;">
+<tr><td style="background-color:#0A0A0B;padding:28px 32px;text-align:center;">
   <a href="{SITE_URL}" target="_blank" style="text-decoration:none;">
-    <img src="{LOGO_URL}" alt="NLYT" width="200" style="display:block;margin:0 auto;max-width:200px;height:auto;" />
+    <span style="font-size:22px;font-weight:700;letter-spacing:0.35em;color:#FFFFFF;">N<span style="color:rgba(255,255,255,0.4);">&middot;</span>L<span style="color:rgba(255,255,255,0.4);">&middot;</span>Y<span style="color:rgba(255,255,255,0.4);">&middot;</span>T</span>
+    <br/>
+    <span style="font-size:10px;font-weight:500;letter-spacing:0.25em;color:rgba(255,255,255,0.35);text-transform:uppercase;">Never Lose Your Time</span>
   </a>
 </td></tr>
 
