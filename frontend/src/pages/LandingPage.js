@@ -49,7 +49,7 @@ export default function LandingPage() {
       {/* ── Hero ── */}
       <section className="pt-28 pb-20 px-6" data-testid="hero-section">
         <div className="max-w-3xl mx-auto text-center">
-          <div className="mb-6">
+          <div className="mb-16">
             <p className="text-2xl sm:text-3xl font-bold tracking-[0.4em] text-white mb-2">
               N<span className="text-white/60">·</span>L<span className="text-white/60">·</span>Y<span className="text-white/60">·</span>T
             </p>
