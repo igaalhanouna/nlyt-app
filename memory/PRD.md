@@ -90,9 +90,15 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API
 - [x] Frontend: responsive mobile (cards empilées, sous-options inline)
 - [x] Testé: 100% backend (18/18) + 100% frontend (sélecteur 2 étapes, badge, modal, mobile)
 
+## Completed — InvitationPage Refactoring (Mars 2026)
+- [x] Décomposition de InvitationPage.js (1419 lignes → 11 fichiers, orchestrateur ~576 lignes)
+- [x] 10 sous-composants: InvitationStatusBadge, AppointmentUnavailableCard, InvitationCardHeader, GuaranteeRevalidationBanner, InvitationAppointmentDetails, ModificationProposalSection, EngagementRulesCard, InvitationResponseSection, InvitationCheckinSection, QRDisplayModal
+- [x] 51 data-testid préservés, 0 régression, 100% tests passés (backend 7/7, frontend 100%)
+- [x] Pattern identique à AppointmentDetail.js (orchestrateur + sous-composants props-driven)
+
 ## Upcoming Tasks
-- [ ] Refactorer InvitationPage.js (1400+ lignes → modules)
 - [ ] Test réel Teams (compte non-pro)
+- [ ] Configurer le webhook Stripe en production
 
 ## Backlog
 - [ ] Charity Payouts V2 (Stripe Transfers)
