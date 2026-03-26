@@ -77,8 +77,19 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API
 - [x] Fix: `load_dotenv(override=True)` dans server.py pour que .env prenne le dessus
 - [x] Purge: 106 comptes fictifs (`acct_dev_*`/`acct_demo_*`) supprimés de la DB
 - [x] Fix: `create_dashboard_link()` détecte maintenant `acct_dev_*` ET `acct_demo_*`
-- [x] Testé: création compte Express réel (`acct_1TFGt9CDORCvykg1`), URL onboarding Stripe, redirect depuis le frontend
+- [x] Testé: création compte Express réel, URL onboarding Stripe, redirect depuis le frontend
 - [x] Stripe Connect Marketplace activé sur le dashboard Stripe par l'utilisateur
+
+## Completed — Stripe Connect Multi-Profil (Mars 2026)
+- [x] Sélecteur de profil: 2 cards (Particulier/Indépendant vs Société/Organisation) avant le 1er onboarding
+- [x] Backend: `business_type` (individual/company) envoyé à Stripe lors du `Account.create()`
+- [x] Backend: pré-remplissage `individual` (first_name, last_name, email) ou `company` (name)
+- [x] Backend: endpoint `POST /api/connect/reset` pour changer de profil (supprime le compte Stripe, reset wallet)
+- [x] Backend: blocage si fonds en attente lors d'un reset
+- [x] Frontend: badge type de profil dans ConnectStatusCard
+- [x] Frontend: lien "Modifier mon type de profil" avec modal de confirmation + avertissement
+- [x] Frontend: responsive mobile (cards empilées, touch-friendly)
+- [x] Testé: 100% backend (14/14) + 100% frontend (sélecteur, badge, modal, mobile)
 
 ## Upcoming Tasks
 - [ ] Refactorer InvitationPage.js (1400+ lignes → modules)
