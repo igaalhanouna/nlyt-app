@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ResultCard } from '../components/ResultCard';
+import { ResultCard, ResultCardActions } from '../components/ResultCard';
 import { ArrowRight } from 'lucide-react';
 import { Button } from '../components/ui/button';
 
@@ -88,6 +88,9 @@ export default function ResultCardPublicPage() {
     >
       {/* The card */}
       <ResultCard card={card} />
+
+      {/* Share/Copy actions */}
+      <ResultCardActions card={card} />
 
       {/* CTA: Discover NLYT */}
       <div

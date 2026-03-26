@@ -230,8 +230,18 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API
 - [x] Charte graphique existante strictement conservée (couleurs, boutons, typographies)
 - [x] Vérifié : rendu desktop (700px) + mobile (375px), 0 overflow, lisible en 3 secondes
 
+## Completed — Viral Loop Phase 3: Cartes de résultat partageables (Mars 2026)
+- [x] 3 types de cartes virales : engagement_respected (vert), compensation_received (bleu), charity_donation (ambre)
+- [x] Copywriting émotionnel : "Engagement tenu.", "Temps valorisé.", "Geste solidaire."
+- [x] Brand lines distinctes : "Le temps ne se perd plus.", "Votre temps a de la valeur.", "Chaque absence peut faire du bien."
+- [x] Backend: POST /api/result-cards (auth, idempotent) + GET /api/result-cards/{id} (public, view_count) + GET /api/result-cards/my-cards
+- [x] Frontend: composant ResultCard + ResultCardActions (Partager + Copier le lien)
+- [x] Page publique /card/:cardId — accessible sans auth, CTA "Découvrir NLYT"
+- [x] Intégration dans AppointmentDetail (ResultCardSection) — visible après évaluation de présence
+- [x] Mobile-first, minimaliste, cohérent charte existante (#0A0A0B header, accent strip, rounded cards)
+- [x] Testé: 100% backend (14/14), 100% frontend (iteration_88)
+
 ## Upcoming Tasks
-- [ ] P1: Carte de résultat partageable post-engagement (Viral Loop Phase 3)
 - [ ] P1: Emails post-engagement enrichis avec CTAs viraux (Viral Loop Phase 4)
 - [ ] P2: Bannière connexion sur InvitationPage pour utilisateurs existants (Viral Loop Phase 5)
 - [ ] P2: Milestones wallet + CTA "Organiser" pour conversion participant → organisateur (Viral Loop Phase 6)
