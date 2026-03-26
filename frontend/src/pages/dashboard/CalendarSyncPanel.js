@@ -42,7 +42,7 @@ function formatTimeAgo(isoStr) {
   return `il y a ${Math.floor(diff / 86400)}j`;
 }
 
-export default function CalendarSyncPanel({ importSettings, onSettingChange, onSync, syncing }) {
+export default function CalendarSyncPanel({ importSettings, onSettingChange, onSync, syncing, lastAutoCheckAt }) {
   const [togglingProvider, setTogglingProvider] = useState(null);
   // Live "time ago" ticker — re-renders every 30s
   const [, setTick] = useState(0);
@@ -77,7 +77,14 @@ export default function CalendarSyncPanel({ importSettings, onSettingChange, onS
   return (
     <div className="mb-6" data-testid="calendar-sync-panel">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-semibold text-slate-700 tracking-wide uppercase">Calendriers</h3>
+        <div className="flex items-center gap-3">
+          <h3 className="text-sm font-semibold text-slate-700 tracking-wide uppercase">Calendriers</h3>
+          {hasAnyEnabled && lastAutoCheckAt && (
+            <span className="text-[11px] text-slate-400" data-testid="auto-check-indicator">
+              Contrôle auto : {formatTimeAgo(lastAutoCheckAt)}
+            </span>
+          )}
+        </div>
         {hasAnyEnabled && (
           <button
             onClick={() => onSync(true)}

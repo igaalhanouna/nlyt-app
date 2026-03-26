@@ -200,6 +200,10 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API
 - [x] Indicateur "Dernière sync" en temps réel (ticker 30s dans CalendarSyncPanel)
 - [x] Erreurs silencieuses, retry cycle suivant
 - [x] Aucun flash/scroll — mise à jour discrète via setState
+- [x] FIX: Dépendance useEffect sur booléen stable `hasAnyProviderEnabled` (useMemo) au lieu de l'objet `importSettings`
+- [x] FIX: Suppression de `syncing` des dépendances (utilise `syncingRef` à la place)
+- [x] FIX: Indicateur "Contrôle auto : il y a X s" dans CalendarSyncPanel (feedback visible indépendant du cache backend)
+- [x] Vérifié factuellement : interval tire toutes les 10s (test), API appelée, indicateur mis à jour, puis restauré à 120s
 
 ## Upcoming Tasks
 - [ ] P1: Améliorer la prise de décision (recommandation de créneau)

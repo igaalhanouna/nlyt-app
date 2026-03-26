@@ -303,6 +303,7 @@ export default function OrganizerDashboard() {
   const [importSettings, setImportSettings] = useState(null);
   const [externalEvents, setExternalEvents] = useState([]);
   const [syncing, setSyncing] = useState(false);
+  const [lastAutoCheckAt, setLastAutoCheckAt] = useState(null);
 
   const PAGE_SIZE = 20;
 
@@ -468,33 +469,41 @@ export default function OrganizerDashboard() {
   };
 
   // ── Auto-refresh: 2-minute interval for enabled providers ──
+  // Stable boolean — only flips when toggle ON↔OFF, NOT on every object refresh
+  const hasAnyProviderEnabled = useMemo(() => {
+    const providers = importSettings?.providers || {};
+    return Object.values(providers).some(p => p.import_enabled);
+  }, [importSettings]);
+
   const syncIntervalRef = useRef(null);
   const syncInProgressRef = useRef(false);
+  // Mirror `syncing` state into a ref so the interval callback reads it without being a dependency
+  const syncingRef = useRef(false);
+  useEffect(() => { syncingRef.current = syncing; }, [syncing]);
 
   useEffect(() => {
-    const providers = importSettings?.providers || {};
-    const hasEnabled = Object.values(providers).some(p => p.import_enabled);
-
-    // Clear any existing interval
+    // Clear any existing interval unconditionally
     if (syncIntervalRef.current) {
       clearInterval(syncIntervalRef.current);
       syncIntervalRef.current = null;
     }
 
-    if (!hasEnabled) return;
+    if (!hasAnyProviderEnabled) return;
 
     syncIntervalRef.current = setInterval(async () => {
-      // Guard: skip if a sync is already running
-      if (syncInProgressRef.current || syncing) return;
+      // Guard: skip if a sync is already running (manual or auto)
+      if (syncInProgressRef.current || syncingRef.current) return;
       syncInProgressRef.current = true;
       try {
         await externalEventsAPI.sync(false);
+        // Refresh displayed events + settings (for "Dernière sync" timestamp)
         const [settingsRes, eventsRes] = await Promise.all([
           externalEventsAPI.getImportSettings(),
           externalEventsAPI.list(),
         ]);
         setImportSettings(settingsRes.data);
         setExternalEvents(eventsRes.data?.events || []);
+        setLastAutoCheckAt(new Date().toISOString());
       } catch { /* silent — retry next cycle */ }
       finally { syncInProgressRef.current = false; }
     }, 120_000); // 2 minutes
@@ -505,7 +514,7 @@ export default function OrganizerDashboard() {
         syncIntervalRef.current = null;
       }
     };
-  }, [importSettings, syncing]);
+  }, [hasAnyProviderEnabled]); // ← ONLY reacts to boolean flip, NOT object references
 
   // ── Computed data ──
   const computed = useMemo(() => {
@@ -618,6 +627,7 @@ export default function OrganizerDashboard() {
             onSettingChange={handleImportSettingChange}
             onSync={handleSync}
             syncing={syncing}
+            lastAutoCheckAt={lastAutoCheckAt}
           />
         )}
 
