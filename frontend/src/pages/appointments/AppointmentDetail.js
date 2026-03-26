@@ -469,6 +469,9 @@ export default function AppointmentDetail() {
                 <EvidenceDashboard participants={participants} evidenceData={evidenceData} appointment={appointment} />
               )}
               {appointment.appointment_type === 'video' && (
+                <EvidenceDashboard participants={participants} evidenceData={evidenceData} appointment={appointment} />
+              )}
+              {appointment.appointment_type === 'video' && (
                 <ProofSessionsPanel participants={participants} proofSessions={proofSessions} validatingSession={validatingSession} onValidateSession={handleValidateSession} />
               )}
               {appointment.appointment_type === 'video' && (

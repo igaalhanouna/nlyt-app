@@ -64,6 +64,7 @@ class TeamsAdapter(VideoProviderAdapter):
             identity = r.get("identity", {})
             name = (identity.get("displayName") or r.get("name") or "").strip() or None
             total_seconds = r.get("totalAttendanceInSeconds") or r.get("duration")
+            role = (r.get("role") or "").strip().lower() or None
 
             # Use first attendance interval for join/leave times
             intervals = r.get("attendanceIntervals", [])
@@ -87,7 +88,7 @@ class TeamsAdapter(VideoProviderAdapter):
                 identity_confidence = "low"
                 identity_method = "teams_anonymous"
 
-            results.append(NormalizedAttendanceRecord(
+            rec = NormalizedAttendanceRecord(
                 provider=self.PROVIDER_NAME,
                 external_meeting_id=meeting_id,
                 participant_email=email,
@@ -99,7 +100,9 @@ class TeamsAdapter(VideoProviderAdapter):
                 identity_match_method=identity_method,
                 raw_participant_id=r.get("id"),
                 raw_payload_hash=payload_hash,
-            ))
+            )
+            rec.provider_role = role  # "Organizer" | "Attendee" | "Presenter" | None
+            results.append(rec)
 
         logger.info(f"[TEAMS] Normalized {len(results)} attendance records for meeting {meeting_id}")
         return results

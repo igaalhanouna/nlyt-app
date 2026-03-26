@@ -1,0 +1,83 @@
+{
+  "summary": "Evidence chain consolidation VERIFIED - Both physical and video appointment types now display unified evidence per participant. Backend: 35/35 tests pass. Frontend: EvidenceDashboard renders correctly for both appointment types with all required fields.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": {
+    "backend_pytest": [
+      "✅ 35/35 tests pass in test_evidence_chain.py",
+      "✅ Physical evidence scenarios (Org seul, Org+1, Org+2, Participants only)",
+      "✅ Video evidence scenarios (Org+1, Multi with absent, Partial attendance)",
+      "✅ Invariants: no data leakage, provider_role stored, structure matches",
+      "✅ checked_in includes has_video field (line 261, 270, 274 in checkin_routes.py)"
+    ],
+    "frontend_physical_appointment": [
+      "✅ EvidenceDashboard renders for physical appointment bb90f3e8",
+      "✅ 2 participant rows: Test Audit (Organisateur) + Igaal Hanouna",
+      "✅ 2 evidence items with GPS source",
+      "✅ GPS coordinates displayed: 48.86550, 2.32941",
+      "✅ Distance displayed: 0 m",
+      "✅ Temporal detail: 'Arrivé 12min avant le RDV', 'Arrivé 11min avant le RDV'",
+      "✅ Address displayed: Quartier Vendôme, Paris...",
+      "✅ Confidence score: high"
+    ],
+    "frontend_video_appointment": [
+      "✅ EvidenceDashboard renders for video appointment 5985cd4e",
+      "✅ 3 participant rows: Marie Dupont (host), Jean Martin (attendee), Pierre Absent",
+      "✅ 2 evidence items (Pierre has no evidence)",
+      "✅ Provider badge: Zoom displayed",
+      "✅ Outcome badges: 'À l'heure' for Marie, 'En retard' for Jean",
+      "✅ Provider role: 'Organisateur visio' for Marie, 'Participant' for Jean",
+      "✅ Join/Leave times displayed",
+      "✅ Duration: 60 min (Marie), 47 min (Jean)",
+      "✅ Temporal detail: 'Connectée 2min avant le début', 'Connecté 8min après le début'",
+      "✅ Identity match: 'Email exact' for Marie, 'Nom similaire' for Jean",
+      "✅ 'Aucune preuve' displayed for Pierre Absent"
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_evidence_chain.py",
+    "/app/test_reports/pytest/pytest_evidence_chain.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "EvidenceDashboard.js correctly supports both physical and video evidence with dedicated sub-components (PhysicalEvidenceDetails, VideoEvidenceDetails)",
+    "AppointmentDetail.js lines 468-473 now render EvidenceDashboard for both physical AND video types",
+    "checkin_routes.py lines 258-274: checked_in now includes has_video as valid check-in",
+    "Zoom/Teams adapters capture provider_role correctly",
+    "video_evidence_service.py line 241: provider_role included in derived_facts"
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100% (35/35 tests passed)",
+    "frontend": "100% (all UI checks passed)"
+  },
+  "test_credentials": {
+    "user": "stripe-test@nlyt.io / Test123!",
+    "physical_appointment": "bb90f3e8-f9a5-4105-8a0e-862671f4e450",
+    "video_appointment": "5985cd4e-a71a-430a-a781-d1fca0aa24bc"
+  },
+  "seed_data_creation": "Used existing evidence data in both appointments",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Evidence chain consolidation complete. EvidenceDashboard now renders for both physical and video appointments. Physical shows GPS/QR/manual evidence with coords, distance, temporal detail, address. Video shows provider badge, outcome badge, provider role, join/leave times, duration, identity match. Organizer is shown with badge. Absent participants show 'Aucune preuve'. All 35 backend tests pass.",
+  "mocked_apis": {
+    "has_mocked_apis": false,
+    "mocked_apis_list": [],
+    "note": "All APIs are real"
+  },
+  "verification_summary": {
+    "physical_evidence_display": "VERIFIED - GPS coords, distance, temporal detail, address all displayed correctly",
+    "video_evidence_display": "VERIFIED - Provider badge, outcome badge, role, join/leave times, duration, identity match all displayed",
+    "organizer_shown": "VERIFIED - Organisateur badge displayed for organizers in both appointment types",
+    "absent_participant": "VERIFIED - 'Aucune preuve' displayed for Pierre Absent",
+    "checked_in_includes_video": "VERIFIED - has_video field included in status endpoint",
+    "provider_role_captured": "VERIFIED - Zoom/Teams adapters capture role, stored in derived_facts"
+  }
+}

@@ -238,6 +238,7 @@ def ingest_video_attendance(
                 "video_attendance_outcome": video_outcome,
                 "participant_email_from_provider": norm_rec.participant_email,
                 "participant_name_from_provider": norm_rec.participant_name,
+                "provider_role": getattr(norm_rec, 'provider_role', None),
                 "source_trust": source_trust,
             }
 

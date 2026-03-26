@@ -212,8 +212,78 @@ Ces règles ne doivent JAMAIS être violées :
 2. **Organisateur inclus** — aucun filtre sur `is_organizer` dans l'agrégation ou l'affichage
 3. **`participant_id` est la clé de jointure** — entre `evidence_items` et `participants`
 4. **3 statuts acceptés** : `accepted`, `accepted_pending_guarantee`, `accepted_guaranteed`
-5. **`checked_in` inclut GPS** : `has_manual OR has_qr OR has_gps`
+5. **`checked_in` inclut toute preuve** : `has_manual OR has_qr OR has_gps OR has_video`
 6. **Pas de modification silencieuse** — tout changement dans cette chaîne doit être signalé
+7. **Physique et visio sont unifiés** — même structure `evidence_items`, même API, même composant `EvidenceDashboard`
+8. **Le rôle provider** (host/attendee) est capturé dans `derived_facts.provider_role`
+
+---
+
+## 6. CHAÎNE VISIO — Spécificités
+
+### Collecte (visio)
+
+| Provider | Fichier adaptateur | Méthode de collecte |
+|----------|-------------------|---------------------|
+| Zoom | `adapters/video_providers/zoom_adapter.py` | API Zoom + Webhooks |
+| Teams | `adapters/video_providers/teams_adapter.py` | API Graph + Webhooks |
+| Google Meet | `adapters/video_providers/meet_adapter.py` (si existe) | API Google Calendar |
+
+### Points d'entrée API
+
+| Endpoint | Rôle |
+|----------|------|
+| `POST /api/video-evidence/{apt_id}/ingest` | Ingestion manuelle (JSON/CSV) |
+| `POST /api/video-evidence/{apt_id}/fetch-attendance` | Récupération auto via API provider |
+| `POST /api/video-evidence/{apt_id}/create-meeting` | Création de la réunion chez le provider |
+| `POST /api/video-evidence/{apt_id}/upload` | Upload fichier CSV de présence |
+
+### Schéma `evidence_items` — champs visio dans `derived_facts`
+
+```json
+{
+  "source": "video_conference",
+  "derived_facts": {
+    "provider": "zoom|teams|meet",
+    "external_meeting_id": "string",
+    "joined_at": "ISO 8601",
+    "left_at": "ISO 8601",
+    "duration_seconds": 3600,
+    "identity_confidence": "high|medium|low",
+    "identity_match_method": "email_exact|name_fuzzy|...",
+    "identity_match_detail": "Email exact: user@email.com",
+    "temporal_consistency": "valid|valid_late|...",
+    "temporal_detail": "Connecté 5min avant le début",
+    "video_attendance_outcome": "joined_on_time|joined_late|no_join_detected|manual_review",
+    "participant_email_from_provider": "email du provider",
+    "participant_name_from_provider": "nom affiché dans la visio",
+    "provider_role": "host|attendee|organizer|presenter|null",
+    "provider_evidence_ceiling": "verified|assisted",
+    "source_trust": "provider_api|manual_upload"
+  }
+}
+```
+
+### Matching identité (visio → NLYT)
+
+La résolution se fait dans `video_evidence_service.py > _match_to_nlyt_participant()` :
+1. Email exact → confiance `high`
+2. Email fuzzy (normalisation) → confiance `high`
+3. Nom exact → confiance `medium`
+4. Nom fuzzy (Levenshtein) → confiance `low`
+5. Non trouvé → `participant_id = null`, preuve sans lien
+
+### Rôle provider (organisateur visio)
+
+Les adaptateurs Zoom/Teams capturent le `role` du provider :
+- Zoom : `"host"` ou `"attendee"`
+- Teams : `"Organizer"`, `"Attendee"`, `"Presenter"`
+
+Ce rôle est stocké dans `derived_facts.provider_role` et affiché dans le dashboard.
+
+> **NOTE** : Le rôle "host" du provider n'est PAS nécessairement l'organisateur NLYT.
+> Un participant NLYT peut être host de la réunion Zoom. Le champ `is_organizer`
+> dans `participants` est la source de vérité pour l'organisateur NLYT.
 
 ---
 

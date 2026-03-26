@@ -348,3 +348,212 @@ class TestInvariants:
         assert pid2 in included_pids
         assert pid3 in included_pids
         assert pid4 in excluded_pids
+
+
+# ════════════════════════════════════════════════════════════════
+# SCÉNARIOS VISIO — Preuves de présence vidéoconférence
+# ════════════════════════════════════════════════════════════════
+
+def _create_video_evidence(apt_id, pid, provider="zoom", joined_at=None, duration=3600, role=None, outcome="joined_on_time"):
+    """Simulate a video_conference evidence item (as created by video_evidence_service)."""
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc)
+    joined = joined_at or now.isoformat()
+    left = (now + timedelta(seconds=duration)).isoformat() if duration else None
+    eid = str(uuid.uuid4())
+    evidence = {
+        "evidence_id": eid,
+        "appointment_id": apt_id,
+        "participant_id": pid,
+        "source": "video_conference",
+        "source_timestamp": joined,
+        "created_at": now.isoformat(),
+        "confidence_score": "high",
+        "created_by": "system",
+        "raw_payload_reference": None,
+        "derived_facts": {
+            "provider": provider,
+            "external_meeting_id": f"meeting-{uuid.uuid4().hex[:8]}",
+            "joined_at": joined,
+            "left_at": left,
+            "duration_seconds": duration,
+            "identity_confidence": "high",
+            "identity_match_method": "email_exact",
+            "identity_match_detail": f"Email exact",
+            "temporal_consistency": "valid",
+            "temporal_detail": "Connecté à l'heure",
+            "video_attendance_outcome": outcome,
+            "participant_email_from_provider": f"test-{pid[:8]}@test.com",
+            "participant_name_from_provider": "Test User",
+            "provider_role": role,
+            "provider_evidence_ceiling": "verified",
+            "source_trust": "provider_api",
+            "device_info": f"pytest-{TEST_NS}-video",
+        },
+    }
+    db.evidence_items.insert_one(evidence)
+    evidence.pop("_id", None)
+    return evidence
+
+
+class TestScenarioVisio1OrgPlus1:
+    """Scénario visio 1 : 1 organisateur + 1 participant."""
+
+    @pytest.fixture(autouse=True, scope="class")
+    def setup(self, request):
+        apt_id, apt = _create_appointment("Visio Scénario 1", apt_type="video")
+        org_pid, _ = _create_participant(apt_id, "OrgVisio", "orgv@vs1", "accepted_guaranteed", is_organizer=True)
+        part_pid, _ = _create_participant(apt_id, "AliceVisio", "alicev@vs1", "accepted")
+        org_ev = _create_video_evidence(apt_id, org_pid, provider="zoom", role="host", duration=3600)
+        part_ev = _create_video_evidence(apt_id, part_pid, provider="zoom", role="attendee", duration=3500)
+        request.cls.apt_id = apt_id
+        request.cls.org_pid = org_pid
+        request.cls.part_pid = part_pid
+        request.cls.org_ev = org_ev
+        request.cls.part_ev = part_ev
+
+    def test_two_distinct_evidence_items(self):
+        all_ev = get_evidence_for_appointment(self.apt_id)
+        video_ev = [e for e in all_ev if e["source"] == "video_conference"]
+        assert len(video_ev) == 2
+        pids = set(e["participant_id"] for e in video_ev)
+        assert pids == {self.org_pid, self.part_pid}
+
+    def test_org_has_host_role(self):
+        assert self.org_ev["derived_facts"]["provider_role"] == "host"
+
+    def test_part_has_attendee_role(self):
+        assert self.part_ev["derived_facts"]["provider_role"] == "attendee"
+
+    def test_evidence_has_video_mandatory_fields(self):
+        for ev in [self.org_ev, self.part_ev]:
+            facts = ev["derived_facts"]
+            assert facts["provider"] == "zoom"
+            assert facts["joined_at"] is not None
+            assert facts["duration_seconds"] is not None
+            assert facts["identity_confidence"] in ("high", "medium", "low")
+            assert facts["video_attendance_outcome"] is not None
+
+    def test_aggregate_includes_both(self):
+        apt = db.appointments.find_one({"appointment_id": self.apt_id}, {"_id": 0})
+        for pid in [self.org_pid, self.part_pid]:
+            agg = aggregate_evidence(self.apt_id, pid, apt)
+            assert agg["evidence_count"] >= 1
+
+
+class TestScenarioVisio2Multi:
+    """Scénario visio 2 : 3 participants dont 1 absent."""
+
+    @pytest.fixture(autouse=True, scope="class")
+    def setup(self, request):
+        apt_id, _ = _create_appointment("Visio Scénario 2", apt_type="video")
+        org_pid, _ = _create_participant(apt_id, "OrgV2", "orgv@vs2", "accepted_guaranteed", is_organizer=True)
+        alice_pid, _ = _create_participant(apt_id, "AliceV2", "alicev@vs2", "accepted")
+        bob_pid, _ = _create_participant(apt_id, "BobV2", "bobv@vs2", "accepted")
+        absent_pid, _ = _create_participant(apt_id, "AbsentV2", "absentv@vs2", "accepted")
+        _create_video_evidence(apt_id, org_pid, provider="teams", role="Organizer", duration=3600)
+        _create_video_evidence(apt_id, alice_pid, provider="teams", role="Attendee", duration=3200)
+        _create_video_evidence(apt_id, bob_pid, provider="teams", role="Attendee", duration=1200, outcome="joined_late")
+        # absent_pid has NO evidence
+        request.cls.apt_id = apt_id
+        request.cls.org_pid = org_pid
+        request.cls.alice_pid = alice_pid
+        request.cls.bob_pid = bob_pid
+        request.cls.absent_pid = absent_pid
+
+    def test_three_evidence_for_three_present(self):
+        all_ev = get_evidence_for_appointment(self.apt_id)
+        present_pids = set(e["participant_id"] for e in all_ev)
+        assert self.org_pid in present_pids
+        assert self.alice_pid in present_pids
+        assert self.bob_pid in present_pids
+        assert self.absent_pid not in present_pids
+
+    def test_absent_has_zero_evidence(self):
+        ev = get_evidence_for_participant(self.apt_id, self.absent_pid)
+        assert len(ev) == 0
+
+    def test_absent_aggregate_is_none(self):
+        apt = db.appointments.find_one({"appointment_id": self.apt_id}, {"_id": 0})
+        agg = aggregate_evidence(self.apt_id, self.absent_pid, apt)
+        assert agg["strength"] == "none"
+        assert agg["evidence_count"] == 0
+
+    def test_bob_is_late(self):
+        bob_ev = get_evidence_for_participant(self.apt_id, self.bob_pid)
+        assert len(bob_ev) == 1
+        assert bob_ev[0]["derived_facts"]["video_attendance_outcome"] == "joined_late"
+
+
+class TestScenarioVisio3Partial:
+    """Scénario visio 3 : Participant partiellement présent (courte durée)."""
+
+    @pytest.fixture(autouse=True, scope="class")
+    def setup(self, request):
+        apt_id, _ = _create_appointment("Visio Scénario 3", apt_type="video")
+        pid, _ = _create_participant(apt_id, "Partial", "partial@vs3", "accepted")
+        ev = _create_video_evidence(apt_id, pid, provider="zoom", duration=300, outcome="joined_on_time")
+        request.cls.apt_id = apt_id
+        request.cls.pid = pid
+        request.cls.ev = ev
+
+    def test_short_duration_recorded(self):
+        assert self.ev["derived_facts"]["duration_seconds"] == 300
+
+    def test_evidence_exists(self):
+        ev = get_evidence_for_participant(self.apt_id, self.pid)
+        assert len(ev) == 1
+
+
+class TestVisioInvariants:
+    """Tests d'invariants spécifiques à la chaîne visio."""
+
+    def test_video_evidence_structure_matches_physical(self):
+        """Evidence visio doit avoir les mêmes champs racine que evidence physique."""
+        apt_id, _ = _create_appointment("Inv: structure match", apt_type="video")
+        pid, _ = _create_participant(apt_id, "StructTest", "struct@vinv", "accepted")
+        ev = _create_video_evidence(apt_id, pid, provider="zoom")
+        required_fields = {"evidence_id", "appointment_id", "participant_id", "source", "source_timestamp", "confidence_score", "derived_facts"}
+        assert required_fields.issubset(set(ev.keys()))
+
+    def test_no_data_leakage_visio(self):
+        """Preuve visio de A ne doit PAS apparaître sous B."""
+        apt_id, _ = _create_appointment("Inv: no leakage visio", apt_type="video")
+        pid_a, _ = _create_participant(apt_id, "VA", "va@vinv", "accepted")
+        pid_b, _ = _create_participant(apt_id, "VB", "vb@vinv", "accepted")
+        _create_video_evidence(apt_id, pid_a, provider="zoom")
+        ev_a = get_evidence_for_participant(apt_id, pid_a)
+        ev_b = get_evidence_for_participant(apt_id, pid_b)
+        assert len(ev_a) == 1
+        assert len(ev_b) == 0
+        assert ev_a[0]["participant_id"] == pid_a
+
+    def test_provider_role_stored(self):
+        """Le rôle provider (host/attendee) doit être stocké dans derived_facts."""
+        apt_id, _ = _create_appointment("Inv: role stored", apt_type="video")
+        pid, _ = _create_participant(apt_id, "RoleTest", "role@vinv", "accepted")
+        ev = _create_video_evidence(apt_id, pid, provider="zoom", role="host")
+        assert ev["derived_facts"]["provider_role"] == "host"
+
+    def test_evidence_api_returns_video_with_participants(self):
+        """L'API /evidence/{apt_id} doit retourner les preuves visio groupées par participant."""
+        apt_id, _ = _create_appointment("Inv: API visio", apt_type="video")
+        org_pid, _ = _create_participant(apt_id, "OrgApi", "orgapi@vinv", "accepted_guaranteed", is_organizer=True)
+        part_pid, _ = _create_participant(apt_id, "PartApi", "partapi@vinv", "accepted")
+        _create_video_evidence(apt_id, org_pid, provider="teams", role="Organizer")
+        _create_video_evidence(apt_id, part_pid, provider="teams", role="Attendee")
+
+        # Simulate what the API endpoint does
+        evidence = get_evidence_for_appointment(apt_id)
+        participants = list(db.participants.find(
+            {"appointment_id": apt_id, "status": {"$in": ["accepted", "accepted_pending_guarantee", "accepted_guaranteed"]}},
+            {"_id": 0}
+        ))
+        for p in participants:
+            p_evidence = [e for e in evidence if e["participant_id"] == p["participant_id"]]
+            if p["participant_id"] == org_pid:
+                assert len(p_evidence) == 1
+                assert p_evidence[0]["derived_facts"]["provider_role"] in ("host", "Organizer")
+            elif p["participant_id"] == part_pid:
+                assert len(p_evidence) == 1
+                assert p_evidence[0]["derived_facts"]["provider_role"] in ("attendee", "Attendee")

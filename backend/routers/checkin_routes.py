@@ -258,6 +258,7 @@ async def get_checkin_status(appointment_id: str, invitation_token: str):
     has_checkin = any(e['source'] == 'manual_checkin' for e in evidence)
     has_qr = any(e['source'] == 'qr' for e in evidence)
     has_gps = any(e['source'] == 'gps' for e in evidence)
+    has_video = any(e['source'] == 'video_conference' for e in evidence)
 
     earliest = None
     for e in evidence:
@@ -266,10 +267,11 @@ async def get_checkin_status(appointment_id: str, invitation_token: str):
             earliest = ts
 
     return {
-        "checked_in": has_checkin or has_qr or has_gps,  # INVARIANT: GPS compte comme check-in (voir EVIDENCE_CHAIN.md)
+        "checked_in": has_checkin or has_qr or has_gps or has_video,  # INVARIANT: toute preuve = checked_in (voir EVIDENCE_CHAIN.md)
         "has_manual_checkin": has_checkin,
         "has_qr_checkin": has_qr,
         "has_gps": has_gps,
+        "has_video": has_video,
         "evidence_count": len(evidence),
         "earliest_checkin": earliest,
         "evidence": evidence,

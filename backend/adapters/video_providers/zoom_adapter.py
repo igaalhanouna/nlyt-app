@@ -66,6 +66,7 @@ class ZoomAdapter(VideoProviderAdapter):
             join_time = p.get("join_time", "")
             leave_time = p.get("leave_time")
             duration = p.get("duration")
+            role = (p.get("role") or "").strip().lower() or None
 
             # Determine identity confidence based on available signals
             if email:
@@ -78,7 +79,7 @@ class ZoomAdapter(VideoProviderAdapter):
                 identity_confidence = "low"
                 identity_method = "zoom_anonymous"
 
-            records.append(NormalizedAttendanceRecord(
+            rec = NormalizedAttendanceRecord(
                 provider=self.PROVIDER_NAME,
                 external_meeting_id=meeting_id,
                 participant_email=email,
@@ -90,7 +91,9 @@ class ZoomAdapter(VideoProviderAdapter):
                 identity_match_method=identity_method,
                 raw_participant_id=p.get("id"),
                 raw_payload_hash=payload_hash,
-            ))
+            )
+            rec.provider_role = role  # "host" | "attendee" | None
+            records.append(rec)
 
         logger.info(f"[ZOOM] Normalized {len(records)} attendance records for meeting {meeting_id}")
         return records
