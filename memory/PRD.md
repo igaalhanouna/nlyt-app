@@ -131,6 +131,14 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API
 - [x] Anti-doublons 5 couches: sync_log, préfixe [NLYT], upsert unique, converted status, adopted sync_log
 - [x] Testé: 100% backend (13/13), 100% frontend (iteration_84)
 
+## Bug Fix — Evidence Dashboard (Mars 2026)
+- [x] Bug: "Check-ins & Preuves" affichait "Aucune preuve" pour tous les participants malgré les preuves en base
+- [x] Cause racine 1: `EvidenceDashboard.js` L43 — mauvais chemin de données (`evidenceData.evidence` au lieu de `evidenceData.participants[].evidence`)
+- [x] Cause racine 2: `EvidenceDashboard.js` L55 — filtre `!p.is_organizer` excluait l'organisateur de l'affichage
+- [x] Fix: `getParticipantEvidence` utilise `evidenceData.participants.find()` + filtre par statut accepté
+- [x] Testé: 100% (iteration_86) — vérifié visuellement sur apt bb90f3e8 (Test Audit + Igaal Hanouna)
+- [x] Chaque personne affiche: nom, email, source GPS, confiance, coordonnées, distance, heure, adresse
+
 ## Bug Fix — Check-in Participants P0 (Mars 2026)
 - [x] Diagnostic: `InvitationCheckinSection.js` ligne 49 excluait `accepted_pending_guarantee` de `isEngaged`
 - [x] Fix frontend: `isEngaged = ['accepted', 'accepted_guaranteed', 'accepted_pending_guarantee'].includes(effectiveStatus)`
