@@ -158,6 +158,15 @@ function EngagementCard({ appointment, isPast, onDelete, onRemind, now }) {
           <h4 className={`font-semibold text-sm leading-tight ${isPast && !isOngoing ? 'text-slate-500' : 'text-slate-900'}`}>
             {isOngoing && <Play className="w-3.5 h-3.5 inline mr-1 text-blue-600" />}
             {appointment.title}
+            {appointment.converted_from?.source && (
+              <span className={`ml-2 inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
+                appointment.converted_from.source === 'google'
+                  ? 'bg-[#4285F4]/10 text-[#4285F4]'
+                  : 'bg-[#0078D4]/10 text-[#0078D4]'
+              }`} data-testid={`via-badge-${appointment.appointment_id}`}>
+                via {appointment.converted_from.source === 'google' ? 'Google' : 'Outlook'}
+              </span>
+            )}
           </h4>
           <div className="flex items-center gap-1.5 flex-shrink-0 flex-wrap justify-end">
             {!isPast && (

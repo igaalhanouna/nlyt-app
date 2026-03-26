@@ -150,6 +150,7 @@ class AppointmentCreate(BaseModel):
     appointment_timezone: Optional[str] = None
     participants: Optional[List[ParticipantInput]] = []
     event_reminders: Optional[EventRemindersConfig] = None
+    from_external_event_id: Optional[str] = None
 
     @field_validator('meeting_provider', mode='before')
     @classmethod

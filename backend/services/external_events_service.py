@@ -297,6 +297,107 @@ def update_import_setting(user_id: str, provider: str, enabled: bool) -> dict:
     return {"success": True, "provider": provider, "import_enabled": enabled}
 
 
+def get_prefill_data(user_id: str, external_event_id: str) -> dict:
+    """Get pre-fill data for the NLYT wizard from an external event."""
+    event = db.external_events.find_one(
+        {"external_event_id": external_event_id, "imported_by_user_id": user_id},
+        {"_id": 0}
+    )
+    if not event:
+        return None
+
+    if event.get("status") == "converted":
+        return {"error": "already_converted", "nlyt_appointment_id": event.get("nlyt_appointment_id")}
+
+    if event.get("status") != "imported":
+        return {"error": "not_convertible"}
+
+    # Best-effort name split for attendees
+    suggested_participants = []
+    for att in (event.get("attendees") or []):
+        email = att.get("email", "").strip()
+        if not email:
+            continue
+        name = att.get("name", "").strip()
+        if name:
+            parts = name.split(" ", 1)
+            first_name = parts[0]
+            last_name = parts[1] if len(parts) > 1 else ""
+        else:
+            first_name = email.split("@")[0]
+            last_name = ""
+        suggested_participants.append({
+            "first_name": first_name,
+            "last_name": last_name,
+            "email": email,
+        })
+
+    # Determine appointment type
+    appointment_type = "physical"
+    meeting_provider = None
+    if event.get("conference_url"):
+        appointment_type = "video"
+        meeting_provider = event.get("conference_provider")
+
+    # Convert ISO datetime to local input format for the wizard
+    start_dt = event.get("start_datetime", "")
+    local_start = ""
+    if start_dt:
+        try:
+            dt = datetime.fromisoformat(start_dt.replace("Z", "+00:00"))
+            local_start = dt.strftime("%Y-%m-%dT%H:%M")
+        except Exception:
+            local_start = start_dt[:16] if len(start_dt) >= 16 else ""
+
+    return {
+        "prefill": {
+            "title": event.get("title", ""),
+            "appointment_type": appointment_type,
+            "location": event.get("location") or "",
+            "meeting_provider": meeting_provider,
+            "conference_url": event.get("conference_url") or "",
+            "start_datetime": local_start,
+            "duration_minutes": event.get("duration_minutes", 60),
+            "suggested_participants": suggested_participants,
+        },
+        "source": event.get("source"),
+        "external_event_id": external_event_id,
+    }
+
+
+def mark_as_converted(user_id: str, external_event_id: str, nlyt_appointment_id: str) -> dict:
+    """Atomically mark an external event as converted. Returns error dict or success."""
+    # Explicit check for clear error messages
+    event = db.external_events.find_one(
+        {"external_event_id": external_event_id, "imported_by_user_id": user_id},
+        {"_id": 0, "status": 1}
+    )
+    if not event:
+        return {"error": "not_found"}
+    if event["status"] == "converted":
+        return {"error": "already_converted"}
+    if event["status"] != "imported":
+        return {"error": "not_convertible"}
+
+    # Atomic update with status condition (optimistic lock)
+    result = db.external_events.update_one(
+        {
+            "external_event_id": external_event_id,
+            "imported_by_user_id": user_id,
+            "status": "imported",
+        },
+        {"$set": {
+            "status": "converted",
+            "nlyt_appointment_id": nlyt_appointment_id,
+            "converted_at": now_utc().isoformat(),
+        }}
+    )
+    if result.modified_count == 0:
+        return {"error": "already_converted"}
+
+    return {"success": True}
+
+
 def list_external_events(user_id: str, active_providers: list = None) -> list:
     """List imported external events for the user, filtered by active providers."""
     query = {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useWorkspace } from '../../contexts/WorkspaceContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { appointmentAPI, videoEvidenceAPI } from '../../services/api';
@@ -31,11 +31,17 @@ function formatSlotRange(startISO, endISO) {
 
 export default function AppointmentWizard() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { token } = useAuth();
   const { currentWorkspace, workspaces, selectWorkspace, createWorkspace, loading: workspaceLoading } = useWorkspace();
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [loadingDefaults, setLoadingDefaults] = useState(true);
+
+  // External event pre-fill data (from "NLYT me" flow)
+  const fromExternalData = location.state?.fromExternal || null;
+  const externalSource = fromExternalData?.source;
+  const externalEventId = fromExternalData?.external_event_id;
   const [workspaceDropdownOpen, setWorkspaceDropdownOpen] = useState(false);
   const [showCreateWorkspace, setShowCreateWorkspace] = useState(false);
   const [newWorkspaceName, setNewWorkspaceName] = useState('');
@@ -90,6 +96,33 @@ export default function AppointmentWizard() {
       setProviderAutoSelected(true);
     }
   }, [videoProviders, providerAutoSelected, formData.meeting_provider]);
+
+  // Pre-fill from external event (NLYT me flow)
+  const prefillApplied = useRef(false);
+  useEffect(() => {
+    if (!fromExternalData?.prefill || prefillApplied.current) return;
+    prefillApplied.current = true;
+    const p = fromExternalData.prefill;
+    setFormData(prev => ({
+      ...prev,
+      title: p.title || prev.title,
+      appointment_type: p.appointment_type || prev.appointment_type,
+      location: p.location || prev.location,
+      meeting_provider: p.meeting_provider || prev.meeting_provider,
+      start_datetime: p.start_datetime || prev.start_datetime,
+      duration_minutes: p.duration_minutes || prev.duration_minutes,
+    }));
+    if (p.suggested_participants && p.suggested_participants.length > 0) {
+      setParticipants(p.suggested_participants.map(sp => ({
+        first_name: sp.first_name || '',
+        last_name: sp.last_name || '',
+        email: sp.email || '',
+      })));
+    }
+    if (p.meeting_provider) {
+      setProviderAutoSelected(true);
+    }
+  }, [fromExternalData]);
 
 
   // Load user defaults and charity associations on mount
@@ -407,6 +440,10 @@ export default function AppointmentWizard() {
         workspace_id: currentWorkspace.workspace_id,
         participants: validParticipants
       };
+      // Include external event reference for conversion
+      if (externalEventId) {
+        payload.from_external_event_id = externalEventId;
+      }
       // Clean video-only fields for physical appointments
       if (payload.appointment_type !== 'video') {
         delete payload.meeting_provider;
@@ -454,6 +491,10 @@ export default function AppointmentWizard() {
         workspace_id: currentWorkspace.workspace_id,
         participants: validParticipants
       };
+      // Include external event reference for conversion
+      if (externalEventId) {
+        payload.from_external_event_id = externalEventId;
+      }
       // Clean video-only fields for physical appointments
       if (payload.appointment_type !== 'video') {
         delete payload.meeting_provider;
@@ -1522,6 +1563,16 @@ export default function AppointmentWizard() {
         </div>
 
         <div className="bg-white rounded-lg border border-slate-200 p-4 sm:p-6 md:p-8">
+          {fromExternalData && (
+            <div className="mb-6 p-3 bg-slate-50 border border-slate-200 rounded-lg flex items-start gap-3" data-testid="from-external-banner">
+              <Info className="w-4 h-4 text-slate-500 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="text-sm text-slate-700">
+                  Pré-rempli à partir de votre événement {externalSource === 'google' ? 'Google' : externalSource === 'outlook' ? 'Outlook' : 'externe'}. Tous les champs restent modifiables.
+                </p>
+              </div>
+            </div>
+          )}
           {currentStep === 1 && renderStep1()}
           {currentStep === 2 && renderStep2()}
           {currentStep === 3 && renderStep3()}

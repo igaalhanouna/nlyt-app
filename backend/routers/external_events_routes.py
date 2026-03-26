@@ -7,7 +7,8 @@ import sys
 sys.path.append('/app/backend')
 from middleware.auth_middleware import get_current_user
 from services.external_events_service import (
-    sync_provider, get_import_settings, update_import_setting, list_external_events
+    sync_provider, get_import_settings, update_import_setting, list_external_events,
+    get_prefill_data
 )
 from database import db
 
@@ -76,6 +77,24 @@ async def sync_events(request: Request):
         results[provider] = sync_provider(user_id, provider, force=force)
 
     return {"results": results}
+
+
+@router.get("/{external_event_id}/prefill")
+async def get_prefill(external_event_id: str, request: Request):
+    """Get pre-fill data for the NLYT wizard from an imported external event."""
+    user = await get_current_user(request)
+    result = get_prefill_data(user["user_id"], external_event_id)
+
+    if result is None:
+        raise HTTPException(status_code=404, detail="Événement externe introuvable")
+
+    if result.get("error") == "already_converted":
+        raise HTTPException(status_code=409, detail="Cet événement a déjà été converti en engagement NLYT")
+
+    if result.get("error") == "not_convertible":
+        raise HTTPException(status_code=400, detail="Cet événement n'est pas convertible")
+
+    return result
 
 
 @router.get("/")

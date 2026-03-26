@@ -191,6 +191,7 @@ export const externalEventsAPI = {
   updateImportSetting: (provider, enabled) => api.put('/api/external-events/import-settings', { provider, enabled }),
   sync: (force = false) => api.post('/api/external-events/sync', { force }),
   list: () => api.get('/api/external-events/'),
+  prefill: (externalEventId) => api.get(`/api/external-events/${externalEventId}/prefill`),
 };
 
 export default api;

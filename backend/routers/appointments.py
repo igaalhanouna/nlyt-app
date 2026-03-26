@@ -536,6 +536,21 @@ async def create_appointment(appointment: AppointmentCreate, request: Request):
         "created_at": now_utc_iso(),
         "updated_at": now_utc_iso()
     }
+
+    # Store conversion origin if created from an external event
+    if appointment.from_external_event_id:
+        # Find the external event source for the badge
+        ext_ev = db.external_events.find_one(
+            {"external_event_id": appointment.from_external_event_id, "imported_by_user_id": user['user_id']},
+            {"_id": 0, "source": 1, "status": 1}
+        )
+        if ext_ev and ext_ev.get("status") == "imported":
+            appointment_doc["converted_from"] = {
+                "source": ext_ev["source"],
+                "external_event_id": appointment.from_external_event_id,
+            }
+        elif ext_ev and ext_ev.get("status") == "converted":
+            raise HTTPException(status_code=409, detail="Cet événement a déjà été converti en engagement NLYT")
     
     db.appointments.insert_one(appointment_doc)
 
@@ -714,6 +729,15 @@ async def create_appointment(appointment: AppointmentCreate, request: Request):
         }
     elif meeting_result and meeting_result.get("error"):
         response["meeting_warning"] = meeting_result["error"]
+
+    # ── Mark external event as converted (atomic, anti-double) ──
+    if appointment.from_external_event_id:
+        from services.external_events_service import mark_as_converted
+        conv_result = mark_as_converted(user['user_id'], appointment.from_external_event_id, appointment_id)
+        if conv_result.get("error") == "already_converted":
+            print(f"[CONVERT] External event {appointment.from_external_event_id} already converted (race condition)")
+        elif conv_result.get("success"):
+            response["converted_from_external"] = True
 
     return response
 

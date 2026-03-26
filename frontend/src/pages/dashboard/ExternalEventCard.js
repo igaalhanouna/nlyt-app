@@ -1,6 +1,9 @@
-import React from 'react';
-import { Calendar, Clock, MapPin, Video, Users } from 'lucide-react';
+import React, { useState } from 'react';
+import { Calendar, Clock, MapPin, Video, Users, Loader2, Zap } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { formatDateTimeCompactFr } from '../../utils/dateFormat';
+import { externalEventsAPI } from '../../services/api';
+import { toast } from 'sonner';
 
 const SOURCE_BADGE = {
   google: {
@@ -20,8 +23,29 @@ const PROVIDER_LABELS = {
 };
 
 export default function ExternalEventCard({ event }) {
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
   const badge = SOURCE_BADGE[event.source] || SOURCE_BADGE.google;
   const attendeeCount = (event.attendees || []).length;
+
+  const handleNlytMe = async () => {
+    setLoading(true);
+    try {
+      const res = await externalEventsAPI.prefill(event.external_event_id);
+      navigate('/appointments/create', {
+        state: { fromExternal: res.data },
+      });
+    } catch (err) {
+      const detail = err.response?.data?.detail;
+      if (err.response?.status === 409) {
+        toast.error('Cet événement a déjà été converti en engagement NLYT');
+      } else {
+        toast.error(detail || 'Impossible de charger les données de l\'événement');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div
@@ -74,7 +98,7 @@ export default function ExternalEventCard({ event }) {
 
         {/* Row 3: Attendees */}
         {attendeeCount > 0 && (
-          <div className="flex items-center gap-1.5 text-xs text-slate-400">
+          <div className="flex items-center gap-1.5 text-xs text-slate-400 mb-3">
             <Users className="w-3 h-3" />
             <span>{attendeeCount} participant{attendeeCount > 1 ? 's' : ''}</span>
             <div className="flex gap-1 ml-1 overflow-hidden max-w-[250px]">
@@ -91,6 +115,21 @@ export default function ExternalEventCard({ event }) {
             </div>
           </div>
         )}
+
+        {/* NLYT me button */}
+        <button
+          onClick={handleNlytMe}
+          disabled={loading}
+          className="w-full flex items-center justify-center gap-2 py-2 mt-1 bg-slate-900 text-white rounded-lg text-sm font-semibold hover:bg-slate-800 active:scale-[0.98] transition-all disabled:opacity-60"
+          data-testid={`nlyt-me-btn-${event.external_event_id}`}
+          title="Garantir ce rendez-vous avec NLYT"
+        >
+          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+          NLYT me
+        </button>
+        <p className="text-[10px] text-slate-400 text-center mt-1">
+          Garantir ce rendez-vous avec NLYT
+        </p>
       </div>
     </div>
   );
