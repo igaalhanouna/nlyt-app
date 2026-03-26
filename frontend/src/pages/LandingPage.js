@@ -61,7 +61,7 @@ export default function LandingPage() {
             Votre temps<br /> ne se perd plus.
           </h1>
           <p className="text-base sm:text-xl text-slate-400 leading-relaxed max-w-xl mx-auto mb-6 sm:mb-12" data-testid="hero-subtitle">
-            Votre temps est précieux. Protégez-le.<br className="hidden sm:block" />
+            Votre temps est précieux. Protégez-le.<br />
             Et faites que chaque absence indélicate devienne un geste solidaire.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
