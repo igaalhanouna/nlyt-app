@@ -113,6 +113,7 @@ export default function LandingPage() {
       {/* ── Promesse (compact on mobile) ── */}
       <section className="py-10 sm:py-20 px-4 sm:px-6 border-t border-white/5" data-testid="promise-section">
         <div className="max-w-3xl mx-auto">
+          <h2 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight text-center mb-8 sm:mb-16">Votre temps n'est plus jamais perdu.</h2>
           <div className="grid sm:grid-cols-2 gap-4 sm:gap-6">
             <div className="p-5 sm:p-8 rounded-2xl bg-white/[0.03] border border-white/5">
               <CheckCircle className="w-5 h-5 text-emerald-400 mb-3 sm:mb-5" />
@@ -129,9 +130,6 @@ export default function LandingPage() {
               </p>
             </div>
           </div>
-          <p className="text-center text-sm text-slate-500 mt-6 sm:mt-8">
-            Votre temps n'est plus jamais perdu.
-          </p>
         </div>
       </section>
 
