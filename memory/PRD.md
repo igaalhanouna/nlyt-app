@@ -131,6 +131,12 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API
 - [x] Anti-doublons 5 couches: sync_log, préfixe [NLYT], upsert unique, converted status, adopted sync_log
 - [x] Testé: 100% backend (13/13), 100% frontend (iteration_84)
 
+## Consolidation — Chaîne de Preuves de Présence (Mars 2026)
+- [x] Documentation complète : `/app/backend/docs/EVIDENCE_CHAIN.md` (structure, mapping, invariants, fichiers)
+- [x] Tests de non-régression : `/app/backend/tests/test_evidence_chain.py` (20 tests, 5 scénarios)
+- [x] Garde-fous dans le code : commentaires ZONE PROTÉGÉE + INVARIANT dans les 4 fichiers critiques
+- [x] Fichiers protégés : `checkin_routes.py`, `evidence_service.py`, `EvidenceDashboard.js`, `InvitationCheckinSection.js`
+
 ## Bug Fix — Evidence Dashboard (Mars 2026)
 - [x] Bug: "Check-ins & Preuves" affichait "Aucune preuve" pour tous les participants malgré les preuves en base
 - [x] Cause racine 1: `EvidenceDashboard.js` L43 — mauvais chemin de données (`evidenceData.evidence` au lieu de `evidenceData.participants[].evidence`)

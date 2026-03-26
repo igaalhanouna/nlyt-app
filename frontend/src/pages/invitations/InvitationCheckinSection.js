@@ -46,6 +46,8 @@ export default function InvitationCheckinSection({
   const formatDate = (d) => formatDateShortFr(d.toISOString());
 
   const effectiveStatus = responseStatus || participant?.status;
+  // INVARIANT: Les 3 statuts acceptés doivent être inclus (voir EVIDENCE_CHAIN.md)
+  // accepted_pending_guarantee a été exclu par erreur → P0 bug corrigé Mars 2026
   const isEngaged = ['accepted', 'accepted_guaranteed', 'accepted_pending_guarantee'].includes(effectiveStatus);
 
   return (

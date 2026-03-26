@@ -57,7 +57,20 @@ class GPSCheckinRequest(BaseModel):
 
 
 def _resolve_participant(invitation_token: str) -> tuple:
-    """Resolve participant and appointment from invitation token. Returns (participant, appointment) or raises."""
+    """
+    Resolve participant and appointment from invitation token.
+    Returns (participant, appointment) or raises.
+
+    !! ZONE PROTÉGÉE — Chaîne de preuves de présence !!
+    Voir /app/backend/docs/EVIDENCE_CHAIN.md pour la documentation complète.
+    Tests de non-régression : /app/backend/tests/test_evidence_chain.py
+    Toute modification doit être signalée dans le summary de livraison.
+
+    INVARIANTS :
+    - Statuts autorisés : accepted, accepted_pending_guarantee, accepted_guaranteed
+    - Aucune distinction organisateur / participant
+    - Le rendez-vous doit être 'active'
+    """
     participant = db.participants.find_one(
         {"invitation_token": invitation_token}, {"_id": 0}
     )
@@ -253,7 +266,7 @@ async def get_checkin_status(appointment_id: str, invitation_token: str):
             earliest = ts
 
     return {
-        "checked_in": has_checkin or has_qr or has_gps,
+        "checked_in": has_checkin or has_qr or has_gps,  # INVARIANT: GPS compte comme check-in (voir EVIDENCE_CHAIN.md)
         "has_manual_checkin": has_checkin,
         "has_qr_checkin": has_qr,
         "has_gps": has_gps,
@@ -267,7 +280,18 @@ async def get_checkin_status(appointment_id: str, invitation_token: str):
 
 @router.get("/evidence/{appointment_id}")
 async def get_appointment_evidence(appointment_id: str, request: Request):
-    """Get all evidence for an appointment (organizer view)."""
+    """
+    Get all evidence for an appointment (organizer view).
+
+    !! ZONE PROTÉGÉE — Chaîne de preuves de présence !!
+    Voir /app/backend/docs/EVIDENCE_CHAIN.md
+
+    INVARIANTS :
+    - Retourne UNE entrée par participant (pas de fusion, pas d'omission)
+    - Inclut l'organisateur (PAS de filtre sur is_organizer)
+    - Filtre par statut : accepted, accepted_pending_guarantee, accepted_guaranteed
+    - Structure : { participants: [{ participant_id, participant_name, evidence: [...], aggregation }] }
+    """
     user = await get_current_user(request)
 
     appointment = db.appointments.find_one(

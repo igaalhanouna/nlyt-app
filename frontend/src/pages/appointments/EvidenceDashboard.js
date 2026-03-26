@@ -2,6 +2,21 @@ import React from 'react';
 import { ScanLine, QrCode, MapPinCheck, Timer, Navigation } from 'lucide-react';
 import { formatEvidenceDateFr } from '../../utils/dateFormat';
 
+/**
+ * EvidenceDashboard — Affiche "Check-ins & Preuves" dans la carte rendez-vous.
+ *
+ * !! ZONE PROTÉGÉE — Chaîne de preuves de présence !!
+ * Voir /app/backend/docs/EVIDENCE_CHAIN.md pour la documentation complète.
+ * Tests de non-régression : /app/backend/tests/test_evidence_chain.py
+ * Toute modification doit être signalée dans le summary de livraison.
+ *
+ * INVARIANTS :
+ * - Mapping : evidenceData.participants[].evidence (PAS evidenceData.evidence)
+ * - Filtre : statut accepted / accepted_pending_guarantee / accepted_guaranteed
+ * - L'organisateur N'EST PAS filtré (pas de !p.is_organizer)
+ * - 1 bloc par participant, même si 0 preuve
+ * - Chaque preuve affiche : source, confiance, timestamp, GPS, distance, adresse
+ */
 export default function EvidenceDashboard({ participants, evidenceData, appointment }) {
   const getSourceColor = (source) => {
     switch (source) {
@@ -39,6 +54,8 @@ export default function EvidenceDashboard({ participants, evidenceData, appointm
     }
   };
 
+  // INVARIANT: Mapper via evidenceData.participants (PAS evidenceData.evidence)
+  // Voir EVIDENCE_CHAIN.md — ne pas modifier sans signaler
   const getParticipantEvidence = (participantId) => {
     if (!evidenceData?.participants) return [];
     const pData = evidenceData.participants.find(p => p.participant_id === participantId);
@@ -53,6 +70,7 @@ export default function EvidenceDashboard({ participants, evidenceData, appointm
       </div>
 
       <div className="space-y-3">
+        {/* INVARIANT: Inclure TOUS les statuts acceptés, y compris organisateur (pas de !p.is_organizer) */}
         {participants.filter(p => ['accepted', 'accepted_pending_guarantee', 'accepted_guaranteed'].includes(p.status)).map(p => {
           const evidence = getParticipantEvidence(p.participant_id);
           return (
