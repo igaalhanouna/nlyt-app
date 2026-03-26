@@ -73,6 +73,12 @@ def start_onboarding(user_id: str) -> dict:
                 type="express",
                 country=country,
                 email=user.get("email"),
+                business_type="individual",
+                individual={
+                    "first_name": user.get("first_name", ""),
+                    "last_name": user.get("last_name", ""),
+                    "email": user.get("email"),
+                },
                 metadata={"nlyt_user_id": user_id, "nlyt_wallet_id": wallet["wallet_id"]},
                 capabilities={"transfers": {"requested": True}},
             )
