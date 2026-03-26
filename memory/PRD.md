@@ -81,15 +81,14 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API
 - [x] Stripe Connect Marketplace activé sur le dashboard Stripe par l'utilisateur
 
 ## Completed — Stripe Connect Multi-Profil (Mars 2026)
-- [x] Sélecteur de profil: 2 cards (Particulier/Indépendant vs Société/Organisation) avant le 1er onboarding
-- [x] Backend: `business_type` (individual/company) envoyé à Stripe lors du `Account.create()`
-- [x] Backend: pré-remplissage `individual` (first_name, last_name, email) ou `company` (name)
-- [x] Backend: endpoint `POST /api/connect/reset` pour changer de profil (supprime le compte Stripe, reset wallet)
-- [x] Backend: blocage si fonds en attente lors d'un reset
-- [x] Frontend: badge type de profil dans ConnectStatusCard
-- [x] Frontend: lien "Modifier mon type de profil" avec modal de confirmation + avertissement
-- [x] Frontend: responsive mobile (cards empilées, touch-friendly)
-- [x] Testé: 100% backend (14/14) + 100% frontend (sélecteur, badge, modal, mobile)
+- [x] Sélecteur en 2 étapes : Step 1 (Particulier / Professionnel) → Step 2 inline (Indépendant / Société)
+- [x] 3 profils NLYT : `particulier`, `independant`, `company` → mappés vers Stripe `individual` / `company`
+- [x] Backend: pré-remplissage adapté par type (individual: first/last name, company: company name)
+- [x] Backend: `POST /api/connect/reset` intelligent — mise à jour DB seule si même type Stripe, suppression Stripe si type différent
+- [x] Frontend: badge profil NLYT dans ConnectStatusCard
+- [x] Frontend: modal changement avec 3 options + avertissement Stripe conditionnel
+- [x] Frontend: responsive mobile (cards empilées, sous-options inline)
+- [x] Testé: 100% backend (18/18) + 100% frontend (sélecteur 2 étapes, badge, modal, mobile)
 
 ## Upcoming Tasks
 - [ ] Refactorer InvitationPage.js (1400+ lignes → modules)
