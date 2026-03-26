@@ -186,4 +186,11 @@ export const connectAPI = {
   reset: (newProfileType) => api.post('/api/connect/reset', { new_profile_type: newProfileType }),
 };
 
+export const externalEventsAPI = {
+  getImportSettings: () => api.get('/api/external-events/import-settings'),
+  updateImportSetting: (provider, enabled) => api.put('/api/external-events/import-settings', { provider, enabled }),
+  sync: (force = false) => api.post('/api/external-events/sync', { force }),
+  list: () => api.get('/api/external-events/'),
+};
+
 export default api;

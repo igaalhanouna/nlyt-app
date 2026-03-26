@@ -60,6 +60,11 @@ def ensure_indexes():
     db.distributions.create_index("guarantee_id")
     db.violation_cases.create_index("appointment_id")
 
+    # external_events — imported calendar events
+    db.external_events.create_index([("imported_by_user_id", ASCENDING), ("status", ASCENDING), ("start_datetime", ASCENDING)])
+    db.external_events.create_index([("external_event_id", ASCENDING), ("source", ASCENDING)], unique=True)
+    db.external_events.create_index("nlyt_appointment_id", sparse=True)
+
     # email idempotency
     db.sent_emails.create_index(
         [("email_type", ASCENDING), ("reference_id", ASCENDING), ("user_id", ASCENDING)],

@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useWorkspace } from '../../contexts/WorkspaceContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { appointmentAPI, walletAPI } from '../../services/api';
+import { appointmentAPI, walletAPI, externalEventsAPI } from '../../services/api';
 import { Button } from '../../components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/tabs';
 import {
@@ -14,6 +14,8 @@ import {
 import { toast } from 'sonner';
 import { formatDateTimeCompactFr, parseUTC } from '../../utils/dateFormat';
 import AppNavbar from '../../components/AppNavbar';
+import CalendarSyncPanel from './CalendarSyncPanel';
+import ExternalEventCard from './ExternalEventCard';
 
 // ── Helpers ──
 
@@ -288,11 +290,17 @@ export default function OrganizerDashboard() {
   const [analytics, setAnalytics] = useState(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
 
+  // External events / calendar import state
+  const [importSettings, setImportSettings] = useState(null);
+  const [externalEvents, setExternalEvents] = useState([]);
+  const [syncing, setSyncing] = useState(false);
+
   const PAGE_SIZE = 20;
 
   useEffect(() => {
     if (currentWorkspace) loadInitial();
     loadImpact();
+    loadImportSettings();
   }, [currentWorkspace]);
 
   const loadInitial = async () => {
@@ -404,6 +412,52 @@ export default function OrganizerDashboard() {
     setLoading(true);
   };
 
+  // ── External Events / Calendar Import ──
+
+  const loadImportSettings = async () => {
+    try {
+      const res = await externalEventsAPI.getImportSettings();
+      setImportSettings(res.data);
+      // Auto-sync if any provider is enabled
+      const providers = res.data?.providers || {};
+      const hasEnabled = Object.values(providers).some(p => p.import_enabled);
+      if (hasEnabled) {
+        handleSync(false);
+      }
+    } catch { /* silent — user may not have calendar connections */ }
+  };
+
+  const handleImportSettingChange = async (provider, enabled) => {
+    const res = await externalEventsAPI.updateImportSetting(provider, enabled);
+    await loadImportSettings();
+    if (enabled && res.data?.sync?.synced) {
+      await loadExternalEvents();
+    }
+    if (!enabled) {
+      setExternalEvents(prev => prev.filter(e => e.source !== provider));
+    }
+  };
+
+  const handleSync = async (force = false) => {
+    setSyncing(true);
+    try {
+      await externalEventsAPI.sync(force);
+      await loadImportSettings();
+      await loadExternalEvents();
+    } catch {
+      if (force) toast.error('Erreur lors de la synchronisation');
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const loadExternalEvents = async () => {
+    try {
+      const res = await externalEventsAPI.list();
+      setExternalEvents(res.data?.events || []);
+    } catch { /* silent */ }
+  };
+
   // ── Computed data ──
   const computed = useMemo(() => {
     const now = new Date();
@@ -508,6 +562,16 @@ export default function OrganizerDashboard() {
         {/* Impact Card */}
         {!loading && <ImpactCard totalCharityCents={impactCents} />}
 
+        {/* Calendar Sync Panel */}
+        {!loading && importSettings && (
+          <CalendarSyncPanel
+            importSettings={importSettings}
+            onSettingChange={handleImportSettingChange}
+            onSync={handleSync}
+            syncing={syncing}
+          />
+        )}
+
         <div className="mb-6">
           <Link to="/appointments/create" className="block sm:inline-block">
             <Button size="lg" className="w-full sm:w-auto min-h-[44px]" data-testid="create-appointment-btn">
@@ -558,7 +622,7 @@ export default function OrganizerDashboard() {
               </TabsList>
 
               <TabsContent value="upcoming">
-                {upcoming.length === 0 ? (
+                {upcoming.length === 0 && externalEvents.length === 0 ? (
                   <div className="text-center py-12">
                     <Calendar className="w-12 h-12 text-slate-300 mx-auto mb-3" />
                     <p className="text-slate-500">Aucun engagement à venir</p>
@@ -566,9 +630,20 @@ export default function OrganizerDashboard() {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {upcoming.map(a => (
-                      <EngagementCard key={a.appointment_id} appointment={a} isPast={false} onDelete={handleDeleteClick} onRemind={handleRemind} now={computed.now} />
-                    ))}
+                    {/* Merge NLYT appointments + external events, sorted chronologically */}
+                    {[
+                      ...upcoming.map(a => ({ type: 'nlyt', data: a, sortKey: a.start_datetime })),
+                      ...externalEvents.map(e => ({ type: 'external', data: e, sortKey: e.start_datetime })),
+                    ]
+                      .sort((a, b) => (a.sortKey || '').localeCompare(b.sortKey || ''))
+                      .map(item =>
+                        item.type === 'nlyt' ? (
+                          <EngagementCard key={item.data.appointment_id} appointment={item.data} isPast={false} onDelete={handleDeleteClick} onRemind={handleRemind} now={computed.now} />
+                        ) : (
+                          <ExternalEventCard key={`ext-${item.data.external_event_id}`} event={item.data} />
+                        )
+                      )
+                    }
                     {upcomingHasMore && (
                       <div className="pt-4 text-center">
                         <Button

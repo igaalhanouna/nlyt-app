@@ -9,7 +9,7 @@ import os
 
 load_dotenv(override=True)
 
-from routers import auth, workspaces, appointments, participants, contracts, calendar_routes, disputes, admin, webhooks, debug, invitations, user_settings, charity_associations, attendance_routes, checkin_routes, modification_routes, video_evidence_routes, proof_routes, wallet_routes, connect_routes, impact_routes
+from routers import auth, workspaces, appointments, participants, contracts, calendar_routes, disputes, admin, webhooks, debug, invitations, user_settings, charity_associations, attendance_routes, checkin_routes, modification_routes, video_evidence_routes, proof_routes, wallet_routes, connect_routes, impact_routes, external_events_routes
 from scheduler import start_scheduler, stop_scheduler
 from rate_limiter import limiter
 
@@ -72,6 +72,7 @@ app.include_router(proof_routes.router, prefix="/api/proof", tags=["Proof Sessio
 app.include_router(wallet_routes.router, prefix="/api/wallet", tags=["Wallet"])
 app.include_router(connect_routes.router, prefix="/api/connect", tags=["Connect"])
 app.include_router(impact_routes.router, prefix="/api/impact", tags=["Impact"])
+app.include_router(external_events_routes.router, prefix="/api/external-events", tags=["External Events"])
 
 @app.get("/api/health")
 async def health_check():

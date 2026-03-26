@@ -256,7 +256,9 @@ class OutlookCalendarAdapter:
     @staticmethod
     def list_events(access_token: str, refresh_token: str, time_min: str, time_max: str, connection_update_callback=None) -> Optional[list]:
         """List events from the user's Outlook calendar within a time window.
-        Returns a list of dicts with keys: event_id, title, start, end, or None on failure.
+        Returns a list of dicts with enriched fields: event_id, title, start, end,
+        location, description, organizer, attendees, conference_url,
+        conference_provider, is_all_day.
         time_min / time_max must be ISO 8601 strings.
 
         Uses Prefer: outlook.timezone="UTC" to ensure all returned datetimes
@@ -274,7 +276,7 @@ class OutlookCalendarAdapter:
                 '$filter': f"start/dateTime ge '{time_min}' and end/dateTime le '{time_max}'",
                 '$orderby': 'start/dateTime',
                 '$top': 50,
-                '$select': 'id,subject,start,end,isCancelled',
+                '$select': 'id,subject,start,end,isCancelled,isAllDay,location,bodyPreview,organizer,attendees,onlineMeeting,onlineMeetingUrl',
             }
             resp = requests.get(
                 f'{GRAPH_API}/me/events',
@@ -299,11 +301,66 @@ class OutlookCalendarAdapter:
                     start_dt += 'Z'
                 if not end_dt.endswith('Z') and '+' not in end_dt:
                     end_dt += 'Z'
+
+                is_all_day = item.get('isAllDay', False)
+
+                # Extract location
+                location = None
+                loc_raw = item.get('location', {})
+                if isinstance(loc_raw, dict):
+                    location = loc_raw.get('displayName')
+                elif isinstance(loc_raw, str):
+                    location = loc_raw
+
+                # Extract conference/video link
+                conference_url = item.get('onlineMeetingUrl') or None
+                conference_provider = None
+                if not conference_url:
+                    online_meeting = item.get('onlineMeeting')
+                    if online_meeting and isinstance(online_meeting, dict):
+                        conference_url = online_meeting.get('joinUrl')
+                if conference_url:
+                    if 'teams.microsoft' in conference_url or 'teams.live' in conference_url:
+                        conference_provider = 'teams'
+                    elif 'zoom.us' in conference_url:
+                        conference_provider = 'zoom'
+                    elif 'meet.google' in conference_url:
+                        conference_provider = 'meet'
+
+                # Extract organizer
+                organizer = None
+                org_raw = item.get('organizer', {})
+                if isinstance(org_raw, dict):
+                    email_addr = org_raw.get('emailAddress', {})
+                    if email_addr.get('address'):
+                        organizer = {'email': email_addr['address'], 'name': email_addr.get('name', '')}
+
+                # Extract attendees
+                attendees = []
+                for att in item.get('attendees', []):
+                    email_addr = att.get('emailAddress', {})
+                    if not email_addr.get('address'):
+                        continue
+                    status_raw = att.get('status', {})
+                    response = status_raw.get('response', '') if isinstance(status_raw, dict) else ''
+                    attendees.append({
+                        'email': email_addr['address'],
+                        'name': email_addr.get('name', ''),
+                        'response_status': response,
+                    })
+
                 events.append({
                     'event_id': item['id'],
                     'title': item.get('subject', '(Sans titre)'),
                     'start': start_dt,
                     'end': end_dt,
+                    'location': location,
+                    'description': item.get('bodyPreview'),
+                    'organizer': organizer,
+                    'attendees': attendees,
+                    'conference_url': conference_url,
+                    'conference_provider': conference_provider,
+                    'is_all_day': is_all_day,
                 })
             return events
         except Exception as e:

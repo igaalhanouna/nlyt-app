@@ -223,7 +223,9 @@ class GoogleCalendarAdapter:
     @staticmethod
     def list_events(access_token: str, refresh_token: str, time_min: str, time_max: str, connection_update_callback=None) -> Optional[list]:
         """List events from the user's primary Google Calendar within a time window.
-        Returns a list of dicts with keys: event_id, title, start, end, or None on failure.
+        Returns a list of dicts with keys: event_id, title, start, end,
+        location, description, organizer, attendees, conference_url,
+        conference_provider, is_all_day.
         time_min / time_max must be RFC3339 strings (e.g. '2026-03-25T08:00:00Z').
         """
         try:
@@ -257,11 +259,54 @@ class GoogleCalendarAdapter:
                 end_dt = end_raw.get('dateTime') or end_raw.get('date')
                 if not start_dt or not end_dt:
                     continue
+
+                # Detect all-day events (date only, no dateTime)
+                is_all_day = 'dateTime' not in start_raw and 'date' in start_raw
+
+                # Extract conference/video link
+                conference_url = None
+                conference_provider = None
+                conf_data = item.get('conferenceData')
+                if conf_data:
+                    for ep in conf_data.get('entryPoints', []):
+                        if ep.get('entryPointType') == 'video':
+                            conference_url = ep.get('uri')
+                            break
+                    conf_type = conf_data.get('conferenceSolution', {}).get('key', {}).get('type', '')
+                    if 'hangoutsMeet' in conf_type or conference_url and 'meet.google' in (conference_url or ''):
+                        conference_provider = 'meet'
+                    elif 'teamsForBusiness' in conf_type:
+                        conference_provider = 'teams'
+
+                # Extract organizer
+                org_raw = item.get('organizer', {})
+                organizer = None
+                if org_raw.get('email'):
+                    organizer = {'email': org_raw['email'], 'name': org_raw.get('displayName', '')}
+
+                # Extract attendees
+                attendees = []
+                for att in item.get('attendees', []):
+                    if att.get('self'):
+                        continue
+                    attendees.append({
+                        'email': att.get('email', ''),
+                        'name': att.get('displayName', ''),
+                        'response_status': att.get('responseStatus', ''),
+                    })
+
                 events.append({
                     'event_id': item['id'],
                     'title': item.get('summary', '(Sans titre)'),
                     'start': start_dt,
                     'end': end_dt,
+                    'location': item.get('location'),
+                    'description': item.get('description'),
+                    'organizer': organizer,
+                    'attendees': attendees,
+                    'conference_url': conference_url,
+                    'conference_provider': conference_provider,
+                    'is_all_day': is_all_day,
                 })
             return events
         except Exception as e:
