@@ -345,7 +345,7 @@ export default function ImpactPage() {
           <section className="py-10 sm:py-24 px-4 sm:px-6 border-t border-white/5" data-testid="impact-cta-section">
             <div className="max-w-2xl mx-auto text-center">
               <p className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight text-white mb-4">
-                Faites de chaque absence une possibilité de faire une bonne action.
+                Chaque rendez-vous manqué devient l'occasion de faire une bonne action.
               </p>
               <p className="text-sm text-slate-500 mb-6 sm:mb-10">
                 Votre temps est garanti. Faites en profiter qui vous voulez.
