@@ -1498,6 +1498,7 @@ async def remind_participants(appointment_id: str, request: Request):
         try:
             invitation_link = f"{frontend_url}/invitation/{p.get('invitation_token', '')}"
             name = f"{p.get('first_name', '')} {p.get('last_name', '')}".strip() or p.get("email", "").split("@")[0]
+            has_account = db.users.count_documents({"email": p["email"], "is_verified": True}) > 0
             await EmailService.send_invitation_email(
                 to_email=p["email"],
                 to_name=name,
@@ -1510,6 +1511,7 @@ async def remind_participants(appointment_id: str, request: Request):
                 penalty_currency=appointment.get("penalty_currency", "EUR"),
                 cancellation_deadline_hours=appointment.get("cancellation_deadline_hours"),
                 appointment_id=appointment_id,
+                has_existing_account=has_account,
             )
             sent += 1
         except Exception as e:

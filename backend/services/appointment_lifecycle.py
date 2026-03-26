@@ -75,6 +75,7 @@ async def activate_appointment(appointment_id: str, organizer_user_id: str) -> d
             # RULE: Initial invitation email does NOT include ICS, proof_link, or meeting link.
             # These are sent in the confirmation email after the participant has fully engaged
             # (accepted + guarantee validated if required).
+            has_account = db.users.count_documents({"email": p['email'], "is_verified": True}) > 0
             await EmailService.send_invitation_email(
                 to_email=p['email'],
                 to_name=p_name,
@@ -92,6 +93,7 @@ async def activate_appointment(appointment_id: str, organizer_user_id: str) -> d
                 meeting_join_url=None,
                 meeting_provider=appointment.get('meeting_provider'),
                 proof_link=None,
+                has_existing_account=has_account,
             )
         except Exception as e:
             print(f"[ACTIVATE] Failed to send invitation to {p.get('email')}: {e}")

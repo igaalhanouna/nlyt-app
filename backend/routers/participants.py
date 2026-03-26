@@ -63,13 +63,15 @@ async def add_participant(participant: ParticipantAdd, appointment_id: str, requ
     organizer = db.users.find_one({"user_id": user['user_id']}, {"_id": 0})
     organizer_name = f"{organizer['first_name']} {organizer['last_name']}"
     
+    has_account = db.participants.find_one({"email": participant.email}) is not None and db.users.count_documents({"email": participant.email, "is_verified": True}) > 0
     await EmailService.send_invitation_email(
         to_email=participant.email,
         to_name=f"{participant.first_name} {participant.last_name}",
         organizer_name=organizer_name,
         appointment_title=appointment['title'],
         appointment_datetime=appointment['start_datetime'],
-        invitation_link=invitation_link
+        invitation_link=invitation_link,
+        has_existing_account=has_account,
     )
     
     return {

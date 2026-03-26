@@ -216,8 +216,25 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API
 - [x] Frontend: variante "Connectez-vous pour accepter" si compte existant + lien "Mot de passe oublié"
 - [x] Testé E2E: acceptation → panneau → mot de passe → compte créé (auto-vérifié) → redirect Stripe Checkout → DB cohérente
 
+## Completed — Viral Loop Phase 2: Invitation Email Redesign (Fév 2026)
+- [x] Email d'invitation redesigné en "mini landing page" (copywriting + hiérarchie)
+- [x] Accroche personnalisée : "[Nom] vous propose un engagement"
+- [x] Headline : "Le temps ne se perd plus"
+- [x] Explication simplifiée mobile-first : ✔ Présent → rien débité / ✖ Absent → garantie utilisée → pour vous ou association
+- [x] Phrase clé : "Dans tous les cas, votre temps a de la valeur."
+- [x] CTA principal : "Voir l'invitation et répondre"
+- [x] Variante non-inscrit : "Création de compte en 1 clic si vous acceptez"
+- [x] Variante inscrit : "Vous avez déjà un espace NLYT — accédez à votre tableau de bord"
+- [x] Preuve sociale : "Des milliers d'engagements déjà créés sur NLYT"
+- [x] Paramètre `has_existing_account` ajouté à `send_invitation_email()` + 4 appelants mis à jour
+- [x] Charte graphique existante strictement conservée (couleurs, boutons, typographies)
+- [x] Vérifié : rendu desktop (700px) + mobile (375px), 0 overflow, lisible en 3 secondes
+
 ## Upcoming Tasks
-- [ ] P1: Améliorer la prise de décision (recommandation de créneau)
+- [ ] P1: Carte de résultat partageable post-engagement (Viral Loop Phase 3)
+- [ ] P1: Emails post-engagement enrichis avec CTAs viraux (Viral Loop Phase 4)
+- [ ] P2: Bannière connexion sur InvitationPage pour utilisateurs existants (Viral Loop Phase 5)
+- [ ] P2: Milestones wallet + CTA "Organiser" pour conversion participant → organisateur (Viral Loop Phase 6)
 - [ ] P2: Test réel Teams (compte non-pro)
 - [ ] P2: Configurer le webhook Stripe en production
 

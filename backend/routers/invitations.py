@@ -987,6 +987,7 @@ async def resend_invitation(token: str, request: Request):
         participant_name = participant.get('email', '').split('@')[0]
     
     # Send email
+    has_account = db.users.count_documents({"email": participant['email'], "is_verified": True}) > 0
     result = await EmailService.send_invitation_email(
         to_email=participant['email'],
         to_name=participant_name,
@@ -994,7 +995,8 @@ async def resend_invitation(token: str, request: Request):
         appointment_title=appointment['title'],
         appointment_datetime=appointment.get('start_datetime', ''),
         invitation_link=invitation_link,
-        appointment_timezone=appointment.get('appointment_timezone', 'Europe/Paris')
+        appointment_timezone=appointment.get('appointment_timezone', 'Europe/Paris'),
+        has_existing_account=has_account,
     )
 
     if result.get('success'):

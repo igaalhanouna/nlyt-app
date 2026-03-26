@@ -283,63 +283,116 @@ class EmailService:
         meeting_join_url: str = None,
         meeting_provider: str = None,
         proof_link: str = None,
+        has_existing_account: bool = False,
     ):
         formatted_date = format_email_datetime(appointment_datetime, appointment_timezone)
-        location_display = location if location else "Non spécifié"
 
-        # Meeting info
-        meeting_section = ""
-        if meeting_join_url:
+        # Location display
+        provider_label = None
+        if meeting_provider:
             provider_label = {"zoom": "Zoom", "teams": "Microsoft Teams", "meet": "Google Meet"}.get(
                 (meeting_provider or "").lower(), meeting_provider or "Visioconférence"
             )
-            meeting_section = _detail_row("Visioconférence :", provider_label)
+        if meeting_join_url and provider_label:
             location_display = f"En ligne ({provider_label})"
+        elif location:
+            location_display = location
+        else:
+            location_display = "Non spécifié"
 
-        # Guarantee info
-        guarantee_info = ""
+        # ── Subject ──
+        subject = f"{organizer_name} vous invite — {appointment_title}"
+
+        # ── 1. ACCROCHE PERSONNALISÉE ──
+        hook = (
+            f'<p style="margin:0 0 6px 0;font-size:14px;color:#64748B;font-weight:500;">'
+            f'{organizer_name} vous propose un engagement</p>'
+        )
+
+        # ── 2. HEADLINE ──
+        headline = (
+            '<h1 style="margin:0 0 24px 0;font-size:24px;font-weight:700;color:#0F172A;line-height:1.3;">'
+            'Le temps ne se perd plus</h1>'
+        )
+
+        # ── 3. DÉTAILS RDV (bloc compact) ──
+        details_rows = (
+            _detail_row("Engagement :", f'<strong>{appointment_title}</strong>')
+            + _detail_row("Date :", formatted_date)
+            + _detail_row("Lieu :", location_display)
+        )
         if penalty_amount and penalty_amount > 0:
-            guarantee_info = _detail_row("Garantie d'engagement :", f"{penalty_amount} {penalty_currency.upper()}")
-
-        # Deadline info
-        deadline_info = ""
+            details_rows += _detail_row("Garantie :", f"{penalty_amount} {penalty_currency.upper()}")
         if cancellation_deadline_hours:
-            deadline_info = _detail_row("Délai d'annulation :", f"{cancellation_deadline_hours}h avant l'engagement")
+            details_rows += _detail_row("Annulation libre :", f"jusqu'à {cancellation_deadline_hours}h avant")
 
-        # ICS section
-        calendar_section = _btn_secondary(ics_link, "Ajouter au calendrier (ICS)") if ics_link else ""
+        details_block = _info_box(details_rows)
 
-        # Proof section
-        proof_section = ""
-        if proof_link:
-            proof_section = (
-                '<div style="background:#F0F9FF;border:1px solid #BAE6FD;border-radius:8px;padding:20px;margin:20px 0;text-align:center;">'
-                '<p style="margin:0 0 8px 0;color:#0369A1;font-weight:600;font-size:14px;">Confirmer ma présence le jour J</p>'
-                '<p style="margin:0 0 12px 0;color:#0284C7;font-size:13px;">Ce lien vous permettra de prouver votre présence. La visio s\'ouvrira automatiquement.</p>'
-                + _btn(proof_link, "Mon lien de présence NLYT", bg="#0369A1")
-                + '</div>'
+        # ── 4. EXPLICATION SIMPLIFIÉE (mobile-first) ──
+        explanation = (
+            '<div style="margin:24px 0;padding:0;">'
+            '<table role="presentation" width="100%" cellpadding="0" cellspacing="0">'
+            # Present row
+            '<tr><td style="padding:10px 14px;background:#F0FDF4;border-radius:8px 8px 0 0;border:1px solid #BBF7D0;border-bottom:none;">'
+            '<p style="margin:0;font-size:15px;color:#166534;line-height:1.5;">'
+            '<span style="font-weight:700;font-size:17px;">&#10004;</span>&nbsp;&nbsp;'
+            'Pr\u00e9sent &rarr; <strong>rien n\'est d\u00e9bit\u00e9</strong></p>'
+            '</td></tr>'
+            # Absent row
+            '<tr><td style="padding:10px 14px;background:#FEF2F2;border-radius:0 0 8px 8px;border:1px solid #FECACA;">'
+            '<p style="margin:0;font-size:15px;color:#991B1B;line-height:1.5;">'
+            '<span style="font-weight:700;font-size:17px;">&#10008;</span>&nbsp;&nbsp;'
+            'Absent &rarr; <strong>la garantie est utilis\u00e9e</strong></p>'
+            '<p style="margin:4px 0 0 27px;font-size:13px;color:#B91C1C;line-height:1.4;">'
+            '&rarr; pour vous ou pour une association</p>'
+            '</td></tr>'
+            '</table>'
+            '</div>'
+        )
+
+        # ── 5. PHRASE CLÉ ──
+        value_statement = (
+            '<p style="margin:0 0 28px 0;font-size:16px;font-weight:600;color:#0F172A;text-align:center;line-height:1.5;">'
+            'Dans tous les cas, votre temps a de la valeur.</p>'
+        )
+
+        # ── 6. CTA PRINCIPAL ──
+        cta = _btn(invitation_link, "Voir l'invitation et r\u00e9pondre")
+
+        # ── 7. VARIANTE COMPTE ──
+        if has_existing_account:
+            account_line = (
+                '<p style="margin:0;font-size:13px;color:#64748B;text-align:center;line-height:1.6;">'
+                'Vous avez d\u00e9j\u00e0 un espace NLYT &mdash; '
+                f'<a href="{SITE_URL}/dashboard" style="color:#3B82F6;text-decoration:underline;">acc\u00e9dez \u00e0 votre tableau de bord</a>'
+                '</p>'
+            )
+        else:
+            account_line = (
+                '<p style="margin:0;font-size:13px;color:#64748B;text-align:center;line-height:1.6;">'
+                'Cr\u00e9ation de compte en 1 clic si vous acceptez.</p>'
             )
 
-        subject = f"Vous êtes invité — {appointment_title}"
-
-        details = (
-            _detail_row("Date :", formatted_date)
-            + _detail_row("Lieu :", location_display)
-            + meeting_section
-            + guarantee_info
-            + deadline_info
+        # ── 8. PREUVE SOCIALE ──
+        social_proof = (
+            '<div style="margin:28px 0 0 0;padding:14px 0 0 0;border-top:1px solid #E2E8F0;text-align:center;">'
+            '<p style="margin:0;font-size:12px;color:#94A3B8;font-weight:500;letter-spacing:0.02em;">'
+            'Des milliers d\'engagements d\u00e9j\u00e0 cr\u00e9\u00e9s sur NLYT</p>'
+            '</div>'
         )
 
+        # ── ASSEMBLY ──
         body = (
-            _greeting(to_name)
-            + _paragraph(f"<strong>{organizer_name}</strong> vous invite à un engagement solidaire.")
-            + _info_box(f'<p style="margin:0 0 12px 0;font-size:16px;font-weight:700;color:#0F172A;">{appointment_title}</p>{details}')
-            + _alert_box('<p style="margin:0;color:#92400E;font-size:14px;">En acceptant, vous vous engagez à respecter les conditions définies par l\'organisateur. Une garantie peut être requise.</p>')
-            + _btn(invitation_link, "Consulter l'invitation")
-            + _small("Vous pourrez consulter toutes les conditions avant d'accepter ou de refuser.")
-            + calendar_section
-            + proof_section
+            hook
+            + headline
+            + details_block
+            + explanation
+            + value_statement
+            + cta
+            + account_line
+            + social_proof
         )
+
         html_content = _base_template(body, accent="info")
         return await EmailService.send_email(to_email, subject, html_content, email_type="invitation")
 
