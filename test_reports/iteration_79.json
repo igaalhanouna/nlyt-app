@@ -1,0 +1,91 @@
+{
+  "summary": "Multi-profile Stripe Connect Express onboarding testing complete. All backend APIs working correctly with real Stripe test mode. Frontend profile type selector, business type badge, and change profile modal all functioning properly. Mobile responsive at 375px with cards stacking vertically.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": {
+    "backend_api_tests": [
+      "✅ GET /api/connect/status returns all required fields including business_type",
+      "✅ POST /api/connect/onboard with business_type=individual creates real Stripe Express account",
+      "✅ POST /api/connect/onboard with business_type=company creates real Stripe Express account",
+      "✅ POST /api/connect/reset changes business_type and deletes old Stripe account",
+      "✅ POST /api/connect/reset blocks if same business_type requested (returns 400)",
+      "✅ POST /api/connect/reset rejects invalid business_type",
+      "✅ POST /api/connect/onboard rejects invalid business_type",
+      "✅ All endpoints require authentication (401 without token)"
+    ],
+    "frontend_profile_selector": [
+      "✅ Profile type selector (2 cards) shown when connect_status=not_started and business_type=null",
+      "✅ 'Particulier / Indépendant' card with correct description",
+      "✅ 'Société / Organisation' card with correct description",
+      "✅ Cards have proper hover states and focus rings",
+      "✅ data-testid='profile-type-selector' present",
+      "✅ data-testid='select-individual-btn' present",
+      "✅ data-testid='select-company-btn' present"
+    ],
+    "frontend_connect_status_card": [
+      "✅ ConnectStatusCard shows business_type badge when type is set",
+      "✅ Badge displays 'Particulier / Indépendant' for individual type",
+      "✅ 'Modifier mon type de profil' link appears when business_type is set",
+      "✅ data-testid='connect-status-card' present",
+      "✅ data-testid='connect-business-type-badge' present",
+      "✅ data-testid='change-profile-type-btn' present"
+    ],
+    "frontend_change_type_modal": [
+      "✅ Change type modal opens when clicking 'Modifier mon type de profil'",
+      "✅ Modal shows current type: 'Particulier / Indépendant'",
+      "✅ Modal shows new type: 'Société / Organisation'",
+      "✅ 'Confirmer le changement' button present",
+      "✅ 'Annuler' button present",
+      "✅ AlertTriangle icon displayed",
+      "✅ data-testid='change-type-modal' present",
+      "✅ data-testid='confirm-type-change-btn' present",
+      "✅ data-testid='cancel-type-change-btn' present"
+    ],
+    "frontend_mobile_responsive": [
+      "✅ Profile selector cards stack vertically at 375px viewport",
+      "✅ Individual card: width=301px, full width",
+      "✅ Company card: width=301px, positioned below individual card",
+      "✅ No horizontal overflow at 375px (page width: 375px)",
+      "✅ All elements readable and accessible on mobile"
+    ]
+  },
+  "failed_tests": {},
+  "test_report_links": [
+    "/app/backend/tests/test_stripe_connect_multiprofile.py",
+    "/app/test_reports/pytest/pytest_stripe_connect_multiprofile.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Backend connect_service.py properly validates business_type against VALID_BUSINESS_TYPES set",
+    "Reset flow correctly deletes Stripe account before creating new one",
+    "Frontend WalletPage.js properly conditionally renders ProfileTypeSelector vs ConnectStatusCard based on business_type",
+    "All data-testid attributes properly added for testing",
+    "Mobile responsive grid (grid-cols-1 sm:grid-cols-2) working correctly"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_stripe_connect_multiprofile.py"
+  ],
+  "success_rate": {
+    "backend": "100% (14/14 tests passed)",
+    "frontend": "100%"
+  },
+  "test_credentials": {
+    "user": "stripe-test@nlyt.io / Test123!",
+    "wallet_page": "/settings/wallet"
+  },
+  "seed_data_creation": "Test user wallet reset to clean state (business_type=null) for testing",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Multi-profile Stripe Connect onboarding fully tested. Backend uses real Stripe test mode (sk_test_51TDBIh...). Test user stripe-test@nlyt.io has clean wallet state. ProfileTypeSelector shows when business_type is null, ConnectStatusCard shows when business_type is set. Change profile modal allows switching between individual/company types.",
+  "mocked_apis": {
+    "has_mocked_apis": false,
+    "mocked_apis_list": []
+  }
+}

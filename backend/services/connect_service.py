@@ -5,6 +5,7 @@ Manages the lifecycle of Stripe Express accounts for NLYT users.
 All Connect data is stored in the existing `wallets` collection.
 
 Statuses: not_started → onboarding → active | restricted | disabled
+Business types: individual (particulier/indépendant) | company (société/organisation)
 """
 import os
 import stripe
@@ -20,7 +21,6 @@ DEFAULT_CONNECT_COUNTRY = "FR"
 
 stripe.api_key = STRIPE_API_KEY
 
-# Stripe-supported countries for Express accounts
 SUPPORTED_COUNTRIES = {
     "FR", "DE", "ES", "IT", "NL", "BE", "AT", "PT", "IE", "FI",
     "LU", "GR", "EE", "LV", "LT", "SK", "SI", "MT", "CY",
@@ -28,22 +28,26 @@ SUPPORTED_COUNTRIES = {
     "CH", "NO", "SE", "DK", "PL", "CZ", "HU", "RO", "BG", "HR",
 }
 
+VALID_BUSINESS_TYPES = {"individual", "company"}
+
 
 def get_connect_country(user: dict) -> str:
-    """Determine country for Stripe Connect account. Dynamic with FR fallback."""
     country = (user.get("country") or "").upper().strip()
     if country and country in SUPPORTED_COUNTRIES:
         return country
     return DEFAULT_CONNECT_COUNTRY
 
 
-def start_onboarding(user_id: str) -> dict:
+def start_onboarding(user_id: str, business_type: str = "individual") -> dict:
     """
     Create or resume Stripe Connect Express onboarding.
-    Idempotent: reuses existing account_id, generates new link if needed.
+    business_type: 'individual' (particulier/indépendant) or 'company' (société/organisation)
     """
+    if business_type not in VALID_BUSINESS_TYPES:
+        return {"success": False, "error": f"Type de profil invalide: {business_type}"}
+
     if not STRIPE_API_KEY or STRIPE_API_KEY == 'sk_test_emergent':
-        return _dev_mode_onboarding(user_id)
+        return _dev_mode_onboarding(user_id, business_type)
 
     wallet = db.wallets.find_one({"user_id": user_id, "wallet_type": "user"}, {"_id": 0})
     if not wallet:
@@ -69,19 +73,27 @@ def start_onboarding(user_id: str) -> dict:
         # Create Express account if none exists
         if not account_id:
             country = get_connect_country(user)
-            account = stripe.Account.create(
-                type="express",
-                country=country,
-                email=user.get("email"),
-                business_type="individual",
-                individual={
+            create_params = {
+                "type": "express",
+                "country": country,
+                "email": user.get("email"),
+                "business_type": business_type,
+                "metadata": {"nlyt_user_id": user_id, "nlyt_wallet_id": wallet["wallet_id"]},
+                "capabilities": {"transfers": {"requested": True}},
+            }
+
+            if business_type == "individual":
+                create_params["individual"] = {
                     "first_name": user.get("first_name", ""),
                     "last_name": user.get("last_name", ""),
                     "email": user.get("email"),
-                },
-                metadata={"nlyt_user_id": user_id, "nlyt_wallet_id": wallet["wallet_id"]},
-                capabilities={"transfers": {"requested": True}},
-            )
+                }
+            elif business_type == "company":
+                company_name = user.get("company_name") or user.get("organization_name") or ""
+                if company_name:
+                    create_params["company"] = {"name": company_name}
+
+            account = stripe.Account.create(**create_params)
             account_id = account.id
 
             now = datetime.now(timezone.utc).isoformat()
@@ -90,12 +102,13 @@ def start_onboarding(user_id: str) -> dict:
                 {"$set": {
                     "stripe_connect_account_id": account_id,
                     "stripe_connect_status": "onboarding",
+                    "stripe_connect_business_type": business_type,
                     "stripe_connect_country": country,
                     "stripe_connect_created_at": now,
                     "updated_at": now,
                 }}
             )
-            logger.info(f"[CONNECT] Created Express account {account_id} for user {user_id} (country={country})")
+            logger.info(f"[CONNECT] Created Express account {account_id} for user {user_id} (country={country}, business_type={business_type})")
 
         # Generate onboarding link
         account_link = stripe.AccountLink.create(
@@ -113,12 +126,74 @@ def start_onboarding(user_id: str) -> dict:
 
     except stripe.error.StripeError as e:
         error_msg = str(e)
-        # If Connect is not enabled on this Stripe account, fall back to dev mode
         if "signed up for Connect" in error_msg:
             logger.warning(f"[CONNECT] Stripe Connect not enabled — falling back to dev mode for user {user_id}")
-            return _dev_mode_onboarding(user_id)
+            return _dev_mode_onboarding(user_id, business_type)
         logger.error(f"[CONNECT] Stripe error for user {user_id}: {e}")
         return {"success": False, "error": error_msg}
+
+
+def reset_connect_account(user_id: str, new_business_type: str) -> dict:
+    """
+    Reset a user's Connect account to allow changing business_type.
+    Deletes the Stripe account and resets wallet Connect fields.
+    Blocks if pending payouts exist.
+    """
+    if new_business_type not in VALID_BUSINESS_TYPES:
+        return {"success": False, "error": f"Type de profil invalide: {new_business_type}"}
+
+    wallet = db.wallets.find_one({"user_id": user_id, "wallet_type": "user"}, {"_id": 0})
+    if not wallet:
+        return {"success": False, "error": "Wallet introuvable"}
+
+    account_id = wallet.get("stripe_connect_account_id")
+    current_type = wallet.get("stripe_connect_business_type")
+
+    if current_type == new_business_type:
+        return {"success": False, "error": "Le type de profil est déjà celui demandé"}
+
+    # Block if pending payouts
+    if wallet.get("pending_balance", 0) > 0:
+        return {
+            "success": False,
+            "error": "Impossible de modifier le profil : des fonds sont en attente de vérification. Réessayez une fois la période de vérification terminée.",
+        }
+
+    # Delete existing Stripe account if real
+    if account_id and not account_id.startswith("acct_dev_") and not account_id.startswith("acct_demo_"):
+        if STRIPE_API_KEY and STRIPE_API_KEY != 'sk_test_emergent':
+            try:
+                stripe.Account.delete(account_id)
+                logger.info(f"[CONNECT] Deleted Stripe account {account_id} for user {user_id} (type change: {current_type} → {new_business_type})")
+            except stripe.error.StripeError as e:
+                logger.error(f"[CONNECT] Failed to delete account {account_id}: {e}")
+                return {"success": False, "error": f"Erreur Stripe lors de la suppression: {str(e)}"}
+
+    # Reset wallet Connect fields
+    now = datetime.now(timezone.utc).isoformat()
+    db.wallets.update_one(
+        {"wallet_id": wallet["wallet_id"]},
+        {"$set": {
+            "stripe_connect_account_id": None,
+            "stripe_connect_status": "not_started",
+            "stripe_connect_business_type": new_business_type,
+            "stripe_connect_details_submitted": False,
+            "stripe_connect_charges_enabled": False,
+            "stripe_connect_payouts_enabled": False,
+            "stripe_connect_requirements": {},
+            "stripe_connect_country": None,
+            "stripe_connect_created_at": None,
+            "stripe_connect_onboarded_at": None,
+            "updated_at": now,
+        }}
+    )
+
+    logger.info(f"[CONNECT] Reset Connect for user {user_id}: {current_type} → {new_business_type}")
+    return {
+        "success": True,
+        "message": f"Profil modifié en '{new_business_type}'. Vous pouvez maintenant relancer l'onboarding.",
+        "new_business_type": new_business_type,
+    }
 
 
 def get_connect_status(user_id: str) -> dict:
@@ -129,6 +204,7 @@ def get_connect_status(user_id: str) -> dict:
 
     return {
         "connect_status": wallet.get("stripe_connect_status", "not_started"),
+        "business_type": wallet.get("stripe_connect_business_type"),
         "details_submitted": wallet.get("stripe_connect_details_submitted", False),
         "charges_enabled": wallet.get("stripe_connect_charges_enabled", False),
         "payouts_enabled": wallet.get("stripe_connect_payouts_enabled", False),
@@ -165,10 +241,7 @@ def create_dashboard_link(user_id: str) -> dict:
 
 
 def handle_account_updated(account_data: dict) -> dict:
-    """
-    Process account.updated webhook event.
-    Updates wallet Connect status based on Stripe account state.
-    """
+    """Process account.updated webhook event."""
     account_id = account_data.get("id")
     if not account_id:
         return {"success": False, "error": "No account ID"}
@@ -197,9 +270,13 @@ def handle_account_updated(account_data: dict) -> dict:
         "updated_at": now,
     }
 
+    # Sync business_type from Stripe if present
+    btype = account_data.get("business_type")
+    if btype:
+        updates["stripe_connect_business_type"] = btype
+
     old_status = wallet.get("stripe_connect_status", "not_started")
 
-    # Determine normalized status
     if charges_enabled and payouts_enabled and details_submitted:
         new_status = "active"
         if not wallet.get("stripe_connect_onboarded_at"):
@@ -241,7 +318,7 @@ def handle_account_deauthorized(account_id: str) -> dict:
 
 # ─── Dev Mode ────────────────────────────────────────────
 
-def _dev_mode_onboarding(user_id: str) -> dict:
+def _dev_mode_onboarding(user_id: str, business_type: str = "individual") -> dict:
     """Simulate onboarding in dev mode (no real Stripe key)."""
     wallet = db.wallets.find_one({"user_id": user_id, "wallet_type": "user"}, {"_id": 0})
     if not wallet:
@@ -254,6 +331,7 @@ def _dev_mode_onboarding(user_id: str) -> dict:
             {"$set": {
                 "stripe_connect_account_id": f"acct_dev_{user_id[:8]}",
                 "stripe_connect_status": "active",
+                "stripe_connect_business_type": business_type,
                 "stripe_connect_details_submitted": True,
                 "stripe_connect_charges_enabled": True,
                 "stripe_connect_payouts_enabled": True,

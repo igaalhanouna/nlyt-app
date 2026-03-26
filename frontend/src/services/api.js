@@ -180,9 +180,10 @@ export const walletAPI = {
 };
 
 export const connectAPI = {
-  onboard: () => api.post('/api/connect/onboard'),
+  onboard: (businessType = 'individual') => api.post('/api/connect/onboard', { business_type: businessType }),
   getStatus: () => api.get('/api/connect/status'),
   getDashboard: () => api.post('/api/connect/dashboard'),
+  reset: (newBusinessType) => api.post('/api/connect/reset', { new_business_type: newBusinessType }),
 };
 
 export default api;

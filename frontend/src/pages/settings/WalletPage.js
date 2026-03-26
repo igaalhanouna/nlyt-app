@@ -435,10 +435,72 @@ function ImpactSection({ impact }) {
   );
 }
 
+/* ─── Business Type Labels ───────────────────────────────────── */
+
+const BUSINESS_TYPE_LABELS = {
+  individual: 'Particulier / Indépendant',
+  company: 'Société / Organisation',
+};
+
+/* ─── Profile Type Selector ─────────────────────────────────── */
+
+function ProfileTypeSelector({ onSelect, loading }) {
+  return (
+    <div className="border border-slate-200 rounded-lg p-5 mb-8 bg-white" data-testid="profile-type-selector">
+      <div className="flex items-center gap-2 mb-1">
+        <Banknote className="w-4.5 h-4.5 text-slate-700" />
+        <h3 className="text-sm font-semibold text-slate-900">Lier votre compte bancaire</h3>
+      </div>
+      <p className="text-xs text-slate-500 mb-5">Quel type de profil correspond à votre situation ?</p>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <button
+          onClick={() => onSelect('individual')}
+          disabled={loading}
+          className="group relative border-2 border-slate-200 hover:border-slate-900 rounded-lg p-4 text-left transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2"
+          data-testid="select-individual-btn"
+        >
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-9 h-9 rounded-full bg-blue-50 flex items-center justify-center flex-shrink-0 group-hover:bg-blue-100 transition-colors">
+              <svg className="w-4.5 h-4.5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-slate-900">Particulier / Indépendant</p>
+              <p className="text-[11px] text-slate-500">Personne physique, auto-entrepreneur, freelance</p>
+            </div>
+          </div>
+        </button>
+
+        <button
+          onClick={() => onSelect('company')}
+          disabled={loading}
+          className="group relative border-2 border-slate-200 hover:border-slate-900 rounded-lg p-4 text-left transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2"
+          data-testid="select-company-btn"
+        >
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-9 h-9 rounded-full bg-violet-50 flex items-center justify-center flex-shrink-0 group-hover:bg-violet-100 transition-colors">
+              <svg className="w-4.5 h-4.5 text-violet-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-slate-900">Société / Organisation</p>
+              <p className="text-[11px] text-slate-500">SARL, SAS, association, fondation</p>
+            </div>
+          </div>
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /* ─── Connect Status Card ───────────────────────────────────── */
 
-function ConnectStatusCard({ connectStatus, onOnboard, onDashboard, onRefresh, onboarding, onPayout, canPayout }) {
+function ConnectStatusCard({ connectStatus, onOnboard, onDashboard, onRefresh, onboarding, onPayout, canPayout, onChangeType }) {
   const status = connectStatus?.connect_status || 'not_started';
+  const businessType = connectStatus?.business_type;
   const cfg = CONNECT_STATUS_CONFIG[status] || CONNECT_STATUS_CONFIG.not_started;
   const StatusIcon = cfg.icon;
 
@@ -447,12 +509,19 @@ function ConnectStatusCard({ connectStatus, onOnboard, onDashboard, onRefresh, o
       <div className="flex items-start gap-3">
         <StatusIcon className={`w-5 h-5 mt-0.5 flex-shrink-0 ${cfg.color}`} />
         <div className="flex-1">
-          <h3 className={`text-sm font-semibold ${cfg.color}`} data-testid="connect-status-label">{cfg.label}</h3>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h3 className={`text-sm font-semibold ${cfg.color}`} data-testid="connect-status-label">{cfg.label}</h3>
+            {businessType && (
+              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-slate-100 text-slate-600" data-testid="connect-business-type-badge">
+                {BUSINESS_TYPE_LABELS[businessType] || businessType}
+              </span>
+            )}
+          </div>
           <p className="text-xs mt-1 opacity-80">{cfg.description}</p>
           {status === 'active' && (
             <p className="text-[11px] text-slate-400 mt-1">Votre argent est stocké dans votre wallet NLYT. Ce compte vous permet de le transférer vers votre banque.</p>
           )}
-          <div className="mt-3 flex items-center gap-3">
+          <div className="mt-3 flex items-center gap-3 flex-wrap">
             {status === 'active' ? (
               <>
                 <Button
@@ -481,7 +550,67 @@ function ConnectStatusCard({ connectStatus, onOnboard, onDashboard, onRefresh, o
             )}
             <Button size="sm" variant="ghost" onClick={onRefresh} data-testid="refresh-wallet-btn"><RefreshCw className="w-3.5 h-3.5" /></Button>
           </div>
+          {/* Change profile type link */}
+          {businessType && (
+            <button
+              onClick={onChangeType}
+              className="mt-3 text-[11px] text-slate-400 hover:text-slate-600 underline underline-offset-2 transition-colors"
+              data-testid="change-profile-type-btn"
+            >
+              Modifier mon type de profil
+            </button>
+          )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Change Profile Type Modal ────────────────────────────── */
+
+function ChangeProfileTypeModal({ currentType, onConfirm, onCancel, loading, connectStatus }) {
+  const isActive = connectStatus === 'active';
+  const otherType = currentType === 'individual' ? 'company' : 'individual';
+
+  return (
+    <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg" data-testid="change-type-modal">
+      <div className="flex items-start gap-2 mb-3">
+        <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+        <div>
+          <p className="text-sm font-medium text-amber-900">Modifier votre type de profil</p>
+          <p className="text-xs text-amber-700 mt-1">
+            Profil actuel : <span className="font-semibold">{BUSINESS_TYPE_LABELS[currentType]}</span>
+          </p>
+        </div>
+      </div>
+
+      {isActive && (
+        <div className="flex items-start gap-2 p-3 bg-white/70 rounded-lg mb-3">
+          <Info className="w-3.5 h-3.5 text-amber-600 mt-0.5 flex-shrink-0" />
+          <p className="text-[11px] text-amber-800 leading-relaxed">
+            Votre compte bancaire est actuellement actif. Le changement de profil nécessitera de <strong>relancer la vérification Stripe</strong> avec le nouveau type. Votre historique de transactions dans NLYT sera conservé.
+          </p>
+        </div>
+      )}
+
+      <p className="text-xs text-amber-700 mb-3">
+        Nouveau profil : <span className="font-semibold">{BUSINESS_TYPE_LABELS[otherType]}</span>
+      </p>
+
+      <div className="flex flex-col sm:flex-row gap-2">
+        <Button
+          size="sm"
+          className="bg-amber-600 hover:bg-amber-700 text-white min-h-[44px] sm:min-h-0"
+          onClick={() => onConfirm(otherType)}
+          disabled={loading}
+          data-testid="confirm-type-change-btn"
+        >
+          {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <RefreshCw className="w-3.5 h-3.5 mr-1.5" />}
+          Confirmer le changement
+        </Button>
+        <Button size="sm" variant="ghost" onClick={onCancel} className="min-h-[44px] sm:min-h-0" data-testid="cancel-type-change-btn">
+          Annuler
+        </Button>
       </div>
     </div>
   );
@@ -597,6 +726,8 @@ export default function WalletPage() {
   const [currentUserId, setCurrentUserId] = useState(null);
   const [payoutLoading, setPayoutLoading] = useState(false);
   const [showPayoutConfirm, setShowPayoutConfirm] = useState(false);
+  const [showChangeType, setShowChangeType] = useState(false);
+  const [changeTypeLoading, setChangeTypeLoading] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
@@ -616,7 +747,6 @@ export default function WalletPage() {
       setImpact(impactRes.data);
       setPayouts(payoutsRes.data.payouts || []);
 
-      // Extract user_id from connect status or wallet
       if (connectRes.data?.user_id) setCurrentUserId(connectRes.data.user_id);
     } catch {
       toast.error("Erreur lors du chargement du wallet");
@@ -640,16 +770,33 @@ export default function WalletPage() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  const handleOnboard = async () => {
+  const handleOnboard = async (businessType) => {
+    const typeToUse = businessType || connectStatus?.business_type || 'individual';
     setOnboarding(true);
     try {
-      const res = await connectAPI.onboard();
+      const res = await connectAPI.onboard(typeToUse);
       if (res.data.onboarding_url) { window.location.href = res.data.onboarding_url; return; }
       toast.success(res.data.message || "Compte déjà actif");
       await fetchData();
     } catch (err) {
       toast.error(err.response?.data?.detail || "Erreur lors de l'onboarding");
     } finally { setOnboarding(false); }
+  };
+
+  const handleProfileSelect = (businessType) => {
+    handleOnboard(businessType);
+  };
+
+  const handleChangeType = async (newType) => {
+    setChangeTypeLoading(true);
+    try {
+      await connectAPI.reset(newType);
+      toast.success("Profil modifié. Relancez la liaison de votre compte.");
+      setShowChangeType(false);
+      await fetchData();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || "Erreur lors du changement de profil");
+    } finally { setChangeTypeLoading(false); }
   };
 
   const handleDashboard = async () => {
@@ -712,15 +859,34 @@ export default function WalletPage() {
 
         <BalanceCards wallet={wallet} onPayout={() => setShowPayoutConfirm(true)} payoutLoading={payoutLoading} />
 
-        <ConnectStatusCard
-          connectStatus={connectStatus}
-          onOnboard={handleOnboard}
-          onDashboard={handleDashboard}
-          onRefresh={fetchData}
-          onboarding={onboarding}
-          onPayout={() => setShowPayoutConfirm(true)}
-          canPayout={wallet?.can_payout}
-        />
+        {/* Profile type selector — shown when no business_type chosen yet AND no account exists */}
+        {connectStatus?.connect_status === 'not_started' && !connectStatus?.business_type ? (
+          <ProfileTypeSelector onSelect={handleProfileSelect} loading={onboarding} />
+        ) : (
+          <>
+            {/* Change profile type modal */}
+            {showChangeType && connectStatus?.business_type && (
+              <ChangeProfileTypeModal
+                currentType={connectStatus.business_type}
+                onConfirm={handleChangeType}
+                onCancel={() => setShowChangeType(false)}
+                loading={changeTypeLoading}
+                connectStatus={connectStatus?.connect_status}
+              />
+            )}
+
+            <ConnectStatusCard
+              connectStatus={connectStatus}
+              onOnboard={() => handleOnboard()}
+              onDashboard={handleDashboard}
+              onRefresh={fetchData}
+              onboarding={onboarding}
+              onPayout={() => setShowPayoutConfirm(true)}
+              canPayout={wallet?.can_payout}
+              onChangeType={() => setShowChangeType(true)}
+            />
+          </>
+        )}
 
         {/* Payout Confirmation Modal */}
         {showPayoutConfirm && wallet && (
