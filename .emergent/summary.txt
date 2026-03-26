@@ -1,130 +1,118 @@
-<analysis>**original_problem_statement:** 
-The user requested a fix for a broken root domain link () causing an ERR_CONNECTION_CLOSED error, followed by a complete Mobile UX audit and refactoring (P0 & P1). The goal was to make the entire application mobile-first with strict requirements: no horizontal overflow, minimum 44px touch targets for all interactive elements, and accessible CTAs. After completing the app's internal pages, the user requested a structural mobile UX overhaul of the public Homepage () to make it shorter and more conversion-oriented, with a strict constraint to **never modify the existing wording, branding, or business logic**.
+<analysis>**original_problem_statement**: The session focused on auditing and unblocking the Stripe Connect integration on the Wallet page (Gestion du compte bancaire non disponible en mode développement). It evolved into properly configuring Stripe Connect Express, fixing environment variable overrides, and implementing a robust multi-profile selector (Particulier, Indépendant, Société) mapped to the correct Stripe  with safe profile-switching capabilities.
 
-**User's preferred language:** French (You MUST respond in French only).
+**User's preferred language**: French (You MUST automatically detect the user's primary language from their messages inside the <trajectory> tag and INSTRUCT next agent to respond in the user's preferred language only. **RÉPONDEZ UNIQUEMENT EN FRANÇAIS.**)
 
-**what currently exists?** 
-A React/FastAPI/MongoDB SaaS application for managing attendance with financial guarantees. All outbound  links have been updated to  to bypass DNS issues. The app has undergone a massive Mobile UX overhaul (Navbar with hamburger drawer, optimized Settings layouts, fully responsive Wizard, Dashboard, and Auth pages). All interactive elements now respect the 44px touch target rule, and there are no horizontal overflows on viewports of 375px, 390px, and 414px.
+**what currently exists?** A React/FastAPI/MongoDB SaaS application for managing attendance with financial guarantees. The application features a highly polished, mobile-first UI with a fintech positioning. The  now features a fully functional, real-test-mode Stripe Connect Express onboarding flow, equipped with a granular 2-step profile selector (Particulier, Indépendant, Société) and a robust account reset mechanism for profile type changes.
 
-**Last working item:**
-    - Last item agent was working: Restructuring the mobile UX of the Homepage (). The agent viewed the file but the context ended before implementing the changes.
-    - Status: IN PROGRESS
-    - Agent Testing Done: N
-    - Which testing method agent to use? screenshot tool (crucial to check at 375px mobile viewport and 1280px desktop to ensure no regressions).
-    - User Testing Done: N
+**Last working item**:
+    - Last item agent was working: Fixing a UX bug in  () where the currently selected profile type was hidden from the options list, causing confusion for Indépendant users. The agent updated the modal to show all three options, marking the current one with an Actuel badge and disabling its click event.
+    - Status: COMPLETED
+    - Agent Testing Done: Y
+    - Which testing method agent to use?: NA
+    - User Testing Done: Y
 
-**All Pending/In progress Issue list:**
-  Issue 1: Mobile UX Restructure of  (P0)
-     - Attempted fixes: Agent read the file but made no edits.
-     - Next debug checklist: Modify  based on user instructions:
-       1. Hero: Reduce vertical height, make CTA visible without scrolling, demote/hide header CTA on mobile.
-       2. Move Comment ça marche (How it works) right after the Hero.
-       3. Group Engagement tenu / non tenu into a compact section.
-       4. Move the proof (344€) higher in the flow.
-       5. Reduce overall vertical spacing/padding on mobile.
-       6. Keep only 1 main CTA at the top and 1 at the bottom.
-       *CRITICAL:* Do NOT change any text, wording, or global branding. Only change structural/layout classes (Tailwind).
-     - Why fix this issue and what will be achieved with the fix? It will improve mobile conversion by allowing users to understand the product in a single scroll.
-     - Status: IN PROGRESS
-     - Is recurring issue? N
-     - Should Test frontend/backend/both after fix? frontend (screenshot tool for mobile and desktop viewports)
-     - Blocked on other issue: None
+**All Pending/In progress Issue list**: 
+None. Core issues on Stripe Connect have been fully resolved and tested.
 
-**In progress Task List:**
+**In progress Task List**:
 None.
 
 **Upcoming and Future Tasks**
     Upcoming Tasks:
-    - P1: Refactor  (Break down the 1400+ line component into modular components. Known technical debt).
-    - P2: Test réel du mode calendar Teams (Manually test the standard Teams integration with a real, non-pro Outlook account).
+    - P1: Refactor  (Break down the 1400+ line component into modular components, similar to what was done with ).
+    - P2: Test réel du mode calendar Teams (Manually test the Teams integration with a real, non-pro Outlook account).
+    - P2: Configurer le webhook Stripe en production.
     
     Future Tasks:
-    - P3: Charity Payouts V2 (Stripe Transfers for automated charity payouts).
-    - P3: Webhooks temps réel Zoom/Teams (Instant attendance updates).
-    - P3: Pages dédiées charité & Leaderboard (Public social proof pages).
+    - P3: Charity Payouts V2 (Stripe Transfers for automated payouts).
+    - P3: Webhooks temps réel Zoom/Teams.
+    - P3: Pages dédiées charité & Leaderboard.
 
 **Completed work in this session**
-- Swapped all  links to  in frontend and backend emails while keeping display text as  (DONE).
-- Corrected Email Design System baseline color to grey to match homepage branding (DONE).
-- Implemented Mobile Navbar with Hamburger Menu and slide-in drawer (DONE).
-- Fixed Dashboard mobile UX (horizontal scrollable tabs, 44px CTA targets, stacked cards) (DONE).
-- Fixed  and  mobile UX (no overflow, full-width buttons, scrollable stepper) (DONE).
-- Upgraded all Auth pages (, , ) inputs and links to minimum 44px touch targets (DONE).
+- Fixed Stripe dev-mode blocking by enforcing  in  to bypass  system env overrides (DONE).
+- Guided user to properly activate and configure Stripe Connect Marketplace in their Stripe Dashboard (DONE).
+- Implemented Multi-Profile selector UI in  (Particulier vs Professionnel -> Indépendant / Société) (DONE).
+- Updated backend  to map internal  to Stripe's  ( or ) (DONE).
+- Implemented robust Stripe Account reset/recreation logic for when users change their profile type (handling  <->  boundaries) (DONE).
+- Fixed UX bug in  to show the current profile with an Actuel badge instead of filtering it out (DONE).
 
 **Earlier issues found/mentioned but not fixed**
 None.
 
 **Known issue recurrence from previous fork**
-  - Issue recurrence in previous fork: Agent mistakenly used  and altered wording/text to fit mobile screens. The user explicitly forbade altering text, wording, or branding for the sake of mobile layouts.
-  - Recurrence count: 1
-  - Status: RESOLVED (Agent reverted the text changes).
-  - Note: **NEVER modify labels, text, or branding elements** when doing mobile responsive work. Use wrapping, stacking, or horizontal scrolling () instead of hiding text.
+  - Issue recurrence in previous fork: 0
+  - Recurrence count: 0
+  - Status: RESOLVED
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
-- React Frontend (Tailwind CSS heavily utilized). 
-- Mobile-first approach: Rely on default utility classes for mobile, and use , ,  for desktop scaling.
-- Strict touch target rules: Minimum height of  (Tailwind  or ) for all interactive elements on mobile.
+- React Frontend (Tailwind CSS, complex conditional UI states).
+- FastAPI Backend, MongoDB.
+- Stripe Connect Express (API, Account Links,  mappings, Account Reset/Recreation rules).
 
 **key DB schema**
-No changes.
+  -  (embedded in user context or separate collection): Contains , ,  (, , ), and  (, ).
 
 **changes in tech stack**
 None.
 
-**All files of reference**
--  (Current target for structural refactoring).
--  (Upcoming tech debt refactor).
--  (Updated with latest mobile UX progress).
+**All files of reference** 
+-  (Updated to override system env vars)
+-  (Core logic for mapping profiles and creating/resetting Stripe accounts)
+-  (Added  endpoint)
+-  (Updated connectAPI functions)
+-  (Extensively updated for multi-profile UX)
+-  (Next refactoring target)
 
-**Areas that need refactoring**:
--  (Over 1400 lines; P1 priority for next phases).
+**Areas that need refactoring**: 
+-  (P1 Priority - Tech Debt; needs breakdown into smaller subcomponents).
 
 **key api endpoints**
-Standard frontend routing.
+-  (Accepts )
+-  (Returns  and status)
+-  (Handles resetting/changing the profile type)
 
-**Critical Info for New Agent**
+**Critical Info for New Agent** 
 - **Language**: You MUST respond in French.
-- **Strict Rule on Wording/Branding**: When modifying the UX for mobile, you are strictly forbidden from changing the actual wording, labels, texts, or branding. Do not use shorter labels for mobile. 
-- **Mobile Best Practices**: Prevent horizontal overflow at all costs. For elements that must overflow (like steppers or tabs), use  with a subtle visual cue.
-- **Testing**: When making responsive layout changes, test both the mobile viewport (e.g., 375px) AND the desktop viewport (e.g., 1280px) to ensure you didn't break the desktop layout.
+- **Stripe Constraints**: NLYT supports 3 profiles: , , . Stripe Connect Express only supports 2 s:  and . Particulier and Indépendant both map to . Changing between  and  requires deleting and recreating the Stripe connected account. This logic is already cleanly implemented in the backend.
+- **Current Status**: The Connect flow is fully tested and robust. The next primary goal is tech debt resolution on .
 
-**documents and test reports created in this job**
-- 
-- 
-- 
+**documents and test reports created in this job** 
+  - 
+  - 
+  - 
 
-**Last 10 User Messages and any pending HUMAN messages**
-10. User selected Option A to fit Dashboard tabs cleanly on one line without horizontal scroll.
-9. Agent implemented the tab fix and verified 0 overflow.
-8. User validated the tabs fix and asked the agent to fix the remaining 3 micro-frictions (Auth pages, Dashboard buttons, TabsList height) to hit the 44px touch target rule.
-7. Agent implemented the fixes in Auth pages, Dashboard, and Tabs.
-6. Agent ran precise measurements via screenshot tool and proved all touch targets were >=44px.
-5. (Pending) User requested a structural Mobile UX refactor of the Homepage () to make it shorter and more conversion-focused without changing wording or global design. 
-4. Agent opened  to begin work but context ended.
+**Last 10 User Messages and any pending HUMAN messages** 
+1. User validated the audit and asked to fix the  to show all 3 options without hiding the current one.
+2. User requested an audit on why Indépendant was missing from the Change Profile modal.
+3. User asked for a test account with password.
+4. User validated the 2-step profile selection UX (Particulier / Professionnel -> Indépendant/Société).
+5. User asked to change the profile distinction and requested an audit before modifying.
+6. User validated the multi-profile strategy and requested an explicit 2-button card UI.
+7. User asked to implement a multi-profile approach (Particulier, Auto-entrepreneur, Société) instead of forcing everything to individual.
+8. User pointed out Stripe onboarding was pushing users to company and wanted it to be individual.
+9. User confirmed Connect activation and shared screenshots of Stripe dashboard configuration.
+10. User requested step-by-step guidance to set up Stripe Connect properly on their dashboard.
 
 **Project Health Check:**
-Healthy. No functional regressions. Mobile UI is highly optimized.
+Healthy. Stripe integration unblocked and enhanced gracefully. No mocked APIs blocking core flows.
 
-**3rd Party Integrations**
-- Resend (Emails) — requires User API Key
-- Stripe (Payments) — requires User API Key
-- Microsoft Graph API (Teams/Outlook)
-- Google Calendar API
+**3rd Party Integrations** 
+- Stripe (Payments / Connect Express) — requires User API Key (Successfully configured and tested)
+- Microsoft Graph API (Teams/Outlook) 
 - Zoom API
+- Resend (Emails)
 
 **Testing status**
-  - Testing agent used after significant changes: YES (iterations 76, 77)
+  - Testing agent used after significant changes: YES (iteration 79, iteration 80)
   - Troubleshoot agent used after agent stuck in loop: NO
   - Test files created: None
   - Known regressions: None
 
 **Credentials to test flow:**
-Use standard test users created via the  script. 
-Email: 
-Password: 
+- Test user:  /  (Access via )
 
 **What agent forgot to execute**
-The agent read  but didn't execute the layout restructuring requested by the user for the Homepage. The user wants the hero shorter, the how it works and proof sections moved up, and CTAs consolidated. This is the immediate task.</analysis>
+The agent completely fulfilled all audit and implementation requests for the Stripe Connect Multi-profile flow. No items were forgotten. The next agent should immediately proceed with the planning and refactoring of .</analysis>

@@ -13,7 +13,7 @@ import requests
 import os
 import re
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://connect-bank-issue.preview.emergentagent.com').rstrip('/')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://fervent-feynman-6.preview.emergentagent.com').rstrip('/')
 
 # Test data from review_request
 ACTIVE_APPOINTMENT_ID = "a860bab5-c885-4787-a73e-3779529d3b8a"

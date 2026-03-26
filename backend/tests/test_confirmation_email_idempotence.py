@@ -32,7 +32,7 @@ sys.path.append('/app/backend')
 from dotenv import load_dotenv
 load_dotenv('/app/frontend/.env')
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://connect-bank-issue.preview.emergentagent.com').rstrip('/')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://fervent-feynman-6.preview.emergentagent.com').rstrip('/')
 
 
 class TestHealthEndpoint:
