@@ -131,9 +131,18 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API
 - [x] Anti-doublons 5 couches: sync_log, préfixe [NLYT], upsert unique, converted status, adopted sync_log
 - [x] Testé: 100% backend (13/13), 100% frontend (iteration_84)
 
+## Bug Fix — Check-in Participants P0 (Mars 2026)
+- [x] Diagnostic: `InvitationCheckinSection.js` ligne 49 excluait `accepted_pending_guarantee` de `isEngaged`
+- [x] Fix: `isEngaged = ['accepted', 'accepted_guaranteed', 'accepted_pending_guarantee'].includes(effectiveStatus)`
+- [x] Cause racine: les participants avec garantie en attente voyaient "Accès verrouillé" au lieu des boutons de check-in
+- [x] Backend vérifié: les 3 statuts sont déjà acceptés par `_resolve_participant` dans `checkin_routes.py`
+- [x] Testé: 100% backend (14/14), 100% frontend (iteration_85)
+- [x] 4 scénarios simulés: 1) org+part OK, 2) org+multi OK, 3) non-auth OK, 4) invited bloqué OK
+
 ## Upcoming Tasks
-- [ ] Test réel Teams (compte non-pro)
-- [ ] Configurer le webhook Stripe en production
+- [ ] P1: Améliorer la prise de décision (recommandation de créneau)
+- [ ] P2: Test réel Teams (compte non-pro)
+- [ ] P2: Configurer le webhook Stripe en production
 
 ## Backlog
 - [ ] Charity Payouts V2 (Stripe Transfers)
