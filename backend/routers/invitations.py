@@ -251,7 +251,8 @@ async def get_invitation_details(request: Request, token: str):
             for p in other_participants
         ],
         "policy_summary": policy_snapshot.get('summary') if policy_snapshot else None,
-        "guarantee_revalidation": guarantee_revalidation
+        "guarantee_revalidation": guarantee_revalidation,
+        "has_existing_account": db.users.count_documents({"email": participant.get('email', ''), "is_verified": True}) > 0
     }
 
 
@@ -421,6 +422,252 @@ async def respond_to_invitation(request: Request, token: str, response: Invitati
             "accepted_at": updated_participant.get('accepted_at'),
             "declined_at": updated_participant.get('declined_at')
         }
+    }
+
+
+
+class AcceptWithAccountRequest(BaseModel):
+    password: str
+    action: str = "accept"
+
+class LoginAndAcceptRequest(BaseModel):
+    password: str
+    action: str = "accept"
+
+
+@router.post("/{token}/accept-with-account")
+@limiter.limit("5/minute")
+async def accept_with_account(request: Request, token: str, body: AcceptWithAccountRequest):
+    """
+    Transactional: create account + accept invitation in one atomic operation.
+    Auto-verifies email because the invitation token proves email ownership.
+    Only works for the exact email carried by the invitation.
+    """
+    import uuid
+    from utils.password_utils import hash_password
+    from utils.jwt_utils import create_access_token
+    from services.workspace_service import WorkspaceService
+    from services.wallet_service import create_wallet
+
+    # 1. Validate invitation token
+    participant = db.participants.find_one({"invitation_token": token}, {"_id": 0})
+    if not participant:
+        raise HTTPException(status_code=404, detail="Invitation non trouvée ou expirée")
+
+    email = participant.get('email', '')
+    if not email:
+        raise HTTPException(status_code=400, detail="Email manquant sur cette invitation")
+
+    # 2. Check participant hasn't already responded
+    if participant.get('status') in ['accepted', 'accepted_guaranteed', 'accepted_pending_guarantee', 'declined']:
+        raise HTTPException(status_code=400, detail="Vous avez déjà répondu à cette invitation")
+
+    # 3. Check no existing account for this email
+    if db.users.find_one({"email": email}, {"_id": 0}):
+        raise HTTPException(status_code=400, detail="Un compte existe déjà avec cet email. Utilisez la connexion.")
+
+    # 4. Validate appointment
+    appointment = db.appointments.find_one({"appointment_id": participant['appointment_id']}, {"_id": 0})
+    if not appointment:
+        raise HTTPException(status_code=404, detail="Rendez-vous introuvable")
+    if appointment.get('status') in ['cancelled', 'completed']:
+        raise HTTPException(status_code=400, detail="Ce rendez-vous n'est plus actif")
+    start_dt = parse_iso_datetime(appointment.get('start_datetime', ''))
+    if start_dt and datetime.now(timezone.utc) >= start_dt:
+        raise HTTPException(status_code=400, detail="Ce rendez-vous a déjà commencé")
+
+    # 5. Create account (auto-verified — invitation token proves email ownership)
+    user_id = str(uuid.uuid4())
+    now = now_utc_iso()
+    user = {
+        "user_id": user_id,
+        "email": email,
+        "password_hash": hash_password(body.password),
+        "first_name": participant.get('first_name', ''),
+        "last_name": participant.get('last_name', ''),
+        "phone": None,
+        "is_verified": True,
+        "verified_via": "invitation_token",
+        "invitation_token_used": token,
+        "created_at": now,
+        "updated_at": now,
+    }
+    try:
+        db.users.insert_one(user)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Erreur lors de la création du compte")
+
+    # 6. Create workspace + wallet
+    WorkspaceService.create_default_workspace(user_id, user['first_name'], user['last_name'])
+    create_wallet(user_id)
+
+    # 7. Attach participant to user
+    db.participants.update_one(
+        {"invitation_token": token},
+        {"$set": {"user_id": user_id, "updated_at": now}}
+    )
+
+    # 8. Generate JWT
+    access_token = create_access_token({"sub": email, "user_id": user_id})
+
+    # 9. Accept invitation (reuse existing logic)
+    penalty_amount = appointment.get('penalty_amount', 0)
+    accept_result = {}
+
+    if penalty_amount and penalty_amount > 0:
+        from services.stripe_guarantee_service import StripeGuaranteeService
+
+        db.participants.update_one(
+            {"invitation_token": token},
+            {"$set": {"status": "accepted_pending_guarantee", "accept_initiated_at": now, "updated_at": now}}
+        )
+
+        frontend_url = os.environ.get('FRONTEND_URL', '').rstrip('/') or str(request.base_url).rstrip('/')
+        participant_name = f"{participant.get('first_name', '')} {participant.get('last_name', '')}".strip()
+
+        result = StripeGuaranteeService.create_guarantee_session(
+            participant_id=participant['participant_id'],
+            appointment_id=appointment['appointment_id'],
+            participant_email=email,
+            participant_name=participant_name or email.split('@')[0],
+            appointment_title=appointment.get('title', 'Rendez-vous'),
+            penalty_amount=float(penalty_amount),
+            penalty_currency=appointment.get('penalty_currency', 'eur'),
+            frontend_url=frontend_url,
+            invitation_token=token
+        )
+
+        if not result.get('success'):
+            db.participants.update_one(
+                {"invitation_token": token},
+                {"$set": {"status": "invited", "updated_at": now}}
+            )
+            raise HTTPException(status_code=500, detail="Erreur Stripe")
+
+        db.participants.update_one(
+            {"invitation_token": token},
+            {"$set": {"guarantee_id": result['guarantee_id'], "stripe_session_id": result['session_id']}}
+        )
+
+        accept_result = {
+            "requires_guarantee": True,
+            "checkout_url": result['checkout_url'],
+            "session_id": result['session_id'],
+            "status": "accepted_pending_guarantee",
+        }
+    else:
+        db.participants.update_one(
+            {"invitation_token": token},
+            {"$set": {"status": "accepted", "accepted_at": now, "updated_at": now}}
+        )
+        accept_result = {"requires_guarantee": False, "status": "accepted"}
+
+    return {
+        "success": True,
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user": {"user_id": user_id, "email": email, "first_name": user['first_name'], "last_name": user['last_name']},
+        **accept_result,
+    }
+
+
+@router.post("/{token}/login-and-accept")
+@limiter.limit("10/minute")
+async def login_and_accept(request: Request, token: str, body: LoginAndAcceptRequest):
+    """
+    Transactional: login existing user + accept invitation.
+    """
+    from utils.password_utils import verify_password
+    from utils.jwt_utils import create_access_token
+
+    # 1. Validate invitation
+    participant = db.participants.find_one({"invitation_token": token}, {"_id": 0})
+    if not participant:
+        raise HTTPException(status_code=404, detail="Invitation non trouvée")
+    if participant.get('status') in ['accepted', 'accepted_guaranteed', 'accepted_pending_guarantee', 'declined']:
+        raise HTTPException(status_code=400, detail="Vous avez déjà répondu à cette invitation")
+
+    email = participant.get('email', '')
+    user = db.users.find_one({"email": email}, {"_id": 0})
+    if not user:
+        raise HTTPException(status_code=401, detail="Aucun compte trouvé avec cet email")
+    if not verify_password(body.password, user.get('password_hash', '')):
+        raise HTTPException(status_code=401, detail="Mot de passe incorrect")
+
+    user_id = user['user_id']
+    now = now_utc_iso()
+
+    # 2. Attach participant to user
+    db.participants.update_one(
+        {"invitation_token": token},
+        {"$set": {"user_id": user_id, "updated_at": now}}
+    )
+
+    # 3. Generate JWT
+    access_token = create_access_token({"sub": email, "user_id": user_id})
+
+    # 4. Accept invitation
+    appointment = db.appointments.find_one({"appointment_id": participant['appointment_id']}, {"_id": 0})
+    if not appointment:
+        raise HTTPException(status_code=404, detail="Rendez-vous introuvable")
+    if appointment.get('status') in ['cancelled', 'completed']:
+        raise HTTPException(status_code=400, detail="Rendez-vous plus actif")
+
+    penalty_amount = appointment.get('penalty_amount', 0)
+    accept_result = {}
+
+    if penalty_amount and penalty_amount > 0:
+        from services.stripe_guarantee_service import StripeGuaranteeService
+
+        db.participants.update_one(
+            {"invitation_token": token},
+            {"$set": {"status": "accepted_pending_guarantee", "accept_initiated_at": now, "updated_at": now}}
+        )
+
+        frontend_url = os.environ.get('FRONTEND_URL', '').rstrip('/') or str(request.base_url).rstrip('/')
+        participant_name = f"{participant.get('first_name', '')} {participant.get('last_name', '')}".strip()
+
+        result = StripeGuaranteeService.create_guarantee_session(
+            participant_id=participant['participant_id'],
+            appointment_id=appointment['appointment_id'],
+            participant_email=email,
+            participant_name=participant_name or email.split('@')[0],
+            appointment_title=appointment.get('title', 'Rendez-vous'),
+            penalty_amount=float(penalty_amount),
+            penalty_currency=appointment.get('penalty_currency', 'eur'),
+            frontend_url=frontend_url,
+            invitation_token=token
+        )
+
+        if not result.get('success'):
+            db.participants.update_one(
+                {"invitation_token": token},
+                {"$set": {"status": "invited", "updated_at": now}}
+            )
+            raise HTTPException(status_code=500, detail="Erreur Stripe")
+
+        db.participants.update_one(
+            {"invitation_token": token},
+            {"$set": {"guarantee_id": result['guarantee_id'], "stripe_session_id": result['session_id']}}
+        )
+        accept_result = {
+            "requires_guarantee": True,
+            "checkout_url": result['checkout_url'],
+            "status": "accepted_pending_guarantee",
+        }
+    else:
+        db.participants.update_one(
+            {"invitation_token": token},
+            {"$set": {"status": "accepted", "accepted_at": now, "updated_at": now}}
+        )
+        accept_result = {"requires_guarantee": False, "status": "accepted"}
+
+    return {
+        "success": True,
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user": {"user_id": user_id, "email": email, "first_name": user['first_name'], "last_name": user['last_name']},
+        **accept_result,
     }
 
 

@@ -205,6 +205,17 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API
 - [x] FIX: Indicateur "Contrôle auto : il y a X s" dans CalendarSyncPanel (feedback visible indépendant du cache backend)
 - [x] Vérifié factuellement : interval tire toutes les 10s (test), API appelée, indicateur mis à jour, puis restauré à 120s
 
+## Inscription depuis invitation — Flow viral Phase 1 (Mars 2026)
+- [x] Backend: `POST /api/invitations/:token/accept-with-account` — endpoint transactionnel (création compte + acceptation + Stripe en 1 appel)
+- [x] Backend: `POST /api/invitations/:token/login-and-accept` — connexion + acceptation pour utilisateurs existants
+- [x] Backend: `has_existing_account` ajouté à `GET /api/invitations/:token`
+- [x] Backend: auto-vérification email bornée (invitation flow uniquement, token valide, email exact)
+- [x] Frontend: `InvitationAccountChoice.js` — panneau intercalé AVANT Stripe redirect
+- [x] Frontend: données pré-remplies (prénom, nom, email non éditables), 1 seul champ mot de passe
+- [x] Frontend: CTA dominant "Créer mon espace et continuer" + lien secondaire "Continuer sans compte"
+- [x] Frontend: variante "Connectez-vous pour accepter" si compte existant + lien "Mot de passe oublié"
+- [x] Testé E2E: acceptation → panneau → mot de passe → compte créé (auto-vérifié) → redirect Stripe Checkout → DB cohérente
+
 ## Upcoming Tasks
 - [ ] P1: Améliorer la prise de décision (recommandation de créneau)
 - [ ] P2: Test réel Teams (compte non-pro)

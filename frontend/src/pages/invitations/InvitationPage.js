@@ -16,6 +16,7 @@ import EngagementRulesCard from './EngagementRulesCard';
 import InvitationResponseSection from './InvitationResponseSection';
 import InvitationCheckinSection from './InvitationCheckinSection';
 import QRDisplayModal from './QRDisplayModal';
+import InvitationAccountChoice from './InvitationAccountChoice';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL || '';
 
@@ -50,6 +51,8 @@ export default function InvitationPage() {
   // Modification proposals
   const [activeProposal, setActiveProposal] = useState(null);
   const [respondingProposal, setRespondingProposal] = useState(false);
+  // Account choice step (intercalé avant Stripe)
+  const [showAccountChoice, setShowAccountChoice] = useState(false);
   const [showProposeForm, setShowProposeForm] = useState(false);
   const [proposalForm, setProposalForm] = useState({ start_datetime: '', duration_minutes: '', location: '' });
   const [submittingProposal, setSubmittingProposal] = useState(false);
@@ -149,6 +152,11 @@ export default function InvitationPage() {
   };
 
   const handleResponse = async (action) => {
+    // Intercept "accept" → show account choice BEFORE Stripe
+    if (action === 'accept' && !showAccountChoice) {
+      setShowAccountChoice(true);
+      return;
+    }
     try {
       setResponding(true);
       setError(null);
@@ -186,6 +194,56 @@ export default function InvitationPage() {
           ...prev.engagement_rules,
           can_cancel: ['accepted', 'accepted_guaranteed'].includes(data.status) && !prev.engagement_rules.cancellation_deadline_passed
         }
+      }));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setResponding(false);
+    }
+  };
+
+  // Called when user creates account/logs in from the choice panel
+  const handleAccountSuccess = (data) => {
+    if (data.requires_guarantee && data.checkout_url) {
+      setGuaranteeMessage({ type: 'info', text: 'Redirection vers la page de garantie...' });
+      window.location.href = data.checkout_url;
+      return;
+    }
+    // No guarantee needed — accepted directly
+    setResponseStatus(data.status);
+    setShowAccountChoice(false);
+    toast.success('Participation confirmée et compte créé !');
+    setInvitation(prev => ({
+      ...prev,
+      participant: { ...prev.participant, status: data.status },
+    }));
+  };
+
+  // Called when user skips account creation
+  const handleSkipAccount = async () => {
+    setShowAccountChoice(false);
+    // Proceed with original accept flow (guest mode) — bypass the intercept
+    try {
+      setResponding(true);
+      setError(null);
+      const response = await fetch(`${API_URL}/api/invitations/${token}/respond`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'accept' }),
+      });
+      const text = await response.text();
+      let data;
+      try { data = JSON.parse(text); } catch { data = {}; }
+      if (!response.ok) throw new Error(data.detail || 'Erreur');
+      if (data.requires_guarantee && data.checkout_url) {
+        setGuaranteeMessage({ type: 'info', text: 'Redirection vers la page de garantie...' });
+        window.location.href = data.checkout_url;
+        return;
+      }
+      setResponseStatus(data.status);
+      setInvitation(prev => ({
+        ...prev,
+        participant: { ...prev.participant, status: data.status },
       }));
     } catch (err) {
       setError(err.message);
@@ -515,21 +573,31 @@ export default function InvitationPage() {
 
             <EngagementRulesCard engagementRules={engagement_rules} />
 
-            <InvitationResponseSection
-              responseStatus={responseStatus}
-              participant={participant}
-              engagementRules={engagement_rules}
-              guaranteeRevalidation={guaranteeRevalidation}
-              guaranteeMessage={guaranteeMessage}
-              appointment={appointment}
-              token={token}
-              onResponse={handleResponse}
-              responding={responding}
-              onCancelParticipation={handleCancelParticipation}
-              cancelling={cancelling}
-              onReconfirmGuarantee={handleReconfirmGuarantee}
-              reconfirming={reconfirming}
-            />
+            {showAccountChoice ? (
+              <InvitationAccountChoice
+                participant={participant}
+                token={token}
+                hasExistingAccount={invitation?.has_existing_account}
+                onSuccess={handleAccountSuccess}
+                onSkip={handleSkipAccount}
+              />
+            ) : (
+              <InvitationResponseSection
+                responseStatus={responseStatus}
+                participant={participant}
+                engagementRules={engagement_rules}
+                guaranteeRevalidation={guaranteeRevalidation}
+                guaranteeMessage={guaranteeMessage}
+                appointment={appointment}
+                token={token}
+                onResponse={handleResponse}
+                responding={responding}
+                onCancelParticipation={handleCancelParticipation}
+                cancelling={cancelling}
+                onReconfirmGuarantee={handleReconfirmGuarantee}
+                reconfirming={reconfirming}
+              />
+            )}
           </div>
         )}
 
