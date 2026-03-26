@@ -145,8 +145,9 @@ def create_dashboard_link(user_id: str) -> dict:
     if wallet.get("stripe_connect_status") != "active":
         return {"success": False, "error": "Le compte doit être actif pour accéder au dashboard"}
 
-    # Dev mode accounts (acct_dev_*) can't use real Stripe dashboard
-    if not STRIPE_API_KEY or STRIPE_API_KEY == 'sk_test_emergent' or account_id.startswith("acct_dev_"):
+    # Dev mode accounts can't use real Stripe dashboard
+    is_dev_account = account_id.startswith("acct_dev_") or account_id.startswith("acct_demo_")
+    if not STRIPE_API_KEY or STRIPE_API_KEY == 'sk_test_emergent' or is_dev_account:
         return {"success": True, "dashboard_url": f"{FRONTEND_URL}/settings/wallet?dev_dashboard=true"}
 
     try:

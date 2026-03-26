@@ -72,6 +72,14 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API
 - [x] Frontend: WorkspaceContext utilise default > localStorage > premier workspace, auto-set si unique, badge "Par défaut" + bouton "Défaut" dans WorkspaceSettings
 - [x] Testé: API backend OK, badge affiché, auto-set single workspace
 
+## Completed — Stripe Connect Fix (Mars 2026)
+- [x] Diagnostic: clé Stripe système (`sk_test_emergent`) overridait le .env (vraie clé `sk_test_51TDBIh...`)
+- [x] Fix: `load_dotenv(override=True)` dans server.py pour que .env prenne le dessus
+- [x] Purge: 106 comptes fictifs (`acct_dev_*`/`acct_demo_*`) supprimés de la DB
+- [x] Fix: `create_dashboard_link()` détecte maintenant `acct_dev_*` ET `acct_demo_*`
+- [x] Testé: création compte Express réel (`acct_1TFGt9CDORCvykg1`), URL onboarding Stripe, redirect depuis le frontend
+- [x] Stripe Connect Marketplace activé sur le dashboard Stripe par l'utilisateur
+
 ## Upcoming Tasks
 - [ ] Refactorer InvitationPage.js (1400+ lignes → modules)
 - [ ] Test réel Teams (compte non-pro)
