@@ -133,9 +133,14 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API
 
 ## Consolidation — Chaîne de Preuves de Présence (Mars 2026)
 - [x] Documentation complète : `/app/backend/docs/EVIDENCE_CHAIN.md` (structure, mapping, invariants, fichiers)
-- [x] Tests de non-régression : `/app/backend/tests/test_evidence_chain.py` (20 tests, 5 scénarios)
+- [x] Tests de non-régression : `/app/backend/tests/test_evidence_chain.py` (35 tests : 20 physique + 15 visio)
 - [x] Garde-fous dans le code : commentaires ZONE PROTÉGÉE + INVARIANT dans les 4 fichiers critiques
 - [x] Fichiers protégés : `checkin_routes.py`, `evidence_service.py`, `EvidenceDashboard.js`, `InvitationCheckinSection.js`
+- [x] EvidenceDashboard unifié : supporte physique ET visio dans un seul composant
+- [x] Visio : provider badge, outcome, rôle provider (host/attendee), join/leave, durée, identité match
+- [x] Adaptateurs Zoom/Teams : capture du `provider_role` dans `derived_facts`
+- [x] `checked_in` inclut `video_conference` comme preuve valide
+- [x] Testé : 100% backend (35/35), 100% frontend (iteration_87)
 
 ## Bug Fix — Evidence Dashboard (Mars 2026)
 - [x] Bug: "Check-ins & Preuves" affichait "Aucune preuve" pour tous les participants malgré les preuves en base
