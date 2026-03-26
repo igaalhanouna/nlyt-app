@@ -122,10 +122,14 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API
 - [x] Participants importés: split best-effort du displayName, tous les champs éditables
 - [x] Testé: 100% backend (11/11), 100% frontend (iteration_83)
 
-## V2 Phase 3 — Backlog
-- [ ] Sync log "adopted" (calendar_sync_log avec sync_source="adopted")
-- [ ] Anti-doublons complet: perform_auto_sync skip si sync_log adopted
-- [ ] Cohérence auto-sync: perform_auto_update met à jour l'event calendrier existant
+## V2 Phase 3 — Terminée (Mars 2026)
+- [x] Sync log "adopted" créé lors de la conversion (sync_source="adopted", sync_status="synced")
+- [x] perform_auto_sync SKIP si sync_log existe (pas de re-push doublon vers calendrier)
+- [x] perform_auto_update utilise le sync_log adopted pour mettre à jour l'event calendrier existant
+- [x] _fetch_external_events SKIP les events adoptés (via nlyt_external_ids)
+- [x] Suppression d'un engagement NLYT converti: revert external_event à "imported" + suppression sync_log adopted
+- [x] Anti-doublons 5 couches: sync_log, préfixe [NLYT], upsert unique, converted status, adopted sync_log
+- [x] Testé: 100% backend (13/13), 100% frontend (iteration_84)
 
 ## Upcoming Tasks
 - [ ] Test réel Teams (compte non-pro)
