@@ -24,7 +24,7 @@ from unittest.mock import patch, MagicMock
 pytestmark = pytest.mark.asyncio(loop_scope="function")
 
 # Set up environment
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://fervent-feynman-6.preview.emergentagent.com').rstrip('/')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://checkin-bug-fix.preview.emergentagent.com').rstrip('/')
 
 
 class TestEmailMethodSignature:

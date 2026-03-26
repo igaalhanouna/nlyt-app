@@ -46,7 +46,7 @@ export default function InvitationCheckinSection({
   const formatDate = (d) => formatDateShortFr(d.toISOString());
 
   const effectiveStatus = responseStatus || participant?.status;
-  const isEngaged = effectiveStatus === 'accepted' || effectiveStatus === 'accepted_guaranteed';
+  const isEngaged = ['accepted', 'accepted_guaranteed', 'accepted_pending_guarantee'].includes(effectiveStatus);
 
   return (
     <div className="bg-white rounded-2xl border-2 border-slate-200 overflow-hidden mt-6" data-testid="checkin-section">
