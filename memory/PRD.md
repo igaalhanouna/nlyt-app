@@ -190,6 +190,7 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API
 - [x] `ModificationProposals.js` nettoyé (formulaire retiré, ne conserve que bannière active + historique)
 - [x] `AppointmentDetail.js` : modal indépendant, `<details>` réservé à proposition active + historique
 - [x] Testé : ouverture, fermeture (3 méthodes), pré-remplissage, overlay, pas de régression
+- [x] Polish UX : auto-focus premier champ, loading bloque fermeture pendant soumission, fermeture auto + toast succès
 
 ## Upcoming Tasks
 - [ ] P1: Améliorer la prise de décision (recommandation de créneau)

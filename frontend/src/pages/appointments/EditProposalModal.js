@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../../components/ui/dialog';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -10,11 +10,20 @@ export default function EditProposalModal({
   proposalForm, setProposalForm,
   submittingProposal, onSubmitProposal,
 }) {
+  const dateInputRef = useRef(null);
   const isPastDate = proposalForm.start_datetime && new Date(proposalForm.start_datetime) <= new Date();
 
+  // Auto-focus on first field when modal opens
+  useEffect(() => {
+    if (open) {
+      const t = setTimeout(() => dateInputRef.current?.focus(), 100);
+      return () => clearTimeout(t);
+    }
+  }, [open]);
+
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="sm:max-w-[540px]" data-testid="edit-proposal-modal">
+    <Dialog open={open} onOpenChange={(v) => { if (!v && !submittingProposal) onClose(); }}>
+      <DialogContent className="sm:max-w-[540px]" data-testid="edit-proposal-modal" onPointerDownOutside={(e) => { if (submittingProposal) e.preventDefault(); }} onEscapeKeyDown={(e) => { if (submittingProposal) e.preventDefault(); }}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileEdit className="w-5 h-5 text-blue-600" />
@@ -29,6 +38,7 @@ export default function EditProposalModal({
           <div>
             <Label htmlFor="prop-datetime">Date et heure</Label>
             <Input
+              ref={dateInputRef}
               id="prop-datetime" type="datetime-local" data-testid="proposal-datetime-input"
               value={proposalForm.start_datetime}
               min={(() => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}T${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}`; })()}
@@ -90,7 +100,7 @@ export default function EditProposalModal({
         )}
 
         <div className="flex gap-2 mt-4 justify-end">
-          <Button variant="outline" onClick={onClose} data-testid="cancel-proposal-form-btn">
+          <Button variant="outline" onClick={onClose} disabled={submittingProposal} data-testid="cancel-proposal-form-btn">
             Annuler
           </Button>
           <Button onClick={onSubmitProposal} disabled={submittingProposal} data-testid="submit-proposal-btn">
