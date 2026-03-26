@@ -739,6 +739,29 @@ async def create_appointment(appointment: AppointmentCreate, request: Request):
         elif conv_result.get("success"):
             response["converted_from_external"] = True
 
+            # Create "adopted" sync_log so auto-sync won't re-push to calendar
+            ext_ev = db.external_events.find_one(
+                {"external_event_id": appointment.from_external_event_id},
+                {"_id": 0, "source": 1, "connection_id": 1, "external_event_id": 1}
+            )
+            if ext_ev and ext_ev.get("connection_id"):
+                adopted_log = {
+                    "log_id": str(uuid.uuid4()),
+                    "appointment_id": appointment_id,
+                    "connection_id": ext_ev["connection_id"],
+                    "provider": ext_ev["source"],
+                    "external_event_id": ext_ev["external_event_id"],
+                    "html_link": None,
+                    "sync_status": "synced",
+                    "sync_source": "adopted",
+                    "retry_count": 0,
+                    "next_retry_at": None,
+                    "max_retries_reached": False,
+                    "synced_at": now_utc_iso()
+                }
+                db.calendar_sync_logs.insert_one(adopted_log)
+                print(f"[ADOPT] Created adopted sync_log for appointment {appointment_id} <-> {ext_ev['external_event_id']} ({ext_ev['source']})")
+
     return response
 
 
@@ -1395,7 +1418,28 @@ async def delete_appointment(appointment_id: str, request: Request):
         {"appointment_id": appointment_id},
         {"$set": {"appointment_deleted": True, "updated_at": now}}
     )
-    
+
+    # If appointment was converted from an external event, revert to "imported"
+    converted_from = appointment.get("converted_from")
+    if converted_from and converted_from.get("external_event_id"):
+        db.external_events.update_one(
+            {
+                "external_event_id": converted_from["external_event_id"],
+                "status": "converted",
+            },
+            {"$set": {
+                "status": "imported",
+                "nlyt_appointment_id": None,
+                "converted_at": None,
+            }}
+        )
+        # Remove the adopted sync_log
+        db.calendar_sync_logs.delete_many({
+            "appointment_id": appointment_id,
+            "sync_source": "adopted",
+        })
+        print(f"[DELETE] Reverted external event {converted_from['external_event_id']} to imported")
+
     return {"message": "Rendez-vous supprimé avec succès"}
 
 
