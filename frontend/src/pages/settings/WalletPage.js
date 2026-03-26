@@ -605,7 +605,6 @@ function ConnectStatusCard({ connectStatus, onOnboard, onDashboard, onRefresh, o
 function ChangeProfileTypeModal({ currentType, onConfirm, onCancel, loading, connectStatus }) {
   const isActive = connectStatus === 'active';
   const allTypes = ['particulier', 'independant', 'company'];
-  const otherTypes = allTypes.filter(t => t !== currentType);
 
   // Check if changing to this type requires Stripe reset
   const currentStripeType = currentType === 'company' ? 'company' : 'individual';
@@ -618,31 +617,36 @@ function ChangeProfileTypeModal({ currentType, onConfirm, onCancel, loading, con
     <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg" data-testid="change-type-modal">
       <div className="flex items-start gap-2 mb-3">
         <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
-        <div>
-          <p className="text-sm font-medium text-amber-900">Modifier votre type de profil</p>
-          <p className="text-xs text-amber-700 mt-1">
-            Profil actuel : <span className="font-semibold">{PROFILE_TYPE_LABELS[currentType]}</span>
-          </p>
-        </div>
+        <p className="text-sm font-medium text-amber-900">Modifier votre type de profil</p>
       </div>
 
       <div className="space-y-2 mb-3">
-        {otherTypes.map(type => {
-          const needsReset = willResetStripe(type);
+        {allTypes.map(type => {
+          const isCurrent = type === currentType;
+          const needsReset = !isCurrent && willResetStripe(type);
           return (
             <button
               key={type}
-              onClick={() => onConfirm(type)}
-              disabled={loading}
-              className="w-full border border-amber-200 hover:border-amber-500 bg-white/70 hover:bg-white rounded-md px-3.5 py-3 text-left transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-1"
+              onClick={() => !isCurrent && onConfirm(type)}
+              disabled={loading || isCurrent}
+              className={`w-full rounded-md px-3.5 py-3 text-left transition-all duration-150 focus:outline-none ${
+                isCurrent
+                  ? 'border-2 border-slate-900 bg-white cursor-default'
+                  : 'border border-amber-200 hover:border-amber-500 bg-white/70 hover:bg-white focus:ring-2 focus:ring-amber-500 focus:ring-offset-1'
+              }`}
               data-testid={`change-to-${type}-btn`}
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-slate-800">{PROFILE_TYPE_LABELS[type]}</p>
+                  <div className="flex items-center gap-2">
+                    <p className={`text-sm font-medium ${isCurrent ? 'text-slate-900' : 'text-slate-800'}`}>{PROFILE_TYPE_LABELS[type]}</p>
+                    {isCurrent && (
+                      <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-slate-900 text-white" data-testid="current-profile-badge">Actuel</span>
+                    )}
+                  </div>
                   <p className="text-[11px] text-slate-500">{PROFILE_TYPE_DESCRIPTIONS[type]}</p>
                 </div>
-                {loading && <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-600 flex-shrink-0" />}
+                {loading && !isCurrent && <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-600 flex-shrink-0" />}
               </div>
               {needsReset && (isActive || connectStatus === 'onboarding') && (
                 <div className="flex items-start gap-1.5 mt-2 pt-2 border-t border-amber-100">
