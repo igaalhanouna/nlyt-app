@@ -174,6 +174,47 @@ function VideoEvidenceDetails({ facts }) {
   );
 }
 
+/**
+ * Détermine le libellé produit selon le niveau de preuve.
+ * Voir NLYT_PROOF_ARCHITECTURE.md section 5.C
+ *
+ * INVARIANT — Libellés produit :
+ *   "Absent"                       → 0 evidence
+ *   "Présence déclarée"            → NLYT check-in seul (manual_checkin, sans GPS close ni provider)
+ *   "Présence confirmée"           → check-in + GPS close OU video_conference
+ *   "Présence continue vérifiée"   → video_conference + durée ≥ 80% du RDV
+ */
+function getPresenceLabel(evidence, appointment) {
+  if (!evidence || evidence.length === 0) {
+    return { label: 'Absent', bg: 'bg-slate-100', text: 'text-slate-500', icon: null };
+  }
+
+  const hasGpsClose = evidence.some(e => {
+    const geo = e.derived_facts?.geographic_consistency;
+    return (e.source === 'gps' && (geo === 'close' || geo === 'nearby'));
+  });
+  const hasQr = evidence.some(e => e.source === 'qr');
+  const videoEv = evidence.filter(e => e.source === 'video_conference');
+  const hasVideo = videoEv.length > 0;
+
+  // Check for "Présence continue vérifiée" — video with ≥80% duration
+  if (hasVideo && appointment?.duration_minutes) {
+    const targetSeconds = appointment.duration_minutes * 60 * 0.8;
+    const longEnough = videoEv.some(e => (e.derived_facts?.duration_seconds || 0) >= targetSeconds);
+    if (longEnough) {
+      return { label: 'Présence continue vérifiée', bg: 'bg-emerald-100', text: 'text-emerald-800' };
+    }
+  }
+
+  // "Présence confirmée" — GPS close, QR, or any video evidence
+  if (hasGpsClose || hasQr || hasVideo) {
+    return { label: 'Présence confirmée', bg: 'bg-emerald-100', text: 'text-emerald-700' };
+  }
+
+  // "Présence déclarée" — NLYT check-in only
+  return { label: 'Présence déclarée', bg: 'bg-sky-100', text: 'text-sky-700' };
+}
+
 export default function EvidenceDashboard({ participants, evidenceData, appointment }) {
   // INVARIANT: Mapper via evidenceData.participants (PAS evidenceData.evidence)
   // Voir EVIDENCE_CHAIN.md — ne pas modifier sans signaler
@@ -198,6 +239,7 @@ export default function EvidenceDashboard({ participants, evidenceData, appointm
         {/* INVARIANT: Inclure TOUS les statuts acceptés, y compris organisateur (pas de !p.is_organizer) */}
         {participants.filter(p => ['accepted', 'accepted_pending_guarantee', 'accepted_guaranteed'].includes(p.status)).map(p => {
           const evidence = getParticipantEvidence(p.participant_id);
+          const presence = getPresenceLabel(evidence, appointment);
           return (
             <div key={p.participant_id} className="border border-slate-200 rounded-xl overflow-hidden" data-testid={`evidence-participant-${p.participant_id}`}>
               <div className="flex items-center justify-between px-4 py-3 bg-slate-50">
@@ -208,8 +250,8 @@ export default function EvidenceDashboard({ participants, evidenceData, appointm
                   )}
                   <span className="text-xs text-slate-400">{p.email}</span>
                 </div>
-                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${evidence.length > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
-                  {evidence.length > 0 ? `${evidence.length} preuve(s)` : 'Aucune preuve'}
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${presence.bg} ${presence.text}`} data-testid={`presence-label-${p.participant_id}`}>
+                  {presence.label}
                 </span>
               </div>
               {evidence.length > 0 && (
