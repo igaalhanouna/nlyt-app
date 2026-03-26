@@ -109,13 +109,18 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API
 - [x] Déduplication 4 couches: sync_log, préfixe [NLYT], upsert unique, converted status
 - [x] Testé: 100% backend (19/19), 100% frontend
 
-## V2 Phase 2 — À implémenter
-- [ ] Bouton "NLYT me" sur les cards d'événements importés
-- [ ] Endpoint GET /api/external-events/{id}/prefill pour pré-remplir le wizard
-- [ ] Enrichir AppointmentWizard avec support `?from_external=<id>` + pré-remplissage
-- [ ] Conversion: créer appointment NLYT + mettre à jour external_events.status="converted"
-- [ ] Badge "via Google/Outlook" sur les engagements NLYT convertis
-- [ ] Protection: event converti ne réapparaît jamais comme importé
+## V2 Phase 2 — Terminée (Mars 2026)
+- [x] Endpoint GET /api/external-events/{id}/prefill — données pré-formatées pour le wizard
+- [x] Champ from_external_event_id ajouté à AppointmentCreate (optionnel, rétrocompatible)
+- [x] Conversion atomique: external_events.status "imported" → "converted" avec optimistic lock MongoDB
+- [x] Anti-double-conversion: vérification explicite + condition atomique ($set where status=imported)
+- [x] Bouton "NLYT me" sur ExternalEventCard avec prefetch-before-navigate (pas de redirection cassée)
+- [x] AppointmentWizard: détection location.state.fromExternal, pré-remplissage formData + participants
+- [x] Bandeau info: "Pré-rempli à partir de votre événement Google/Outlook. Tous les champs restent modifiables."
+- [x] Badge "via Google/Outlook" sur EngagementCard quand converted_from.source existe
+- [x] Champ converted_from stocké dans appointment doc pour traçabilité
+- [x] Participants importés: split best-effort du displayName, tous les champs éditables
+- [x] Testé: 100% backend (11/11), 100% frontend (iteration_83)
 
 ## V2 Phase 3 — Backlog
 - [ ] Sync log "adopted" (calendar_sync_log avec sync_source="adopted")
