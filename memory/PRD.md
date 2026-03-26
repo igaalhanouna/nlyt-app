@@ -131,6 +131,17 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API
 - [x] Anti-doublons 5 couches: sync_log, préfixe [NLYT], upsert unique, converted status, adopted sync_log
 - [x] Testé: 100% backend (13/13), 100% frontend (iteration_84)
 
+## Architecture NLYT Proof — Consolidation finale (Mars 2026)
+- [x] Document de référence : `/app/backend/docs/NLYT_PROOF_ARCHITECTURE.md`
+  - Positionnement clair : ce que NLYT Proof prouve (check-in temporel) et ne prouve pas (durée)
+  - Hiérarchie des preuves : Niveau 1 (principales) / Niveau 2 (complémentaires) / Niveau 3 (métadonnées)
+  - Structure de données gelée avec champs obligatoires/optionnels/dérivés
+  - Règle produit : "Présence déclarée" vs "Présence confirmée" vs "Présence continue vérifiée"
+  - Note d'architecture future : heartbeat + 1 confirmation intermédiaire (non implémenté)
+- [x] Tests de non-régression : 51 tests (20 physique + 15 visio + 16 NLYT Proof temporel)
+- [x] 7 invariants protégés + 5 fichiers sous protection
+- [x] Limitation documentée : NLYT Proof ne mesure pas la durée sans provider externe
+
 ## Consolidation — Chaîne de Preuves de Présence (Mars 2026)
 - [x] Documentation complète : `/app/backend/docs/EVIDENCE_CHAIN.md` (structure, mapping, invariants, fichiers)
 - [x] Tests de non-régression : `/app/backend/tests/test_evidence_chain.py` (35 tests : 20 physique + 15 visio)

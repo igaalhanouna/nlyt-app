@@ -557,3 +557,218 @@ class TestVisioInvariants:
             elif p["participant_id"] == part_pid:
                 assert len(p_evidence) == 1
                 assert p_evidence[0]["derived_facts"]["provider_role"] in ("attendee", "Attendee")
+
+
+# ════════════════════════════════════════════════════════════════
+# SCÉNARIOS NLYT PROOF — Cohérence temporelle sans provider
+# Voir /app/backend/docs/NLYT_PROOF_ARCHITECTURE.md
+# ════════════════════════════════════════════════════════════════
+
+from zoneinfo import ZoneInfo
+PARIS = ZoneInfo('Europe/Paris')
+
+
+def _make_nlyt_proof_apt(title, start_paris_h, start_paris_m):
+    """Create a video appointment with start in Paris time (naive string, like real data)."""
+    now = datetime.now(timezone.utc)
+    today_paris = now.astimezone(PARIS).replace(hour=start_paris_h, minute=start_paris_m, second=0, microsecond=0)
+    start_naive = today_paris.strftime("%Y-%m-%dT%H:%M:%S")  # No Z = Paris time
+    apt_id = str(uuid.uuid4())
+    apt = {
+        "appointment_id": apt_id,
+        "title": f"{TEST_NS}:proof:{title}",
+        "appointment_type": "video",
+        "status": "active",
+        "workspace_id": f"ws-{TEST_NS}",
+        "organizer_id": f"org-{TEST_NS}",
+        "start_datetime": start_naive,
+        "duration_minutes": 60,
+        "tolerated_delay_minutes": 15,
+        "created_at": now.isoformat(),
+    }
+    db.appointments.insert_one(apt)
+    apt.pop("_id", None)
+    return apt_id, apt, today_paris
+
+
+def _checkin_at_paris(apt_id, apt, pid, h, m, s=0):
+    """Create manual check-in evidence at a specific Paris-time."""
+    from services.evidence_service import assess_temporal_consistency
+    today = datetime.now(PARIS).replace(hour=h, minute=m, second=s, microsecond=0)
+    checkin_utc = today.astimezone(timezone.utc)
+    temporal = assess_temporal_consistency(checkin_utc, apt)
+    conf = "high" if temporal["consistency"] == "valid" else \
+           "medium" if temporal["consistency"] == "valid_late" else "low"
+    eid = str(uuid.uuid4())
+    ev = {
+        "evidence_id": eid,
+        "appointment_id": apt_id,
+        "participant_id": pid,
+        "source": "manual_checkin",
+        "source_timestamp": checkin_utc.isoformat(),
+        "created_at": checkin_utc.isoformat(),
+        "confidence_score": conf,
+        "created_by": "participant",
+        "derived_facts": {
+            "device_info": f"pytest-{TEST_NS}-nlyt-proof",
+            "temporal_consistency": temporal["consistency"],
+            "temporal_detail": temporal["detail"],
+        },
+    }
+    db.evidence_items.insert_one(ev)
+    ev.pop("_id", None)
+    return ev
+
+
+class TestNLYTProofCas1TousALheure:
+    """Cas 1: Org 10:00, Alice 10:00, Bob 10:02 — tous valid."""
+    @pytest.fixture(autouse=True, scope="class")
+    def setup(self, request):
+        apt_id, apt, _ = _make_nlyt_proof_apt("cas1", 10, 0)
+        org_pid, _ = _create_participant(apt_id, "Org", "org@p1", "accepted_guaranteed", is_organizer=True)
+        alice_pid, _ = _create_participant(apt_id, "Alice", "alice@p1", "accepted")
+        bob_pid, _ = _create_participant(apt_id, "Bob", "bob@p1", "accepted")
+        ev_org = _checkin_at_paris(apt_id, apt, org_pid, 10, 0)
+        ev_alice = _checkin_at_paris(apt_id, apt, alice_pid, 10, 0)
+        ev_bob = _checkin_at_paris(apt_id, apt, bob_pid, 10, 2)
+        request.cls.evs = [ev_org, ev_alice, ev_bob]
+
+    def test_all_valid(self):
+        for ev in self.evs:
+            assert ev["derived_facts"]["temporal_consistency"] == "valid"
+
+    def test_all_high_confidence(self):
+        for ev in self.evs:
+            assert ev["confidence_score"] == "high"
+
+
+class TestNLYTProofCas2RetardDansTolerance:
+    """Cas 2: Alice +10min (dans tolérance 15min) — still valid."""
+    @pytest.fixture(autouse=True, scope="class")
+    def setup(self, request):
+        apt_id, apt, _ = _make_nlyt_proof_apt("cas2", 10, 0)
+        pid, _ = _create_participant(apt_id, "Alice", "alice@p2", "accepted")
+        ev = _checkin_at_paris(apt_id, apt, pid, 10, 10)
+        request.cls.ev = ev
+
+    def test_within_tolerance_is_valid(self):
+        assert self.ev["derived_facts"]["temporal_consistency"] == "valid"
+
+    def test_detail_mentions_tolerance(self):
+        detail = self.ev["derived_facts"]["temporal_detail"]
+        assert "tolérance" in detail.lower() or "après le début" in detail.lower()
+
+
+class TestNLYTProofCas3HorsToleranceRetard:
+    """Cas 3: Bob +45min (hors tolérance 15min) — valid_late."""
+    @pytest.fixture(autouse=True, scope="class")
+    def setup(self, request):
+        apt_id, apt, _ = _make_nlyt_proof_apt("cas3", 10, 0)
+        pid, _ = _create_participant(apt_id, "Bob", "bob@p3", "accepted")
+        ev = _checkin_at_paris(apt_id, apt, pid, 10, 45)
+        request.cls.ev = ev
+
+    def test_late_is_valid_late(self):
+        assert self.ev["derived_facts"]["temporal_consistency"] == "valid_late"
+
+    def test_confidence_is_medium(self):
+        assert self.ev["confidence_score"] == "medium"
+
+
+class TestNLYTProofCas4Absent:
+    """Cas 4: Alice ne check-in jamais — 0 evidence, strength=none."""
+    @pytest.fixture(autouse=True, scope="class")
+    def setup(self, request):
+        apt_id, apt, _ = _make_nlyt_proof_apt("cas4", 10, 0)
+        absent_pid, _ = _create_participant(apt_id, "Alice", "alice@p4", "accepted")
+        request.cls.apt_id = apt_id
+        request.cls.apt = apt
+        request.cls.absent_pid = absent_pid
+
+    def test_no_evidence(self):
+        ev = get_evidence_for_participant(self.apt_id, self.absent_pid)
+        assert len(ev) == 0
+
+    def test_aggregate_none(self):
+        agg = aggregate_evidence(self.apt_id, self.absent_pid, self.apt)
+        assert agg["strength"] == "none"
+        assert agg["evidence_count"] == 0
+
+
+class TestNLYTProofCas5OrgRetard:
+    """Cas 5: Org +10min retard, participants à l'heure — même traitement."""
+    @pytest.fixture(autouse=True, scope="class")
+    def setup(self, request):
+        apt_id, apt, _ = _make_nlyt_proof_apt("cas5", 10, 0)
+        org_pid, _ = _create_participant(apt_id, "Org", "org@p5", "accepted_guaranteed", is_organizer=True)
+        alice_pid, _ = _create_participant(apt_id, "Alice", "alice@p5", "accepted")
+        ev_org = _checkin_at_paris(apt_id, apt, org_pid, 10, 10)
+        ev_alice = _checkin_at_paris(apt_id, apt, alice_pid, 10, 0)
+        request.cls.ev_org = ev_org
+        request.cls.ev_alice = ev_alice
+
+    def test_org_within_tolerance(self):
+        assert self.ev_org["derived_facts"]["temporal_consistency"] == "valid"
+
+    def test_alice_on_time(self):
+        assert self.ev_alice["derived_facts"]["temporal_consistency"] == "valid"
+
+    def test_no_special_treatment_for_org(self):
+        # Org and participant use the exact same logic
+        assert self.ev_org["confidence_score"] == self.ev_alice["confidence_score"]
+
+
+class TestNLYTProofCas6Avance:
+    """Cas 6: Participants en avance (09:55, 09:58) — valid."""
+    @pytest.fixture(autouse=True, scope="class")
+    def setup(self, request):
+        apt_id, apt, _ = _make_nlyt_proof_apt("cas6", 10, 0)
+        alice_pid, _ = _create_participant(apt_id, "Alice", "alice@p6", "accepted")
+        bob_pid, _ = _create_participant(apt_id, "Bob", "bob@p6", "accepted")
+        ev_alice = _checkin_at_paris(apt_id, apt, alice_pid, 9, 55)
+        ev_bob = _checkin_at_paris(apt_id, apt, bob_pid, 9, 58)
+        request.cls.evs = [ev_alice, ev_bob]
+
+    def test_early_is_valid(self):
+        for ev in self.evs:
+            assert ev["derived_facts"]["temporal_consistency"] == "valid"
+
+    def test_detail_mentions_avant(self):
+        for ev in self.evs:
+            assert "avant" in ev["derived_facts"]["temporal_detail"].lower()
+
+
+class TestNLYTProofCas7OrgAvance:
+    """Cas 7: Org 09:50, participants après — all valid."""
+    @pytest.fixture(autouse=True, scope="class")
+    def setup(self, request):
+        apt_id, apt, _ = _make_nlyt_proof_apt("cas7", 10, 0)
+        org_pid, _ = _create_participant(apt_id, "Org", "org@p7", "accepted_guaranteed", is_organizer=True)
+        ev = _checkin_at_paris(apt_id, apt, org_pid, 9, 50)
+        request.cls.ev = ev
+
+    def test_10min_early_is_valid(self):
+        assert self.ev["derived_facts"]["temporal_consistency"] == "valid"
+        assert "10min avant" in self.ev["derived_facts"]["temporal_detail"]
+
+
+class TestNLYTProofCas8TousAvance:
+    """Cas 8: Tous en avance (09:45, 09:48, 09:52) — all valid."""
+    @pytest.fixture(autouse=True, scope="class")
+    def setup(self, request):
+        apt_id, apt, _ = _make_nlyt_proof_apt("cas8", 10, 0)
+        org_pid, _ = _create_participant(apt_id, "Org", "org@p8", "accepted_guaranteed", is_organizer=True)
+        alice_pid, _ = _create_participant(apt_id, "Alice", "alice@p8", "accepted")
+        bob_pid, _ = _create_participant(apt_id, "Bob", "bob@p8", "accepted")
+        ev_org = _checkin_at_paris(apt_id, apt, org_pid, 9, 45)
+        ev_alice = _checkin_at_paris(apt_id, apt, alice_pid, 9, 48)
+        ev_bob = _checkin_at_paris(apt_id, apt, bob_pid, 9, 52)
+        request.cls.evs = [ev_org, ev_alice, ev_bob]
+
+    def test_all_early_are_valid(self):
+        for ev in self.evs:
+            assert ev["derived_facts"]["temporal_consistency"] == "valid"
+
+    def test_all_high_confidence(self):
+        for ev in self.evs:
+            assert ev["confidence_score"] == "high"
