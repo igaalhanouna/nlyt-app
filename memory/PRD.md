@@ -155,6 +155,16 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API
 - [x] Simulation NLYT Proof autonome : 8 cas validés (tous à l'heure, retard, absent, avance, partiel)
 - [x] Limitation documentée : NLYT Proof ne capture pas la durée de présence (pas de check-out)
 
+## Libellés Produit NLYT Proof — Vérification complète (Mars 2026)
+- [x] 4 libellés implémentés dans `EvidenceDashboard.js` via `getPresenceLabel()`
+- [x] "Absent" : 0 preuve → badge gris ✅
+- [x] "Présence déclarée" : check-in NLYT seul → badge bleu ✅
+- [x] "Présence confirmée" : GPS close / QR / vidéo → badge vert ✅
+- [x] "Présence continue vérifiée" : vidéo + durée ≥80% → badge vert foncé ✅
+- [x] Vérifié sur RDV physique (Igaal Hanouna: QR+GPS → Confirmée, Fresh Checkin → Absent)
+- [x] Vérifié sur RDV visio (Alice: Zoom 56min/60min → Continue vérifiée, Charlie: check-in → Déclarée)
+- [x] 51/51 tests backend passent (non-régression)
+
 ## Bug Fix — Evidence Dashboard (Mars 2026)
 - [x] Bug: "Check-ins & Preuves" affichait "Aucune preuve" pour tous les participants malgré les preuves en base
 - [x] Cause racine 1: `EvidenceDashboard.js` L43 — mauvais chemin de données (`evidenceData.evidence` au lieu de `evidenceData.participants[].evidence`)
