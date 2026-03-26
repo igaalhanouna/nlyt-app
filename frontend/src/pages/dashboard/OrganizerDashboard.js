@@ -310,7 +310,7 @@ export default function OrganizerDashboard() {
   useEffect(() => {
     if (currentWorkspace) loadInitial();
     loadImpact();
-    loadImportSettings();
+    loadImportSettings().then(() => loadExternalEvents());
   }, [currentWorkspace]);
 
   const loadInitial = async () => {
@@ -428,12 +428,6 @@ export default function OrganizerDashboard() {
     try {
       const res = await externalEventsAPI.getImportSettings();
       setImportSettings(res.data);
-      // Auto-sync if any provider is enabled
-      const providers = res.data?.providers || {};
-      const hasEnabled = Object.values(providers).some(p => p.import_enabled);
-      if (hasEnabled) {
-        handleSync(false);
-      }
     } catch { /* silent — user may not have calendar connections */ }
   };
 
