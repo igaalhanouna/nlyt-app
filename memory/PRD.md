@@ -141,6 +141,8 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API
 - [x] Adaptateurs Zoom/Teams : capture du `provider_role` dans `derived_facts`
 - [x] `checked_in` inclut `video_conference` comme preuve valide
 - [x] Testé : 100% backend (35/35), 100% frontend (iteration_87)
+- [x] Simulation NLYT Proof autonome : 8 cas validés (tous à l'heure, retard, absent, avance, partiel)
+- [x] Limitation documentée : NLYT Proof ne capture pas la durée de présence (pas de check-out)
 
 ## Bug Fix — Evidence Dashboard (Mars 2026)
 - [x] Bug: "Check-ins & Preuves" affichait "Aucune preuve" pour tous les participants malgré les preuves en base

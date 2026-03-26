@@ -301,13 +301,67 @@ Ce rôle est stocké dans `derived_facts.provider_role` et affiché dans le dash
 
 ---
 
-## Tests de non-régression
+## 7. NLYT PROOF — Mode autonome (sans provider)
 
-Fichier : `backend/tests/test_evidence_chain.py`
+### Principe
 
-Couvre les 5 scénarios :
-1. Organisateur seul
-2. Organisateur + 1 participant
-3. Organisateur + 2 participants
-4. Uniquement participants (sans organisateur)
-5. Vérification que chaque personne a son entrée distincte
+Quand aucun provider visio (Zoom/Teams/Meet) n'est disponible (comptes non-pro),
+NLYT Proof fonctionne en autonomie totale :
+- Check-in via le lien d'invitation NLYT
+- Horodatage interne (pas de donnée externe)
+- Source : `manual_checkin` (pas de `video_conference`)
+
+### Calcul de cohérence temporelle
+
+```
+temps_écoulé = checkin_timestamp - start_datetime_utc
+
+Si temps_écoulé < 0 :
+  → "valid" — "Arrivé Xmin avant le RDV"
+  
+Si 0 ≤ temps_écoulé ≤ tolerated_delay_minutes :
+  → "valid" — "Arrivé Xmin après le début (tolérance: Ymin)"
+
+Si temps_écoulé > tolerated_delay_minutes ET < durée totale :
+  → "valid_late" — "Arrivé Xmin en retard (tolérance: Ymin)"
+
+Si temps_écoulé ≥ durée totale :
+  → "too_late" — "Arrivé après la fin du RDV"
+```
+
+### Score de confiance (NLYT Proof seul)
+
+| Statut temporel | Confiance | Justification |
+|----------------|-----------|---------------|
+| valid | high | Check-in dans les temps |
+| valid_late | medium | En retard mais présent |
+| too_late | low | Arrivé trop tard |
+| too_early | low | Hors fenêtre pré-RDV |
+
+### Limitation connue
+
+**NLYT Proof ne capture pas la durée de présence.** Un check-in à 10:05 avec sortie
+immédiate produit la même preuve qu'une présence de 60 minutes. Pour capturer la durée :
+- Provider visio (Zoom/Teams) : `joined_at` + `left_at` + `duration_seconds`
+- Check-out volontaire : non implémenté (feature future)
+
+### Timezone
+
+- `start_datetime` en base est **sans timezone** → interprété comme **heure de Paris**
+- `source_timestamp` des check-ins est en **UTC**
+- La comparaison se fait après conversion UTC des deux côtés
+
+---
+
+## 8. RÉSULTATS DE SIMULATION — 8 cas validés (Mars 2026)
+
+| Cas | Scénario | Résultat |
+|-----|----------|----------|
+| 1 | Tous à l'heure | `valid` pour tous |
+| 2 | Participant +10min retard | `valid` (dans tolérance 15min) |
+| 3 | Participant +45min retard | `valid_late` confiance `medium` |
+| 4 | Participant absent | 0 preuve, strength=`none` |
+| 5 | Organisateur +10min retard | `valid` (tolérance) |
+| 6 | Participants en avance | `valid` "Xmin avant le RDV" |
+| 7 | Organisateur en avance | `valid` "10min avant le RDV" |
+| 8 | Tous en avance | `valid` "15min/12min/8min avant" |
