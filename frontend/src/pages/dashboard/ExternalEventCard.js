@@ -53,14 +53,26 @@ export default function ExternalEventCard({ event }) {
       data-testid={`external-event-${event.external_event_id}`}
     >
       <div className="p-4">
-        {/* Row 1: Title + source badge */}
+        {/* Row 1: Title + source badge + NLYT me */}
         <div className="flex items-start justify-between gap-2 mb-2">
           <h4 className="font-semibold text-sm text-slate-800 leading-tight truncate">
             {event.title}
           </h4>
-          <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium rounded-full border flex-shrink-0 ${badge.className}`}>
-            {badge.label}
-          </span>
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium rounded-full border ${badge.className}`}>
+              {badge.label}
+            </span>
+            <button
+              onClick={handleNlytMe}
+              disabled={loading}
+              className="inline-flex items-center gap-1 px-2.5 py-1 bg-[#E4FF1A] text-slate-900 rounded-md text-[11px] font-bold hover:bg-[#d4ef0a] active:scale-[0.96] transition-all disabled:opacity-60 shadow-sm"
+              data-testid={`nlyt-me-btn-${event.external_event_id}`}
+              title="Garantir ce rendez-vous avec NLYT"
+            >
+              {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Zap className="w-3 h-3" />}
+              NLYT me
+            </button>
+          </div>
         </div>
 
         {/* Row 2: Meta */}
@@ -115,20 +127,6 @@ export default function ExternalEventCard({ event }) {
             </div>
           </div>
         )}
-
-        {/* NLYT me — contextual action */}
-        <div className="flex justify-end mt-2 pt-2 border-t border-slate-100">
-          <button
-            onClick={handleNlytMe}
-            disabled={loading}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 text-white rounded-md text-xs font-semibold hover:bg-slate-800 active:scale-[0.97] transition-all disabled:opacity-60"
-            data-testid={`nlyt-me-btn-${event.external_event_id}`}
-            title="Garantir ce rendez-vous avec NLYT"
-          >
-            {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
-            NLYT me
-          </button>
-        </div>
       </div>
     </div>
   );
