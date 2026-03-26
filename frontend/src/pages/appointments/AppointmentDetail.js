@@ -18,6 +18,7 @@ import SecondaryActions from './SecondaryActions';
 import OrganizerCheckinBlock from './OrganizerCheckinBlock';
 import CancelModal from './CancelModal';
 import ModificationProposals from './ModificationProposals';
+import EditProposalModal from './EditProposalModal';
 import ProofSessionsPanel from './ProofSessionsPanel';
 import VideoEvidencePanel from './VideoEvidencePanel';
 import AttendancePanel from './AttendancePanel';
@@ -507,8 +508,15 @@ export default function AppointmentDetail() {
           </details>
         )}
 
-        {/* #8 — Secondaire : Modifications (folded) */}
-        {(activeProposal || proposalHistory.length > 0 || showProposalForm) && (
+        {/* #8 — Modal de modification (ouvert par le crayon) */}
+        <EditProposalModal
+          open={showProposalForm} onClose={() => setShowProposalForm(false)}
+          proposalForm={proposalForm} setProposalForm={setProposalForm}
+          submittingProposal={submittingProposal} onSubmitProposal={handleSubmitProposal}
+        />
+
+        {/* #9 — Proposition active + Historique (visible si données) */}
+        {(activeProposal || proposalHistory.length > 0) && (
           <details className="mb-4 bg-white border border-slate-200 rounded-xl overflow-hidden group" data-testid="modifications-details">
             <summary className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-slate-50 transition-colors select-none min-h-[44px]">
               <span className="text-sm font-semibold text-slate-900">Modifications</span>
@@ -519,9 +527,6 @@ export default function AppointmentDetail() {
             </summary>
             <div className="border-t border-slate-100">
               <ModificationProposals
-                showProposalForm={showProposalForm} setShowProposalForm={setShowProposalForm}
-                proposalForm={proposalForm} setProposalForm={setProposalForm}
-                submittingProposal={submittingProposal} onSubmitProposal={handleSubmitProposal}
                 activeProposal={activeProposal}
                 respondingProposal={respondingProposal} onRespondProposal={handleRespondProposal} onCancelProposal={handleCancelProposal}
                 proposalHistory={proposalHistory} showHistory={showHistory} setShowHistory={setShowHistory}

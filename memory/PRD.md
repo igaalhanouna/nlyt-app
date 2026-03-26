@@ -182,6 +182,15 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API
 - [x] Testé: 100% backend (14/14), 100% frontend (iteration_85) + test traçabilité E2E
 - [x] 4 scénarios simulés: 1) org+part OK, 2) org+multi OK, 3) non-auth OK, 4) invited bloqué OK
 
+## Fix — Bouton crayon modification RDV (Mars 2026)
+- [x] Audit complet du flow crayon → formulaire de modification
+- [x] Cause racine : formulaire caché dans `<details>` replié en bas de page (régression refactor)
+- [x] Fix : passage en modal Dialog (Shadcn) — ouverture immédiate au clic
+- [x] Nouveau composant : `EditProposalModal.js`
+- [x] `ModificationProposals.js` nettoyé (formulaire retiré, ne conserve que bannière active + historique)
+- [x] `AppointmentDetail.js` : modal indépendant, `<details>` réservé à proposition active + historique
+- [x] Testé : ouverture, fermeture (3 méthodes), pré-remplissage, overlay, pas de régression
+
 ## Upcoming Tasks
 - [ ] P1: Améliorer la prise de décision (recommandation de créneau)
 - [ ] P2: Test réel Teams (compte non-pro)

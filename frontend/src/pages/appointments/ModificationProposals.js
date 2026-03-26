@@ -1,14 +1,10 @@
 import React from 'react';
 import { Button } from '../../components/ui/button';
-import { Input } from '../../components/ui/input';
-import { Label } from '../../components/ui/label';
-import { FileEdit, Send, Loader2, Check, X, Clock, ChevronDown } from 'lucide-react';
+import { Check, X, Clock, ChevronDown } from 'lucide-react';
+import { FileEdit } from 'lucide-react';
 import { formatDateTimeFr } from '../../utils/dateFormat';
 
 export default function ModificationProposals({
-  showProposalForm, setShowProposalForm,
-  proposalForm, setProposalForm,
-  submittingProposal, onSubmitProposal,
   activeProposal,
   respondingProposal, onRespondProposal, onCancelProposal,
   proposalHistory,
@@ -16,90 +12,6 @@ export default function ModificationProposals({
 }) {
   return (
     <>
-      {/* Proposal Form Modal */}
-      {showProposalForm && (
-        <div className="bg-white rounded-lg border-2 border-blue-300 p-6 mt-6" data-testid="proposal-form">
-          <div className="flex items-center gap-2 mb-4">
-            <FileEdit className="w-5 h-5 text-blue-600" />
-            <h2 className="text-lg font-semibold text-slate-900">Proposer une modification</h2>
-          </div>
-          <p className="text-sm text-slate-500 mb-4">
-            Les participants devront accepter cette modification avant qu'elle ne soit appliquée.
-          </p>
-          <div className="grid md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="prop-datetime">Date et heure</Label>
-              <Input
-                id="prop-datetime" type="datetime-local" data-testid="proposal-datetime-input"
-                value={proposalForm.start_datetime}
-                min={(() => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}T${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}`; })()}
-                onChange={(e) => setProposalForm({ ...proposalForm, start_datetime: e.target.value })}
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <Label htmlFor="prop-duration">Durée (minutes)</Label>
-              <Input
-                id="prop-duration" type="number" min="15" step="15" data-testid="proposal-duration-input"
-                value={proposalForm.duration_minutes}
-                onChange={(e) => setProposalForm({ ...proposalForm, duration_minutes: e.target.value })}
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <Label htmlFor="prop-type">Type</Label>
-              <select
-                id="prop-type" data-testid="proposal-type-select"
-                value={proposalForm.appointment_type}
-                onChange={(e) => setProposalForm({ ...proposalForm, appointment_type: e.target.value })}
-                className="mt-1 w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
-              >
-                <option value="physical">En personne</option>
-                <option value="video">Visioconférence</option>
-              </select>
-            </div>
-            <div>
-              <Label htmlFor="prop-location">{proposalForm.appointment_type === 'video' ? 'Plateforme visio' : 'Lieu'}</Label>
-              {proposalForm.appointment_type === 'video' ? (
-                <select
-                  id="prop-location" data-testid="proposal-provider-select"
-                  value={proposalForm.meeting_provider || ''}
-                  onChange={(e) => setProposalForm({ ...proposalForm, meeting_provider: e.target.value })}
-                  className="mt-1 w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
-                >
-                  <option value="">-- Sélectionner --</option>
-                  <option value="zoom">Zoom</option>
-                  <option value="teams">Microsoft Teams</option>
-                  <option value="meet">Google Meet</option>
-                  <option value="external">Lien externe</option>
-                </select>
-              ) : (
-                <Input
-                  id="prop-location" data-testid="proposal-location-input"
-                  value={proposalForm.location}
-                  onChange={(e) => setProposalForm({ ...proposalForm, location: e.target.value })}
-                  className="mt-1"
-                />
-              )}
-            </div>
-          </div>
-          {proposalForm.start_datetime && new Date(proposalForm.start_datetime) <= new Date() && (
-            <p className="text-sm text-red-600 mt-2" data-testid="proposal-datetime-past-error">
-              La date et l'heure de l'engagement doivent être dans le futur
-            </p>
-          )}
-          <div className="flex gap-2 mt-4">
-            <Button onClick={onSubmitProposal} disabled={submittingProposal} data-testid="submit-proposal-btn">
-              {submittingProposal ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Send className="w-4 h-4 mr-1" />}
-              Envoyer la proposition
-            </Button>
-            <Button variant="outline" onClick={() => setShowProposalForm(false)} data-testid="cancel-proposal-form-btn">
-              Annuler
-            </Button>
-          </div>
-        </div>
-      )}
-
       {/* Active Proposal Banner */}
       {activeProposal && activeProposal.status === 'pending' && (
         <div className="bg-blue-50 border-2 border-blue-300 rounded-lg p-6 mt-6" data-testid="active-proposal-banner">
@@ -185,7 +97,7 @@ export default function ModificationProposals({
 
       {/* Proposal History */}
       {proposalHistory.length > 0 && (
-        <div className="mt-4">
+        <div className="mt-4 px-4 pb-4">
           <button onClick={() => setShowHistory(!showHistory)} className="flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700" data-testid="toggle-proposal-history">
             <ChevronDown className={`w-4 h-4 transition-transform ${showHistory ? 'rotate-180' : ''}`} />
             Historique des modifications ({proposalHistory.length})
