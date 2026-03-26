@@ -67,6 +67,11 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API
 - [x] Ordre validé utilisateur: Header+CTA → Essentials → Actions immédiates (calendrier+annuler visible) → Engagement financier → Participants → Checkin #6 → Preuves (replié) → Modifications (replié)
 - [x] 9 sous-composants: AppointmentHeader, AppointmentEssentials, EngagementSummary, FinancialBreakdown, ParticipantsSection, SecondaryActions, OrganizerCheckinBlock, CancelModal, + existants
 
+## Completed — Default Workspace (Mars 2026)
+- [x] Backend: champ `default_workspace_id` dans user settings, validation ownership, endpoint PUT /api/user-settings/me
+- [x] Frontend: WorkspaceContext utilise default > localStorage > premier workspace, auto-set si unique, badge "Par défaut" + bouton "Défaut" dans WorkspaceSettings
+- [x] Testé: API backend OK, badge affiché, auto-set single workspace
+
 ## Upcoming Tasks
 - [ ] Refactorer InvitationPage.js (1400+ lignes → modules)
 - [ ] Test réel Teams (compte non-pro)

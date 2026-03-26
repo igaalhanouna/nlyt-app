@@ -54,6 +54,12 @@ export const workspaceAPI = {
   update: (id, data) => api.put(`/api/workspaces/${id}`, data),
 };
 
+export const userSettingsAPI = {
+  get: () => api.get('/api/user-settings/me'),
+  update: (data) => api.put('/api/user-settings/me', data),
+  setDefaultWorkspace: (workspaceId) => api.put('/api/user-settings/me', { default_workspace_id: workspaceId }),
+};
+
 export const appointmentAPI = {
   create: (data) => api.post('/api/appointments/', data),
   list: (workspace_id, { skip = 0, limit = 20, time_filter } = {}) => api.get('/api/appointments/', { params: { workspace_id, skip, limit, time_filter } }),

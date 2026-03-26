@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { workspaceAPI } from '../services/api';
+import { workspaceAPI, userSettingsAPI } from '../services/api';
 import { useAuth } from './AuthContext';
 
 const WorkspaceContext = createContext();
@@ -16,6 +16,7 @@ export function WorkspaceProvider({ children }) {
   const { user } = useAuth();
   const [currentWorkspace, setCurrentWorkspace] = useState(null);
   const [workspaces, setWorkspaces] = useState([]);
+  const [defaultWorkspaceId, setDefaultWorkspaceId] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -24,21 +25,32 @@ export function WorkspaceProvider({ children }) {
     } else {
       setWorkspaces([]);
       setCurrentWorkspace(null);
+      setDefaultWorkspaceId(null);
       setLoading(false);
     }
   }, [user]);
 
   const loadWorkspaces = async () => {
     try {
-      const response = await workspaceAPI.list();
-      const workspaceList = response.data.workspaces || [];
+      const [wsResponse, settingsResponse] = await Promise.all([
+        workspaceAPI.list(),
+        userSettingsAPI.get().catch(() => ({ data: {} })),
+      ]);
+      const workspaceList = wsResponse.data.workspaces || [];
       setWorkspaces(workspaceList);
-      
+
+      const serverDefault = settingsResponse.data?.default_workspace_id || null;
+      setDefaultWorkspaceId(serverDefault);
+
+      // Priority: server default > localStorage > first workspace
       const savedWorkspaceId = localStorage.getItem('nlyt_current_workspace');
-      if (savedWorkspaceId) {
-        const workspace = workspaceList.find(w => w.workspace_id === savedWorkspaceId);
+      const priorityId = serverDefault || savedWorkspaceId;
+
+      if (priorityId) {
+        const workspace = workspaceList.find(w => w.workspace_id === priorityId);
         if (workspace) {
           setCurrentWorkspace(workspace);
+          localStorage.setItem('nlyt_current_workspace', workspace.workspace_id);
         } else if (workspaceList.length > 0) {
           setCurrentWorkspace(workspaceList[0]);
           localStorage.setItem('nlyt_current_workspace', workspaceList[0].workspace_id);
@@ -46,6 +58,13 @@ export function WorkspaceProvider({ children }) {
       } else if (workspaceList.length > 0) {
         setCurrentWorkspace(workspaceList[0]);
         localStorage.setItem('nlyt_current_workspace', workspaceList[0].workspace_id);
+      }
+
+      // Auto-set default if single workspace and no default set
+      if (workspaceList.length === 1 && !serverDefault) {
+        userSettingsAPI.setDefaultWorkspace(workspaceList[0].workspace_id)
+          .then(() => setDefaultWorkspaceId(workspaceList[0].workspace_id))
+          .catch(() => {});
       }
     } catch (error) {
       console.error('Error loading workspaces:', error);
@@ -57,6 +76,11 @@ export function WorkspaceProvider({ children }) {
   const selectWorkspace = (workspace) => {
     setCurrentWorkspace(workspace);
     localStorage.setItem('nlyt_current_workspace', workspace.workspace_id);
+  };
+
+  const setDefaultWorkspace = async (workspaceId) => {
+    await userSettingsAPI.setDefaultWorkspace(workspaceId);
+    setDefaultWorkspaceId(workspaceId);
   };
 
   const createWorkspace = async (name, description) => {
@@ -81,8 +105,10 @@ export function WorkspaceProvider({ children }) {
   const value = {
     currentWorkspace,
     workspaces,
+    defaultWorkspaceId,
     loading,
     selectWorkspace,
+    setDefaultWorkspace,
     createWorkspace,
     updateWorkspace,
     refreshWorkspaces: loadWorkspaces,

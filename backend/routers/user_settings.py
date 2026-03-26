@@ -43,6 +43,7 @@ class UserSettingsUpdate(BaseModel):
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     phone: Optional[str] = None
+    default_workspace_id: Optional[str] = None
     
     # Appointment defaults
     appointment_defaults: Optional[AppointmentDefaults] = None
@@ -93,6 +94,12 @@ async def update_user_settings(
         update_data["last_name"] = settings.last_name
     if settings.phone is not None:
         update_data["phone"] = settings.phone
+    if settings.default_workspace_id is not None:
+        # Verify workspace exists and belongs to user
+        ws = db.workspaces.find_one({"workspace_id": settings.default_workspace_id, "owner_id": user['user_id']}, {"_id": 0})
+        if not ws:
+            raise HTTPException(status_code=400, detail="Workspace introuvable")
+        update_data["default_workspace_id"] = settings.default_workspace_id
     
     # Update appointment defaults
     if settings.appointment_defaults:

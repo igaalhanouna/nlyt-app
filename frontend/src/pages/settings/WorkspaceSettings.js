@@ -3,19 +3,20 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
-import { Building2, ChevronDown, Check, Plus, Trash2, Pencil, X, Loader2 } from 'lucide-react';
+import { Building2, ChevronDown, Check, Plus, Trash2, Pencil, X, Loader2, Star } from 'lucide-react';
 import { useWorkspace } from '../../contexts/WorkspaceContext';
 import { toast } from 'sonner';
 import SettingsPageLayout from '../../components/SettingsPageLayout';
 
 export default function WorkspaceSettings() {
   const navigate = useNavigate();
-  const { currentWorkspace, workspaces, selectWorkspace, createWorkspace, updateWorkspace } = useWorkspace();
+  const { currentWorkspace, workspaces, defaultWorkspaceId, selectWorkspace, setDefaultWorkspace, createWorkspace, updateWorkspace } = useWorkspace();
   const [workspaceDropdownOpen, setWorkspaceDropdownOpen] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newWorkspaceName, setNewWorkspaceName] = useState('');
   const [newWorkspaceDescription, setNewWorkspaceDescription] = useState('');
   const [creatingWorkspace, setCreatingWorkspace] = useState(false);
+  const [settingDefault, setSettingDefault] = useState(null);
 
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState('');
@@ -90,6 +91,18 @@ export default function WorkspaceSettings() {
     }
   };
 
+  const handleSetDefault = async (workspaceId) => {
+    setSettingDefault(workspaceId);
+    try {
+      await setDefaultWorkspace(workspaceId);
+      toast.success('Workspace par défaut mis à jour');
+    } catch {
+      toast.error('Erreur lors de la mise à jour');
+    } finally {
+      setSettingDefault(null);
+    }
+  };
+
   const workspaceSelectorAction = (
     <div className="relative">
       <button
@@ -132,6 +145,9 @@ export default function WorkspaceSettings() {
                   </div>
                   {workspace.workspace_id === currentWorkspace?.workspace_id && (
                     <Check className="w-4 h-4 text-green-600" />
+                  )}
+                  {workspace.workspace_id === defaultWorkspaceId && (
+                    <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
                   )}
                 </button>
               ))}
@@ -262,6 +278,11 @@ export default function WorkspaceSettings() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
+                  {workspace.workspace_id === defaultWorkspaceId && (
+                    <span className="px-2 py-1 bg-amber-100 text-amber-800 text-xs rounded-full font-medium flex items-center gap-1" data-testid={`default-badge-${workspace.workspace_id}`}>
+                      <Star className="w-3 h-3 fill-amber-600" /> Par défaut
+                    </span>
+                  )}
                   {workspace.workspace_id === currentWorkspace?.workspace_id ? (
                     <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full font-medium">
                       Actif
@@ -273,6 +294,19 @@ export default function WorkspaceSettings() {
                       onClick={() => selectWorkspace(workspace)}
                     >
                       Sélectionner
+                    </Button>
+                  )}
+                  {workspace.workspace_id !== defaultWorkspaceId && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleSetDefault(workspace.workspace_id)}
+                      disabled={settingDefault === workspace.workspace_id}
+                      className="text-slate-500 hover:text-amber-600"
+                      data-testid={`set-default-btn-${workspace.workspace_id}`}
+                    >
+                      {settingDefault === workspace.workspace_id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Star className="w-3.5 h-3.5 mr-1" />}
+                      Défaut
                     </Button>
                   )}
                 </div>
