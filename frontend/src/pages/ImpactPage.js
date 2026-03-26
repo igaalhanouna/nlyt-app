@@ -63,7 +63,6 @@ export default function ImpactPage() {
     );
   }
 
-  const hasData = data && data.total_charity_cents > 0;
   const contributions = data?.contributions?.items || [];
   const associations = data?.associations || [];
 
@@ -120,9 +119,7 @@ export default function ImpactPage() {
         </div>
       </section>
 
-      {hasData ? (
-        <>
-          {/* ── Comment ça fonctionne (juste après hero) ── */}
+      {/* ── Comment ça fonctionne (juste après hero) ── */}
           <section className="py-10 sm:py-20 px-4 sm:px-6 border-t border-white/5" data-testid="how-it-works">
             <div className="max-w-3xl mx-auto">
               <h2 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight text-center mb-8 sm:mb-16">Comment ça fonctionne ?</h2>
@@ -352,43 +349,6 @@ export default function ImpactPage() {
               </Link>
             </div>
           </section>
-        </>
-      ) : (
-        /* ── Empty State ── */
-        <section className="py-10 sm:py-20 px-4 sm:px-6 border-t border-white/5">
-          <div className="max-w-3xl mx-auto space-y-6 sm:space-y-8">
-            <div className="p-8 sm:p-12 rounded-2xl bg-white/[0.03] border border-white/5 text-center" data-testid="charity-empty">
-              <Heart className="w-10 h-10 text-rose-400/30 mx-auto mb-4 sm:mb-6" />
-              <p className="text-lg font-semibold text-white mb-2">Les gestes solidaires commencent ici</p>
-              <p className="text-sm text-slate-400 max-w-md mx-auto">
-                Dès que des garanties d'engagement seront traitées avec une part solidaire,
-                les montants reversés aux associations apparaîtront ici.
-              </p>
-            </div>
-
-            <div className="p-4 sm:p-8 rounded-xl sm:rounded-2xl bg-white/[0.03] border border-white/5">
-              <div className="flex gap-3 sm:gap-4">
-                <Info className="w-5 h-5 text-slate-500 flex-shrink-0 mt-0.5" />
-                <div>
-                  <h3 className="text-sm sm:text-base font-semibold text-white mb-2">Transparence sur les montants</h3>
-                  <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
-                    Les montants affichés sur cette page sont <strong className="text-white">reversés à des associations</strong> et accumulés
-                    sur la plateforme NLYT. Le transfert vers les associations n'a pas encore eu lieu.
-                  </p>
-                  <p className="text-xs sm:text-sm text-slate-400 leading-relaxed mt-2">
-                    Le <strong className="text-white">reversement automatique</strong> vers les associations partenaires sera implémenté dans une
-                    prochaine version de la plateforme. En attendant, chaque euro est comptabilisé et traçable.
-                  </p>
-                  <div className="flex items-center gap-1.5 mt-3 sm:mt-4">
-                    <Clock className="w-3.5 h-3.5 text-slate-500" />
-                    <span className="text-[10px] sm:text-xs text-slate-500 font-medium">Reversement automatique — bientôt disponible</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-      )}
 
       {/* ── Footer (identique à Landing) ── */}
       <footer className="border-t border-white/5 py-8 sm:py-10 px-4 sm:px-6">
