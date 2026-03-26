@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useWorkspace } from '../../contexts/WorkspaceContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -466,6 +466,46 @@ export default function OrganizerDashboard() {
       setExternalEvents(res.data?.events || []);
     } catch { /* silent */ }
   };
+
+  // ── Auto-refresh: 2-minute interval for enabled providers ──
+  const syncIntervalRef = useRef(null);
+  const syncInProgressRef = useRef(false);
+
+  useEffect(() => {
+    const providers = importSettings?.providers || {};
+    const hasEnabled = Object.values(providers).some(p => p.import_enabled);
+
+    // Clear any existing interval
+    if (syncIntervalRef.current) {
+      clearInterval(syncIntervalRef.current);
+      syncIntervalRef.current = null;
+    }
+
+    if (!hasEnabled) return;
+
+    syncIntervalRef.current = setInterval(async () => {
+      // Guard: skip if a sync is already running
+      if (syncInProgressRef.current || syncing) return;
+      syncInProgressRef.current = true;
+      try {
+        await externalEventsAPI.sync(false);
+        const [settingsRes, eventsRes] = await Promise.all([
+          externalEventsAPI.getImportSettings(),
+          externalEventsAPI.list(),
+        ]);
+        setImportSettings(settingsRes.data);
+        setExternalEvents(eventsRes.data?.events || []);
+      } catch { /* silent — retry next cycle */ }
+      finally { syncInProgressRef.current = false; }
+    }, 120_000); // 2 minutes
+
+    return () => {
+      if (syncIntervalRef.current) {
+        clearInterval(syncIntervalRef.current);
+        syncIntervalRef.current = null;
+      }
+    };
+  }, [importSettings, syncing]);
 
   // ── Computed data ──
   const computed = useMemo(() => {

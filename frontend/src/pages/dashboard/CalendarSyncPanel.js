@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { RefreshCw, Loader2 } from 'lucide-react';
 import { externalEventsAPI } from '../../services/api';
 import { toast } from 'sonner';
@@ -44,9 +44,18 @@ function formatTimeAgo(isoStr) {
 
 export default function CalendarSyncPanel({ importSettings, onSettingChange, onSync, syncing }) {
   const [togglingProvider, setTogglingProvider] = useState(null);
+  // Live "time ago" ticker — re-renders every 30s
+  const [, setTick] = useState(0);
 
   const providers = importSettings?.providers || {};
   const connectedProviders = Object.keys(providers);
+  const hasAnyEnabled = connectedProviders.some(p => providers[p]?.import_enabled);
+
+  useEffect(() => {
+    if (!hasAnyEnabled) return;
+    const id = setInterval(() => setTick(t => t + 1), 30_000);
+    return () => clearInterval(id);
+  }, [hasAnyEnabled]);
 
   if (connectedProviders.length === 0) return null;
 
@@ -64,8 +73,6 @@ export default function CalendarSyncPanel({ importSettings, onSettingChange, onS
       setTogglingProvider(null);
     }
   };
-
-  const hasAnyEnabled = connectedProviders.some(p => providers[p]?.import_enabled);
 
   return (
     <div className="mb-6" data-testid="calendar-sync-panel">

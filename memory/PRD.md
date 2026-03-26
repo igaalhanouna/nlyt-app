@@ -192,6 +192,15 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API
 - [x] Testé : ouverture, fermeture (3 méthodes), pré-remplissage, overlay, pas de régression
 - [x] Polish UX : auto-focus premier champ, loading bloque fermeture pendant soumission, fermeture auto + toast succès
 
+## Auto-refresh calendriers synchronisés (Mars 2026)
+- [x] Interval 2 minutes pour providers actifs (toggle ON)
+- [x] Guard anti-doublon (`syncInProgressRef`)
+- [x] Nettoyage propre des intervals (démontage, toggle OFF)
+- [x] Appel `sync(force=false)` — respecte le cache backend TTL 5min
+- [x] Indicateur "Dernière sync" en temps réel (ticker 30s dans CalendarSyncPanel)
+- [x] Erreurs silencieuses, retry cycle suivant
+- [x] Aucun flash/scroll — mise à jour discrète via setState
+
 ## Upcoming Tasks
 - [ ] P1: Améliorer la prise de décision (recommandation de créneau)
 - [ ] P2: Test réel Teams (compte non-pro)
