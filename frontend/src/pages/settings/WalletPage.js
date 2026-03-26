@@ -435,16 +435,25 @@ function ImpactSection({ impact }) {
   );
 }
 
-/* ─── Business Type Labels ───────────────────────────────────── */
+/* ─── Profile Type Labels ────────────────────────────────── */
 
-const BUSINESS_TYPE_LABELS = {
-  individual: 'Particulier / Indépendant',
+const PROFILE_TYPE_LABELS = {
+  particulier: 'Particulier',
+  independant: 'Indépendant / Auto-entrepreneur',
   company: 'Société / Organisation',
 };
 
-/* ─── Profile Type Selector ─────────────────────────────────── */
+const PROFILE_TYPE_DESCRIPTIONS = {
+  particulier: 'Personne physique sans activité professionnelle',
+  independant: 'Freelance, micro-entreprise, auto-entrepreneur',
+  company: 'SARL, SAS, association, fondation',
+};
+
+/* ─── Profile Type Selector (2-step inline) ─────────────── */
 
 function ProfileTypeSelector({ onSelect, loading }) {
+  const [showProSub, setShowProSub] = useState(false);
+
   return (
     <div className="border border-slate-200 rounded-lg p-5 mb-8 bg-white" data-testid="profile-type-selector">
       <div className="flex items-center gap-2 mb-1">
@@ -454,44 +463,70 @@ function ProfileTypeSelector({ onSelect, loading }) {
       <p className="text-xs text-slate-500 mb-5">Quel type de profil correspond à votre situation ?</p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {/* Particulier */}
         <button
-          onClick={() => onSelect('individual')}
+          onClick={() => { setShowProSub(false); onSelect('particulier'); }}
           disabled={loading}
-          className="group relative border-2 border-slate-200 hover:border-slate-900 rounded-lg p-4 text-left transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2"
-          data-testid="select-individual-btn"
+          className="group border-2 border-slate-200 hover:border-slate-900 rounded-lg p-4 text-left transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2"
+          data-testid="select-particulier-btn"
         >
-          <div className="flex items-center gap-3 mb-2">
+          <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-full bg-blue-50 flex items-center justify-center flex-shrink-0 group-hover:bg-blue-100 transition-colors">
               <svg className="w-4.5 h-4.5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
               </svg>
             </div>
             <div>
-              <p className="text-sm font-semibold text-slate-900">Particulier / Indépendant</p>
-              <p className="text-[11px] text-slate-500">Personne physique, auto-entrepreneur, freelance</p>
+              <p className="text-sm font-semibold text-slate-900">Particulier</p>
+              <p className="text-[11px] text-slate-500">Personne physique sans activité professionnelle</p>
             </div>
           </div>
         </button>
 
+        {/* Professionnel */}
         <button
-          onClick={() => onSelect('company')}
-          disabled={loading}
-          className="group relative border-2 border-slate-200 hover:border-slate-900 rounded-lg p-4 text-left transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2"
-          data-testid="select-company-btn"
+          onClick={() => setShowProSub(prev => !prev)}
+          className={`group border-2 rounded-lg p-4 text-left transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2 ${showProSub ? 'border-slate-900 bg-slate-50' : 'border-slate-200 hover:border-slate-900'}`}
+          data-testid="select-professionnel-btn"
         >
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-9 h-9 rounded-full bg-violet-50 flex items-center justify-center flex-shrink-0 group-hover:bg-violet-100 transition-colors">
+          <div className="flex items-center gap-3">
+            <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 transition-colors ${showProSub ? 'bg-violet-100' : 'bg-violet-50 group-hover:bg-violet-100'}`}>
               <svg className="w-4.5 h-4.5 text-violet-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
               </svg>
             </div>
             <div>
-              <p className="text-sm font-semibold text-slate-900">Société / Organisation</p>
-              <p className="text-[11px] text-slate-500">SARL, SAS, association, fondation</p>
+              <p className="text-sm font-semibold text-slate-900">Professionnel</p>
+              <p className="text-[11px] text-slate-500">Indépendant, société, association</p>
             </div>
           </div>
         </button>
       </div>
+
+      {/* Sub-options for Professionnel — inline */}
+      {showProSub && (
+        <div className="mt-3 pl-0 sm:pl-[calc(50%+0.375rem)] space-y-2" data-testid="pro-sub-options">
+          <p className="text-[11px] text-slate-500 mb-2 font-medium">Précisez votre situation :</p>
+          <button
+            onClick={() => onSelect('independant')}
+            disabled={loading}
+            className="w-full border border-slate-200 hover:border-slate-700 rounded-md px-3.5 py-3 text-left transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-1"
+            data-testid="select-independant-btn"
+          >
+            <p className="text-sm font-medium text-slate-800">Indépendant / Auto-entrepreneur</p>
+            <p className="text-[11px] text-slate-500">Freelance, micro-entreprise</p>
+          </button>
+          <button
+            onClick={() => onSelect('company')}
+            disabled={loading}
+            className="w-full border border-slate-200 hover:border-slate-700 rounded-md px-3.5 py-3 text-left transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-1"
+            data-testid="select-company-btn"
+          >
+            <p className="text-sm font-medium text-slate-800">Société / Organisation</p>
+            <p className="text-[11px] text-slate-500">SARL, SAS, association, fondation</p>
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -500,7 +535,7 @@ function ProfileTypeSelector({ onSelect, loading }) {
 
 function ConnectStatusCard({ connectStatus, onOnboard, onDashboard, onRefresh, onboarding, onPayout, canPayout, onChangeType }) {
   const status = connectStatus?.connect_status || 'not_started';
-  const businessType = connectStatus?.business_type;
+  const profileType = connectStatus?.profile_type;
   const cfg = CONNECT_STATUS_CONFIG[status] || CONNECT_STATUS_CONFIG.not_started;
   const StatusIcon = cfg.icon;
 
@@ -511,9 +546,9 @@ function ConnectStatusCard({ connectStatus, onOnboard, onDashboard, onRefresh, o
         <div className="flex-1">
           <div className="flex items-center gap-2 flex-wrap">
             <h3 className={`text-sm font-semibold ${cfg.color}`} data-testid="connect-status-label">{cfg.label}</h3>
-            {businessType && (
-              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-slate-100 text-slate-600" data-testid="connect-business-type-badge">
-                {BUSINESS_TYPE_LABELS[businessType] || businessType}
+            {profileType && (
+              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-slate-100 text-slate-600" data-testid="connect-profile-type-badge">
+                {PROFILE_TYPE_LABELS[profileType] || profileType}
               </span>
             )}
           </div>
@@ -550,8 +585,7 @@ function ConnectStatusCard({ connectStatus, onOnboard, onDashboard, onRefresh, o
             )}
             <Button size="sm" variant="ghost" onClick={onRefresh} data-testid="refresh-wallet-btn"><RefreshCw className="w-3.5 h-3.5" /></Button>
           </div>
-          {/* Change profile type link */}
-          {businessType && (
+          {profileType && (
             <button
               onClick={onChangeType}
               className="mt-3 text-[11px] text-slate-400 hover:text-slate-600 underline underline-offset-2 transition-colors"
@@ -566,11 +600,19 @@ function ConnectStatusCard({ connectStatus, onOnboard, onDashboard, onRefresh, o
   );
 }
 
-/* ─── Change Profile Type Modal ────────────────────────────── */
+/* ─── Change Profile Type Modal (3 options) ────────────────── */
 
 function ChangeProfileTypeModal({ currentType, onConfirm, onCancel, loading, connectStatus }) {
   const isActive = connectStatus === 'active';
-  const otherType = currentType === 'individual' ? 'company' : 'individual';
+  const allTypes = ['particulier', 'independant', 'company'];
+  const otherTypes = allTypes.filter(t => t !== currentType);
+
+  // Check if changing to this type requires Stripe reset
+  const currentStripeType = currentType === 'company' ? 'company' : 'individual';
+  const willResetStripe = (targetType) => {
+    const targetStripeType = targetType === 'company' ? 'company' : 'individual';
+    return currentStripeType !== targetStripeType;
+  };
 
   return (
     <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg" data-testid="change-type-modal">
@@ -579,39 +621,43 @@ function ChangeProfileTypeModal({ currentType, onConfirm, onCancel, loading, con
         <div>
           <p className="text-sm font-medium text-amber-900">Modifier votre type de profil</p>
           <p className="text-xs text-amber-700 mt-1">
-            Profil actuel : <span className="font-semibold">{BUSINESS_TYPE_LABELS[currentType]}</span>
+            Profil actuel : <span className="font-semibold">{PROFILE_TYPE_LABELS[currentType]}</span>
           </p>
         </div>
       </div>
 
-      {isActive && (
-        <div className="flex items-start gap-2 p-3 bg-white/70 rounded-lg mb-3">
-          <Info className="w-3.5 h-3.5 text-amber-600 mt-0.5 flex-shrink-0" />
-          <p className="text-[11px] text-amber-800 leading-relaxed">
-            Votre compte bancaire est actuellement actif. Le changement de profil nécessitera de <strong>relancer la vérification Stripe</strong> avec le nouveau type. Votre historique de transactions dans NLYT sera conservé.
-          </p>
-        </div>
-      )}
-
-      <p className="text-xs text-amber-700 mb-3">
-        Nouveau profil : <span className="font-semibold">{BUSINESS_TYPE_LABELS[otherType]}</span>
-      </p>
-
-      <div className="flex flex-col sm:flex-row gap-2">
-        <Button
-          size="sm"
-          className="bg-amber-600 hover:bg-amber-700 text-white min-h-[44px] sm:min-h-0"
-          onClick={() => onConfirm(otherType)}
-          disabled={loading}
-          data-testid="confirm-type-change-btn"
-        >
-          {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <RefreshCw className="w-3.5 h-3.5 mr-1.5" />}
-          Confirmer le changement
-        </Button>
-        <Button size="sm" variant="ghost" onClick={onCancel} className="min-h-[44px] sm:min-h-0" data-testid="cancel-type-change-btn">
-          Annuler
-        </Button>
+      <div className="space-y-2 mb-3">
+        {otherTypes.map(type => {
+          const needsReset = willResetStripe(type);
+          return (
+            <button
+              key={type}
+              onClick={() => onConfirm(type)}
+              disabled={loading}
+              className="w-full border border-amber-200 hover:border-amber-500 bg-white/70 hover:bg-white rounded-md px-3.5 py-3 text-left transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-1"
+              data-testid={`change-to-${type}-btn`}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-slate-800">{PROFILE_TYPE_LABELS[type]}</p>
+                  <p className="text-[11px] text-slate-500">{PROFILE_TYPE_DESCRIPTIONS[type]}</p>
+                </div>
+                {loading && <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-600 flex-shrink-0" />}
+              </div>
+              {needsReset && (isActive || connectStatus === 'onboarding') && (
+                <div className="flex items-start gap-1.5 mt-2 pt-2 border-t border-amber-100">
+                  <Info className="w-3 h-3 text-amber-600 mt-0.5 flex-shrink-0" />
+                  <p className="text-[10px] text-amber-700">Ce changement nécessitera de relancer la vérification Stripe</p>
+                </div>
+              )}
+            </button>
+          );
+        })}
       </div>
+
+      <Button size="sm" variant="ghost" onClick={onCancel} className="min-h-[44px] sm:min-h-0" data-testid="cancel-type-change-btn">
+        Annuler
+      </Button>
     </div>
   );
 }
@@ -770,8 +816,8 @@ export default function WalletPage() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  const handleOnboard = async (businessType) => {
-    const typeToUse = businessType || connectStatus?.business_type || 'individual';
+  const handleOnboard = async (profileType) => {
+    const typeToUse = profileType || connectStatus?.profile_type || 'particulier';
     setOnboarding(true);
     try {
       const res = await connectAPI.onboard(typeToUse);
@@ -783,15 +829,19 @@ export default function WalletPage() {
     } finally { setOnboarding(false); }
   };
 
-  const handleProfileSelect = (businessType) => {
-    handleOnboard(businessType);
+  const handleProfileSelect = (profileType) => {
+    handleOnboard(profileType);
   };
 
   const handleChangeType = async (newType) => {
     setChangeTypeLoading(true);
     try {
-      await connectAPI.reset(newType);
-      toast.success("Profil modifié. Relancez la liaison de votre compte.");
+      const res = await connectAPI.reset(newType);
+      const needsReonboard = res.data.stripe_reset;
+      toast.success(needsReonboard
+        ? "Profil modifié. Relancez la vérification."
+        : "Profil mis à jour."
+      );
       setShowChangeType(false);
       await fetchData();
     } catch (err) {
@@ -859,15 +909,15 @@ export default function WalletPage() {
 
         <BalanceCards wallet={wallet} onPayout={() => setShowPayoutConfirm(true)} payoutLoading={payoutLoading} />
 
-        {/* Profile type selector — shown when no business_type chosen yet AND no account exists */}
-        {connectStatus?.connect_status === 'not_started' && !connectStatus?.business_type ? (
+        {/* Profile type selector — shown when no profile_type chosen yet AND no account exists */}
+        {connectStatus?.connect_status === 'not_started' && !connectStatus?.profile_type ? (
           <ProfileTypeSelector onSelect={handleProfileSelect} loading={onboarding} />
         ) : (
           <>
             {/* Change profile type modal */}
-            {showChangeType && connectStatus?.business_type && (
+            {showChangeType && connectStatus?.profile_type && (
               <ChangeProfileTypeModal
-                currentType={connectStatus.business_type}
+                currentType={connectStatus.profile_type}
                 onConfirm={handleChangeType}
                 onCancel={() => setShowChangeType(false)}
                 loading={changeTypeLoading}

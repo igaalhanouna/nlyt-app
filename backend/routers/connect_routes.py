@@ -24,7 +24,7 @@ router = APIRouter()
 
 
 class OnboardRequest(BaseModel):
-    business_type: Optional[str] = "individual"
+    profile_type: Optional[str] = "particulier"
 
 
 @router.post("/onboard")
@@ -32,7 +32,7 @@ async def onboard_connect(request: Request, body: OnboardRequest = OnboardReques
     """Start or resume Stripe Connect Express onboarding."""
     user = await get_current_user(request)
 
-    result = start_onboarding(user["user_id"], body.business_type)
+    result = start_onboarding(user["user_id"], body.profile_type)
     if not result.get("success"):
         raise HTTPException(status_code=400, detail=result.get("error", "Erreur onboarding"))
 
@@ -61,15 +61,15 @@ async def connect_dashboard(request: Request):
 
 
 class ResetRequest(BaseModel):
-    new_business_type: str
+    new_profile_type: str
 
 
 @router.post("/reset")
 async def reset_connect(request: Request, body: ResetRequest):
-    """Reset Connect account to change business_type."""
+    """Reset Connect account to change profile type."""
     user = await get_current_user(request)
 
-    result = reset_connect_account(user["user_id"], body.new_business_type)
+    result = reset_connect_account(user["user_id"], body.new_profile_type)
     if not result.get("success"):
         raise HTTPException(status_code=400, detail=result.get("error", "Erreur reset"))
 

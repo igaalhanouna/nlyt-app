@@ -1,0 +1,98 @@
+{
+  "summary": "Stripe Connect 3-profile 2-step selector testing complete. All backend APIs working correctly with real Stripe test mode. Frontend 2-step profile selector (Particulier/Professionnel → Indépendant/Société), ConnectStatusCard with profile_type badge, and ChangeProfileTypeModal with conditional Stripe reset warning all functioning properly. Mobile responsive at 375px.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": {
+    "backend_api_tests": [
+      "✅ GET /api/connect/status returns profile_type and business_type fields",
+      "✅ POST /api/connect/onboard with profile_type=particulier creates Stripe individual account",
+      "✅ POST /api/connect/onboard with profile_type=independant creates Stripe individual account",
+      "✅ POST /api/connect/onboard with profile_type=company creates Stripe company account",
+      "✅ POST /api/connect/reset from particulier to independant does NOT delete Stripe account (stripe_reset: false)",
+      "✅ POST /api/connect/reset from independant to company DOES delete Stripe account (stripe_reset: true)",
+      "✅ POST /api/connect/reset rejects same profile_type (returns 400)",
+      "✅ POST /api/connect/onboard rejects invalid profile_type",
+      "✅ POST /api/connect/reset rejects invalid profile_type",
+      "✅ All endpoints require authentication (401 without token)"
+    ],
+    "frontend_profile_selector_2step": [
+      "✅ Step 1: 'Particulier' and 'Professionnel' cards shown when connect_status=not_started and profile_type=null",
+      "✅ Step 2: Clicking 'Professionnel' expands inline sub-options",
+      "✅ Sub-options: 'Indépendant / Auto-entrepreneur' and 'Société / Organisation'",
+      "✅ data-testid='profile-type-selector' present",
+      "✅ data-testid='select-particulier-btn' present",
+      "✅ data-testid='select-professionnel-btn' present",
+      "✅ data-testid='pro-sub-options' present when expanded",
+      "✅ data-testid='select-independant-btn' present",
+      "✅ data-testid='select-company-btn' present"
+    ],
+    "frontend_connect_status_card": [
+      "✅ ConnectStatusCard shows profile_type badge when type is set",
+      "✅ Badge displays 'Indépendant / Auto-entrepreneur' for independant profile",
+      "✅ 'Modifier mon type de profil' link appears when profile_type is set",
+      "✅ data-testid='connect-status-card' present",
+      "✅ data-testid='connect-profile-type-badge' present",
+      "✅ data-testid='change-profile-type-btn' present"
+    ],
+    "frontend_change_type_modal": [
+      "✅ Change type modal opens when clicking 'Modifier mon type de profil'",
+      "✅ Modal shows current type: 'Indépendant / Auto-entrepreneur'",
+      "✅ Modal shows 2 other options (not current type)",
+      "✅ 'Particulier' option visible (no Stripe reset warning - same Stripe type)",
+      "✅ 'Société / Organisation' option visible WITH Stripe reset warning (different Stripe type)",
+      "✅ Warning text: 'Ce changement nécessitera de relancer la vérification Stripe'",
+      "✅ 'Annuler' button present",
+      "✅ data-testid='change-type-modal' present",
+      "✅ data-testid='change-to-particulier-btn' present",
+      "✅ data-testid='change-to-company-btn' present"
+    ],
+    "frontend_mobile_responsive": [
+      "✅ Profile selector cards stack vertically at 375px viewport",
+      "✅ Particulier card: width=301px, full width",
+      "✅ Professionnel card: width=301px, positioned below Particulier card",
+      "✅ No horizontal overflow at 375px (page width: 375px)",
+      "✅ Balance cards stack vertically on mobile",
+      "✅ Connect status card displays properly on mobile",
+      "✅ Change modal displays properly on mobile"
+    ]
+  },
+  "failed_tests": {},
+  "test_report_links": [
+    "/app/backend/tests/test_stripe_connect_3profile.py",
+    "/app/test_reports/pytest/pytest_stripe_connect_3profile.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Backend PROFILE_TO_STRIPE mapping correctly maps particulier→individual, independant→individual, company→company",
+    "Reset logic correctly differentiates between same Stripe type (DB update only) and different Stripe type (Stripe account deletion)",
+    "Frontend ProfileTypeSelector implements 2-step selection with inline expansion for Professionnel sub-options",
+    "ChangeProfileTypeModal correctly shows Stripe reset warning only when business_type changes",
+    "All data-testid attributes properly added for testing"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_stripe_connect_3profile.py"
+  ],
+  "success_rate": {
+    "backend": "100% (18/18 tests passed)",
+    "frontend": "100%"
+  },
+  "test_credentials": {
+    "user": "stripe-test@nlyt.io / Test123!",
+    "wallet_page": "/settings/wallet"
+  },
+  "seed_data_creation": "Test user wallet reset to clean state (profile_type=null, connect_status=not_started) for testing",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "3-profile Stripe Connect onboarding fully tested. Backend uses real Stripe test mode (sk_test_51TDBIh...). Test user stripe-test@nlyt.io wallet state varies based on test execution. ProfileTypeSelector shows 2-step selection: Step 1 (Particulier/Professionnel), Step 2 (Indépendant/Société when Professionnel clicked). ConnectStatusCard shows profile_type badge. ChangeProfileTypeModal shows 2 other options with Stripe reset warning only when business_type changes (individual↔company).",
+  "mocked_apis": {
+    "has_mocked_apis": false,
+    "mocked_apis_list": []
+  }
+}
