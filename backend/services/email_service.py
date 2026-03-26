@@ -336,15 +336,13 @@ class EmailService:
             '<tr><td style="padding:10px 14px;background:#F0FDF4;border-radius:8px 8px 0 0;border:1px solid #BBF7D0;border-bottom:none;">'
             '<p style="margin:0;font-size:15px;color:#166534;line-height:1.5;">'
             '<span style="font-weight:700;font-size:17px;">&#10004;</span>&nbsp;&nbsp;'
-            'Pr\u00e9sent &rarr; <strong>rien n\'est d\u00e9bit\u00e9</strong></p>'
+            'Tout le monde est pr\u00e9sent et \u00e0 l\'heure &rarr; <strong>rien n\'est d\u00e9bit\u00e9</strong></p>'
             '</td></tr>'
             # Absent row
             '<tr><td style="padding:10px 14px;background:#FEF2F2;border-radius:0 0 8px 8px;border:1px solid #FECACA;">'
             '<p style="margin:0;font-size:15px;color:#991B1B;line-height:1.5;">'
             '<span style="font-weight:700;font-size:17px;">&#10008;</span>&nbsp;&nbsp;'
-            'Absent &rarr; <strong>la garantie est utilis\u00e9e</strong></p>'
-            '<p style="margin:4px 0 0 27px;font-size:13px;color:#B91C1C;line-height:1.4;">'
-            '&rarr; pour vous ou pour une association</p>'
+            'Absent ou tr\u00e8s en retard &rarr; <strong>la garantie du d\u00e9faillant est utilis\u00e9e</strong></p>'
             '</td></tr>'
             '</table>'
             '</div>'
@@ -353,7 +351,7 @@ class EmailService:
         # ── 5. PHRASE CLÉ ──
         value_statement = (
             '<p style="margin:0 0 28px 0;font-size:16px;font-weight:600;color:#0F172A;text-align:center;line-height:1.5;">'
-            'Dans tous les cas, votre temps a de la valeur.</p>'
+            'Votre temps a de la valeur.</p>'
         )
 
         # ── 6. CTA PRINCIPAL ──
