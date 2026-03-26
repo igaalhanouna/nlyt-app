@@ -24,6 +24,7 @@ import ParticipantManagement from './pages/appointments/ParticipantManagement';
 
 import InvitationPage from './pages/invitations/InvitationPage';
 import CheckinPage from './pages/proof/CheckinPage';
+import ResultCardPublicPage from './pages/ResultCardPublicPage';
 
 import DisputeCenter from './pages/disputes/DisputeCenter';
 import DisputeDetail from './pages/disputes/DisputeDetail';
@@ -67,6 +68,7 @@ function App() {
               
               <Route path="/invitation/:token" element={<InvitationPage />} />
               <Route path="/proof/:appointmentId" element={<CheckinPage />} />
+              <Route path="/card/:cardId" element={<ResultCardPublicPage />} />
               <Route path="/impact" element={<ImpactPage />} />
               
               <Route path="/workspace/select" element={<PrivateRoute><SelectWorkspace /></PrivateRoute>} />

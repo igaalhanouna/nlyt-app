@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { parseUTC, utcToLocalInput, localInputToUTC } from '../../utils/dateFormat';
 import AppNavbar from '../../components/AppNavbar';
 import AppBreadcrumb from '../../components/AppBreadcrumb';
+import { useAuth } from '../../contexts/AuthContext';
 
 // Sub-components
 import AppointmentHeader from './AppointmentHeader';
@@ -23,10 +24,12 @@ import ProofSessionsPanel from './ProofSessionsPanel';
 import VideoEvidencePanel from './VideoEvidencePanel';
 import AttendancePanel from './AttendancePanel';
 import EvidenceDashboard from './EvidenceDashboard';
+import ResultCardSection from './ResultCardSection';
 
 export default function AppointmentDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   // Core state
   const [appointment, setAppointment] = useState(null);
@@ -506,6 +509,15 @@ export default function AppointmentDetail() {
               )}
             </div>
           </details>
+        )}
+
+        {/* #7b — Result Card (viral share) — visible after attendance evaluation */}
+        {isEnded && attendance && (
+          <ResultCardSection
+            attendance={attendance}
+            appointment={appointment}
+            userId={user?.user_id}
+          />
         )}
 
         {/* #8 — Modal de modification (ouvert par le crayon) */}
