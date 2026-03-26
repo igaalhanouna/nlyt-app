@@ -133,10 +133,11 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API
 
 ## Bug Fix — Check-in Participants P0 (Mars 2026)
 - [x] Diagnostic: `InvitationCheckinSection.js` ligne 49 excluait `accepted_pending_guarantee` de `isEngaged`
-- [x] Fix: `isEngaged = ['accepted', 'accepted_guaranteed', 'accepted_pending_guarantee'].includes(effectiveStatus)`
+- [x] Fix frontend: `isEngaged = ['accepted', 'accepted_guaranteed', 'accepted_pending_guarantee'].includes(effectiveStatus)`
+- [x] Fix backend: `checkin_routes.py` ligne 256 — `checked_in` n'incluait pas le GPS. Corrigé: `has_checkin or has_qr or has_gps`
 - [x] Cause racine: les participants avec garantie en attente voyaient "Accès verrouillé" au lieu des boutons de check-in
-- [x] Backend vérifié: les 3 statuts sont déjà acceptés par `_resolve_participant` dans `checkin_routes.py`
-- [x] Testé: 100% backend (14/14), 100% frontend (iteration_85)
+- [x] Traçabilité vérifiée: 3 preuves distinctes dans `evidence_items`, rapport organisateur correct, statut individuel correct
+- [x] Testé: 100% backend (14/14), 100% frontend (iteration_85) + test traçabilité E2E
 - [x] 4 scénarios simulés: 1) org+part OK, 2) org+multi OK, 3) non-auth OK, 4) invited bloqué OK
 
 ## Upcoming Tasks

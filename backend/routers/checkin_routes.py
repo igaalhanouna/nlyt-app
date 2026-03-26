@@ -253,7 +253,7 @@ async def get_checkin_status(appointment_id: str, invitation_token: str):
             earliest = ts
 
     return {
-        "checked_in": has_checkin or has_qr,
+        "checked_in": has_checkin or has_qr or has_gps,
         "has_manual_checkin": has_checkin,
         "has_qr_checkin": has_qr,
         "has_gps": has_gps,
