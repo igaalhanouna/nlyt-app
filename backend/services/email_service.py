@@ -306,7 +306,7 @@ class EmailService:
         # ── 1. ACCROCHE PERSONNALISÉE ──
         hook = (
             f'<p style="margin:0 0 6px 0;font-size:14px;color:#64748B;font-weight:500;">'
-            f'{organizer_name} vous propose un engagement</p>'
+            f'{organizer_name} vous propose un engagement solidaire</p>'
         )
 
         # ── 2. HEADLINE ──
