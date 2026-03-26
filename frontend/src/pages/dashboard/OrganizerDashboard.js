@@ -495,7 +495,7 @@ export default function OrganizerDashboard() {
       if (syncInProgressRef.current || syncingRef.current) return;
       syncInProgressRef.current = true;
       try {
-        await externalEventsAPI.sync(false);
+        await externalEventsAPI.sync(true); // force=true — the 2-min interval IS the rate limit
         // Refresh displayed events + settings (for "Dernière sync" timestamp)
         const [settingsRes, eventsRes] = await Promise.all([
           externalEventsAPI.getImportSettings(),
