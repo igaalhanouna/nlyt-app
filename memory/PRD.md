@@ -96,6 +96,32 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API
 - [x] 51 data-testid préservés, 0 régression, 100% tests passés (backend 7/7, frontend 100%)
 - [x] Pattern identique à AppointmentDetail.js (orchestrateur + sous-composants props-driven)
 
+## Completed — V2 Phase 1: Import Calendrier Externe (Mars 2026)
+- [x] Adapters enrichis: Google + Outlook retournent location, attendees, organizer, conference_url, conference_provider, is_all_day
+- [x] Collection `external_events` avec index (user+status+date, event_id+source unique, nlyt_appointment_id sparse)
+- [x] Service `external_events_service.py`: import/dédup/upsert, cache 5min, détection events NLYT (sync_log + préfixe [NLYT])
+- [x] 4 endpoints API: GET/PUT /import-settings, POST /sync, GET / (liste events)
+- [x] Frontend: `CalendarSyncPanel` (toggle ON/OFF par provider, last_synced_at, event_count, refresh manuel)
+- [x] Frontend: `ExternalEventCard` (badge Google/Outlook, date, durée, lieu, visio, participants)
+- [x] Frontend: merge chronologique NLYT + events externes dans la timeline "À venir" du dashboard
+- [x] Toggle stocké dans `calendar_connections` (pas dans users): champ `import_sync_enabled`, `import_last_synced_at`, `import_event_count`
+- [x] Règle UX: panel masqué si aucun calendrier connecté, events masqués si toggle OFF
+- [x] Déduplication 4 couches: sync_log, préfixe [NLYT], upsert unique, converted status
+- [x] Testé: 100% backend (19/19), 100% frontend
+
+## V2 Phase 2 — À implémenter
+- [ ] Bouton "NLYT me" sur les cards d'événements importés
+- [ ] Endpoint GET /api/external-events/{id}/prefill pour pré-remplir le wizard
+- [ ] Enrichir AppointmentWizard avec support `?from_external=<id>` + pré-remplissage
+- [ ] Conversion: créer appointment NLYT + mettre à jour external_events.status="converted"
+- [ ] Badge "via Google/Outlook" sur les engagements NLYT convertis
+- [ ] Protection: event converti ne réapparaît jamais comme importé
+
+## V2 Phase 3 — Backlog
+- [ ] Sync log "adopted" (calendar_sync_log avec sync_source="adopted")
+- [ ] Anti-doublons complet: perform_auto_sync skip si sync_log adopted
+- [ ] Cohérence auto-sync: perform_auto_update met à jour l'event calendrier existant
+
 ## Upcoming Tasks
 - [ ] Test réel Teams (compte non-pro)
 - [ ] Configurer le webhook Stripe en production
