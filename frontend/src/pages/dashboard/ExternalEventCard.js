@@ -116,20 +116,19 @@ export default function ExternalEventCard({ event }) {
           </div>
         )}
 
-        {/* NLYT me button */}
-        <button
-          onClick={handleNlytMe}
-          disabled={loading}
-          className="w-full flex items-center justify-center gap-2 py-2 mt-1 bg-slate-900 text-white rounded-lg text-sm font-semibold hover:bg-slate-800 active:scale-[0.98] transition-all disabled:opacity-60"
-          data-testid={`nlyt-me-btn-${event.external_event_id}`}
-          title="Garantir ce rendez-vous avec NLYT"
-        >
-          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
-          NLYT me
-        </button>
-        <p className="text-[10px] text-slate-400 text-center mt-1">
-          Garantir ce rendez-vous avec NLYT
-        </p>
+        {/* NLYT me — contextual action */}
+        <div className="flex justify-end mt-2 pt-2 border-t border-slate-100">
+          <button
+            onClick={handleNlytMe}
+            disabled={loading}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 text-white rounded-md text-xs font-semibold hover:bg-slate-800 active:scale-[0.97] transition-all disabled:opacity-60"
+            data-testid={`nlyt-me-btn-${event.external_event_id}`}
+            title="Garantir ce rendez-vous avec NLYT"
+          >
+            {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
+            NLYT me
+          </button>
+        </div>
       </div>
     </div>
   );
