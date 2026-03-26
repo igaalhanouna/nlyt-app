@@ -40,8 +40,9 @@ export default function EvidenceDashboard({ participants, evidenceData, appointm
   };
 
   const getParticipantEvidence = (participantId) => {
-    if (!evidenceData?.evidence) return [];
-    return evidenceData.evidence.filter(e => e.participant_id === participantId);
+    if (!evidenceData?.participants) return [];
+    const pData = evidenceData.participants.find(p => p.participant_id === participantId);
+    return pData?.evidence || [];
   };
 
   return (
@@ -52,7 +53,7 @@ export default function EvidenceDashboard({ participants, evidenceData, appointm
       </div>
 
       <div className="space-y-3">
-        {participants.filter(p => !p.is_organizer).map(p => {
+        {participants.filter(p => ['accepted', 'accepted_pending_guarantee', 'accepted_guaranteed'].includes(p.status)).map(p => {
           const evidence = getParticipantEvidence(p.participant_id);
           return (
             <div key={p.participant_id} className="border border-slate-200 rounded-xl overflow-hidden" data-testid={`evidence-participant-${p.participant_id}`}>
