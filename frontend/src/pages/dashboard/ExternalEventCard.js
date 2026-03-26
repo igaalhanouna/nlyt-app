@@ -65,7 +65,7 @@ export default function ExternalEventCard({ event }) {
             <button
               onClick={handleNlytMe}
               disabled={loading}
-              className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-900/10 text-slate-700 border border-slate-300 rounded-full text-[11px] font-bold hover:bg-slate-900/20 active:scale-[0.96] transition-all disabled:opacity-60"
+              className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-900 text-white border border-slate-900 rounded-full text-[11px] font-bold hover:bg-slate-700 active:scale-[0.96] transition-all disabled:opacity-60"
               data-testid={`nlyt-me-btn-${event.external_event_id}`}
               title="Garantir ce rendez-vous avec NLYT"
             >
