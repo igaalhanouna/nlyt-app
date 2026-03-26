@@ -1,5 +1,5 @@
-import React, { useState, useRef } from 'react';
-import { Share2, Copy, Download, Check, Eye } from 'lucide-react';
+import React, { useState } from 'react';
+import { Share2, Copy, Check } from 'lucide-react';
 import { Button } from '../components/ui/button';
 
 const SITE_URL = 'https://app.nlyt.io';
@@ -11,9 +11,6 @@ const CARD_CONFIG = {
     accentBorder: '#BBF7D0',
     icon: '&#10004;',
     iconColor: '#166534',
-    headline: 'Engagement tenu.',
-    subtitle: 'Rien n\u2019a \u00e9t\u00e9 d\u00e9bit\u00e9.',
-    brandLine: 'Le temps ne se perd plus.',
   },
   compensation_received: {
     accentColor: '#3B82F6',
@@ -21,9 +18,6 @@ const CARD_CONFIG = {
     accentBorder: '#BFDBFE',
     icon: '&#9670;',
     iconColor: '#1D4ED8',
-    headline: 'Temps valoris\u00e9.',
-    subtitle: null, // dynamic: amount
-    brandLine: 'Votre temps a de la valeur.',
   },
   charity_donation: {
     accentColor: '#F59E0B',
@@ -31,11 +25,10 @@ const CARD_CONFIG = {
     accentBorder: '#FDE68A',
     icon: '&#9829;',
     iconColor: '#B45309',
-    headline: 'Geste solidaire.',
-    subtitle: null, // dynamic: amount + association
-    brandLine: 'Chaque absence peut faire du bien.',
   },
 };
+
+const BRAND_LINE = 'Le temps ne se perd plus.';
 
 function formatAmount(cents, currency = 'EUR') {
   if (!cents || cents <= 0) return null;
@@ -65,17 +58,23 @@ export function ResultCard({ card, compact = false }) {
   const amountStr = formatAmount(card.amount_cents, card.currency);
   const dateStr = formatDateShort(card.appointment_date, card.appointment_timezone);
 
-  let subtitle = config.subtitle;
-  if (card.card_type === 'compensation_received' && amountStr) {
-    subtitle = `${amountStr} re\u00e7us en compensation.`;
+  // Dynamic emotional copy per card type
+  let headline = '';
+  let subtitle = '';
+
+  if (card.card_type === 'engagement_respected') {
+    headline = 'Engagement respect\u00e9.';
+    subtitle = 'Tout le monde \u00e9tait l\u00e0.';
   } else if (card.card_type === 'compensation_received') {
-    subtitle = 'Compensation re\u00e7ue.';
-  }
-  if (card.card_type === 'charity_donation') {
+    headline = amountStr ? `Vous avez r\u00e9cup\u00e9r\u00e9 ${amountStr}.` : 'Vous avez \u00e9t\u00e9 compens\u00e9.';
+    subtitle = 'Parce que votre temps compte.';
+  } else if (card.card_type === 'charity_donation') {
+    headline = 'Votre temps perdu a aid\u00e9 quelqu\u2019un.';
     const parts = [];
-    if (amountStr) parts.push(`${amountStr} revers\u00e9s`);
-    if (card.association_name) parts.push(`\u00e0 ${card.association_name}`);
-    subtitle = parts.length > 0 ? `${parts.join(' ')}.` : 'Don revers\u00e9 \u00e0 une association.';
+    if (amountStr) parts.push(amountStr);
+    if (card.association_name) parts.push(`revers\u00e9s \u00e0 ${card.association_name}`);
+    else if (amountStr) parts.push('revers\u00e9s \u00e0 une association');
+    subtitle = parts.length > 0 ? parts.join(' ') + '.' : '';
   }
 
   return (
@@ -168,7 +167,7 @@ export function ResultCard({ card, compact = false }) {
             letterSpacing: '-0.01em',
           }}
         >
-          {config.headline}
+          {headline}
         </h2>
 
         {/* Subtitle */}
@@ -251,27 +250,10 @@ export function ResultCard({ card, compact = false }) {
               letterSpacing: '0.01em',
             }}
           >
-            {config.brandLine}
+            {BRAND_LINE}
           </p>
         </div>
       </div>
-
-      {/* View count (if public) */}
-      {card.view_count > 0 && (
-        <div
-          style={{
-            padding: '0 28px 16px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 4,
-          }}
-        >
-          <Eye size={12} color="#CBD5E1" />
-          <span style={{ fontSize: 11, color: '#CBD5E1' }}>
-            {card.view_count} vue{card.view_count > 1 ? 's' : ''}
-          </span>
-        </div>
-      )}
     </div>
   );
 }
@@ -284,8 +266,8 @@ export function ResultCardActions({ card }) {
     if (navigator.share) {
       try {
         await navigator.share({
-          title: `NLYT \u2014 ${CARD_CONFIG[card.card_type]?.headline || ''}`,
-          text: CARD_CONFIG[card.card_type]?.brandLine || '',
+          title: 'NLYT \u2014 Le temps ne se perd plus',
+          text: BRAND_LINE,
           url: shareUrl,
         });
       } catch {

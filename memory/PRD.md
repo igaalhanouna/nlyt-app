@@ -232,8 +232,9 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API
 
 ## Completed — Viral Loop Phase 3: Cartes de résultat partageables (Mars 2026)
 - [x] 3 types de cartes virales : engagement_respected (vert), compensation_received (bleu), charity_donation (ambre)
-- [x] Copywriting émotionnel : "Engagement tenu.", "Temps valorisé.", "Geste solidaire."
-- [x] Brand lines distinctes : "Le temps ne se perd plus.", "Votre temps a de la valeur.", "Chaque absence peut faire du bien."
+- [x] Copywriting émotionnel v2 : "Engagement respecté. / Tout le monde était là.", "Vous avez récupéré X€. / Parce que votre temps compte.", "Votre temps perdu a aidé quelqu'un. / X€ reversés à [association]."
+- [x] Brand line unifiée sur toutes les cartes : "Le temps ne se perd plus."
+- [x] Compteur de vues retiré (priorité impact émotionnel)
 - [x] Backend: POST /api/result-cards (auth, idempotent) + GET /api/result-cards/{id} (public, view_count) + GET /api/result-cards/my-cards
 - [x] Frontend: composant ResultCard + ResultCardActions (Partager + Copier le lien)
 - [x] Page publique /card/:cardId — accessible sans auth, CTA "Découvrir NLYT"
