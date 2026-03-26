@@ -125,7 +125,7 @@ export default function ImpactPage() {
           {/* ── Comment ça fonctionne (juste après hero) ── */}
           <section className="py-10 sm:py-20 px-4 sm:px-6 border-t border-white/5" data-testid="how-it-works">
             <div className="max-w-3xl mx-auto">
-              <h2 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight text-center mb-8 sm:mb-16">Comment ça fonctionne</h2>
+              <h2 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight text-center mb-8 sm:mb-16">Comment ça fonctionne ?</h2>
               <div className="space-y-6 sm:space-y-12">
                 <div className="flex gap-4 sm:gap-6 items-start">
                   <div className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center flex-shrink-0">
