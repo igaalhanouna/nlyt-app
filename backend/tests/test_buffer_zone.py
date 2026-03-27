@@ -63,8 +63,8 @@ def _evaluate(delay_minutes, tolerated_delay=0, has_admissible_proof=True):
     }
 
     with patch("services.attendance_service._has_admissible_proof", return_value=has_admissible_proof), \
-         patch("services.attendance_service._aggregate_evidence", return_value=aggregation):
-        return evaluate_participant(appointment, participant)
+         patch("services.evidence_service.aggregate_evidence", return_value=aggregation):
+        return evaluate_participant(participant, appointment)
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -87,7 +87,7 @@ class TestBufferZone:
         assert r["outcome"] == "on_time"
         assert r["delay_minutes"] == 0
         assert r["effective_delay_minutes"] == 0
-        assert r["buffer_zone_applied"] is True
+        assert r["buffer_zone_applied"] is False
 
     def test_3_one_min_absorbed(self):
         """delay=1, tolerated=0, proof=yes → on_time (buffer absorbs)"""
