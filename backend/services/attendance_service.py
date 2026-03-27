@@ -486,7 +486,81 @@ def evaluate_appointment(appointment_id: str) -> dict:
     except Exception as e:
         logger.warning(f"[ATTENDANCE] Post-engagement email error (non-blocking): {e}")
 
+    # Notify organizer if there are review_required cases (non-blocking)
+    review_records = [r for r in records if r.get('review_required')]
+    if review_records:
+        try:
+            _send_review_notification(appointment, review_records)
+        except Exception as e:
+            logger.warning(f"[ATTENDANCE] Review notification error (non-blocking): {e}")
+
     return {"evaluated": True, "records_created": len(records), "summary": summary}
+
+
+def _send_review_notification(appointment: dict, review_records: list):
+    """Send email to organizer about pending review cases. Non-blocking."""
+    import asyncio
+
+    organizer = db.users.find_one(
+        {"user_id": appointment['organizer_id']},
+        {"_id": 0, "email": 1, "first_name": 1, "last_name": 1}
+    )
+    if not organizer:
+        return
+
+    # Build participant summaries
+    basis_labels = {
+        "manual_checkin_only_on_time": "Check-in manuel sans GPS",
+        "manual_checkin_only_late": "Check-in manuel sans GPS (retard)",
+        "no_proof_of_attendance": "Aucune preuve de presence",
+        "weak_evidence": "Preuve insuffisante",
+        "nlyt_proof_medium": "NLYT Proof partiel",
+        "nlyt_proof_weak": "NLYT Proof insuffisant",
+        "no_proof_meet_assisted_only": "Google Meet seul",
+        "no_proof_video_fallback_on_time": "API video seule",
+        "no_proof_video_fallback_late": "API video en retard",
+        "no_proof_no_video": "Aucune preuve video",
+        "cancelled_late": "Annulation tardive",
+    }
+
+    summaries = []
+    for r in review_records:
+        participant = db.participants.find_one(
+            {"participant_id": r.get('participant_id')},
+            {"_id": 0, "first_name": 1, "last_name": 1, "email": 1}
+        )
+        name = "Participant"
+        if participant:
+            name = " ".join(filter(None, [participant.get('first_name'), participant.get('last_name')])) or participant.get('email', 'Participant')
+        reason = basis_labels.get(r.get('decision_basis'), r.get('decision_basis', 'Preuve insuffisante'))
+        summaries.append({"name": name, "reason": reason})
+
+    org_name = " ".join(filter(None, [organizer.get('first_name'), organizer.get('last_name')])) or "Organisateur"
+
+    from services.email_service import EmailService
+    try:
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            asyncio.ensure_future(EmailService.send_review_required_notification(
+                organizer_email=organizer['email'],
+                organizer_name=org_name,
+                appointment_title=appointment.get('title', 'Rendez-vous'),
+                appointment_id=appointment.get('appointment_id', ''),
+                pending_count=len(review_records),
+                participant_summaries=summaries,
+            ))
+        else:
+            loop.run_until_complete(EmailService.send_review_required_notification(
+                organizer_email=organizer['email'],
+                organizer_name=org_name,
+                appointment_title=appointment.get('title', 'Rendez-vous'),
+                appointment_id=appointment.get('appointment_id', ''),
+                pending_count=len(review_records),
+                participant_summaries=summaries,
+            ))
+    except RuntimeError:
+        logger.warning("[ATTENDANCE] Could not send review notification email (no event loop)")
+
 
 
 def reevaluate_appointment(appointment_id: str) -> dict:

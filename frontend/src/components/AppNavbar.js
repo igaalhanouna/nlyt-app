@@ -2,12 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from './ui/button';
-import { Settings, LogOut, Menu, X } from 'lucide-react';
+import { Settings, LogOut, Menu, X, AlertTriangle } from 'lucide-react';
+import { attendanceAPI } from '../services/api';
 
 export default function AppNavbar() {
   const { logout } = useAuth();
   const { pathname } = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [pendingReviewCount, setPendingReviewCount] = useState(0);
 
   // Close drawer on route change
   useEffect(() => { setMobileOpen(false); }, [pathname]);
@@ -18,9 +20,25 @@ export default function AppNavbar() {
     return () => { document.body.style.overflow = ''; };
   }, [mobileOpen]);
 
+  // Fetch pending review count
+  useEffect(() => {
+    const fetchCount = async () => {
+      try {
+        const res = await attendanceAPI.pendingReviews();
+        setPendingReviewCount(res.data.count || 0);
+      } catch {
+        // Silently ignore — non-critical
+      }
+    };
+    fetchCount();
+    const interval = setInterval(fetchCount, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
   const isActive = (path) => {
     if (path === '/dashboard') return pathname === '/dashboard' || pathname === '/dashboard/participant';
     if (path === '/settings') return pathname.startsWith('/settings');
+    if (path === '/disputes') return pathname.startsWith('/disputes');
     return false;
   };
 
@@ -55,10 +73,18 @@ export default function AppNavbar() {
             <Link to="/dashboard" className={linkClass('/dashboard')} data-testid="navbar-dashboard-link">
               Tableau de bord
             </Link>
+            <Link to="/disputes" className={`${linkClass('/disputes')} relative flex items-center gap-1.5`} data-testid="navbar-disputes-link">
+              Decisions
+              {pendingReviewCount > 0 && (
+                <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-amber-500 text-white text-[10px] font-bold leading-none" data-testid="navbar-disputes-badge">
+                  {pendingReviewCount}
+                </span>
+              )}
+            </Link>
             <Link to="/settings" className={linkClass('/settings')} data-testid="navbar-settings-link">
               <span className="flex items-center gap-1.5">
                 <Settings className="w-3.5 h-3.5" />
-                Paramètres
+                Parametres
               </span>
             </Link>
           </div>
@@ -67,18 +93,21 @@ export default function AppNavbar() {
           <div className="hidden md:flex items-center">
             <Button variant="ghost" size="sm" onClick={logout} className="text-slate-400 hover:text-slate-700" data-testid="navbar-logout-btn">
               <LogOut className="w-4 h-4 mr-2" />
-              Déconnexion
+              Deconnexion
             </Button>
           </div>
 
           {/* Mobile hamburger */}
           <button
             onClick={() => setMobileOpen(true)}
-            className="md:hidden flex items-center justify-center w-11 h-11 rounded-lg text-slate-600 hover:bg-slate-100 active:bg-slate-200 transition-colors"
+            className="md:hidden flex items-center justify-center w-11 h-11 rounded-lg text-slate-600 hover:bg-slate-100 active:bg-slate-200 transition-colors relative"
             data-testid="navbar-mobile-menu-btn"
             aria-label="Menu"
           >
             <Menu className="w-5 h-5" />
+            {pendingReviewCount > 0 && (
+              <span className="absolute top-1 right-1 w-2.5 h-2.5 rounded-full bg-amber-500" />
+            )}
           </button>
         </div>
       </nav>
@@ -113,9 +142,18 @@ export default function AppNavbar() {
               <Link to="/dashboard" className={mobileLinkClass('/dashboard')} data-testid="mobile-nav-dashboard">
                 Tableau de bord
               </Link>
+              <Link to="/disputes" className={mobileLinkClass('/disputes')} data-testid="mobile-nav-disputes">
+                <AlertTriangle className="w-4.5 h-4.5" />
+                Decisions
+                {pendingReviewCount > 0 && (
+                  <span className="ml-auto inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full bg-amber-500 text-white text-xs font-bold">
+                    {pendingReviewCount}
+                  </span>
+                )}
+              </Link>
               <Link to="/settings" className={mobileLinkClass('/settings')} data-testid="mobile-nav-settings">
                 <Settings className="w-4.5 h-4.5" />
-                Paramètres
+                Parametres
               </Link>
             </div>
 
@@ -127,7 +165,7 @@ export default function AppNavbar() {
                 data-testid="mobile-nav-logout"
               >
                 <LogOut className="w-4.5 h-4.5" />
-                Déconnexion
+                Deconnexion
               </button>
             </div>
           </div>

@@ -17,6 +17,7 @@ import { formatDateTimeCompactFr, parseUTC } from '../../utils/dateFormat';
 import AppNavbar from '../../components/AppNavbar';
 import CalendarSyncPanel from './CalendarSyncPanel';
 import ExternalEventCard from './ExternalEventCard';
+import PendingReviewBanner from './PendingReviewBanner';
 
 // ── Helpers ──
 
@@ -805,6 +806,9 @@ export default function OrganizerDashboard() {
             now={now}
           />
         )}
+
+        {/* Pending Reviews Banner */}
+        {!loading && <PendingReviewBanner />}
 
         {/* Main list */}
         <div className="bg-white rounded-lg border border-slate-200 p-4 md:p-6">

@@ -732,3 +732,66 @@ class EmailService:
         )
         html_content = _base_template(body, accent="warning")
         return await EmailService.send_email(participant_email, subject, html_content, email_type="guarantee_revalidation")
+
+
+    @staticmethod
+    async def send_review_required_notification(
+        organizer_email: str,
+        organizer_name: str,
+        appointment_title: str,
+        appointment_id: str,
+        pending_count: int,
+        participant_summaries: list,
+    ):
+        """
+        Notify organizer that attendance evaluation produced cases requiring manual review.
+        Sent once per evaluation batch (not per participant).
+        """
+        subject = f"NLYT — {pending_count} decision{'s' if pending_count > 1 else ''} en attente : {appointment_title}"
+
+        # Build participant list
+        participant_rows = ""
+        for ps in participant_summaries[:5]:
+            name = ps.get('name', 'Participant')
+            reason = ps.get('reason', 'Preuve insuffisante')
+            participant_rows += f"""
+            <tr>
+              <td style="padding:8px 12px;border-bottom:1px solid #E2E8F0;font-size:14px;color:#1E293B;">{name}</td>
+              <td style="padding:8px 12px;border-bottom:1px solid #E2E8F0;font-size:13px;color:#64748B;">{reason}</td>
+            </tr>"""
+
+        if pending_count > 5:
+            participant_rows += f"""
+            <tr>
+              <td colspan="2" style="padding:8px 12px;font-size:13px;color:#94A3B8;font-style:italic;">+ {pending_count - 5} autre{'s' if pending_count > 5 else ''}</td>
+            </tr>"""
+
+        participants_table = f"""
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:16px 0;border:1px solid #E2E8F0;border-radius:8px;overflow:hidden;">
+          <tr style="background-color:#F8FAFC;">
+            <th style="padding:10px 12px;text-align:left;font-size:13px;font-weight:600;color:#475569;border-bottom:1px solid #E2E8F0;">Participant</th>
+            <th style="padding:10px 12px;text-align:left;font-size:13px;font-weight:600;color:#475569;border-bottom:1px solid #E2E8F0;">Motif</th>
+          </tr>
+          {participant_rows}
+        </table>"""
+
+        disputes_url = f"{SITE_URL}/disputes"
+
+        body = (
+            _greeting(organizer_name)
+            + _paragraph(
+                f"L'evaluation de presence pour <strong>{appointment_title}</strong> a identifie "
+                f"<strong>{pending_count} cas</strong> necessitant votre decision."
+            )
+            + _alert_box(
+                '<p style="margin:0;font-size:14px;color:#92400E;">'
+                'Le systeme n\'a pas pu determiner automatiquement la presence de certains participants. '
+                'Sans action de votre part, les garanties seront liberees automatiquement apres 15 jours.</p>'
+            )
+            + participants_table
+            + _btn(disputes_url, "Voir et decider")
+            + _small("Vous pouvez egalement acceder a cette page depuis votre tableau de bord.")
+        )
+
+        html_content = _base_template(body, accent="warning")
+        return await EmailService.send_email(organizer_email, subject, html_content, email_type="review_required_notification")
