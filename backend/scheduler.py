@@ -45,6 +45,15 @@ async def attendance_evaluation_job():
         logger.error(f"[SCHEDULER] Attendance evaluation job failed: {str(e)}")
 
 
+async def review_timeout_job():
+    """Job to auto-resolve stale review_required records after 15 days"""
+    try:
+        from services.attendance_service import run_review_timeout_job
+        run_review_timeout_job()
+    except Exception as e:
+        logger.error(f"[SCHEDULER] Review timeout job failed: {str(e)}")
+
+
 async def auto_fetch_attendance_job():
     """Job to auto-fetch video attendance from Zoom/Teams after meetings end"""
     try:
@@ -164,6 +173,15 @@ def start_scheduler():
         replace_existing=True
     )
 
+    # Job 9: Review timeout — auto-resolve stale reviews after 15 days (every 6 hours)
+    scheduler.add_job(
+        review_timeout_job,
+        trigger=IntervalTrigger(hours=6),
+        id='review_timeout_job',
+        name='Auto-resolve stale review_required records (15-day timeout)',
+        replace_existing=True
+    )
+
     scheduler.start()
     logger.info("[SCHEDULER] Background scheduler started")
     logger.info("[SCHEDULER]    - Cancellation deadline reminders: every 5 minutes")
@@ -173,6 +191,7 @@ def start_scheduler():
     logger.info("[SCHEDULER]    - Distribution hold expiry: every 15 minutes")
     logger.info("[SCHEDULER]    - Impact stats refresh: every 30 minutes")
     logger.info("[SCHEDULER]    - Calendar sync retry (backoff): every 2 minutes")
+    logger.info("[SCHEDULER]    - Review timeout (15 days): every 6 hours")
 
 
 def stop_scheduler():

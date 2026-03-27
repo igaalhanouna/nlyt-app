@@ -25,6 +25,7 @@ import VideoEvidencePanel from './VideoEvidencePanel';
 import AttendancePanel from './AttendancePanel';
 import EvidenceDashboard from './EvidenceDashboard';
 import ResultCardSection from './ResultCardSection';
+import PendingReviewSection from './PendingReviewSection';
 
 // ── Participant-specific inline components ──
 
@@ -523,10 +524,11 @@ export default function AppointmentDetail() {
     setReclassifying(recordId);
     try {
       await attendanceAPI.reclassify(recordId, { new_outcome: newOutcome });
-      toast.success('Statut mis à jour');
+      toast.success('Statut mis a jour');
       setReclassifyDropdown(null);
-      const attRes = await attendanceAPI.get(id);
+      const [attRes, aptRes] = await Promise.all([attendanceAPI.get(id), appointmentAPI.get(id)]);
       setAttendance(attRes.data);
+      setAppointment(aptRes.data);
     } catch (error) { toast.error(error.response?.data?.detail || 'Erreur lors de la reclassification'); }
     finally { setReclassifying(null); }
   };
@@ -799,6 +801,17 @@ export default function AppointmentDetail() {
         {/* Participant check-in section */}
         {!isOrganizer && ['accepted', 'accepted_guaranteed', 'accepted_pending_guarantee'].includes(viewerParticipantStatus) && !isCancelled && (
           <ParticipantCheckinBlock appointmentId={id} viewerParticipantId={appointment.viewer_participant_id} viewerInvitationToken={viewerInvitationToken} appointmentType={appointment.appointment_type} />
+        )}
+
+        {/* #6b — Pending Review Section (organizer only, visible without expanding) */}
+        {isOrganizer && isEnded && attendance?.evaluated && (
+          <PendingReviewSection
+            attendance={attendance}
+            participants={participants}
+            evidenceData={evidenceData}
+            onReclassify={handleReclassify}
+            reclassifying={reclassifying}
+          />
         )}
 
         {/* #7 — Preuves & Tracking — visible for both roles (read-only for participant) */}

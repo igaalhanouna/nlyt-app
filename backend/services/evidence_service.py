@@ -437,8 +437,12 @@ def process_manual_checkin(
         derived_facts["distance_km"] = geographic['distance_km']
 
         if apt_lat is not None:
-            derived_facts["gps_within_radius"] = geographic['consistency'] in ('close', 'nearby')
-            derived_facts["gps_radius_meters"] = appointment.get('gps_radius_meters', DEFAULT_GPS_RADIUS_METERS)
+            actual_radius = appointment.get('gps_radius_meters', DEFAULT_GPS_RADIUS_METERS)
+            derived_facts["gps_within_radius"] = (
+                geographic['distance_meters'] is not None
+                and geographic['distance_meters'] <= actual_radius
+            )
+            derived_facts["gps_radius_meters"] = actual_radius
         else:
             derived_facts["gps_no_reference"] = True
 
@@ -556,8 +560,12 @@ def process_gps_checkin(
     }
 
     if apt_lat is not None:
-        derived_facts["gps_within_radius"] = geographic['consistency'] in ('close', 'nearby')
-        derived_facts["gps_radius_meters"] = appointment.get('gps_radius_meters', DEFAULT_GPS_RADIUS_METERS)
+        actual_radius = appointment.get('gps_radius_meters', DEFAULT_GPS_RADIUS_METERS)
+        derived_facts["gps_within_radius"] = (
+            geographic['distance_meters'] is not None
+            and geographic['distance_meters'] <= actual_radius
+        )
+        derived_facts["gps_radius_meters"] = actual_radius
     else:
         derived_facts["gps_no_reference"] = True
 
@@ -624,6 +632,7 @@ def aggregate_evidence(appointment_id: str, participant_id: str, appointment: di
     signals = []
     has_qr = False
     has_gps_close = False
+    has_gps_nearby = False
     has_checkin = False
     has_video = False
     video_provider = None
@@ -668,9 +677,12 @@ def aggregate_evidence(appointment_id: str, participant_id: str, appointment: di
             signals.append(f"video_{video_provider}")
         if source == 'gps' or (source == 'manual_checkin' and facts.get('latitude')):
             gc = facts.get('geographic_consistency', 'no_reference')
-            if gc in ('close', 'nearby'):
+            if gc == 'close':
                 has_gps_close = True
                 signals.append("gps_close")
+            elif gc == 'nearby':
+                has_gps_nearby = True
+                signals.append("gps_nearby")
             elif gc in ('far', 'incoherent'):
                 signals.append(f"gps_{gc}")
 
@@ -718,7 +730,13 @@ def aggregate_evidence(appointment_id: str, participant_id: str, appointment: di
         strength = "weak"
     else:
         # Physical appointment: original logic
+        # close (≤500m) = strong signal, nearby (500m-5km) = weak signal
         positive_signals = sum([has_qr, has_gps_close, has_checkin])
+        # GPS nearby boosts but doesn't count as primary positive signal
+        if has_gps_nearby and not has_gps_close:
+            if positive_signals >= 1:
+                positive_signals += 1  # Nearby + another signal = strong
+            # Nearby alone = 0 positive signals → weak → manual_review
         # Video evidence can boost physical appointment too (rare but possible)
         if has_video and video_provider_ceiling == "strong" and video_identity_confidence in ("high", "medium"):
             positive_signals += 1
@@ -786,6 +804,9 @@ def aggregate_evidence(appointment_id: str, participant_id: str, appointment: di
 
     confidence_map = {"strong": "high", "medium": "medium", "weak": "low", "none": "low"}
 
+    # Flag: manual check-in is the only signal (no GPS close, no QR, no video)
+    manual_checkin_only = has_checkin and not has_qr and not has_gps_close and not has_video
+
     return {
         "strength": strength,
         "signals": signals,
@@ -796,6 +817,7 @@ def aggregate_evidence(appointment_id: str, participant_id: str, appointment: di
         "earliest_evidence": earliest_timestamp.isoformat() if earliest_timestamp else None,
         "temporal_flag": worst_temporal,
         "geographic_flag": best_geographic,
+        "manual_checkin_only": manual_checkin_only,
         "video_provider": video_provider,
         "video_provider_ceiling": video_provider_ceiling,
         "video_identity_confidence": video_identity_confidence,

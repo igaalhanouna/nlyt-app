@@ -304,6 +304,7 @@ def evaluate_participant(participant: dict, appointment: dict) -> dict:
 
         # --- PHYSICAL APPOINTMENT ---
         delay_minutes = aggregation.get('delay_minutes')
+        manual_checkin_only = aggregation.get('manual_checkin_only', False)
 
         if strength == 'strong' and timing == 'on_time':
             return {
@@ -326,6 +327,16 @@ def evaluate_participant(participant: dict, appointment: dict) -> dict:
             }
 
         if strength == 'medium' and timing == 'on_time':
+            # Manual check-in without GPS → always review (no auto-validation on self-declaration alone)
+            if manual_checkin_only:
+                return {
+                    "outcome": "on_time",
+                    "decision_basis": "manual_checkin_only_on_time",
+                    "confidence": "low",
+                    "review_required": True,
+                    "delay_minutes": delay_minutes,
+                    "evidence_summary": aggregation
+                }
             return {
                 "outcome": "on_time",
                 "decision_basis": "medium_evidence_on_time",
@@ -336,6 +347,16 @@ def evaluate_participant(participant: dict, appointment: dict) -> dict:
             }
 
         if strength == 'medium' and timing == 'late':
+            # Manual check-in without GPS → always review (no auto-penalty on self-declaration alone)
+            if manual_checkin_only:
+                return {
+                    "outcome": "late",
+                    "decision_basis": "manual_checkin_only_late",
+                    "confidence": "low",
+                    "review_required": True,
+                    "delay_minutes": delay_minutes,
+                    "evidence_summary": aggregation
+                }
             return {
                 "outcome": "late",
                 "decision_basis": "medium_evidence_late",
@@ -828,3 +849,77 @@ def _find_participant(participants: list, participant_id: str) -> dict | None:
         if p.get('participant_id') == participant_id:
             return p
     return None
+
+
+# ─── Review Timeout (Phase 4) ────────────────────────────────────
+
+REVIEW_TIMEOUT_DAYS = 15
+
+
+def run_review_timeout_job():
+    """
+    Scheduler job: auto-resolve review_required records after REVIEW_TIMEOUT_DAYS.
+    
+    Rule (decision produit): after 15 days without organizer action,
+    the guarantee is RELEASED without penalty (option C — defensive).
+    This prevents indefinite financial deadlocks.
+    """
+    now = now_utc()
+    cutoff = now - timedelta(days=REVIEW_TIMEOUT_DAYS)
+    cutoff_iso = cutoff.isoformat()
+
+    # Find all unresolved review_required records older than the timeout
+    stale_records = list(db.attendance_records.find(
+        {
+            "review_required": True,
+            "decided_by": "system",
+            "decided_at": {"$lte": cutoff_iso},
+        },
+        {"_id": 0}
+    ))
+
+    if not stale_records:
+        return 0
+
+    resolved_count = 0
+    # Group by appointment to batch process
+    appointment_ids = list({r['appointment_id'] for r in stale_records})
+
+    for apt_id in appointment_ids:
+        apt_records = [r for r in stale_records if r['appointment_id'] == apt_id]
+
+        for record in apt_records:
+            # Auto-resolve: release guarantee (no penalty — doubt in favor of participant)
+            new_outcome = "waived"
+
+            db.attendance_records.update_one(
+                {"record_id": record['record_id']},
+                {"$set": {
+                    "outcome": new_outcome,
+                    "review_required": False,
+                    "decided_by": "system_timeout",
+                    "decided_at": now.isoformat(),
+                    "previous_outcome": record.get('outcome'),
+                    "previous_decision_basis": record.get('decision_basis'),
+                    "notes": f"Auto-résolu après {REVIEW_TIMEOUT_DAYS} jours sans revue. Garantie libérée (doute en faveur du participant).",
+                }}
+            )
+
+            # Release the guarantee if one exists
+            guarantee = db.payment_guarantees.find_one(
+                {
+                    "participant_id": record['participant_id'],
+                    "appointment_id": apt_id
+                },
+                {"_id": 0}
+            )
+            if guarantee and guarantee.get('status') in ('completed', 'dev_pending'):
+                _execute_release(guarantee)
+
+            resolved_count += 1
+
+        # Refresh appointment summary
+        _refresh_appointment_summary(apt_id)
+
+    logger.info(f"[ATTENDANCE] Review timeout: auto-resolved {resolved_count} records across {len(appointment_ids)} appointments")
+    return resolved_count

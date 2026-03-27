@@ -1,0 +1,87 @@
+{
+  "summary": "Iteration 104 - GPS Radius Fix, Manual Check-in Review, and Review Timeout: 6/9 backend tests passed. Code-level verification confirms all 4 fixes are correctly implemented. API-level tests for GPS radius failed due to a separate bug: appointment creation endpoint does not save gps_radius_meters field.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "POST /api/appointments/",
+        "issue": "gps_radius_meters field is not being saved when creating appointments. The field is accepted in the request but not persisted to the database. This prevents testing the GPS radius fix.",
+        "priority": "HIGH"
+      }
+    ],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": {
+    "backend_pytest": [
+      "✅ test_04_reclassify_uses_record_id - PUT /api/attendance/reclassify/{record_id} works correctly",
+      "✅ test_05_pending_reviews_list_endpoint - GET /api/attendance/pending-reviews/list returns correct structure",
+      "✅ test_scheduler_module_has_review_timeout_job - review_timeout_job registered in scheduler.py, runs every 6 hours",
+      "✅ test_review_timeout_constants - REVIEW_TIMEOUT_DAYS = 15, run_review_timeout_job exists, sets outcome to 'waived' and decided_by to 'system_timeout'",
+      "✅ test_gps_radius_uses_actual_radius - evidence_service.py uses actual_radius from appointment.get('gps_radius_meters', DEFAULT_GPS_RADIUS_METERS)",
+      "✅ test_manual_checkin_only_flag - manual_checkin_only flag computed correctly: has_checkin and not has_qr and not has_gps_close"
+    ],
+    "code_verification": [
+      "✅ GPS radius fix (evidence_service.py lines 440-445, 563-568): gps_within_radius uses actual_radius = appointment.get('gps_radius_meters', DEFAULT_GPS_RADIUS_METERS)",
+      "✅ Manual check-in only flag (evidence_service.py line 808): manual_checkin_only = has_checkin and not has_qr and not has_gps_close and not has_video",
+      "✅ Manual check-in review (attendance_service.py lines 331-366): manual_checkin_only triggers review_required=True",
+      "✅ Review timeout job (attendance_service.py lines 856-925): REVIEW_TIMEOUT_DAYS=15, run_review_timeout_job auto-resolves to 'waived' with decided_by='system_timeout'",
+      "✅ Scheduler registration (scheduler.py lines 48-54, 176-183): review_timeout_job runs every 6 hours",
+      "✅ PendingReviewSection component (PendingReviewSection.js): Présent/Absent buttons with data-testid, confirmation flow, timeout display",
+      "✅ AttendancePanel reclassify fix (AttendancePanel.js line 112): onReclassify(record.record_id, key) uses record_id not participant_id"
+    ]
+  },
+  "failed_tests": {
+    "backend_pytest": [
+      "❌ test_01_gps_within_radius_uses_configured_radius - Cannot test because gps_radius_meters is not saved in appointment",
+      "❌ test_02_nearby_gps_does_not_count_as_close - Cannot test because gps_radius_meters is not saved in appointment",
+      "❌ test_03_manual_checkin_only_requires_review - Cannot test because appointment creation fails (missing gps_radius_meters persistence)"
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_gps_radius_review_timeout_iter104.py",
+    "/app/test_reports/pytest/pytest_gps_radius_review_timeout_iter104.xml"
+  ],
+  "action_items": [
+    "CRITICAL: Fix appointment creation endpoint to persist gps_radius_meters field. The field is used in evidence_service.py but never saved when creating appointments.",
+    "After fixing gps_radius_meters persistence, re-run API tests to verify GPS radius logic works end-to-end"
+  ],
+  "critical_code_review_comments": [
+    "✅ evidence_service.py (lines 440-445, 563-568): GPS radius fix correctly implemented - uses actual_radius from appointment config",
+    "✅ evidence_service.py (line 808): manual_checkin_only flag correctly computed",
+    "✅ attendance_service.py (lines 331-366): Manual check-in only correctly triggers review_required=True",
+    "✅ attendance_service.py (lines 856-925): Review timeout job correctly implemented with 15-day timeout",
+    "✅ scheduler.py (lines 48-54, 176-183): review_timeout_job correctly registered to run every 6 hours",
+    "✅ PendingReviewSection.js: Component correctly implements Présent/Absent buttons with confirmation flow",
+    "✅ AttendancePanel.js (line 112): Reclassify correctly uses record.record_id instead of participant_id",
+    "⚠️ BUG: Appointment creation endpoint does not save gps_radius_meters field - this is a separate bug not related to the 4 fixes"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_gps_radius_review_timeout_iter104.py"
+  ],
+  "success_rate": {
+    "backend": "67% (6/9 passed - 3 failed due to gps_radius_meters persistence bug)",
+    "frontend": "N/A (could not test due to session issues, but code review confirms implementation is correct)"
+  },
+  "test_credentials": {
+    "organizer": "igaal.hanouna@gmail.com / OrgTest123!",
+    "participant": "testuser_audit@nlyt.app / TestAudit123!",
+    "test_appointment_with_pending_review": "12132ca1-2f84-4d26-8104-cf24df4ba21d"
+  },
+  "seed_data_creation": "Used existing test data from previous iterations",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "The 4 fixes (GPS radius, manual check-in review, PendingReviewSection UI, review timeout job) are all correctly implemented at the code level. However, there is a separate bug: the appointment creation endpoint does not persist the gps_radius_meters field, which prevents end-to-end testing of the GPS radius fix. The main agent needs to fix the appointment creation endpoint to save gps_radius_meters before the GPS radius tests can pass. The reclassify API works correctly with record_id. The scheduler has review_timeout_job registered to run every 6 hours.",
+  "rca_of_the_issue": {
+    "root_cause": "The appointment creation endpoint in /app/backend/routers/appointments.py does not include gps_radius_meters in the fields that are persisted to the database. The evidence_service.py correctly reads this field with a default fallback, but since it's never saved, all appointments use the default 200m radius.",
+    "reproduction_steps": [
+      "1. Create appointment with gps_radius_meters=100",
+      "2. GET the appointment detail",
+      "3. Observe that gps_radius_meters is None instead of 100"
+    ],
+    "mitigation": "Add gps_radius_meters to the appointment creation and update logic in /app/backend/routers/appointments.py"
+  }
+}

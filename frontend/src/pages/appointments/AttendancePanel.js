@@ -99,17 +99,17 @@ export default function AttendancePanel({
                   </div>
                   <div className="relative">
                     <Button variant="ghost" size="sm" className="h-7 text-xs gap-1"
-                      onClick={() => setReclassifyDropdown(reclassifyDropdown === record.participant_id ? null : record.participant_id)}
-                      disabled={reclassifying === record.participant_id}
+                      onClick={() => setReclassifyDropdown(reclassifyDropdown === record.record_id ? null : record.record_id)}
+                      disabled={reclassifying === record.record_id}
                       data-testid={`reclassify-btn-${record.participant_id}`}>
-                      {reclassifying === record.participant_id ? <Loader2 className="w-3 h-3 animate-spin" /> : <ChevronDown className="w-3 h-3" />}
+                      {reclassifying === record.record_id ? <Loader2 className="w-3 h-3 animate-spin" /> : <ChevronDown className="w-3 h-3" />}
                       Reclasser
                     </Button>
-                    {reclassifyDropdown === record.participant_id && (
+                    {reclassifyDropdown === record.record_id && (
                       <div className="absolute right-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg py-1 z-20 min-w-[140px]">
                         {Object.entries(outcomeLabels).filter(([k]) => k !== record.outcome).map(([key, label]) => (
                           <button key={key} className="w-full text-left px-3 py-1.5 text-xs hover:bg-slate-50 flex items-center gap-2"
-                            onClick={() => onReclassify(record.participant_id, key)}
+                            onClick={() => onReclassify(record.record_id, key)}
                             data-testid={`reclassify-${record.participant_id}-${key}`}>
                             {outcomeIcons[key]}
                             {label}
