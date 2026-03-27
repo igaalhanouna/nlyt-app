@@ -33,8 +33,8 @@ QR_TOLERANCE_WINDOWS = 2
 DEFAULT_GPS_RADIUS_METERS = 200
 
 # --- Temporal windows ---
-CHECKIN_WINDOW_BEFORE_HOURS = 2    # Valid check-in starts 2h before RDV
-CHECKIN_WINDOW_AFTER_HOURS = 1     # Valid check-in ends 1h after RDV end
+CHECKIN_WINDOW_BEFORE_MINUTES = 30  # Hard limit: check-in opens 30min before RDV
+CHECKIN_WINDOW_AFTER_HOURS = 1      # Valid check-in ends 1h after RDV end
 
 # --- Geographic thresholds (meters) ---
 GEO_CLOSE_METERS = 500             # "close" — strong signal
@@ -158,7 +158,7 @@ def assess_temporal_consistency(evidence_ts: datetime, appointment: dict) -> dic
     duration = appointment.get('duration_minutes', 60)
     end_utc = start_utc + timedelta(minutes=duration)
 
-    window_start = start_utc - timedelta(hours=CHECKIN_WINDOW_BEFORE_HOURS)
+    window_start = start_utc - timedelta(minutes=CHECKIN_WINDOW_BEFORE_MINUTES)
     window_end = end_utc + timedelta(hours=CHECKIN_WINDOW_AFTER_HOURS)
 
     hours_before_start = (start_utc - evidence_ts).total_seconds() / 3600

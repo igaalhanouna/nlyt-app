@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from typing import Optional
 from slowapi import Limiter
 from slowapi.util import get_remote_address
+from datetime import timedelta
 import os
 import sys
 import io
@@ -15,6 +16,7 @@ import base64
 import logging
 
 from database import db
+from services.evidence_service import _parse_appointment_start, now_utc, CHECKIN_WINDOW_BEFORE_MINUTES
 logger = logging.getLogger(__name__)
 
 sys.path.append('/app/backend')
@@ -88,6 +90,20 @@ def _resolve_participant(invitation_token: str) -> tuple:
 
     if appointment.get('status') != 'active':
         raise HTTPException(status_code=400, detail="Ce rendez-vous n'est plus actif")
+
+    # Hard time gate: check-in opens 30min before start_datetime
+    try:
+        start_utc = _parse_appointment_start(appointment)
+        current = now_utc()
+        opens_at = start_utc - timedelta(minutes=CHECKIN_WINDOW_BEFORE_MINUTES)
+        if current < opens_at:
+            minutes_left = int((opens_at - current).total_seconds() / 60)
+            raise HTTPException(
+                status_code=400,
+                detail=f"Le check-in ouvre 30 minutes avant le rendez-vous. Revenez dans {minutes_left} min."
+            )
+    except (ValueError, TypeError):
+        pass  # If date parsing fails, don't block — let evidence assessment handle it
 
     return participant, appointment
 
