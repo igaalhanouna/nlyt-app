@@ -280,16 +280,20 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API
 - [x] Frontend gère le retour reused_card=true (message de confirmation, pas de redirect)
 - [x] Testé: 100% backend (iteration_92), flow E2E vérifié via curl
 
-## Completed — Vue participant alignée sur vue organisateur (Fév 2026)
-- [x] Résumé décisionnel en haut de page : montant garantie, tolérance retard, délai annulation (visible en 1 seconde)
-- [x] Trust signal : "X participant(s) a/ont déjà confirmé son/leur engagement" (affiché uniquement si confirmed_count > 0)
-- [x] Lien meeting en bloc d'action clé : "Rejoindre la réunion →" (visible uniquement pour participants avec engagement finalisé)
-- [x] Adresse complète (location_display_name) au lieu de l'adresse courte
-- [x] Répartition financière : bloc dédié (compensation %, commission %, charité %)
-- [x] Sécurité préservée : meeting_join_url masqué pour participants non-finalisés
-- [x] Composants réutilisés : EngagementSummary + FinancialBreakdown de la vue organisateur
-- [x] Backend enrichi : endpoint invitation retourne confirmed_count, total_participants, et tous les champs financiers dans l'objet appointment
-- [x] Testé : 100% backend (17 tests) + frontend (11 tests) — iteration_95
+## Completed — Vue unifiée organisateur/participant (Fév 2026)
+- [x] Backend: `GET /api/appointments/{id}` ouvert aux participants authentifiés (check workspace member puis participant match)
+- [x] Backend: `GET /api/participants/` ouvert aux participants (lecture seule)
+- [x] Backend: réponse inclut `viewer_role`, `viewer_participant_id`, `viewer_invitation_token`, `viewer_participant_status`
+- [x] Frontend: `AppointmentDetail.js` — flag `isOrganizer` conditionne toutes les sections
+- [x] Participant voit: engagement summary, financial breakdown, participants (lecture seule), preuves (lecture seule), trust signal, accept/decline banner
+- [x] Participant ne voit PAS: calendar sync, annuler RDV, modifier, gérer participants, ingestion vidéo, évaluation attendance
+- [x] Dashboard: liens participant pointent vers `/appointments/{id}` (plus `/invitation/{token}`)
+- [x] Page `/invitation/{token}` conservée pour le flow non-authentifié
+- [x] Rollback des enrichissements non-désirés sur `InvitationPage.js` (EngagementSummary/FinancialBreakdown retirés)
+- [x] Testé: 100% backend (11 tests) + frontend (17 tests) — iteration_96
+
+## Completed — Vue participant enrichie (Fév 2026) — REMPLACÉ PAR VUE UNIFIÉE
+- [x] Backend enrichi: endpoint invitation retourne confirmed_count, total_participants, et tous les champs financiers (conservé pour le flow non-connecté)
 
 ## Completed — Dashboard unifié : timeline organisateur + participant (Fév 2026)
 - [x] Nouvel endpoint `GET /api/appointments/my-timeline` : fusionne engagements organisateur + invitations participant en 3 buckets (`action_required`, `upcoming`, `past`)
