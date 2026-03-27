@@ -315,6 +315,40 @@ async def respond_to_invitation(request: Request, token: str, response: Invitati
         if penalty_amount and penalty_amount > 0:
             from services.stripe_guarantee_service import StripeGuaranteeService
             
+            # ── Check if user has a saved card → skip Checkout ──
+            user_id = participant.get("user_id")
+            if not user_id:
+                user_doc = db.users.find_one({"email": participant.get("email")}, {"_id": 0, "user_id": 1})
+                if user_doc:
+                    user_id = user_doc["user_id"]
+
+            if user_id:
+                user_pm = db.users.find_one(
+                    {"user_id": user_id, "default_payment_method_id": {"$exists": True, "$ne": None}},
+                    {"_id": 0, "default_payment_method_id": 1, "stripe_customer_id": 1}
+                )
+                if user_pm and user_pm.get("default_payment_method_id") and user_pm.get("stripe_customer_id"):
+                    reuse_result = StripeGuaranteeService.create_guarantee_with_saved_card(
+                        participant_id=participant["participant_id"],
+                        appointment_id=appointment["appointment_id"],
+                        invitation_token=token,
+                        penalty_amount=float(penalty_amount),
+                        penalty_currency=appointment.get("penalty_currency", "eur"),
+                        user_id=user_id,
+                        stripe_customer_id=user_pm["stripe_customer_id"],
+                        payment_method_id=user_pm["default_payment_method_id"],
+                    )
+                    if reuse_result.get("success"):
+                        return {
+                            "success": True,
+                            "requires_guarantee": False,
+                            "reused_card": True,
+                            "message": "Garantie confirmée avec votre carte enregistrée",
+                            "status": "accepted_guaranteed",
+                            "guarantee_id": reuse_result["guarantee_id"],
+                        }
+
+            # ── No saved card → standard Checkout flow ──
             # Update status to pending guarantee
             db.participants.update_one(
                 {"invitation_token": token},
@@ -494,7 +528,7 @@ async def accept_with_account(request: Request, token: str, body: AcceptWithAcco
     }
     try:
         db.users.insert_one(user)
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=500, detail="Erreur lors de la création du compte")
 
     # 6. Create workspace + wallet
@@ -619,42 +653,68 @@ async def login_and_accept(request: Request, token: str, body: LoginAndAcceptReq
     if penalty_amount and penalty_amount > 0:
         from services.stripe_guarantee_service import StripeGuaranteeService
 
-        db.participants.update_one(
-            {"invitation_token": token},
-            {"$set": {"status": "accepted_pending_guarantee", "accept_initiated_at": now, "updated_at": now}}
+        # ── Check if logged-in user has a saved card → skip Checkout ──
+        user_pm_login = db.users.find_one(
+            {"user_id": user_id, "default_payment_method_id": {"$exists": True, "$ne": None}},
+            {"_id": 0, "default_payment_method_id": 1, "stripe_customer_id": 1}
         )
+        if user_pm_login and user_pm_login.get("default_payment_method_id") and user_pm_login.get("stripe_customer_id"):
+            reuse_login = StripeGuaranteeService.create_guarantee_with_saved_card(
+                participant_id=participant["participant_id"],
+                appointment_id=appointment["appointment_id"],
+                invitation_token=token,
+                penalty_amount=float(penalty_amount),
+                penalty_currency=appointment.get("penalty_currency", "eur"),
+                user_id=user_id,
+                stripe_customer_id=user_pm_login["stripe_customer_id"],
+                payment_method_id=user_pm_login["default_payment_method_id"],
+            )
+            if reuse_login.get("success"):
+                accept_result = {
+                    "requires_guarantee": False,
+                    "reused_card": True,
+                    "message": "Garantie confirmée avec votre carte enregistrée",
+                    "status": "accepted_guaranteed",
+                    "guarantee_id": reuse_login["guarantee_id"],
+                }
 
-        frontend_url = os.environ.get('FRONTEND_URL', '').rstrip('/') or str(request.base_url).rstrip('/')
-        participant_name = f"{participant.get('first_name', '')} {participant.get('last_name', '')}".strip()
-
-        result = StripeGuaranteeService.create_guarantee_session(
-            participant_id=participant['participant_id'],
-            appointment_id=appointment['appointment_id'],
-            participant_email=email,
-            participant_name=participant_name or email.split('@')[0],
-            appointment_title=appointment.get('title', 'Rendez-vous'),
-            penalty_amount=float(penalty_amount),
-            penalty_currency=appointment.get('penalty_currency', 'eur'),
-            frontend_url=frontend_url,
-            invitation_token=token
-        )
-
-        if not result.get('success'):
+        if not accept_result:
             db.participants.update_one(
                 {"invitation_token": token},
-                {"$set": {"status": "invited", "updated_at": now}}
+                {"$set": {"status": "accepted_pending_guarantee", "accept_initiated_at": now, "updated_at": now}}
             )
-            raise HTTPException(status_code=500, detail="Erreur Stripe")
 
-        db.participants.update_one(
-            {"invitation_token": token},
-            {"$set": {"guarantee_id": result['guarantee_id'], "stripe_session_id": result['session_id']}}
-        )
-        accept_result = {
-            "requires_guarantee": True,
-            "checkout_url": result['checkout_url'],
-            "status": "accepted_pending_guarantee",
-        }
+            frontend_url = os.environ.get('FRONTEND_URL', '').rstrip('/') or str(request.base_url).rstrip('/')
+            participant_name = f"{participant.get('first_name', '')} {participant.get('last_name', '')}".strip()
+
+            result = StripeGuaranteeService.create_guarantee_session(
+                participant_id=participant['participant_id'],
+                appointment_id=appointment['appointment_id'],
+                participant_email=email,
+                participant_name=participant_name or email.split('@')[0],
+                appointment_title=appointment.get('title', 'Rendez-vous'),
+                penalty_amount=float(penalty_amount),
+                penalty_currency=appointment.get('penalty_currency', 'eur'),
+                frontend_url=frontend_url,
+                invitation_token=token
+            )
+
+            if not result.get('success'):
+                db.participants.update_one(
+                    {"invitation_token": token},
+                    {"$set": {"status": "invited", "updated_at": now}}
+                )
+                raise HTTPException(status_code=500, detail="Erreur Stripe")
+
+            db.participants.update_one(
+                {"invitation_token": token},
+                {"$set": {"guarantee_id": result['guarantee_id'], "stripe_session_id": result['session_id']}}
+            )
+            accept_result = {
+                "requires_guarantee": True,
+                "checkout_url": result['checkout_url'],
+                "status": "accepted_pending_guarantee",
+            }
     else:
         db.participants.update_one(
             {"invitation_token": token},

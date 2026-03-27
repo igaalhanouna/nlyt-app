@@ -180,6 +180,10 @@ export default function InvitationPage() {
         window.location.href = data.checkout_url;
         return;
       }
+
+      if (data.reused_card) {
+        setGuaranteeMessage({ type: 'success', text: data.message || 'Garantie confirmée avec votre carte enregistrée' });
+      }
       
       setResponseStatus(data.status);
       setInvitation(prev => ({
@@ -208,6 +212,10 @@ export default function InvitationPage() {
       setGuaranteeMessage({ type: 'info', text: 'Redirection vers la page de garantie...' });
       window.location.href = data.checkout_url;
       return;
+    }
+
+    if (data.reused_card) {
+      setGuaranteeMessage({ type: 'success', text: data.message || 'Garantie confirmée avec votre carte enregistrée' });
     }
     // No guarantee needed — accepted directly
     setResponseStatus(data.status);

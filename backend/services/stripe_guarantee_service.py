@@ -34,6 +34,64 @@ class StripeGuaranteeService:
     """
     
     @staticmethod
+    def create_guarantee_with_saved_card(
+        participant_id: str,
+        appointment_id: str,
+        invitation_token: str,
+        penalty_amount: float,
+        penalty_currency: str,
+        user_id: str,
+        stripe_customer_id: str,
+        payment_method_id: str,
+    ) -> dict:
+        """
+        Create a guarantee record using an already-saved payment method.
+        No Stripe Checkout redirect needed — the card is reused directly.
+        """
+        guarantee_id = str(uuid.uuid4())
+
+        guarantee_record = {
+            "guarantee_id": guarantee_id,
+            "participant_id": participant_id,
+            "appointment_id": appointment_id,
+            "invitation_token": invitation_token,
+            "stripe_customer_id": stripe_customer_id,
+            "stripe_session_id": f"reuse_{guarantee_id[:8]}",
+            "stripe_setup_intent_id": None,
+            "stripe_payment_method_id": payment_method_id,
+            "penalty_amount": penalty_amount,
+            "penalty_currency": penalty_currency,
+            "status": "completed",
+            "dev_mode": False,
+            "reused_card": True,
+            "completed_at": datetime.now(timezone.utc).isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }
+        db.payment_guarantees.insert_one(guarantee_record)
+        guarantee_record.pop("_id", None)
+
+        # Update participant
+        db.participants.update_one(
+            {"participant_id": participant_id},
+            {"$set": {
+                "status": "accepted_guaranteed",
+                "guarantee_id": guarantee_id,
+                "stripe_customer_id": stripe_customer_id,
+                "stripe_payment_method_id": payment_method_id,
+                "guaranteed_at": datetime.now(timezone.utc).isoformat(),
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }}
+        )
+
+        print(f"[GUARANTEE] Reused saved card {payment_method_id[:15]}... for participant {participant_id}")
+        return {
+            "success": True,
+            "guarantee_id": guarantee_id,
+            "reused_card": True,
+        }
+
+    @staticmethod
     def create_guarantee_session(
         participant_id: str,
         appointment_id: str,
