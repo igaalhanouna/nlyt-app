@@ -1,0 +1,106 @@
+{
+  "summary": "Iteration 106 - Financial Results Section: All features tested and working correctly. Backend API tests passed (6/6). Frontend UI tests passed for all status cases including penalized (late), compensated, present (on_time), and waived participants.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": {
+    "backend_pytest": [
+      "✅ test_01_appointment_with_penalties_has_financial_summary - GET /api/appointments/{id} returns financial_summary for attendance_evaluated=True",
+      "✅ test_02_penalized_participant_has_correct_fields - Penalized participant has outcome, delay_minutes, capture_amount_cents, beneficiaries, guarantee_status, captured",
+      "✅ test_03_beneficiaries_structure - Beneficiaries array has correct structure (role, amount_cents) with valid roles (platform, organizer, affected, charity)",
+      "✅ test_04_compensation_received_cents_for_organizer - Organizer who received compensation has compensation_received_cents=2000, compensation_role='organizer'",
+      "✅ test_05_clean_results_appointment - Appointment with on_time and waived outcomes has correct financial_summary",
+      "✅ test_06_review_required_field - All entries have review_required boolean field"
+    ],
+    "frontend_playwright": [
+      "✅ Login flow works at /signin route",
+      "✅ FinancialResultSection renders for appointment with penalties (23970d2e-985c-4eda-a1cd-953ca117d783)",
+      "✅ Section title 'Resultat financier' displayed with credit card icon",
+      "✅ 2 participant financial rows displayed",
+      "✅ 2 penalty amount displays (-25.00 € in red with 'penalite' label)",
+      "✅ 1 compensation amount display (+20.00 € in green with 'compensation' label)",
+      "✅ Status badge 'En retard (120 min)' displayed in red for late participants",
+      "✅ Human-readable explanation: 'Penalise de 25.00 € — montant preleve'",
+      "✅ Dual status explanation: 'Compensation recue de 20.00 € (en tant qu'organisateur)'",
+      "✅ Distribution breakdown visible for organizer view ('Repartition de la penalite')",
+      "✅ Distribution shows 'Commission plateforme +25.00 €' and 'Organisateur +20.00 €'",
+      "✅ FinancialResultSection renders for clean results appointment (12132ca1-2f84-4d26-8104-cf24df4ba21d)",
+      "✅ Status badge 'Present' displayed in green with checkmark icon",
+      "✅ Status badge 'Dispense' displayed in gray with checkmark icon",
+      "✅ Human-readable explanation: 'Engagement respecte — garantie liberee'",
+      "✅ Human-readable explanation: 'Aucune penalite applicable'"
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_financial_results_iter106.py",
+    "/app/test_reports/pytest/pytest_financial_results_iter106.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "✅ FinancialResultSection component (AppointmentDetail.js lines 213-365): Well-structured with proper status handling for all cases (late, no_show, on_time, waived, manual_review)",
+    "✅ Backend financial_summary builder (appointments.py lines 1466-1524): Correctly builds compensation_map from distributions and includes compensation_received_cents and compensation_role",
+    "✅ Status badges use appropriate colors: red for penalized (AlertTriangle icon), green for present (CheckCircle icon), gray for waived, amber for review",
+    "✅ Amounts displayed with correct formatting: penalty in red with dash prefix, compensation in green with plus prefix",
+    "✅ Distribution breakdown only shown for organizer view (isOrganizer prop check)",
+    "✅ Human-readable explanations are clear and comprehensive for all status cases"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_financial_results_iter106.py"
+  ],
+  "success_rate": {
+    "backend": "100% (6/6 passed)",
+    "frontend": "100% (all UI flows tested successfully)"
+  },
+  "test_credentials": {
+    "organizer": "igaal.hanouna@gmail.com / OrgTest123!"
+  },
+  "seed_data_creation": "Used existing test appointments: 23970d2e-985c-4eda-a1cd-953ca117d783 (E2E Stripe Real Penalty with 2 penalized participants) and 12132ca1-2f84-4d26-8104-cf24df4ba21d (test invitation with on_time + waived)",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "FinancialResultSection is fully functional. The section displays for past appointments with attendance_evaluated=True. It shows each participant with: status badge (Absent/En retard/Present/Dispense/En cours de verification), penalty amount (red, dash prefix), compensation amount (green, plus prefix), human-readable explanation, and distribution breakdown (organizer view only). Backend correctly returns compensation_received_cents and compensation_role for participants who received compensation from other participants' penalties.",
+  "features_verified": {
+    "FinancialResultSection": {
+      "renders_for_past_appointments": true,
+      "requires_attendance_evaluated": true,
+      "status_badges": {
+        "late": "En retard (X min) - red with AlertTriangle icon",
+        "no_show": "Absent - red with AlertTriangle icon",
+        "on_time": "Present - green with CheckCircle icon",
+        "waived": "Dispense - gray with CheckCircle icon",
+        "manual_review": "En cours de verification - amber with Clock icon"
+      },
+      "penalty_display": {
+        "format": "-{amount} €",
+        "color": "red",
+        "label": "penalite"
+      },
+      "compensation_display": {
+        "format": "+{amount} €",
+        "color": "green",
+        "label": "compensation"
+      },
+      "human_readable_explanations": {
+        "penalized": "Penalise de X € — montant preleve",
+        "penalized_with_compensation": "Penalise de X €. Compensation recue de Y € (en tant qu'organisateur)",
+        "on_time": "Engagement respecte — garantie liberee",
+        "waived": "Aucune penalite applicable",
+        "review": "Decision en attente — aucune action financiere pour le moment"
+      },
+      "distribution_breakdown": {
+        "visible_for": "organizer only (isOrganizer prop)",
+        "shows": ["Commission plateforme", "Organisateur", "Participant(s) present(s)", "Association caritative"]
+      }
+    },
+    "backend_financial_summary": {
+      "endpoint": "GET /api/appointments/{id}",
+      "fields": ["participant_id", "outcome", "review_required", "delay_minutes", "guarantee_status", "penalty_amount", "captured", "capture_amount_cents", "beneficiaries", "compensation_received_cents", "compensation_role"],
+      "compensation_map": "Correctly aggregates compensation from distributions to user_id"
+    }
+  }
+}

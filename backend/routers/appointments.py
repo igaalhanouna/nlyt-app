@@ -1463,10 +1463,31 @@ async def get_appointment(appointment_id: str, request: Request):
         ))
         appointment['distributions'] = distributions
 
+        # Build compensation received map: user_id → total cents received
+        compensation_map = {}  # user_id → { amount_cents, role, from_participant_id }
+        for dist in distributions:
+            for b in dist.get('beneficiaries', []):
+                uid = b.get('user_id')
+                if uid and uid not in ('__nlyt_platform__',) and b.get('role') != 'platform':
+                    if uid not in compensation_map:
+                        compensation_map[uid] = {
+                            'total_cents': 0,
+                            'role': b.get('role'),
+                            'from_participant_id': dist.get('no_show_participant_id'),
+                        }
+                    compensation_map[uid]['total_cents'] += b.get('amount_cents', 0)
+
         # Build per-participant financial summary
         fin_summary = []
         for rec in att_records:
             pid = rec.get('participant_id')
+            # Get participant's user_id for compensation lookup
+            p_doc = db.participants.find_one(
+                {"participant_id": pid},
+                {"_id": 0, "user_id": 1, "first_name": 1, "last_name": 1, "email": 1}
+            )
+            p_user_id = p_doc.get('user_id') if p_doc else None
+
             guarantee = db.payment_guarantees.find_one(
                 {"participant_id": pid, "appointment_id": appointment_id},
                 {"_id": 0, "guarantee_id": 1, "status": 1, "penalty_amount": 1}
@@ -1477,9 +1498,17 @@ async def get_appointment(appointment_id: str, request: Request):
                     {"guarantee_id": guarantee['guarantee_id']},
                     {"_id": 0}
                 )
+
+            # Compensation received from OTHER participants' penalties
+            comp = compensation_map.get(p_user_id)
+            compensation_received_cents = comp['total_cents'] if comp else 0
+            compensation_role = comp['role'] if comp else None
+
             fin_summary.append({
                 "participant_id": pid,
                 "outcome": rec.get('outcome'),
+                "review_required": rec.get('review_required', False),
+                "decision_basis": rec.get('decision_basis'),
                 "delay_minutes": rec.get('delay_minutes'),
                 "tolerated_delay_minutes": rec.get('tolerated_delay_minutes'),
                 "guarantee_status": guarantee.get('status') if guarantee else None,
@@ -1489,6 +1518,8 @@ async def get_appointment(appointment_id: str, request: Request):
                 "distribution_status": dist.get('status') if dist else None,
                 "capture_amount_cents": dist.get('capture_amount_cents') if dist else None,
                 "beneficiaries": dist.get('beneficiaries', []) if dist else [],
+                "compensation_received_cents": compensation_received_cents,
+                "compensation_role": compensation_role,
             })
         appointment['financial_summary'] = fin_summary
     
