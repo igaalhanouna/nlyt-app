@@ -4,6 +4,7 @@ import { ArrowUpRight, ArrowDownRight, Wallet, Heart, Loader2, CalendarCheck, Ch
 import { financialAPI } from '../services/api';
 import AppNavbar from '../components/AppNavbar';
 import AppBreadcrumb from '../components/AppBreadcrumb';
+import { useScrollRestore } from '../hooks/useScrollRestore';
 
 function fmt(cents, currency = 'eur') {
   if (cents == null) return '0 €';
@@ -19,6 +20,7 @@ function fmtDate(iso) {
 export default function FinancialResultsPage() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const { saveScroll } = useScrollRestore('contributions', !loading);
 
   useEffect(() => {
     financialAPI.getMyResults()
@@ -133,6 +135,7 @@ export default function FinancialResultsPage() {
                   <Link
                     key={eng.appointment_id}
                     to={`/appointments/${eng.appointment_id}`}
+                    onClick={saveScroll}
                     className="flex items-center justify-between px-4 py-3.5 hover:bg-slate-50 transition-colors group"
                     data-testid="engagement-item"
                   >

@@ -9,6 +9,7 @@ import {
   AlertTriangle, UserCheck, UserX, Clock, MapPin, Fingerprint,
   Loader2, Calendar, ChevronRight, CheckCircle, Timer, ArrowLeft
 } from 'lucide-react';
+import { useScrollRestore } from '../../hooks/useScrollRestore';
 
 const basisLabels = {
   manual_checkin_only_on_time: 'Check-in manuel sans GPS',
@@ -43,6 +44,7 @@ export default function DisputeCenter() {
   const [loading, setLoading] = useState(true);
   const [reclassifying, setReclassifying] = useState(null);
   const [confirmAction, setConfirmAction] = useState(null);
+  const { saveScroll } = useScrollRestore('disputes', !loading);
 
   const loadReviews = useCallback(async () => {
     try {
@@ -151,6 +153,7 @@ export default function DisputeCenter() {
                 <Link
                   to={`/appointments/${apt.appointment_id}`}
                   state={{ from: 'disputes' }}
+                  onClick={saveScroll}
                   className="block px-4 py-3 border-b border-slate-100 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer group"
                   data-testid={`dispute-apt-link-${apt.appointment_id}`}
                 >

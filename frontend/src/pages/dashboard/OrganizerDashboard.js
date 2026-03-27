@@ -18,6 +18,7 @@ import AppNavbar from '../../components/AppNavbar';
 import CalendarSyncPanel from './CalendarSyncPanel';
 import ExternalEventCard from './ExternalEventCard';
 import PendingReviewBanner from './PendingReviewBanner';
+import { useScrollRestore } from '../../hooks/useScrollRestore';
 
 // ── Helpers ──
 
@@ -112,7 +113,7 @@ function ImpactCard({ totalCharityCents }) {
 }
 
 // ── Action Required Section ──
-function ActionRequiredSection({ items, onRemind, onAccept, onDecline, onCancel, now }) {
+function ActionRequiredSection({ items, onRemind, onAccept, onDecline, onCancel, now, onNavigate }) {
   if (items.length === 0) return null;
   return (
     <div className="mb-6 bg-red-50/60 border border-red-200 rounded-lg p-5" data-testid="action-required-section">
@@ -197,7 +198,7 @@ function ActionCard({ item, onRemind, onAccept, onDecline, onCancel, now }) {
             </Button>
           </>
         ) : isParticipant && item.participant_status === 'accepted_pending_guarantee' ? (
-          <Link to={`/appointments/${item.appointment_id}`} state={{ fromTab: 'action_required' }} className="flex-1 md:flex-none">
+          <Link to={`/appointments/${item.appointment_id}`} state={{ fromTab: 'action_required' }} className="flex-1 md:flex-none" onClick={onNavigate}>
             <Button size="sm" className="h-11 md:h-8 text-xs w-full bg-amber-600 hover:bg-amber-700 text-white" data-testid={`finalize-guarantee-btn-${item.appointment_id}`}>
               <CreditCard className="w-3.5 h-3.5 mr-1.5" /> Finaliser ma garantie
             </Button>
@@ -216,7 +217,7 @@ function ActionCard({ item, onRemind, onAccept, onDecline, onCancel, now }) {
             <Bell className="w-3.5 h-3.5 mr-1.5" /> Relancer
           </Button>
         )}
-        <Link to={`/appointments/${item.appointment_id}`} state={{ fromTab: 'action_required' }} className="flex-1 md:flex-none">
+        <Link to={`/appointments/${item.appointment_id}`} state={{ fromTab: 'action_required' }} className="flex-1 md:flex-none" onClick={onNavigate}>
           <Button size="sm" variant="ghost" className="h-11 md:h-8 text-xs w-full" data-testid={`view-action-${item.appointment_id}`}>
             <Eye className="w-3.5 h-3.5 mr-1.5" /> Voir détails
           </Button>
@@ -227,7 +228,7 @@ function ActionCard({ item, onRemind, onAccept, onDecline, onCancel, now }) {
 }
 
 // ── Timeline Card (unified for organizer + participant) ──
-function TimelineCard({ item, isPast, onDelete, onRemind, now, fromTab }) {
+function TimelineCard({ item, isPast, onDelete, onRemind, now, fromTab, onNavigate }) {
   const isParticipant = item.role === 'participant';
   const badge = getTemporalBadge(item, now);
   const isOngoing = badge.key === 'ongoing';
@@ -258,7 +259,7 @@ function TimelineCard({ item, isPast, onDelete, onRemind, now, fromTab }) {
       }`}
       data-testid={`timeline-card-${item.appointment_id}`}
     >
-      <Link to={detailLink} state={navState} className="block p-4 pb-2">
+      <Link to={detailLink} state={navState} className="block p-4 pb-2" onClick={onNavigate}>
         {/* Row 0: Role label + Badges */}
         <div className="flex items-center justify-between gap-2 mb-2">
           <span className={`text-[11px] font-medium ${isParticipant ? 'text-blue-600' : 'text-slate-400'}`} data-testid={`timeline-role-${item.appointment_id}`}>
@@ -389,7 +390,7 @@ function TimelineCard({ item, isPast, onDelete, onRemind, now, fromTab }) {
 
       {/* Actions row */}
       <div className="flex items-center gap-2 px-4 pb-3 pt-1">
-        <Link to={detailLink} state={navState} className="flex-1 md:flex-none">
+        <Link to={detailLink} state={navState} className="flex-1 md:flex-none" onClick={onNavigate}>
           <Button size="sm" variant="outline" className="h-11 md:h-7 text-xs w-full md:w-auto" data-testid={`view-details-${item.appointment_id}`}>
             <Eye className="w-3.5 h-3.5 mr-1.5" /> Voir détails
           </Button>
@@ -439,6 +440,7 @@ export default function OrganizerDashboard() {
   const [counts, setCounts] = useState({ action_required: 0, upcoming: 0, past: 0, total: 0 });
   const [loading, setLoading] = useState(true);
   const [pastVisible, setPastVisible] = useState(20);
+  const { saveScroll } = useScrollRestore('dashboard', !loading);
 
   const [impactCents, setImpactCents] = useState(0);
   const [deleteModal, setDeleteModal] = useState({ open: false, item: null });
@@ -828,6 +830,7 @@ export default function OrganizerDashboard() {
             onDecline={handleDeclineInvitation}
             onCancel={handleCancelAppointment}
             now={now}
+            onNavigate={saveScroll}
           />
         )}
 
@@ -882,7 +885,7 @@ export default function OrganizerDashboard() {
                   <div className="space-y-3">
                     {upcomingMerged.map(merged =>
                       merged.type === 'timeline' ? (
-                        <TimelineCard key={`tl-${merged.data.appointment_id}`} item={merged.data} isPast={false} onDelete={handleDeleteClick} onRemind={handleRemind} now={now} fromTab="upcoming" />
+                        <TimelineCard key={`tl-${merged.data.appointment_id}`} item={merged.data} isPast={false} onDelete={handleDeleteClick} onRemind={handleRemind} now={now} fromTab="upcoming" onNavigate={saveScroll} />
                       ) : (
                         <ExternalEventCard key={`ext-${merged.data.external_event_id}`} event={merged.data} />
                       )
@@ -900,7 +903,7 @@ export default function OrganizerDashboard() {
                 ) : (
                   <div className="space-y-3">
                     {timeline.past.slice(0, pastVisible).map(item => (
-                      <TimelineCard key={`past-${item.role}-${item.appointment_id}`} item={item} isPast={true} onDelete={handleDeleteClick} onRemind={handleRemind} now={now} fromTab="past" />
+                      <TimelineCard key={`past-${item.role}-${item.appointment_id}`} item={item} isPast={true} onDelete={handleDeleteClick} onRemind={handleRemind} now={now} fromTab="past" onNavigate={saveScroll} />
                     ))}
                     {timeline.past.length > pastVisible && (
                       <div className="pt-4 text-center">
