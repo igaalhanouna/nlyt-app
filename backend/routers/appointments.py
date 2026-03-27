@@ -987,11 +987,18 @@ async def get_my_timeline(request: Request):
 
             is_past = apt.get("start_datetime", "") < now_str
             is_cancelled = apt.get("status") == "cancelled"
+
+            # Use end_time (start + duration) to determine if truly finished
+            _start_dt = _parse_dt(apt.get("start_datetime", ""))
+            _end_dt = _start_dt + timedelta(minutes=apt.get("duration_minutes", 60)) if _start_dt else None
+            _now_dt = datetime.now(timezone.utc)
+            is_ended = (_end_dt <= _now_dt) if _end_dt else is_past
+
             action_required = False
             org_alert_label = None
 
             # Organizer action_required: < 50% guaranteed AND within 24h of cancellation deadline
-            if not is_past and not is_cancelled and non_org_count > 0:
+            if not is_ended and not is_cancelled and non_org_count > 0:
                 cancel_h = apt.get("cancellation_deadline_hours", 0)
                 start_dt = _parse_dt(apt.get("start_datetime", ""))
                 if start_dt:
@@ -1010,14 +1017,14 @@ async def get_my_timeline(request: Request):
                 actions = ["remind", "cancel", "view_details"]
             else:
                 actions = ["view_details"]
-                if not is_past and pending > 0:
+                if not is_ended and pending > 0:
                     actions.insert(0, "remind")
-                if not is_past:
+                if not is_ended:
                     actions.append("delete")
 
             # Pending wording for organizer
             pending_label = org_alert_label
-            if not pending_label and pending > 0 and not is_past:
+            if not pending_label and pending > 0 and not is_ended:
                 pending_label = f"En attente de réponse ({pending})"
 
             items.append({
@@ -1084,27 +1091,32 @@ async def get_my_timeline(request: Request):
             organizer_name = f"{organizer.get('first_name', '')} {organizer.get('last_name', '')}".strip() or "Organisateur"
 
         p_status = part.get("status", "invited")
-        is_past = apt.get("start_datetime", "") < now_str
         is_cancelled = apt.get("status") == "cancelled"
 
+        # Use end_time (start + duration) to determine if truly finished
+        _p_start_dt = _parse_dt(apt.get("start_datetime", ""))
+        _p_end_dt = _p_start_dt + timedelta(minutes=apt.get("duration_minutes", 60)) if _p_start_dt else None
+        _p_now_dt = datetime.now(timezone.utc)
+        is_ended = (_p_end_dt <= _p_now_dt) if _p_end_dt else (apt.get("start_datetime", "") < now_str)
+
         # Action required: participant must act (respond OR finalize guarantee)
-        # Never for cancelled or past appointments
-        action_required = p_status in ("invited", "accepted_pending_guarantee") and not is_past and not is_cancelled
+        # Never for cancelled or ended appointments
+        action_required = p_status in ("invited", "accepted_pending_guarantee") and not is_ended and not is_cancelled
 
         # Available actions
         actions = ["view_details"]
-        if p_status == "invited" and not is_past:
+        if p_status == "invited" and not is_ended:
             actions = ["accept", "decline", "view_details"]
-        elif p_status == "accepted_pending_guarantee" and not is_past:
+        elif p_status == "accepted_pending_guarantee" and not is_ended:
             actions = ["finalize_guarantee", "view_details"]
-        elif p_status in ("accepted", "accepted_guaranteed") and not is_past:
+        elif p_status in ("accepted", "accepted_guaranteed") and not is_ended:
             actions = ["view_details"]
 
         # Pending wording for participant
         pending_label = None
-        if p_status == "invited" and not is_past:
+        if p_status == "invited" and not is_ended:
             pending_label = "Votre réponse est attendue"
-        elif p_status == "accepted_pending_guarantee" and not is_past:
+        elif p_status == "accepted_pending_guarantee" and not is_ended:
             pending_label = "Garantie en attente"
 
         items.append({
@@ -1140,10 +1152,20 @@ async def get_my_timeline(request: Request):
         })
 
     # ── 3. Bucket into action_required / upcoming / past ──
-    # Cancelled appointments always go to "past" (historique), never "upcoming"
+    now_dt = datetime.now(timezone.utc)
+
     def _is_past_item(i):
+        # Cancelled → always historique
         if i["appointment_status"] == "cancelled":
             return True
+        # Declined/cancelled participations → historique
+        if i.get("participant_status") in ("declined", "cancelled_by_participant"):
+            return True
+        # Use end_time (start + duration) as the real boundary
+        start_dt = _parse_dt(i.get("sort_date", ""))
+        if start_dt:
+            end_dt = start_dt + timedelta(minutes=i.get("duration_minutes", 60))
+            return end_dt <= now_dt
         return i["sort_date"] < now_str
 
     action_required = sorted(
