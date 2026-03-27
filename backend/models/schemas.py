@@ -147,6 +147,7 @@ class AppointmentCreate(BaseModel):
     charity_percent: float = Field(default=0.0, ge=0, le=100)
     charity_association_id: Optional[str] = None
     policy_template_id: Optional[str] = None
+    gps_radius_meters: Optional[int] = Field(default=200, ge=50, le=10000, description="Rayon GPS en metres pour validation de presence")
     appointment_timezone: Optional[str] = None
     participants: Optional[List[ParticipantInput]] = []
     event_reminders: Optional[EventRemindersConfig] = None

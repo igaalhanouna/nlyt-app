@@ -529,6 +529,7 @@ async def create_appointment(appointment: AppointmentCreate, request: Request):
         "charity_association_name": charity_association_name,
         "policy_template_id": appointment.policy_template_id,
         "policy_snapshot_id": None,
+        "gps_radius_meters": appointment.gps_radius_meters,
         "event_reminders": event_reminders_config,
         "event_reminders_sent": {},
         "appointment_timezone": appointment.appointment_timezone or 'Europe/Paris',
@@ -1517,7 +1518,7 @@ async def update_appointment(appointment_id: str, update_data: dict, request: Re
         "start_datetime", "duration_minutes", "tolerated_delay_minutes",
         "cancellation_deadline_hours", "penalty_amount", "penalty_currency",
         "affected_compensation_percent", "charity_percent",
-        "charity_association_id", "event_reminders"
+        "charity_association_id", "event_reminders", "gps_radius_meters"
     }
     
     safe_data = {k: v for k, v in update_data.items() if k in ALLOWED_FIELDS}
