@@ -1,143 +1,76 @@
 # NLYT — Product Requirements Document
 
-## Vision
-SaaS de gestion de presence avec garanties financieres. Optimisation du "Viral Loop" et funnel d'acquisition.
+## Problem Statement
+SaaS d'engagement ponctuel avec garantie financière. Optimisation du "Viral Loop" et du funnel d'acquisition utilisateur. Focus sur la transparence financière, la neutralité du système de pénalités (Trustless V3), et l'UX contextuelle (navigation, scroll).
 
-## Architecture
-- **Frontend**: React (Shadcn UI, Tailwind CSS)
-- **Backend**: FastAPI (Python)
-- **Database**: MongoDB
-- **Paiements**: Stripe
-- **Emails**: Resend
+## Core Architecture
+- React Frontend, FastAPI Backend, MongoDB
+- Stripe (paiements), Resend (emails)
+- Symmetric UI: mêmes écrans pour organisateur et participant, actions conditionnelles
 
-## Core Philosophy
-- "Same information, different powers" — Participants et Organisateurs partagent les memes ecrans, seules les actions different
-- Systeme financier defensif : doute en faveur du participant
-- 3 niveaux de decision : AUTO (~55%), REVIEW (~30%), TIMEOUT (~15%)
+## V3 Trustless Penalty System (Feb 2026)
 
----
+### Outcomes
+| Outcome | Condition | Capture | Bénéficiaire |
+|---------|-----------|---------|-------------|
+| `on_time` | delay ≤ 0, preuve admissible | Non | Oui |
+| `late` | 0 < delay ≤ tolerated, preuve admissible | Non | Oui |
+| `late_penalized` | delay > tolerated, preuve admissible | Oui | Non |
+| `no_show` | Absent | Oui | Non |
+| `manual_review` | Preuve insuffisante | Bloqué | Bloqué |
+| `waived` | Décliné/annulé | Non | Non |
 
-## Implemented Features
+### Key Rules
+- Preuve admissible (Niveau 1-2) requise pour tout outcome définitif
+- Preuve insuffisante → toujours `manual_review`
+- Cas B: aucun outcome définitif dans le RDV → tout gelé
+- Cas A (par-payeur): absence établie mais aucun bénéficiaire → capture bloquée
+- `waived` ne compte pas comme outcome définitif
+- `tolerated_delay_minutes = 0` → pas de zone `late`, directement `late_penalized`
+
+### Conflict of Interest
+- Reclassification vers `no_show` ou `late_penalized` bloquée si l'organisateur en serait bénéficiaire
+
+## Completed Features
 
 ### Phase 1 — Core
-- [x] Auth (JWT)
-- [x] Workspaces
-- [x] Appointment CRUD (create, read, update, cancel)
-- [x] Invitation system (email, accept, decline)
-- [x] Participant management
+- Auth (JWT), appointments CRUD, invitations, Stripe guarantees
+- GPS + QR + Video check-in
+- Evidence chain, proof sessions (NLYT Proof)
 
-### Phase 2 — Check-in & Evidence
-- [x] Manual check-in (physical)
-- [x] GPS check-in with geolocation
-- [x] QR code check-in
-- [x] Video check-in (Zoom, Teams, Meet)
-- [x] NLYT Proof sessions (video identity verification)
-- [x] Evidence aggregation & strength scoring
-- [x] Symmetric UI (organizer/participant same data, different actions)
+### Phase 2 — Dashboard & UX
+- Unified timeline dashboard (organizer + participant)
+- Action Required alerts (both roles)
+- Temporal bucketing (end_time based)
+- Contextual navigation (state passing via React Router)
+- Scroll preservation (useScrollRestore hook + sessionStorage)
 
-### Phase 3 — Financial
-- [x] Stripe guarantee setup (SetupIntents)
-- [x] Card reuse (1-click guarantee)
-- [x] Penalty capture (late/no_show)
-- [x] Distribution to beneficiaries (organizer, affected participants, charity, platform)
-- [x] Hold period (15 days) for contest
-- [x] Financial result display in appointment detail
+### Phase 3 — Financial Transparency
+- "Contributions" page (/mes-resultats) with global synthesis
+- Wording: "dédommagé de", "indemnisé le ou les participants", "geste solidaire"
+- Check-in temporal boundaries [start-30m, end+1h]
 
-### Phase 4 — Attendance Evaluation
-- [x] Automatic attendance evaluation (scheduler job)
-- [x] Outcome mapping: on_time, late, no_show, waived, manual_review
-- [x] review_required flag for ambiguous cases
-- [x] Reclassification API (PUT /api/attendance/reclassify/{record_id})
+### Phase 4 — V3 Trustless (Current)
+- 3-way delay split: on_time / late / late_penalized
+- evaluate_participant restructured (physical + video)
+- _process_financial_outcomes: Cas A/B V3 strict
+- _process_reclassification: PENALIZED = (no_show, late_penalized)
+- Conflict of interest extended to late_penalized
+- Frontend labels updated (6 outcome categories)
+- 34 tests passing (100%)
 
-### Phase 5 — Dashboard & UX
-- [x] Unified timeline dashboard (organizer + participant)
-- [x] Action Required sections (participant: pending invites/guarantees, organizer: low engagement alerts)
-- [x] Temporal bucketing (upcoming vs past based on end_time)
-- [x] Calendar sync (Google, Outlook)
-- [x] Event reminders (10min, 1h, 1 day)
+## Upcoming Tasks
+- P0: Wallet System
+- P1: Email notification participant après résolution dispute
+- P1: Buffer zone retard (2 min grâce)
 
-### Phase 6 — Audit & Robustness (March 2026)
-- [x] Production deployment fix (load_dotenv override removed)
-- [x] accepted_pending_guarantee CTA and flow fix
-- [x] Penalty logic correction (late beyond tolerance = capture)
-- [x] E2E Stripe capture validation
-- [x] **Audit des cas litigieux** — full product-oriented audit delivered
-- [x] **GPS radius fix** — gps_within_radius now uses actual configured radius, not permissive categories
-- [x] **Manual check-in review** — check-in without GPS → review_required=True (no auto-validation on self-declaration)
-- [x] **PendingReviewSection** — UI for organizers to review ambiguous attendance (Present/Absent buttons)
-- [x] **Review timeout** — auto-release guarantee after 15 days without review (defensive, no penalty)
-- [x] **gps_radius_meters persistence** — field now saved in appointment creation/update
-- [x] **AttendancePanel reclassify fix** — uses record_id instead of participant_id
-
-### Phase 7 — Transparency & User Impact (March 2026)
-- [x] **Disputes Center** — /disputes centralized review page with navbar badge
-- [x] **FinancialResultSection V2** — per-participant financial outcome display in appointment detail
-- [x] **Financial Badge Dashboard** — financial summary badges on timeline cards (Historique tab)
-- [x] **Personalized Financial Wording** — first-person perspective ("Vous avez ete dedommage" / "Vous avez paye")
-- [x] **Page Resultats d'engagement** (`/mes-resultats`) — dedicated financial synthesis page with:
-  - 3 synthesis cards (Total recu, Total paye, Solde net)
-  - Engagement detail list with user-centric wording
-  - Impact solidaire section (total charity + per-association breakdown)
-  - Navbar integration (desktop + mobile)
-
-### Phase 8 — Trustless V3 (March 2026)
-- [x] **Audit systeme de penalites** — audit complet (flux, matrice, risques, edge cases)
-- [x] **Refonte conceptuelle V3** — design trustless valide par le product owner
-- [x] **`_has_admissible_proof()`** — helper verifiant preuve Niveau 1-2 (GPS, QR, Zoom/Teams, NLYT Proof)
-- [x] **Garde-fou beneficiaire** — compensation uniquement si `outcome in (on_time, late)` + preuve admissible
-- [x] **Cas B : situation insuffisamment documentee** — si personne n'a de preuve Niveau 1-2, tout gele, aucune capture
-- [x] **Cas A : absence etablie, presence non prouvee** — capture bloquee si aucun beneficiaire avec preuve admissible (force review)
-- [x] **Blocage reclassification conflit d'interet** — organisateur ne peut plus reclassifier no_show/late quand il est beneficiaire
-- [x] **17 tests unitaires** — `tests/test_trustless_v3.py` couvrant preuve, Cas A, Cas B, conflit d'interet
-
----
-
-## Pending / Upcoming Tasks
-
-### P0 — Wallet System (Next)
-- User wallet for managing balances
-- wallet_service.py already has base functions
-- Will track: earnings, penalties, payouts
-
-### P1 — Notifications & Tolerance
-- [ ] Email notification to participants when dispute status is resolved
-- [ ] Buffer zone for lateness (2 min grace period)
-
-### P2 — Future
-- [ ] Charity Payouts V2 (Stripe Transfers)
-- [ ] Webhooks temps reel Zoom/Teams
-- [ ] Pages dediees charite & Leaderboard
-- [ ] Grace period for tolerance boundary (2min buffer)
-- [ ] Causality detection (organizer late → don't penalize participants)
-
----
-
-## Key Decision Rules (Post-Audit)
-
-### Evidence Strength (Physical)
-| Signal | Category |
-|--------|----------|
-| QR code | Strong signal |
-| GPS close (<=500m) | Strong signal |
-| GPS nearby (500m-5km) | Weak signal (does NOT count as positive) |
-| Manual check-in (no GPS) | Medium BUT review_required=True |
-
-### Financial Flow
-| Outcome | review_required | Action |
-|---------|-----------------|--------|
-| on_time | False | Release guarantee |
-| late | False | Capture + distribute |
-| no_show | False | Capture + distribute |
-| any | True | BLOCKED → organizer review → timeout after 15 days |
-| waived | - | No action (released) |
-
-### Timeout Rule
-- After 15 days without organizer review → guarantee released without penalty
-- decided_by = "system_timeout"
-- Runs every 6 hours via scheduler
-
----
+## Backlog
+- P2: Dashboard admin (arbitrage escaladés)
+- P2: Charity Payouts V2 (Stripe Transfers)
+- P2: Webhooks temps réel Zoom/Teams
+- P2: Détection causalité organisateur
+- P2: Pages dédiées charité & Leaderboard
 
 ## Test Credentials
-- Organizer: igaal.hanouna@gmail.com / OrgTest123!
-- Participant: testuser_audit@nlyt.app / TestAudit123!
+- User 1: testuser_audit@nlyt.app
+- User 2: igaal.hanouna@gmail.com

@@ -26,7 +26,7 @@ function detectAvailableCards(attendance, appointment, userId) {
 
   // 2. Check for compensation (user received compensation from a no-show)
   // This is visible if the current user is the organizer and someone was absent
-  const anyNoShow = records.some((r) => r.outcome === 'no_show');
+  const anyNoShow = records.some((r) => r.outcome === 'no_show' || r.outcome === 'late_penalized');
   if (isOrganizer && anyNoShow) {
     cards.push('compensation_received');
   }

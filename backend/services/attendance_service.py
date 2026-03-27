@@ -229,19 +229,38 @@ def evaluate_participant(participant: dict, appointment: dict) -> dict:
                 }
 
                 # NLYT PROOF THRESHOLDS (rebalanced Feb 2026)
-                # Strong (≥ 55): clear presence proof
+                # Strong (≥ 55): admissible proof → 3-way delay split
                 if score >= 55:
-                    is_on_time = checkin_points >= 30  # 40=on_time, 20=slightly late
                     confidence = "high"
-                    # Video API confirmation elevates confidence
                     if video_bonus and video_outcome in ("joined_on_time", "joined_late"):
                         proof_context["video_confirmed"] = True
 
+                    # V3: 3-way delay split
+                    v_delay = aggregation.get('delay_minutes')
+                    v_tolerated = appointment.get('tolerated_delay_minutes', 0)
+
+                    if v_delay is not None:
+                        if v_delay <= 0:
+                            v_outcome = "on_time"
+                            v_basis = "nlyt_proof_strong_on_time"
+                        elif v_tolerated > 0 and v_delay <= v_tolerated:
+                            v_outcome = "late"
+                            v_basis = "nlyt_proof_strong_late_within_tolerance"
+                        else:
+                            v_outcome = "late_penalized"
+                            v_basis = "nlyt_proof_strong_late_beyond_tolerance"
+                    else:
+                        # Fallback to checkin_points if delay_minutes unavailable
+                        is_on_time = checkin_points >= 30
+                        v_outcome = "on_time" if is_on_time else "late"
+                        v_basis = "nlyt_proof_strong_on_time" if is_on_time else "nlyt_proof_strong_late"
+
                     return {
-                        "outcome": "on_time" if is_on_time else "late",
-                        "decision_basis": "nlyt_proof_strong_on_time" if is_on_time else "nlyt_proof_strong_late",
+                        "outcome": v_outcome,
+                        "decision_basis": v_basis,
                         "confidence": confidence,
                         "review_required": False,
+                        "delay_minutes": v_delay,
                         "evidence_summary": aggregation,
                         "proof_context": proof_context,
                     }
@@ -262,162 +281,129 @@ def evaluate_participant(participant: dict, appointment: dict) -> dict:
                         "proof_context": proof_context,
                     }
 
-                # Weak (< 30): very insufficient proof
+                # Weak (< 30): insufficient proof → manual_review (V3: no outcome without proof)
                 return {
-                    "outcome": "no_show",
+                    "outcome": "manual_review",
                     "decision_basis": "nlyt_proof_weak",
-                    "confidence": "medium",
+                    "confidence": "low",
                     "review_required": True,
                     "evidence_summary": aggregation,
                     "proof_context": proof_context,
                 }
 
-            # --- No NLYT Proof session: fall back to video API (secondary) ---
+            # --- No NLYT Proof session: check for admissible video API proof ---
+            v_pid = participant.get('participant_id', '')
+            v_apt_id = participant.get('appointment_id', appointment.get('appointment_id', ''))
+            if _has_admissible_proof(v_pid, v_apt_id):
+                v_delay = aggregation.get('delay_minutes')
+                v_tolerated = appointment.get('tolerated_delay_minutes', 0)
+
+                if v_delay is not None:
+                    if v_delay <= 0:
+                        v_outcome = "on_time"
+                        v_basis = "video_api_admissible_on_time"
+                    elif v_tolerated > 0 and v_delay <= v_tolerated:
+                        v_outcome = "late"
+                        v_basis = "video_api_admissible_late_within_tolerance"
+                    else:
+                        v_outcome = "late_penalized"
+                        v_basis = "video_api_admissible_late_beyond_tolerance"
+
+                    return {
+                        "outcome": v_outcome,
+                        "decision_basis": v_basis,
+                        "confidence": "medium",
+                        "review_required": False,
+                        "delay_minutes": v_delay,
+                        "evidence_summary": aggregation,
+                        "proof_context": {"source": "video_api", "video_bonus": video_bonus},
+                    }
+
+            # No admissible proof or timing unavailable → manual_review
             if aggregation.get('video_provider'):
-                video_trust = aggregation.get('video_source_trust', 'manual_upload')
-
-                # Google Meet alone → always manual_review
-                if video_provider_ceiling == "assisted" and strength != "strong":
-                    return {
-                        "outcome": "manual_review",
-                        "decision_basis": "no_proof_meet_assisted_only",
-                        "confidence": "low",
-                        "review_required": True,
-                        "evidence_summary": aggregation,
-                        "proof_context": {"source": "video_api_fallback", "video_bonus": video_bonus},
-                        "video_context": {
-                            "provider": aggregation.get('video_provider'),
-                            "provider_ceiling": video_provider_ceiling,
-                            "video_outcome": video_outcome,
-                            "source_trust": video_trust,
-                            "rule": "Pas de session NLYT Proof. Google Meet seul = revue manuelle",
-                        }
-                    }
-
-                # Zoom/Teams with strong evidence
-                if strength == "strong" and video_outcome == "joined_on_time":
-                    return {
-                        "outcome": "on_time",
-                        "decision_basis": "no_proof_video_fallback_on_time",
-                        "confidence": "medium",
-                        "review_required": True,
-                        "evidence_summary": aggregation,
-                        "proof_context": {"source": "video_api_fallback", "video_bonus": video_bonus, "note": "Pas de session NLYT Proof. Décision basée sur API vidéo (secondaire)."},
-                    }
-
-                if strength == "strong" and video_outcome == "joined_late":
-                    return {
-                        "outcome": "late",
-                        "decision_basis": "no_proof_video_fallback_late",
-                        "confidence": "medium",
-                        "review_required": True,
-                        "evidence_summary": aggregation,
-                        "proof_context": {"source": "video_api_fallback", "video_bonus": video_bonus, "note": "Pas de session NLYT Proof. Décision basée sur API vidéo (secondaire)."},
-                    }
-
-                # Ambiguous video → manual_review
                 return {
                     "outcome": "manual_review",
-                    "decision_basis": "no_proof_video_ambiguous",
+                    "decision_basis": "insufficient_video_proof",
                     "confidence": "low",
                     "review_required": True,
                     "evidence_summary": aggregation,
                     "proof_context": {"source": "video_api_fallback", "video_bonus": video_bonus},
                 }
 
-            # --- No NLYT Proof AND no video API → absent ---
+            # --- No NLYT Proof AND no video API ---
             return {
-                "outcome": "no_show",
+                "outcome": "manual_review",
                 "decision_basis": "no_proof_no_video",
-                "confidence": "medium",
+                "confidence": "low",
                 "review_required": True,
-                "proof_context": {"source": "none", "note": "Aucune session NLYT Proof, aucune preuve API vidéo."},
+                "proof_context": {"source": "none"},
             }
 
         # --- PHYSICAL APPOINTMENT ---
         delay_minutes = aggregation.get('delay_minutes')
-        manual_checkin_only = aggregation.get('manual_checkin_only', False)
+        tolerated = appointment.get('tolerated_delay_minutes', 0)
+        p_id = participant.get('participant_id', '')
+        apt_id = participant.get('appointment_id', appointment.get('appointment_id', ''))
 
-        if strength == 'strong' and timing == 'on_time':
+        # V3 Trustless: admissible proof (Niveau 1-2) required for ANY definitive outcome
+        has_proof = _has_admissible_proof(p_id, apt_id)
+        if not has_proof:
+            if strength == 'weak':
+                basis_val = "weak_evidence"
+            elif strength == 'none':
+                basis_val = {
+                    'accepted': 'accepted_no_guarantee',
+                    'accepted_pending_guarantee': 'pending_guarantee',
+                    'accepted_guaranteed': 'no_proof_of_attendance'
+                }.get(status, 'unknown')
+            else:
+                basis_val = "insufficient_proof"
+            return {
+                "outcome": "manual_review",
+                "decision_basis": basis_val,
+                "confidence": "low",
+                "review_required": True,
+                "evidence_summary": aggregation if aggregation.get('evidence_count', 0) > 0 else None
+            }
+
+        # Admissible proof confirmed → determine outcome by delay
+        if delay_minutes is None or timing is None:
+            return {
+                "outcome": "manual_review",
+                "decision_basis": "timing_undetermined",
+                "confidence": "low",
+                "review_required": True,
+                "evidence_summary": aggregation
+            }
+
+        # 3-way delay split
+        if delay_minutes <= 0:
             return {
                 "outcome": "on_time",
-                "decision_basis": "strong_evidence_on_time",
+                "decision_basis": "admissible_proof_on_time",
                 "confidence": "high",
                 "review_required": False,
                 "delay_minutes": delay_minutes,
                 "evidence_summary": aggregation
             }
-
-        if strength == 'strong' and timing == 'late':
+        elif tolerated > 0 and delay_minutes <= tolerated:
             return {
                 "outcome": "late",
-                "decision_basis": "strong_evidence_late",
+                "decision_basis": "admissible_proof_late_within_tolerance",
                 "confidence": "high",
                 "review_required": False,
                 "delay_minutes": delay_minutes,
                 "evidence_summary": aggregation
             }
-
-        if strength == 'medium' and timing == 'on_time':
-            # Manual check-in without GPS → always review (no auto-validation on self-declaration alone)
-            if manual_checkin_only:
-                return {
-                    "outcome": "on_time",
-                    "decision_basis": "manual_checkin_only_on_time",
-                    "confidence": "low",
-                    "review_required": True,
-                    "delay_minutes": delay_minutes,
-                    "evidence_summary": aggregation
-                }
-            return {
-                "outcome": "on_time",
-                "decision_basis": "medium_evidence_on_time",
-                "confidence": "medium",
-                "review_required": False,
-                "delay_minutes": delay_minutes,
-                "evidence_summary": aggregation
-            }
-
-        if strength == 'medium' and timing == 'late':
-            # Manual check-in without GPS → always review (no auto-penalty on self-declaration alone)
-            if manual_checkin_only:
-                return {
-                    "outcome": "late",
-                    "decision_basis": "manual_checkin_only_late",
-                    "confidence": "low",
-                    "review_required": True,
-                    "delay_minutes": delay_minutes,
-                    "evidence_summary": aggregation
-                }
-            return {
-                "outcome": "late",
-                "decision_basis": "medium_evidence_late",
-                "confidence": "medium",
-                "review_required": False,
-                "delay_minutes": delay_minutes,
-                "evidence_summary": aggregation
-            }
-
-        # Weak or no evidence: manual_review
-        basis = {
-            'accepted': 'accepted_no_guarantee',
-            'accepted_pending_guarantee': 'pending_guarantee',
-            'accepted_guaranteed': 'no_proof_of_attendance'
-        }
-        if strength == 'weak':
-            basis_val = "weak_evidence"
-        elif strength == 'none':
-            basis_val = basis.get(status, 'unknown')
         else:
-            basis_val = basis.get(status, 'unknown')
-
-        return {
-            "outcome": "manual_review",
-            "decision_basis": basis_val,
-            "confidence": "low",
-            "review_required": True,
-            "evidence_summary": aggregation if aggregation.get('evidence_count', 0) > 0 else None
-        }
+            return {
+                "outcome": "late_penalized",
+                "decision_basis": "admissible_proof_late_beyond_tolerance",
+                "confidence": "high",
+                "review_required": False,
+                "delay_minutes": delay_minutes,
+                "evidence_summary": aggregation
+            }
 
     # --- Fallback ---
     return {
@@ -461,7 +447,7 @@ def evaluate_appointment(appointment_id: str) -> dict:
         return {"skipped": True, "reason": "Aucun participant"}
 
     records = []
-    summary = {"waived": 0, "no_show": 0, "manual_review": 0, "on_time": 0, "late": 0}
+    summary = {"waived": 0, "no_show": 0, "manual_review": 0, "on_time": 0, "late": 0, "late_penalized": 0}
 
     for participant in participants:
         # Skip if already has a record
@@ -671,7 +657,7 @@ def reclassify_participant(record_id: str, new_outcome: str, notes: str = None, 
     Used by organizer/reviewer to override system decisions.
     Triggers financial hooks on outcome transitions.
     """
-    valid_outcomes = ('on_time', 'late', 'no_show', 'manual_review', 'waived')
+    valid_outcomes = ('on_time', 'late', 'late_penalized', 'no_show', 'manual_review', 'waived')
     if new_outcome not in valid_outcomes:
         return {"error": f"Outcome invalide. Valeurs acceptées: {', '.join(valid_outcomes)}"}
 
@@ -709,7 +695,7 @@ def _refresh_appointment_summary(appointment_id: str):
         {"appointment_id": appointment_id},
         {"_id": 0, "outcome": 1}
     ))
-    summary = {"waived": 0, "no_show": 0, "manual_review": 0, "on_time": 0, "late": 0}
+    summary = {"waived": 0, "no_show": 0, "manual_review": 0, "on_time": 0, "late": 0, "late_penalized": 0}
     for r in records:
         outcome = r.get('outcome', 'manual_review')
         summary[outcome] = summary.get(outcome, 0) + 1
@@ -727,58 +713,39 @@ def _refresh_appointment_summary(appointment_id: str):
 def _process_financial_outcomes(appointment_id: str, appointment: dict, participants: list):
     """
     Post-evaluation hook: process capture/release for all evaluated participants.
-    
-    V3 Trustless rules:
-    - Beneficiary must have admissible proof (Niveau 1-2) to receive compensation
-    - Cas A: payeur absent (established) + beneficiary unproven → capture, compensation to charity/platform
-    - Cas B: nobody has Niveau 1-2 proof → all gelé, no capture, no distribution
-    """
-    from services.stripe_guarantee_service import StripeGuaranteeService
-    from services.distribution_service import create_distribution
 
+    V3 Trustless rules:
+    - Beneficiaries: on_time/late with admissible proof (guaranteed by evaluation, defense-in-depth check)
+    - Capture: no_show and late_penalized only
+    - Cas B: no definitive outcome in the entire RDV → all frozen, no financial action
+    - Cas A (per-payer): payer established but no eligible beneficiary → capture blocked
+    """
     penalty_amount = appointment.get('penalty_amount', 0)
     if not penalty_amount or penalty_amount <= 0:
-        return  # No penalty → no financial flow
+        return
 
     records = list(db.attendance_records.find(
         {"appointment_id": appointment_id},
         {"_id": 0}
     ))
 
-    # --- V3 Cas B detection: if nobody has Niveau 1-2 proof, everything is gelé ---
-    anyone_has_proof = False
-    for r in records:
-        if r.get('outcome') in ('on_time', 'late') and not r.get('review_required', True):
-            pid = r['participant_id']
-            if _has_admissible_proof(pid, appointment_id):
-                anyone_has_proof = True
-                break
-        elif r.get('outcome') in ('on_time', 'late') and r.get('review_required', False):
-            pid = r['participant_id']
-            if _has_admissible_proof(pid, appointment_id):
-                anyone_has_proof = True
-                break
+    # --- V3 Cas B: situation globally insufficiently documented ---
+    # Definitive = on_time, late, late_penalized, no_show with review_required=False
+    # waived does NOT count (doesn't document reality of the meeting)
+    has_definitive = any(
+        r.get('outcome') in ('on_time', 'late', 'late_penalized', 'no_show')
+        and not r.get('review_required', True)
+        for r in records
+    )
 
-    if not anyone_has_proof:
-        # Cas B: insufficient global proof → force all to manual_review, no financial action
-        logger.info(f"[FINANCIAL][CAS_B] No participant has Niveau 1-2 proof for {appointment_id}. All gelé.")
-        for r in records:
-            if r.get('outcome') in ('no_show', 'late') and not r.get('review_required', True):
-                db.attendance_records.update_one(
-                    {"record_id": r['record_id']},
-                    {"$set": {
-                        "review_required": True,
-                        "cas_b_override": True,
-                        "cas_b_reason": "Aucun participant avec preuve admissible. Situation insuffisamment documentee."
-                    }}
-                )
-                logger.info(f"[FINANCIAL][CAS_B] Forced review_required for {r['record_id']} (was {r['outcome']})")
+    if not has_definitive:
+        logger.info(f"[FINANCIAL][CAS_B] No definitive outcome for {appointment_id}. Situation insufficiently documented.")
         return
 
-    # --- Build list of eligible beneficiaries (V3: on_time OR late, WITH admissible proof) ---
+    # --- Build eligible beneficiaries: on_time/late, review_required=False, admissible proof ---
     eligible_beneficiaries = []
     for r in records:
-        if r.get('outcome') in ('on_time', 'late'):
+        if r.get('outcome') in ('on_time', 'late') and not r.get('review_required', True):
             p = _find_participant(participants, r['participant_id'])
             if p and p.get('user_id'):
                 if _has_admissible_proof(r['participant_id'], appointment_id):
@@ -787,11 +754,12 @@ def _process_financial_outcomes(appointment_id: str, appointment: dict, particip
                         "participant_id": p["participant_id"],
                     })
                 else:
-                    logger.info(f"[FINANCIAL][GARDE_FOU] {r['participant_id']} has outcome={r['outcome']} but no admissible proof. Excluded from compensation.")
+                    logger.info(f"[FINANCIAL][GARDE_FOU] {r['participant_id']} outcome={r['outcome']} sans preuve admissible. Exclu.")
 
+    # --- Process each definitive record ---
     for record in records:
         if record.get('review_required', True):
-            continue  # manual_review → no action until reclassified
+            continue
 
         participant = _find_participant(participants, record['participant_id'])
         if not participant:
@@ -802,23 +770,22 @@ def _process_financial_outcomes(appointment_id: str, appointment: dict, particip
             {"_id": 0}
         )
         if not guarantee or guarantee.get('status') not in ('completed', 'dev_pending'):
-            continue  # No valid guarantee → no financial action
+            continue
 
         outcome = record.get('outcome')
 
-        if outcome in ('no_show', 'late'):
-            # Cas A check: capture only if at least 1 other has admissible proof
-            no_show_user_id = participant.get('user_id')
-            others_with_proof = [b for b in eligible_beneficiaries if b["user_id"] != no_show_user_id]
-            if not others_with_proof:
-                # No other participant has admissible proof → don't auto-capture, force review
-                logger.info(f"[FINANCIAL][CAS_A_BLOCK] No proven beneficiary for {record['participant_id']} capture. Forcing review.")
+        if outcome in ('no_show', 'late_penalized'):
+            # Cas A per-payer: at least 1 proven beneficiary != this payer
+            payer_user_id = participant.get('user_id')
+            others = [b for b in eligible_beneficiaries if b["user_id"] != payer_user_id]
+            if not others:
+                logger.info(f"[FINANCIAL][CAS_A] No eligible beneficiary for {record['participant_id']}. Capture blocked.")
                 db.attendance_records.update_one(
                     {"record_id": record['record_id']},
                     {"$set": {
                         "review_required": True,
                         "cas_a_override": True,
-                        "cas_a_reason": "Absence etablie mais aucun beneficiaire avec preuve admissible."
+                        "cas_a_reason": "Penalite etablie mais aucun beneficiaire admissible."
                     }}
                 )
                 continue
@@ -827,10 +794,8 @@ def _process_financial_outcomes(appointment_id: str, appointment: dict, particip
             _execute_capture_and_distribution(
                 appointment, participant, guarantee, eligible_beneficiaries, capture_reason
             )
-        elif outcome == 'on_time':
+        elif outcome in ('on_time', 'late'):
             _execute_release(guarantee)
-        elif outcome == 'late' and record.get('review_required', True):
-            pass  # Already handled above
 
 
 def _execute_capture_and_distribution(
@@ -942,8 +907,8 @@ def _process_reclassification(record: dict, previous_outcome: str, new_outcome: 
     """
     from services.distribution_service import cancel_distribution as cancel_dist
 
-    PENALIZED = ('no_show', 'late')
-    NON_PENALIZED = ('on_time', 'waived')
+    PENALIZED = ('no_show', 'late_penalized')
+    NON_PENALIZED = ('on_time', 'late', 'waived')
 
     appointment_id = record['appointment_id']
     participant_id = record['participant_id']

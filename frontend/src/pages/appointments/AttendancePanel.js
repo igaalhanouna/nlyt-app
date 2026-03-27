@@ -15,10 +15,11 @@ export default function AttendancePanel({
   participants,
   getParticipantEvidence,
 }) {
-  const outcomeLabels = { on_time: 'Présent', late: 'En retard', no_show: 'Absent', manual_review: 'À vérifier', waived: 'Dispensé' };
+  const outcomeLabels = { on_time: 'Présent', late: 'En retard (toléré)', late_penalized: 'En retard (pénalisé)', no_show: 'Absent', manual_review: 'À vérifier', waived: 'Dispensé' };
   const outcomeColors = {
     on_time: 'bg-emerald-100 text-emerald-800 border-emerald-200',
     late: 'bg-amber-100 text-amber-800 border-amber-200',
+    late_penalized: 'bg-orange-100 text-orange-800 border-orange-200',
     no_show: 'bg-red-100 text-red-800 border-red-200',
     manual_review: 'bg-yellow-100 text-yellow-800 border-yellow-200',
     waived: 'bg-slate-100 text-slate-800 border-slate-200',
@@ -26,6 +27,7 @@ export default function AttendancePanel({
   const outcomeIcons = {
     on_time: <UserCheck className="w-3.5 h-3.5" />,
     late: <AlertTriangle className="w-3.5 h-3.5" />,
+    late_penalized: <AlertTriangle className="w-3.5 h-3.5" />,
     no_show: <UserX className="w-3.5 h-3.5" />,
     manual_review: <HelpCircle className="w-3.5 h-3.5" />,
     waived: <Check className="w-3.5 h-3.5" />,
@@ -54,10 +56,11 @@ export default function AttendancePanel({
 
       {attendance?.evaluated ? (
         <>
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-5">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-5">
             {[
               { key: 'on_time', label: 'Présents', color: 'emerald' },
-              { key: 'late', label: 'En retard', color: 'amber' },
+              { key: 'late', label: 'En retard (toléré)', color: 'amber' },
+              { key: 'late_penalized', label: 'En retard (pénalisé)', color: 'orange' },
               { key: 'no_show', label: 'Absents', color: 'red' },
               { key: 'manual_review', label: 'À vérifier', color: 'yellow' },
               { key: 'waived', label: 'Dispensés', color: 'slate' },

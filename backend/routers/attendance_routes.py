@@ -10,6 +10,8 @@ import sys
 sys.path.append('/app/backend')
 from middleware.auth_middleware import get_current_user
 from database import db
+import logging
+logger = logging.getLogger(__name__)
 from services.attendance_service import (
     evaluate_appointment,
     reevaluate_appointment,
@@ -124,7 +126,7 @@ async def reclassify(record_id: str, body: ReclassifyRequest, request: Request):
         )
 
     # V3 Trustless: block reclassification if organizer has financial conflict of interest
-    if body.new_outcome in ('no_show', 'late'):
+    if body.new_outcome in ('no_show', 'late_penalized'):
         # Check: is the organizer a beneficiary of this reclassification?
         reclassified_participant = db.participants.find_one(
             {"participant_id": record['participant_id']},

@@ -231,7 +231,7 @@ function FinancialResultSection({ appointment, participants, isOrganizer }) {
 
   // Sort: penalized first, then compensated, then on_time, then review
   const sorted = [...financialSummary].sort((a, b) => {
-    const order = { no_show: 0, late: 1, on_time: 2, manual_review: 3, waived: 4 };
+    const order = { no_show: 0, late_penalized: 1, late: 2, on_time: 3, manual_review: 4, waived: 5 };
     return (order[a.outcome] ?? 5) - (order[b.outcome] ?? 5);
   });
 
@@ -246,9 +246,9 @@ function FinancialResultSection({ appointment, participants, isOrganizer }) {
       <div className="divide-y divide-slate-50">
         {sorted.map((f) => {
           const name = getName(f.participant_id);
-          const isPenalized = (f.outcome === 'late' || f.outcome === 'no_show') && !f.review_required;
+          const isPenalized = (f.outcome === 'late_penalized' || f.outcome === 'no_show') && !f.review_required;
           const isCompensated = f.compensation_received_cents > 0;
-          const isOnTime = f.outcome === 'on_time' && !f.review_required;
+          const isOnTime = (f.outcome === 'on_time' || f.outcome === 'late') && !f.review_required;
           const isWaived = f.outcome === 'waived';
           const isReview = f.review_required;
           const capturedCents = f.capture_amount_cents || (f.penalty_amount ? f.penalty_amount * 100 : 0);
@@ -259,7 +259,7 @@ function FinancialResultSection({ appointment, participants, isOrganizer }) {
             statusIcon = <AlertTriangle className="w-4 h-4" />;
             statusColor = 'text-red-700';
             statusBg = 'bg-red-50';
-            statusText = f.outcome === 'no_show' ? 'Absent' : `En retard (${Math.round(f.delay_minutes || 0)} min)`;
+            statusText = f.outcome === 'no_show' ? 'Absent' : `En retard pénalisé (${Math.round(f.delay_minutes || 0)} min)`;
             explanation = `Penalise de ${formatAmount(capturedCents) || penaltyAmount + ' ' + symbol}`;
             if (f.captured) {
               explanation += ' — montant preleve';
