@@ -369,6 +369,7 @@ export default function AppointmentDetail() {
   const navigate = useNavigate();
   const location = useLocation();
   const cameFromDisputes = location.state?.from === 'disputes';
+  const cameFromContributions = location.state?.from === 'contributions';
   const fromTab = location.state?.fromTab;
   const { user } = useAuth();
 
@@ -803,9 +804,11 @@ export default function AppointmentDetail() {
       <AppBreadcrumb items={
         cameFromDisputes
           ? [{ label: 'Tableau de bord', href: '/dashboard' }, { label: 'Decisions en attente', href: '/disputes' }, { label: appointment.title }]
-          : fromTab
-            ? [{ label: 'Tableau de bord', href: backHref }, { label: backLabel, href: backHref }, { label: appointment.title }]
-            : [{ label: 'Tableau de bord', href: '/dashboard' }, { label: appointment.title }]
+          : cameFromContributions
+            ? [{ label: 'Tableau de bord', href: '/dashboard' }, { label: 'Contributions', href: '/mes-resultats' }, { label: appointment.title }]
+            : fromTab
+              ? [{ label: 'Tableau de bord', href: backHref }, { label: backLabel, href: backHref }, { label: appointment.title }]
+              : [{ label: 'Tableau de bord', href: '/dashboard' }, { label: appointment.title }]
       } />
 
       <div className="max-w-6xl mx-auto px-4 md:px-6 pb-12">

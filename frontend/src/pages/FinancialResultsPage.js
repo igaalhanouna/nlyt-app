@@ -135,6 +135,7 @@ export default function FinancialResultsPage() {
                   <Link
                     key={eng.appointment_id}
                     to={`/appointments/${eng.appointment_id}`}
+                    state={{ from: 'contributions' }}
                     onClick={saveScroll}
                     className="flex items-center justify-between px-4 py-3.5 hover:bg-slate-50 transition-colors group"
                     data-testid="engagement-item"
