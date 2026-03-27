@@ -245,3 +245,93 @@ def _create_transaction(wallet_id: str, tx_type: str, amount: int,
     db.wallet_transactions.insert_one(tx)
     tx.pop("_id", None)
     return tx
+
+
+
+# ─── Ledger Reconciliation ────────────────────────────────────────
+
+
+def run_reconciliation_job() -> dict:
+    """
+    Reconciliation job: verify that denormalized wallet balances match the ledger.
+
+    Formula:
+      expected_total = SUM(credit_pending) - SUM(debit_payout) - SUM(debit_refund)
+      actual_total = available_balance + pending_balance
+
+    Note: credit_available is an internal move (pending → available), net-zero on the total.
+    It is explicitly excluded from the formula.
+
+    Reports any drift without making destructive corrections.
+    """
+    MONEY_IN_TYPES = ("credit_pending",)
+    MONEY_OUT_TYPES = ("debit_payout", "debit_refund")
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+    wallets = list(db.wallets.find({}, {"_id": 0, "wallet_id": 1, "user_id": 1,
+                                         "available_balance": 1, "pending_balance": 1,
+                                         "wallet_type": 1}))
+
+    drifts = []
+    checked = 0
+
+    for wallet in wallets:
+        wid = wallet["wallet_id"]
+
+        pipeline = [
+            {"$match": {"wallet_id": wid}},
+            {"$group": {
+                "_id": "$type",
+                "total": {"$sum": "$amount"},
+            }},
+        ]
+        agg = {doc["_id"]: doc["total"] for doc in db.wallet_transactions.aggregate(pipeline)}
+
+        money_in = sum(agg.get(t, 0) for t in MONEY_IN_TYPES)
+        money_out = sum(agg.get(t, 0) for t in MONEY_OUT_TYPES)
+        expected_total = money_in - money_out
+
+        actual_available = wallet.get("available_balance", 0)
+        actual_pending = wallet.get("pending_balance", 0)
+        actual_total = actual_available + actual_pending
+
+        drift = actual_total - expected_total
+
+        if drift != 0:
+            drift_entry = {
+                "wallet_id": wid,
+                "user_id": wallet.get("user_id"),
+                "wallet_type": wallet.get("wallet_type"),
+                "expected_total_cents": expected_total,
+                "actual_total_cents": actual_total,
+                "actual_available": actual_available,
+                "actual_pending": actual_pending,
+                "drift_cents": drift,
+                "ledger_money_in": money_in,
+                "ledger_money_out": money_out,
+            }
+            drifts.append(drift_entry)
+            logger.error(
+                f"[RECONCILIATION] DRIFT wallet={wid} user={wallet.get('user_id')} "
+                f"expected={expected_total} actual={actual_total} drift={drift}"
+            )
+
+        checked += 1
+
+    report = {
+        "report_id": str(uuid.uuid4()),
+        "run_at": now_iso,
+        "wallets_checked": checked,
+        "drifts_found": len(drifts),
+        "drifts": drifts,
+        "status": "clean" if len(drifts) == 0 else "drift_detected",
+    }
+    db.reconciliation_reports.insert_one(report)
+    report.pop("_id", None)
+
+    if drifts:
+        logger.warning(f"[RECONCILIATION] {len(drifts)} drift(s) detected across {checked} wallets")
+    else:
+        logger.info(f"[RECONCILIATION] All {checked} wallets clean — ledger matches balances")
+
+    return report

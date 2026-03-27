@@ -300,10 +300,11 @@ def _run_analysis(appointment_id: str):
     )
 
     if new_phase == "resolved":
-        # Re-trigger financial outcomes
+        # Reset Cas A overrides before re-triggering financial engine
+        from services.attendance_service import reset_cas_a_overrides, _process_financial_outcomes
+        reset_cas_a_overrides(appointment_id)
         appointment = db.appointments.find_one({"appointment_id": appointment_id}, {"_id": 0})
         participants = list(db.participants.find({"appointment_id": appointment_id}, {"_id": 0}))
-        from services.attendance_service import _process_financial_outcomes
         _process_financial_outcomes(appointment_id, appointment, participants)
         logger.info(f"[DECLARATIVE] All manual_reviews resolved for {appointment_id}. Financial engine relaunched.")
 
@@ -534,10 +535,11 @@ def resolve_dispute(dispute_id: str, final_outcome: str, resolution_note: str, r
             {"appointment_id": appointment_id},
             {"$set": {"declarative_phase": "resolved"}}
         )
-        # Re-trigger financial outcomes
+        # Reset Cas A overrides before re-triggering financial engine
+        from services.attendance_service import reset_cas_a_overrides, _process_financial_outcomes
+        reset_cas_a_overrides(appointment_id)
         appointment = db.appointments.find_one({"appointment_id": appointment_id}, {"_id": 0})
         participants = list(db.participants.find({"appointment_id": appointment_id}, {"_id": 0}))
-        from services.attendance_service import _process_financial_outcomes
         _process_financial_outcomes(appointment_id, appointment, participants)
         logger.info(f"[DISPUTE] All disputes resolved for {appointment_id}. Financial engine relaunched.")
 

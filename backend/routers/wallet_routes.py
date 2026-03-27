@@ -28,6 +28,7 @@ from services.distribution_service import (
     get_distributions_for_user,
     get_distribution,
     contest_distribution,
+    resolve_contestation,
     get_charity_impact,
 )
 from services.payout_service import (
@@ -176,6 +177,31 @@ async def contest_dist(distribution_id: str, body: ContestRequest, request: Requ
     result = contest_distribution(distribution_id, user["user_id"], body.reason)
     if not result.get("success"):
         raise HTTPException(status_code=400, detail=result.get("error", "Erreur contestation"))
+    return result
+
+
+class ResolveContestationRequest(BaseModel):
+    resolution: str  # "upheld" or "rejected"
+    note: str = ""
+
+
+@router.post("/distributions/{distribution_id}/resolve-contestation")
+async def resolve_contest(distribution_id: str, body: ResolveContestationRequest, request: Request):
+    """
+    Resolve a contested distribution (admin or organizer).
+    resolution: "upheld" (cancel distribution, refund) or "rejected" (resume hold).
+    """
+    user = await get_current_user(request)
+    # Verify the user is the appointment organizer
+    dist = get_distribution(distribution_id)
+    if not dist:
+        raise HTTPException(status_code=404, detail="Distribution introuvable")
+    apt = db.appointments.find_one({"appointment_id": dist["appointment_id"]}, {"_id": 0})
+    if not apt or apt.get("organizer_id") != user["user_id"]:
+        raise HTTPException(status_code=403, detail="Seul l'organisateur peut résoudre une contestation")
+    result = resolve_contestation(distribution_id, body.resolution, resolved_by=user["user_id"], note=body.note)
+    if not result.get("success"):
+        raise HTTPException(status_code=400, detail=result.get("error", "Erreur résolution"))
     return result
 
 

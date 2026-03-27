@@ -733,6 +733,28 @@ def _refresh_appointment_summary(appointment_id: str):
 # ─── Financial Hooks (Phase 3) ────────────────────────────────────
 
 
+def reset_cas_a_overrides(appointment_id: str) -> int:
+    """
+    Reset Cas A overrides for an appointment so _process_financial_outcomes can re-evaluate.
+
+    When Cas A blocks a capture (no eligible beneficiary), it sets review_required=True
+    and cas_a_override=True. If a dispute or declarative resolution later creates a new
+    eligible beneficiary, these flags must be cleared to allow re-processing.
+
+    Only resets records where cas_a_override=True. Does NOT touch legitimate manual_review records.
+    Returns the count of records reset.
+    """
+    result = db.attendance_records.update_many(
+        {"appointment_id": appointment_id, "cas_a_override": True},
+        {"$set": {"review_required": False, "cas_a_override": False},
+         "$unset": {"cas_a_reason": ""}}
+    )
+    count = result.modified_count
+    if count > 0:
+        logger.info(f"[FINANCIAL][CAS_A_RESET] Reset {count} Cas A overrides for {appointment_id}")
+    return count
+
+
 def _process_financial_outcomes(appointment_id: str, appointment: dict, participants: list):
     """
     Post-evaluation hook: process capture/release for all evaluated participants.

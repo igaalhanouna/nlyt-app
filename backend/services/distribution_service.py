@@ -523,7 +523,140 @@ def contest_distribution(distribution_id: str, user_id: str, reason: str) -> dic
     return {"success": True}
 
 
-# ─── Query Helpers ───────────────────────────────────────────────
+# ─── Contestation Resolution ─────────────────────────────────────
+
+
+CONTESTATION_TIMEOUT_DAYS = 30
+
+
+def resolve_contestation(distribution_id: str, resolution: str, resolved_by: str = "admin", note: str = "") -> dict:
+    """
+    Resolve a contested distribution.
+
+    resolution:
+      - "upheld":   Contestation accepted → cancel distribution, refund wallets, release guarantee
+      - "rejected": Contestation denied → resume hold period (new 15-day expiry from now)
+
+    Idempotent: already-resolved contestations are skipped.
+    """
+    if resolution not in ("upheld", "rejected"):
+        return {"success": False, "error": "Résolution invalide. Valeurs: upheld, rejected"}
+
+    dist = db.distributions.find_one({"distribution_id": distribution_id}, {"_id": 0})
+    if not dist:
+        return {"success": False, "error": "Distribution introuvable"}
+
+    if dist["status"] != "contested":
+        return {"success": False, "error": f"La distribution n'est pas contestée (status: {dist['status']})"}
+
+    now = datetime.now(timezone.utc)
+    now_iso = now.isoformat()
+
+    if resolution == "upheld":
+        # Contestation accepted: cancel distribution and refund all beneficiaries
+        refund_errors = []
+        for benef in dist.get("beneficiaries", []):
+            if benef["status"] not in ("credited_pending", "credited_available"):
+                continue
+            if benef["amount_cents"] <= 0:
+                continue
+            result = debit_refund(
+                wallet_id=benef["wallet_id"],
+                amount_cents=benef["amount_cents"],
+                currency=dist["capture_currency"],
+                reference_id=distribution_id,
+                description=f"Contestation acceptée — remboursement",
+            )
+            if result.get("success"):
+                benef["status"] = "refunded"
+            else:
+                refund_errors.append(benef["wallet_id"])
+
+        db.distributions.update_one(
+            {"distribution_id": distribution_id},
+            {"$set": {
+                "status": "cancelled",
+                "cancel_reason": f"Contestation acceptée{(' — ' + note) if note else ''}",
+                "cancelled_at": now_iso,
+                "contestation_resolved_at": now_iso,
+                "contestation_resolved_by": resolved_by,
+                "contestation_resolution": "upheld",
+                "beneficiaries": dist["beneficiaries"],
+                "updated_at": now_iso,
+            }},
+        )
+
+        # Release the guarantee (give money back to the no_show)
+        guarantee = db.payment_guarantees.find_one(
+            {"guarantee_id": dist["guarantee_id"]}, {"_id": 0}
+        )
+        if guarantee and guarantee.get("status") == "captured":
+            try:
+                from services.stripe_guarantee_service import StripeGuaranteeService
+                StripeGuaranteeService.release_guarantee(dist["guarantee_id"], "contestation_upheld")
+            except Exception as e:
+                logger.error(f"[CONTESTATION] Failed to release guarantee {dist['guarantee_id']}: {e}")
+
+        logger.info(f"[CONTESTATION] Upheld for {distribution_id}. Distribution cancelled, wallets refunded.")
+        return {"success": True, "resolution": "upheld", "refund_errors": refund_errors}
+
+    else:
+        # Contestation rejected: resume hold period (new 15-day window from now)
+        new_hold_expires = (now + timedelta(days=HOLD_DAYS)).isoformat()
+
+        db.distributions.update_one(
+            {"distribution_id": distribution_id},
+            {"$set": {
+                "status": "pending_hold",
+                "contested": False,
+                "hold_expires_at": new_hold_expires,
+                "contestation_resolved_at": now_iso,
+                "contestation_resolved_by": resolved_by,
+                "contestation_resolution": "rejected",
+                "contestation_rejection_note": note,
+                "updated_at": now_iso,
+            }},
+        )
+
+        logger.info(f"[CONTESTATION] Rejected for {distribution_id}. Resuming hold until {new_hold_expires}.")
+        return {"success": True, "resolution": "rejected", "new_hold_expires": new_hold_expires}
+
+
+def run_contestation_timeout_job() -> dict:
+    """
+    Scheduler job: auto-reject contestations older than CONTESTATION_TIMEOUT_DAYS.
+
+    Rule: after 30 days without admin action, the contestation is automatically
+    rejected and the distribution resumes its normal hold → available flow.
+    """
+    cutoff = datetime.now(timezone.utc) - timedelta(days=CONTESTATION_TIMEOUT_DAYS)
+    cutoff_iso = cutoff.isoformat()
+
+    stale = list(db.distributions.find(
+        {
+            "status": "contested",
+            "contested_at": {"$lte": cutoff_iso},
+        },
+        {"_id": 0, "distribution_id": 1, "contested_at": 1},
+    ))
+
+    resolved = 0
+    for dist in stale:
+        try:
+            result = resolve_contestation(
+                dist["distribution_id"],
+                resolution="rejected",
+                resolved_by="system_timeout",
+                note=f"Auto-rejet après {CONTESTATION_TIMEOUT_DAYS} jours sans résolution admin",
+            )
+            if result.get("success"):
+                resolved += 1
+        except Exception as e:
+            logger.error(f"[CONTESTATION] Timeout resolution failed for {dist['distribution_id']}: {e}")
+
+    if resolved > 0:
+        logger.info(f"[CONTESTATION] Timeout job: auto-rejected {resolved}/{len(stale)} stale contestations")
+    return {"resolved": resolved, "total_candidates": len(stale)}
 
 
 def get_distributions_for_user(user_id: str, limit: int = 50, skip: int = 0) -> list:

@@ -90,6 +90,24 @@ async def distribution_hold_expiry_job():
         logger.error(f"[SCHEDULER] Distribution hold expiry job failed: {str(e)}")
 
 
+async def contestation_timeout_job():
+    """Job to auto-reject stale contestations after 30 days"""
+    try:
+        from services.distribution_service import run_contestation_timeout_job
+        run_contestation_timeout_job()
+    except Exception as e:
+        logger.error(f"[SCHEDULER] Contestation timeout job failed: {str(e)}")
+
+
+async def ledger_reconciliation_job():
+    """Job to verify wallet balances match the ledger"""
+    try:
+        from services.wallet_service import run_reconciliation_job
+        run_reconciliation_job()
+    except Exception as e:
+        logger.error(f"[SCHEDULER] Ledger reconciliation job failed: {str(e)}")
+
+
 async def impact_stats_refresh_job():
     """Job to refresh cached public impact statistics"""
     try:
@@ -218,6 +236,24 @@ def start_scheduler():
         replace_existing=True
     )
 
+    # Job 12: Contestation timeout — auto-reject stale contestations after 30 days (every 12 hours)
+    scheduler.add_job(
+        contestation_timeout_job,
+        trigger=IntervalTrigger(hours=12),
+        id='contestation_timeout_job',
+        name='Auto-reject stale contestations (30-day timeout)',
+        replace_existing=True
+    )
+
+    # Job 13: Ledger reconciliation — verify wallet balances vs ledger (every 6 hours)
+    scheduler.add_job(
+        ledger_reconciliation_job,
+        trigger=IntervalTrigger(hours=6),
+        id='ledger_reconciliation_job',
+        name='Verify wallet balances match ledger (reconciliation)',
+        replace_existing=True
+    )
+
     scheduler.start()
     logger.info("[SCHEDULER] Background scheduler started")
     logger.info("[SCHEDULER]    - Cancellation deadline reminders: every 5 minutes")
@@ -228,6 +264,8 @@ def start_scheduler():
     logger.info("[SCHEDULER]    - Impact stats refresh: every 30 minutes")
     logger.info("[SCHEDULER]    - Calendar sync retry (backoff): every 2 minutes")
     logger.info("[SCHEDULER]    - Review timeout (15 days): every 6 hours")
+    logger.info("[SCHEDULER]    - Contestation timeout (30 days): every 12 hours")
+    logger.info("[SCHEDULER]    - Ledger reconciliation: every 6 hours")
 
 
 def stop_scheduler():
