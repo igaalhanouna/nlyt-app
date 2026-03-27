@@ -369,6 +369,20 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API
 - [x] **Cohérence Dashboard/Détail**: Le dashboard envoie vers `/appointments/{id}`, la page détail gère maintenant le flow complet
 - [x] Testé: 100% backend (9/9) + 100% frontend (8/8) — iteration_102
 
+## Fix — Système de pénalités et compensations (Fév 2026)
+- [x] **Audit complet** du RDV `1956ca6a` : triple verrou identifié (review_required, late=release, AUTO_CAPTURE_ENABLED=False)
+- [x] **Décision produit** : retard > tolérance = pénalisé (comme no_show)
+- [x] **evidence_service.py** : `delay_minutes` ajouté au retour de `aggregate_evidence`
+- [x] **attendance_service.py** : 
+  - `review_required: False` pour evidence `medium` avec timing clair (was True)
+  - `delay_minutes` et `tolerated_delay_minutes` stockés dans les records
+  - `late` → CAPTURE + distribution (was release) — même traitement que `no_show`
+  - `_process_reclassification` : transitions late=pénalisé mises à jour
+  - `present_participants` : seulement `on_time` (pas `late`)
+- [x] **appointments.py** : `GET /api/appointments/{id}` enrichi avec `financial_summary`, `attendance_records`, `distributions`
+- [x] **Frontend** : Nouveau composant `FinancialResultSection` — section "Résultat financier" avec pénalité, compensation, wallet impact
+- [x] Testé: 100% backend (11/11) + 100% frontend (10/10) — iteration_103
+
 ## Upcoming Tasks
 - [ ] P2: Test réel Teams (compte non-pro)
 - [ ] P2: Configurer le webhook Stripe en production
