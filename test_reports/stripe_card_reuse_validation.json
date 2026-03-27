@@ -1,0 +1,127 @@
+{
+  "timestamp": "2026-03-27T01:25:31.499345+00:00",
+  "stripe_mode": "TEST",
+  "total_tests": 9,
+  "passed": 9,
+  "failed": 0,
+  "results": [
+    {
+      "test": "CAS NOMINAL \u2014 Carte valide r\u00e9utilis\u00e9e",
+      "passed": true,
+      "details": "success=True, guarantee_id=64bc9ffe-9d0f-4, setup_intent_id=seti_1TFP9KFzk5pWBo5",
+      "stripe_log": {
+        "setup_intent_id": "seti_1TFP9KFzk5pWBo5RBc3CbdyO",
+        "si_status": "succeeded",
+        "si_payment_method": "pm_1TFP9JFzk5pWBo5R109uNUgs",
+        "si_usage": "off_session",
+        "db_status": "completed",
+        "db_reused_card": true,
+        "db_setup_intent_id": "seti_1TFP9KFzk5pWBo5RBc3CbdyO",
+        "participant_status": "accepted_guaranteed"
+      }
+    },
+    {
+      "test": "CAS SCA/3DS \u2014 Authentification requise",
+      "passed": true,
+      "details": "success=False, reason=sca_required",
+      "stripe_log": {
+        "reason": "sca_required",
+        "guarantee_created": false,
+        "participant_status": "invited"
+      }
+    },
+    {
+      "test": "CAS CARTE INVALIDE \u2014 PM d\u00e9tach\u00e9/expir\u00e9",
+      "passed": true,
+      "details": "success=False, reason=verification_error, message=",
+      "stripe_log": {
+        "reason": "verification_error",
+        "message": "",
+        "guarantee_created": false,
+        "participant_status": "invited"
+      }
+    },
+    {
+      "test": "CAS CARTE INVALIDE \u2014 PM inexistant",
+      "passed": true,
+      "details": "success=False, reason=verification_error",
+      "stripe_log": {
+        "reason": "verification_error",
+        "guarantee_created": false
+      }
+    },
+    {
+      "test": "FALLBACK \u2014 SCA card \u2192 Checkout redirect",
+      "passed": true,
+      "details": "HTTP 200, requires_guarantee=True, has_checkout_url=True",
+      "stripe_log": {
+        "http_status": 200,
+        "response": {
+          "success": true,
+          "requires_guarantee": true,
+          "message": "Une garantie financi\u00e8re est requise pour confirmer votre participation",
+          "checkout_url": "https://checkout.stripe.com/c/pay/cs_test_c1llvmFs3lqLskosJMOGbxZQrAkbsbNY4nN05Gf5HoZDp9DPTTjnxByQ0A#fidnandhYHdWcXxpYCc%2FJ2FgY2RwaXEnKSdpamZkaWAnPydjdycpJ2R1bE5gfCc%2FJ3VuWnFgdnFaMDRRQUdMbUN%2FbjB1UkdqMFdybElwQ0htdF1qbzJga0dIXW5RdTdKSDBtSWAzSzFJPTJuXFRtamlmdlw2V2E3aHBrX3V3Z2I9VzNUf008dTZnSnVjSnBiQFw1NW5jQEpJf3FEJyknY3dqaFZgd3Ngdyc%2FcXdwYCknZ2RmbmJ3anBrYUZqaWp3Jz8nJmNjY2NjYycpJ2lkfGpwcVF8dWAnPyd2bGtiaWBaZmppcGhrJyknYGtkZ2lgVWlkZmBtamlhYHd2Jz9xd3BgeCUl",
+          "session_id": "cs_test_c1llvmFs3lqLskosJMOGbxZQrAkbsbNY4nN05Gf5HoZDp9DPTTjnxByQ0A",
+          "guarantee_id": "d033525c-1e22-4aa6-a4cf-4de259502018",
+          "status": "accepted_pending_guarantee"
+        },
+        "participant_status": "accepted_pending_guarantee"
+      }
+    },
+    {
+      "test": "PREUVE STRIPE \u2014 SetupIntent r\u00e9el et utilisable",
+      "passed": true,
+      "details": "SI seti_1TFP9KFzk5pWBo5RBc3CbdyO | status=succeeded | usage=off_session | PM=pm_1TFP9JFzk5pWBo5R109uNUgs",
+      "stripe_log": {
+        "id": "seti_1TFP9KFzk5pWBo5RBc3CbdyO",
+        "status": "succeeded",
+        "usage": "off_session",
+        "payment_method": "pm_1TFP9JFzk5pWBo5R109uNUgs",
+        "customer": "cus_UDqr2W6yuozojL",
+        "metadata": {
+          "guarantee_id": "64bc9ffe-9d0f-4825-bdc0-5c8cd5ee4a94",
+          "participant_id": "part_test_655f2931",
+          "type": "reuse_verification"
+        },
+        "created": 1774574722,
+        "latest_attempt": "setatt_1TFP9KFzk5pWBo5R1LJ3VXbb",
+        "pm_type": "card",
+        "pm_card_brand": "visa",
+        "pm_card_last4": "4242",
+        "pm_card_exp": "3/2027"
+      }
+    },
+    {
+      "test": "CAPTURE FUTURE \u2014 PaymentIntent off_session r\u00e9ussit",
+      "passed": true,
+      "details": "PI pi_3TFP9PFzk5pWBo5R0LF4kVti | status=succeeded | amount=100 eur",
+      "stripe_log": {
+        "payment_intent_id": "pi_3TFP9PFzk5pWBo5R0LF4kVti",
+        "pi_status": "succeeded",
+        "pi_amount": 100,
+        "pi_currency": "eur",
+        "refund_id": "re_3TFP9PFzk5pWBo5R0w4fiu65",
+        "refund_status": "succeeded"
+      }
+    },
+    {
+      "test": "DEV MODE \u2014 pm_dev_* skip validation Stripe",
+      "passed": true,
+      "details": "success=True, setup_intent_id=None",
+      "stripe_log": {
+        "setup_intent_id": null,
+        "db_dev_mode": true
+      }
+    },
+    {
+      "test": "COH\u00c9RENCE DB \u2014 Pas de double \u00e9tat apr\u00e8s fallback",
+      "passed": true,
+      "details": "guarantee_count=1, status=accepted_pending_guarantee",
+      "stripe_log": {
+        "guarantee_count": 1,
+        "response_status": "accepted_pending_guarantee",
+        "requires_guarantee": true
+      }
+    }
+  ]
+}

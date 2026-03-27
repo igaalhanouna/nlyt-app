@@ -53,11 +53,14 @@ class StripeGuaranteeService:
 
         # ── STRIPE VERIFICATION: confirm the card is still valid ──
         setup_intent_id = None
-        if STRIPE_API_KEY and STRIPE_API_KEY != 'sk_test_emergent' and not payment_method_id.startswith("pm_dev_"):
+        is_dev_mode = (not STRIPE_API_KEY or STRIPE_API_KEY == 'sk_test_emergent'
+                       or payment_method_id.startswith("pm_dev_"))
+        if not is_dev_mode:
             try:
                 si = stripe.SetupIntent.create(
                     customer=stripe_customer_id,
                     payment_method=payment_method_id,
+                    payment_method_types=["card"],
                     confirm=True,
                     usage="off_session",
                     metadata={
@@ -104,7 +107,7 @@ class StripeGuaranteeService:
             "penalty_amount": penalty_amount,
             "penalty_currency": penalty_currency,
             "status": "completed",
-            "dev_mode": not STRIPE_API_KEY or STRIPE_API_KEY == 'sk_test_emergent',
+            "dev_mode": is_dev_mode,
             "reused_card": True,
             "verified_at": datetime.now(timezone.utc).isoformat(),
             "completed_at": datetime.now(timezone.utc).isoformat(),

@@ -280,10 +280,19 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API
 - [x] Frontend gère le retour reused_card=true (message de confirmation, pas de redirect)
 - [x] Testé: 100% backend (iteration_92), flow E2E vérifié via curl
 
+## Completed — Validation Stripe réelle pour réutilisation de carte (Fév 2026)
+- [x] BUG CRITIQUE CORRIGÉ: `SetupIntent.create()` manquait `payment_method_types=["card"]` → la validation silencieuse échouait systématiquement en production
+- [x] BUG MINEUR CORRIGÉ: flag `dev_mode` incorrectement calculé quand `pm_dev_*` utilisé avec une vraie clé Stripe
+- [x] SetupIntent Stripe RÉEL créé et confirmé (usage=off_session) pour chaque réutilisation de carte
+- [x] Gestion SCA/3DS: si authentification requise → fallback Checkout standard (pas de blocage UX)
+- [x] Gestion carte expirée/détachée/invalide: refus propre → fallback Checkout
+- [x] Gestion PM inexistant: refus propre → fallback Checkout
+- [x] Cohérence DB: aucun double état possible après fallback
+- [x] Capture future prouvée: PaymentIntent off_session réussit sur carte validée par SetupIntent
+- [x] Dev mode préservé: pm_dev_* skip validation Stripe correctement
+- [x] Testé: 9/9 scénarios Stripe réels passés (test_stripe_card_reuse.py)
+
 ## Upcoming Tasks
-- [ ] P1: Emails post-engagement enrichis avec CTAs viraux (Viral Loop Phase 4)
-- [ ] P2: Bannière connexion sur InvitationPage pour utilisateurs existants (Viral Loop Phase 5)
-- [ ] P2: Milestones wallet + CTA "Organiser" pour conversion participant → organisateur (Viral Loop Phase 6)
 - [ ] P2: Test réel Teams (compte non-pro)
 - [ ] P2: Configurer le webhook Stripe en production
 
