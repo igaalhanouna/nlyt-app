@@ -847,6 +847,44 @@ export default function AppointmentDetail() {
           </div>
         )}
 
+        {/* Declarative phase CTA */}
+        {appointment.declarative_phase === 'collecting' && (
+          <div className="mb-4 flex items-center justify-between gap-3 px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg" data-testid="declarative-cta-banner">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+              <p className="text-xs font-medium text-amber-700">
+                Certaines présences n'ont pas pu être vérifiées automatiquement. Aidez-nous en confirmant ce que vous avez observé.
+              </p>
+            </div>
+            <button
+              onClick={() => navigate(`/appointments/${id}/attendance-sheet`)}
+              className="flex-shrink-0 px-3 py-1.5 bg-amber-600 text-white text-xs font-medium rounded-lg hover:bg-amber-700 transition-colors"
+              data-testid="go-to-sheet-btn"
+            >
+              Confirmer les présences
+            </button>
+          </div>
+        )}
+
+        {/* Dispute active CTA */}
+        {appointment.declarative_phase === 'disputed' && (
+          <div className="mb-4 flex items-center justify-between gap-3 px-4 py-3 bg-red-50 border border-red-200 rounded-lg" data-testid="dispute-active-banner">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-red-600 flex-shrink-0" />
+              <p className="text-xs font-medium text-red-700">
+                Un litige est en cours pour ce rendez-vous suite à des déclarations divergentes.
+              </p>
+            </div>
+            <button
+              onClick={() => navigate('/disputes')}
+              className="flex-shrink-0 px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded-lg hover:bg-red-700 transition-colors"
+              data-testid="go-to-disputes-btn"
+            >
+              Voir le litige
+            </button>
+          </div>
+        )}
+
         {/* #2 — Essentials (date, lieu, lien, confiance) */}
         <AppointmentEssentials
           appointment={appointment} isCancelled={isCancelled} organizerParticipant={organizerParticipant}

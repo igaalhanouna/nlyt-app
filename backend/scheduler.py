@@ -54,6 +54,24 @@ async def review_timeout_job():
         logger.error(f"[SCHEDULER] Review timeout job failed: {str(e)}")
 
 
+async def declarative_deadline_job():
+    """Job to enforce 48h deadline on attendance sheets"""
+    try:
+        from services.declarative_service import run_declarative_deadline_job
+        run_declarative_deadline_job()
+    except Exception as e:
+        logger.error(f"[SCHEDULER] Declarative deadline job failed: {str(e)}")
+
+
+async def dispute_escalation_job():
+    """Job to escalate disputes past 7-day deadline"""
+    try:
+        from services.declarative_service import run_dispute_deadline_job
+        run_dispute_deadline_job()
+    except Exception as e:
+        logger.error(f"[SCHEDULER] Dispute escalation job failed: {str(e)}")
+
+
 async def auto_fetch_attendance_job():
     """Job to auto-fetch video attendance from Zoom/Teams after meetings end"""
     try:
@@ -179,6 +197,24 @@ def start_scheduler():
         trigger=IntervalTrigger(hours=6),
         id='review_timeout_job',
         name='Auto-resolve stale review_required records (15-day timeout)',
+        replace_existing=True
+    )
+
+    # Job 10: Declarative deadline — enforce 48h sheet deadline (every 15 minutes)
+    scheduler.add_job(
+        declarative_deadline_job,
+        trigger=IntervalTrigger(minutes=15),
+        id='declarative_deadline_job',
+        name='Enforce 48h attendance sheet deadline',
+        replace_existing=True
+    )
+
+    # Job 11: Dispute escalation — escalate disputes past 7-day deadline (every 6 hours)
+    scheduler.add_job(
+        dispute_escalation_job,
+        trigger=IntervalTrigger(hours=6),
+        id='dispute_escalation_job',
+        name='Escalate disputes past 7-day deadline',
         replace_existing=True
     )
 

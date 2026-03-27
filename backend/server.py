@@ -13,7 +13,7 @@ if os.environ.get('STRIPE_API_KEY') == 'sk_test_emergent':
 
 load_dotenv()
 
-from routers import auth, workspaces, appointments, participants, contracts, calendar_routes, disputes, admin, webhooks, debug, invitations, user_settings, charity_associations, attendance_routes, checkin_routes, modification_routes, video_evidence_routes, proof_routes, wallet_routes, connect_routes, impact_routes, external_events_routes, result_cards, financial_routes
+from routers import auth, workspaces, appointments, participants, contracts, calendar_routes, admin, webhooks, debug, invitations, user_settings, charity_associations, attendance_routes, checkin_routes, modification_routes, video_evidence_routes, proof_routes, wallet_routes, connect_routes, impact_routes, external_events_routes, result_cards, financial_routes, declarative_routes, dispute_routes
 from scheduler import start_scheduler, stop_scheduler
 from rate_limiter import limiter
 
@@ -61,7 +61,8 @@ app.include_router(appointments.router, prefix="/api/appointments", tags=["Appoi
 app.include_router(participants.router, prefix="/api/participants", tags=["Participants"])
 app.include_router(contracts.router, prefix="/api/contracts", tags=["Contracts"])
 app.include_router(calendar_routes.router, prefix="/api/calendar", tags=["Calendar"])
-app.include_router(disputes.router, prefix="/api/disputes", tags=["Disputes"])
+app.include_router(declarative_routes.router, prefix="/api/attendance-sheets", tags=["Declarative"])
+app.include_router(dispute_routes.router, prefix="/api/disputes", tags=["Disputes"])
 app.include_router(admin.router, prefix="/api/admin", tags=["Admin"])
 app.include_router(webhooks.router, prefix="/api/webhooks", tags=["Webhooks"])
 app.include_router(debug.router, prefix="/api/debug", tags=["Debug"])

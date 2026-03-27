@@ -497,6 +497,20 @@ def evaluate_appointment(appointment_id: str) -> dict:
     # Post-evaluation: trigger capture/release/distribution
     _process_financial_outcomes(appointment_id, appointment, participants)
 
+    # Post-evaluation: initialize declarative phase if manual_review records exist
+    try:
+        from services.declarative_service import initialize_declarative_phase
+        review_count = summary.get('manual_review', 0)
+        if review_count > 0:
+            initialize_declarative_phase(appointment_id)
+        else:
+            db.appointments.update_one(
+                {"appointment_id": appointment_id},
+                {"$set": {"declarative_phase": "not_needed"}}
+            )
+    except Exception as e:
+        logger.warning(f"[ATTENDANCE] Declarative phase init error (non-blocking): {e}")
+
     # Post-engagement viral emails (non-blocking)
     try:
         from services.financial_emails import send_post_engagement_emails
@@ -664,6 +678,15 @@ def reclassify_participant(record_id: str, new_outcome: str, notes: str = None, 
     record = db.attendance_records.find_one({"record_id": record_id}, {"_id": 0})
     if not record:
         return {"error": "Enregistrement introuvable"}
+
+    # V3: Block reclassification if participant has an open dispute
+    open_dispute = db.declarative_disputes.find_one({
+        "appointment_id": record.get('appointment_id'),
+        "target_participant_id": record.get('participant_id'),
+        "status": {"$in": ["opened", "awaiting_evidence", "escalated"]}
+    })
+    if open_dispute:
+        return {"error": "Ce participant fait l'objet d'un litige en cours. Reclassification bloquée."}
 
     previous_outcome = record.get('outcome')
 
