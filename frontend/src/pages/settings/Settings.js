@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { User, Building2, Plug, CreditCard, Wallet } from 'lucide-react';
+import { User, Building2, Plug, CreditCard } from 'lucide-react';
 import AppNavbar from '../../components/AppNavbar';
 import AppBreadcrumb from '../../components/AppBreadcrumb';
 
@@ -9,7 +9,6 @@ const SECTIONS = [
   { to: '/settings/workspace', icon: Building2, title: 'Workspace', desc: 'Configuration du workspace', testId: 'settings-workspace-link' },
   { to: '/settings/integrations', icon: Plug, title: 'Intégrations', desc: 'Calendriers et visioconférence', testId: 'settings-integrations-link' },
   { to: '/settings/payment', icon: CreditCard, title: 'Paiement', desc: 'Moyen de paiement pour vos garanties', testId: 'settings-payment-link' },
-  { to: '/settings/wallet', icon: Wallet, title: 'Wallet', desc: 'Solde, retraits et compte Stripe Connect', testId: 'settings-wallet-link' },
 ];
 
 export default function Settings() {
