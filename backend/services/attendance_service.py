@@ -450,6 +450,13 @@ def evaluate_appointment(appointment_id: str) -> dict:
     # Post-evaluation: trigger capture/release/distribution
     _process_financial_outcomes(appointment_id, appointment, participants)
 
+    # Post-engagement viral emails (non-blocking)
+    try:
+        from services.financial_emails import send_post_engagement_emails
+        send_post_engagement_emails(appointment_id, appointment)
+    except Exception as e:
+        logger.warning(f"[ATTENDANCE] Post-engagement email error (non-blocking): {e}")
+
     return {"evaluated": True, "records_created": len(records), "summary": summary}
 
 

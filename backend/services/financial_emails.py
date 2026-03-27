@@ -311,3 +311,198 @@ def send_payout_failed_email(
 
     _send_async(user["email"], f"Échec du retrait — {amount}",
                 html, "payout_failed", payout_id, user_id)
+
+
+# ─── 6. Post-engagement viral emails ─────────────────────────
+
+
+# Card accent configs matching the frontend ResultCard component
+_CARD_ACCENTS = {
+    "engagement_respected": {"color": "#10B981", "bg": "#F0FDF4", "border": "#BBF7D0", "icon": "&#10004;", "icon_color": "#166534"},
+    "compensation_received": {"color": "#3B82F6", "bg": "#EFF6FF", "border": "#BFDBFE", "icon": "&#9670;", "icon_color": "#1D4ED8"},
+    "charity_donation": {"color": "#F59E0B", "bg": "#FFFBEB", "border": "#FDE68A", "icon": "&#9829;", "icon_color": "#B45309"},
+}
+
+
+def _email_card_html(card_type: str, headline: str, subtitle: str, title: str, date: str) -> str:
+    """Render a result card as inline HTML for email embedding."""
+    acc = _CARD_ACCENTS.get(card_type, _CARD_ACCENTS["engagement_respected"])
+    return f"""
+<div style="max-width:380px;margin:0 auto 24px;border-radius:14px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <div style="background:#0A0A0B;padding:14px 20px;display:flex;align-items:center;">
+    <span style="font-size:14px;font-weight:700;letter-spacing:0.3em;color:#FFFFFF;">N<span style="color:rgba(255,255,255,0.5);">&middot;</span>L<span style="color:rgba(255,255,255,0.5);">&middot;</span>Y<span style="color:rgba(255,255,255,0.5);">&middot;</span>T</span>
+  </div>
+  <div style="height:4px;background:{acc['color']};"></div>
+  <div style="padding:24px 22px;background:#FFFFFF;">
+    <div style="width:44px;height:44px;border-radius:50%;background:{acc['bg']};border:2px solid {acc['border']};text-align:center;line-height:40px;margin-bottom:14px;">
+      <span style="font-size:20px;color:{acc['icon_color']};font-weight:700;">{acc['icon']}</span>
+    </div>
+    <p style="margin:0 0 4px;font-size:22px;font-weight:800;color:#0F172A;line-height:1.2;">{headline}</p>
+    <p style="margin:0 0 16px;font-size:14px;color:#64748B;line-height:1.5;">{subtitle}</p>
+    <div style="background:#F8FAFC;border-radius:8px;padding:10px 14px;border-left:3px solid {acc['color']};">
+      <p style="margin:0;font-size:13px;font-weight:600;color:#0F172A;">{title}</p>
+      <p style="margin:3px 0 0;font-size:11px;color:#94A3B8;">{date}</p>
+    </div>
+    <div style="margin-top:16px;padding-top:14px;border-top:1px solid #E2E8F0;text-align:center;">
+      <p style="margin:0;font-size:12px;font-weight:600;color:#475569;font-style:italic;">Le temps ne se perd plus.</p>
+    </div>
+  </div>
+</div>"""
+
+
+def send_post_engagement_emails(appointment_id: str, appointment: dict):
+    """
+    Send viral post-engagement emails to all evaluated participants.
+    Auto-creates result cards and embeds them in the email.
+    Triggered after evaluate_appointment().
+    """
+    import uuid as uuid_mod
+    from datetime import datetime as dt_cls, timezone as tz_cls
+
+    records = list(db.attendance_records.find(
+        {"appointment_id": appointment_id},
+        {"_id": 0}
+    ))
+    if not records:
+        return
+
+    participants = list(db.participants.find(
+        {"appointment_id": appointment_id},
+        {"_id": 0}
+    ))
+    p_map = {p["participant_id"]: p for p in participants}
+
+    # Check for no-shows to determine if compensation/charity cards apply
+    any_no_show = any(r.get("outcome") == "no_show" for r in records)
+    if not any_no_show and not records:
+        return
+
+    # Check distributions for amounts
+    distributions = list(db.distributions.find(
+        {"appointment_id": appointment_id},
+        {"_id": 0}
+    ))
+
+    # Build per-user compensation map
+    compensation_map = {}  # user_id → amount_cents
+    charity_total = 0
+    charity_currency = "eur"
+    charity_assoc_name = None
+    for dist in distributions:
+        for b in dist.get("beneficiaries", []):
+            if b.get("role") == "compensation" and b.get("user_id"):
+                compensation_map[b["user_id"]] = compensation_map.get(b["user_id"], 0) + b.get("amount_cents", 0)
+            if b.get("role") == "charity":
+                charity_total += b.get("amount_cents", 0)
+                charity_currency = dist.get("capture_currency", "eur")
+                assoc_id = b.get("user_id")
+                if assoc_id and not charity_assoc_name:
+                    assoc = db.charity_associations.find_one({"association_id": assoc_id}, {"_id": 0, "name": 1})
+                    charity_assoc_name = assoc.get("name") if assoc else None
+
+    title = appointment.get("title", "")
+    date_str = _fmt_date(appointment.get("start_datetime", ""))
+
+    for record in records:
+        outcome = record.get("outcome")
+        if outcome not in ("on_time", "late", "no_show"):
+            continue  # skip waived/manual_review
+
+        p = p_map.get(record.get("participant_id"))
+        if not p:
+            continue
+        user_id = p.get("user_id")
+        if not user_id:
+            continue
+        user = _get_user(user_id)
+        if not user or not user.get("email"):
+            continue
+
+        first_name = user.get("first_name", "")
+
+        # Determine card type & email content based on outcome
+        if outcome in ("on_time", "late"):
+            # Check if this user received compensation
+            comp_amount = compensation_map.get(user_id, 0)
+            if comp_amount > 0:
+                card_type = "compensation_received"
+                amount_str = _fmt_amount(comp_amount)
+                headline = f"Vous avez r\u00e9cup\u00e9r\u00e9 {amount_str}."
+                subtitle = "Parce que votre temps compte."
+                subject = f"Vous avez r\u00e9cup\u00e9r\u00e9 {amount_str} \u2014 {title}"
+            else:
+                card_type = "engagement_respected"
+                headline = "Engagement respect\u00e9."
+                subtitle = "Tout le monde a respect\u00e9 son engagement."
+                subject = f"Engagement respect\u00e9 \u2014 {title}"
+        else:
+            # no_show — send charity card if charity exists, else skip viral email
+            if charity_total > 0:
+                card_type = "charity_donation"
+                c_amount_str = _fmt_amount(charity_total, charity_currency)
+                headline = "Votre temps a aid\u00e9 quelqu\u2019un."
+                if charity_assoc_name:
+                    subtitle = f"{c_amount_str} revers\u00e9s \u00e0 {charity_assoc_name}."
+                else:
+                    subtitle = f"{c_amount_str} revers\u00e9s \u00e0 une association."
+                subject = f"Votre temps a aid\u00e9 quelqu\u2019un \u2014 {title}"
+            else:
+                continue  # no viral email for plain no-show without charity
+
+        # Auto-create result card (idempotent)
+        existing_card = db.result_cards.find_one({
+            "user_id": user_id,
+            "appointment_id": appointment_id,
+            "card_type": card_type,
+        }, {"_id": 0})
+
+        if existing_card:
+            card_id = existing_card["card_id"]
+        else:
+            card_id = str(uuid_mod.uuid4())
+            card_doc = {
+                "card_id": card_id,
+                "card_type": card_type,
+                "user_id": user_id,
+                "user_name": f"{user.get('first_name', '')} {user.get('last_name', '')}".strip(),
+                "appointment_id": appointment_id,
+                "appointment_title": title,
+                "appointment_date": appointment.get("start_datetime", ""),
+                "appointment_timezone": appointment.get("appointment_timezone", "Europe/Paris"),
+                "amount_cents": comp_amount if card_type == "compensation_received" else (charity_total if card_type == "charity_donation" else 0),
+                "currency": (charity_currency if card_type == "charity_donation" else appointment.get("penalty_currency", "eur")).upper(),
+                "association_name": charity_assoc_name if card_type == "charity_donation" else None,
+                "view_count": 0,
+                "created_at": dt_cls.now(tz_cls.utc).isoformat(),
+            }
+            db.result_cards.insert_one(card_doc)
+
+        card_public_url = f"{FRONTEND_URL}/card/{card_id}"
+        create_url = f"{FRONTEND_URL}/dashboard"
+
+        # Build email HTML using _base_template from email_service
+        from services.email_service import _base_template, _btn
+
+        card_html = _email_card_html(card_type, headline, subtitle, title, date_str)
+
+        share_btn = f"""
+<div style="text-align:center;margin:0 0 28px;">
+  <a href="{card_public_url}" style="display:inline-block;border:1px solid #CBD5E1;color:#334155;padding:10px 22px;border-radius:8px;text-decoration:none;font-size:13px;font-weight:600;">Partager mon r\u00e9sultat</a>
+</div>"""
+
+        primary_cta = _btn(create_url, "Cr\u00e9er un engagement")
+
+        body = f"""
+<p style="margin:0 0 6px;font-size:14px;color:#64748B;font-weight:500;">Bonjour{(' ' + first_name) if first_name else ''},</p>
+<p style="margin:0 0 24px;font-size:22px;font-weight:800;color:#0F172A;line-height:1.25;">{headline}<br/>
+<span style="font-size:15px;font-weight:500;color:#64748B;">{subtitle}</span></p>
+{card_html}
+{share_btn}
+<div style="border-top:1px solid #E2E8F0;padding-top:24px;text-align:center;">
+  <p style="margin:0 0 16px;font-size:15px;font-weight:600;color:#0F172A;">Votre temps a de la valeur.<br/>Prot\u00e9gez-le.</p>
+  {primary_cta}
+</div>"""
+
+        html = _base_template(body, accent="info")
+
+        _send_async(user["email"], subject, html, f"post_engagement_{card_type}", appointment_id, user_id)
