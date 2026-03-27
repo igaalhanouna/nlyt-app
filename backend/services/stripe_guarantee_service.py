@@ -45,11 +45,53 @@ class StripeGuaranteeService:
         payment_method_id: str,
     ) -> dict:
         """
-        Create a guarantee record using an already-saved payment method.
-        No Stripe Checkout redirect needed — the card is reused directly.
+        Create a guarantee using a saved payment method.
+        Verifies the card is still valid via a Stripe SetupIntent (off-session).
+        No Checkout redirect — but real Stripe verification.
         """
         guarantee_id = str(uuid.uuid4())
 
+        # ── STRIPE VERIFICATION: confirm the card is still valid ──
+        setup_intent_id = None
+        if STRIPE_API_KEY and STRIPE_API_KEY != 'sk_test_emergent' and not payment_method_id.startswith("pm_dev_"):
+            try:
+                si = stripe.SetupIntent.create(
+                    customer=stripe_customer_id,
+                    payment_method=payment_method_id,
+                    confirm=True,
+                    usage="off_session",
+                    metadata={
+                        "guarantee_id": guarantee_id,
+                        "participant_id": participant_id,
+                        "type": "reuse_verification",
+                    },
+                )
+                setup_intent_id = si.id
+
+                if si.status == "requires_action":
+                    # SCA required — cannot silently reuse, fall back to Checkout
+                    print(f"[GUARANTEE] SCA required for {payment_method_id[:15]}... — falling back to Checkout")
+                    # Cancel the SetupIntent
+                    stripe.SetupIntent.cancel(si.id)
+                    return {"success": False, "reason": "sca_required"}
+
+                if si.status != "succeeded":
+                    print(f"[GUARANTEE] SetupIntent status={si.status} for {payment_method_id[:15]}... — falling back")
+                    return {"success": False, "reason": f"setup_failed_{si.status}"}
+
+                print(f"[GUARANTEE] Card verified via SetupIntent {si.id} for {payment_method_id[:15]}...")
+
+            except stripe.error.CardError as e:
+                print(f"[GUARANTEE] Card error during verification: {e.user_message}")
+                return {"success": False, "reason": "card_error", "message": e.user_message}
+            except Exception as e:
+                print(f"[GUARANTEE] Verification error: {e}")
+                return {"success": False, "reason": "verification_error"}
+        else:
+            # Dev mode — skip Stripe verification
+            print(f"[GUARANTEE_DEV] Skipping Stripe verification for {payment_method_id}")
+
+        # ── Card verified (or dev mode) — create guarantee record ──
         guarantee_record = {
             "guarantee_id": guarantee_id,
             "participant_id": participant_id,
@@ -57,13 +99,14 @@ class StripeGuaranteeService:
             "invitation_token": invitation_token,
             "stripe_customer_id": stripe_customer_id,
             "stripe_session_id": f"reuse_{guarantee_id[:8]}",
-            "stripe_setup_intent_id": None,
+            "stripe_setup_intent_id": setup_intent_id,
             "stripe_payment_method_id": payment_method_id,
             "penalty_amount": penalty_amount,
             "penalty_currency": penalty_currency,
             "status": "completed",
-            "dev_mode": False,
+            "dev_mode": not STRIPE_API_KEY or STRIPE_API_KEY == 'sk_test_emergent',
             "reused_card": True,
+            "verified_at": datetime.now(timezone.utc).isoformat(),
             "completed_at": datetime.now(timezone.utc).isoformat(),
             "created_at": datetime.now(timezone.utc).isoformat(),
             "updated_at": datetime.now(timezone.utc).isoformat(),
@@ -89,6 +132,7 @@ class StripeGuaranteeService:
             "success": True,
             "guarantee_id": guarantee_id,
             "reused_card": True,
+            "setup_intent_id": setup_intent_id,
         }
 
     @staticmethod
