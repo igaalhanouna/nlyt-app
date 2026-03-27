@@ -280,6 +280,18 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API
 - [x] Frontend gère le retour reused_card=true (message de confirmation, pas de redirect)
 - [x] Testé: 100% backend (iteration_92), flow E2E vérifié via curl
 
+## Completed — Dashboard unifié : timeline organisateur + participant (Fév 2026)
+- [x] Nouvel endpoint `GET /api/appointments/my-timeline` : fusionne engagements organisateur + invitations participant en 3 buckets (`action_required`, `upcoming`, `past`)
+- [x] Structure stable par item : `role`, `status`, `action_required`, `starts_at`, `sort_date`, `counterparty_name`, `is_user_organizer`, `is_user_participant`, `actions`, `pending_label`
+- [x] Wording différencié : organisateur → "En attente de réponse (N)" / participant → "Votre réponse est attendue"
+- [x] Labels rôle : "Créé par vous" / "Invitation de [Nom]" visibles immédiatement
+- [x] CTAs contextuels : Accepter/Refuser (participant), Relancer (organisateur), Voir détails
+- [x] Section "Action requise" en haut du dashboard avec priorité maximale
+- [x] Déduplication : si user est à la fois organisateur et participant, affiché une seule fois (en tant qu'organisateur)
+- [x] Composants existants conservés : Impact card, Calendar sync, Workspace switcher, Stats
+- [x] Charte graphique strictement conservée (couleurs, badges, composants)
+- [x] Testé : 100% backend + frontend (iteration_93)
+
 ## Completed — Validation Stripe réelle pour réutilisation de carte (Fév 2026)
 - [x] BUG CRITIQUE CORRIGÉ: `SetupIntent.create()` manquait `payment_method_types=["card"]` → la validation silencieuse échouait systématiquement en production
 - [x] BUG MINEUR CORRIGÉ: flag `dev_mode` incorrectement calculé quand `pm_dev_*` utilisé avec une vraie clé Stripe
