@@ -194,6 +194,12 @@ function ActionCard({ item, onRemind, onAccept, onDecline, now }) {
               <X className="w-3.5 h-3.5 mr-1.5" /> Refuser
             </Button>
           </>
+        ) : isParticipant && item.participant_status === 'accepted_pending_guarantee' ? (
+          <Link to={`/appointments/${item.appointment_id}`} className="flex-1 md:flex-none">
+            <Button size="sm" className="h-11 md:h-8 text-xs w-full bg-amber-600 hover:bg-amber-700 text-white" data-testid={`finalize-guarantee-btn-${item.appointment_id}`}>
+              <CreditCard className="w-3.5 h-3.5 mr-1.5" /> Finaliser ma garantie
+            </Button>
+          </Link>
         ) : (
           <Button size="sm" variant="outline" className="h-11 md:h-8 text-xs flex-1 md:flex-none border-red-200 text-red-600 hover:bg-red-50" onClick={() => onRemind(item)} data-testid={`remind-action-${item.appointment_id}`}>
             <Bell className="w-3.5 h-3.5 mr-1.5" /> Relancer

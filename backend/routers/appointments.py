@@ -1063,14 +1063,18 @@ async def get_my_timeline(request: Request):
 
         p_status = part.get("status", "invited")
         is_past = apt.get("start_datetime", "") < now_str
+        is_cancelled = apt.get("status") == "cancelled"
 
-        # Action required: invitation pending response
-        action_required = p_status == "invited" and not is_past
+        # Action required: participant must act (respond OR finalize guarantee)
+        # Never for cancelled or past appointments
+        action_required = p_status in ("invited", "accepted_pending_guarantee") and not is_past and not is_cancelled
 
         # Available actions
         actions = ["view_details"]
         if p_status == "invited" and not is_past:
             actions = ["accept", "decline", "view_details"]
+        elif p_status == "accepted_pending_guarantee" and not is_past:
+            actions = ["finalize_guarantee", "view_details"]
         elif p_status in ("accepted", "accepted_guaranteed") and not is_past:
             actions = ["view_details"]
 
@@ -1114,16 +1118,22 @@ async def get_my_timeline(request: Request):
         })
 
     # ── 3. Bucket into action_required / upcoming / past ──
+    # Cancelled appointments always go to "past" (historique), never "upcoming"
+    def _is_past_item(i):
+        if i["appointment_status"] == "cancelled":
+            return True
+        return i["sort_date"] < now_str
+
     action_required = sorted(
         [i for i in items if i["action_required"]],
         key=lambda x: x["sort_date"]
     )
     upcoming = sorted(
-        [i for i in items if not i["action_required"] and i["sort_date"] >= now_str],
+        [i for i in items if not i["action_required"] and not _is_past_item(i)],
         key=lambda x: x["sort_date"]
     )
     past = sorted(
-        [i for i in items if i["sort_date"] < now_str and not i["action_required"]],
+        [i for i in items if _is_past_item(i) and not i["action_required"]],
         key=lambda x: x["sort_date"],
         reverse=True
     )

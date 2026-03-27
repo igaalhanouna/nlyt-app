@@ -1,0 +1,73 @@
+{
+  "summary": "Iteration 99 - Action Required Dashboard Audit: All 26 backend tests passed, all frontend UI tests passed. The action_required bucket correctly contains only participant items with 'invited' or 'accepted_pending_guarantee' status. Cancelled appointments correctly appear in 'Historique' (past) bucket, not 'À venir' (upcoming). The 'Finaliser ma garantie' button correctly navigates to appointment detail page.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": {
+    "backend_pytest": [
+      "✅ A. ACTION REQUIRED - INVITED: invited participants appear in action_required with accept/decline actions",
+      "✅ B. ACTION REQUIRED - PENDING GUARANTEE: accepted_pending_guarantee appears in action_required with finalize_guarantee action",
+      "✅ B. Pending guarantee items have 'Garantie en attente' label",
+      "✅ B. Specific test appointment e33bf4d6-f1f2-4bb3-bbe3-bda9af659e84 found with pending_guarantee status",
+      "✅ C. ACTION REQUIRED - EXCLUSIONS: accepted/accepted_guaranteed/declined NOT in action_required",
+      "✅ D. ACTION REQUIRED - ORGANIZER NEVER: no organizer items in action_required, all have action_required=False",
+      "✅ E. CANCELLED TO HISTORIQUE: no cancelled items in upcoming bucket",
+      "✅ E. Cancelled items correctly appear in past bucket",
+      "✅ E. Known cancelled appointments (AUDIT-SC2, AUDIT-SC5) found in past",
+      "✅ F. CANCELLED NOT ACTION_REQUIRED: no cancelled items in action_required",
+      "✅ G. DASHBOARD COUNTS: counts match bucket lengths, total is sum of all buckets",
+      "✅ I. TIMELINE CARDS: upcoming items have required fields, organizer items have participant counts",
+      "✅ J. PAST ITEMS: past items exist with required fields, sorted reverse chronological"
+    ],
+    "frontend_playwright": [
+      "✅ Login flow works correctly",
+      "✅ Dashboard loads with correct stats (45 engagements à venir | 1 action requise)",
+      "✅ Action Required section shows 1 action card with 'Finaliser ma garantie' button",
+      "✅ No organizer items (remind buttons) in Action Required section",
+      "✅ À venir tab shows 44 timeline cards with 43 organizer items, 2 participant items",
+      "✅ No cancelled items in À venir tab",
+      "✅ Historique tab shows 105 items with 2 'Annulé' badges",
+      "✅ AUDIT-SC2 and AUDIT-SC5 cancelled appointments found in Historique",
+      "✅ H. FRONTEND CTA: 'Finaliser ma garantie' button navigates to /appointments/e33bf4d6-f1f2-4bb3-bbe3-bda9af659e84",
+      "✅ Appointment detail page shows participant with 'Garantie en cours' status"
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_action_required_audit_iter99.py",
+    "/app/test_reports/pytest/pytest_action_required_audit_iter99.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "✅ Backend (appointments.py line 1070): action_required = p_status in ('invited', 'accepted_pending_guarantee') and not is_past and not is_cancelled - correctly includes pending_guarantee",
+    "✅ Backend (appointments.py lines 1076-1077): finalize_guarantee action added for accepted_pending_guarantee status",
+    "✅ Backend (appointments.py lines 1122-1125): _is_past_item() correctly forces cancelled appointments to past bucket",
+    "✅ Backend (appointments.py line 988): Organizer items always have action_required=False",
+    "✅ Frontend (OrganizerDashboard.js lines 197-202): ActionCard correctly shows 'Finaliser ma garantie' amber button for accepted_pending_guarantee",
+    "✅ Frontend (OrganizerDashboard.js lines 188-196): ActionCard shows Accept/Decline for invited status"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_action_required_audit_iter99.py"
+  ],
+  "success_rate": {
+    "backend": "100% (26/26 passed)",
+    "frontend": "100% (10/10 UI checks passed)"
+  },
+  "test_credentials": {
+    "user": "testuser_audit@nlyt.app / Test123!",
+    "pending_guarantee_appointment": "e33bf4d6-f1f2-4bb3-bbe3-bda9af659e84",
+    "accepted_guaranteed_appointment": "6e5233cc-4ed5-421d-a43a-e4d8fbf8df26"
+  },
+  "seed_data_creation": "Used existing test appointments created in MongoDB by previous iterations",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Action Required dashboard audit complete. Key verified behaviors: (1) action_required bucket contains ONLY participant items with 'invited' or 'accepted_pending_guarantee' status, (2) cancelled appointments always go to 'past' bucket via _is_past_item() helper, (3) organizer items NEVER appear in action_required regardless of pending count, (4) 'Finaliser ma garantie' button correctly links to appointment detail page. Test appointments: e33bf4d6-f1f2-4bb3-bbe3-bda9af659e84 (pending_guarantee), 6e5233cc-4ed5-421d-a43a-e4d8fbf8df26 (accepted_guaranteed). Known cancelled appointments in Historique: AUDIT-SC2, AUDIT-SC5.",
+  "mocked_apis": {
+    "Stripe": "Dev mode - payment methods are pm_dev_* format"
+  }
+}
