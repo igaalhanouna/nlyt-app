@@ -280,6 +280,17 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API
 - [x] Frontend gère le retour reused_card=true (message de confirmation, pas de redirect)
 - [x] Testé: 100% backend (iteration_92), flow E2E vérifié via curl
 
+## Completed — Vue participant alignée sur vue organisateur (Fév 2026)
+- [x] Résumé décisionnel en haut de page : montant garantie, tolérance retard, délai annulation (visible en 1 seconde)
+- [x] Trust signal : "X participant(s) a/ont déjà confirmé son/leur engagement" (affiché uniquement si confirmed_count > 0)
+- [x] Lien meeting en bloc d'action clé : "Rejoindre la réunion →" (visible uniquement pour participants avec engagement finalisé)
+- [x] Adresse complète (location_display_name) au lieu de l'adresse courte
+- [x] Répartition financière : bloc dédié (compensation %, commission %, charité %)
+- [x] Sécurité préservée : meeting_join_url masqué pour participants non-finalisés
+- [x] Composants réutilisés : EngagementSummary + FinancialBreakdown de la vue organisateur
+- [x] Backend enrichi : endpoint invitation retourne confirmed_count, total_participants, et tous les champs financiers dans l'objet appointment
+- [x] Testé : 100% backend (17 tests) + frontend (11 tests) — iteration_95
+
 ## Completed — Dashboard unifié : timeline organisateur + participant (Fév 2026)
 - [x] Nouvel endpoint `GET /api/appointments/my-timeline` : fusionne engagements organisateur + invitations participant en 3 buckets (`action_required`, `upcoming`, `past`)
 - [x] Structure stable par item : `role`, `status`, `action_required`, `starts_at`, `sort_date`, `counterparty_name`, `is_user_organizer`, `is_user_participant`, `actions`, `pending_label`
