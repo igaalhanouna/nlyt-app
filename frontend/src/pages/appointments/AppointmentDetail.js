@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { appointmentAPI, participantAPI, calendarAPI, invitationAPI, attendanceAPI, checkinAPI, modificationAPI, videoEvidenceAPI, proofAPI } from '../../services/api';
 import { Button } from '../../components/ui/button';
-import { Loader2, ChevronDown, Activity, Fingerprint } from 'lucide-react';
+import { Loader2, ChevronDown, Activity, Fingerprint, ShieldCheck, Check, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { parseUTC, utcToLocalInput, localInputToUTC } from '../../utils/dateFormat';
 import AppNavbar from '../../components/AppNavbar';
@@ -25,6 +25,103 @@ import VideoEvidencePanel from './VideoEvidencePanel';
 import AttendancePanel from './AttendancePanel';
 import EvidenceDashboard from './EvidenceDashboard';
 import ResultCardSection from './ResultCardSection';
+
+// ── Participant-specific inline components ──
+
+function ParticipantActionBanner({ token, onActionComplete }) {
+  const [responding, setResponding] = useState(false);
+  const API_URL = process.env.REACT_APP_BACKEND_URL;
+
+  const handleRespond = async (action) => {
+    setResponding(true);
+    try {
+      const resp = await fetch(`${API_URL}/api/invitations/${token}/respond`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.detail || 'Erreur');
+
+      if (data.requires_guarantee && data.checkout_url) {
+        toast.info('Redirection vers la page de garantie...');
+        window.location.href = data.checkout_url;
+        return;
+      }
+      if (data.reused_card) {
+        toast.success(data.message || 'Garantie confirmée avec votre carte enregistrée');
+      } else {
+        toast.success(action === 'accept' ? 'Invitation acceptée' : 'Invitation refusée');
+      }
+      onActionComplete();
+    } catch (err) {
+      toast.error(err.message || 'Erreur');
+    } finally {
+      setResponding(false);
+    }
+  };
+
+  return (
+    <div className="mb-4 bg-blue-50 border border-blue-200 rounded-xl p-4" data-testid="participant-action-banner">
+      <p className="text-sm font-semibold text-blue-800 mb-3">Votre réponse est attendue</p>
+      <div className="flex gap-2">
+        <Button size="sm" className="h-10 bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => handleRespond('accept')} disabled={responding} data-testid="participant-accept-btn">
+          <Check className="w-4 h-4 mr-1.5" /> Accepter
+        </Button>
+        <Button size="sm" variant="outline" className="h-10 border-slate-200" onClick={() => handleRespond('decline')} disabled={responding} data-testid="participant-decline-btn">
+          <X className="w-4 h-4 mr-1.5" /> Refuser
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function ParticipantCheckinBlock({ appointmentId, viewerParticipantId, viewerInvitationToken }) {
+  const [checkinDone, setCheckinDone] = useState(false);
+  const [checkingIn, setCheckingIn] = useState(false);
+
+  useEffect(() => {
+    if (!viewerInvitationToken) return;
+    checkinAPI.getStatus(appointmentId, viewerInvitationToken).then(res => {
+      const myCheckin = (res.data?.checkins || []).find(c => c.participant_id === viewerParticipantId);
+      if (myCheckin) setCheckinDone(true);
+    }).catch(() => {});
+  }, [appointmentId, viewerParticipantId, viewerInvitationToken]);
+
+  const handleCheckin = async () => {
+    setCheckingIn(true);
+    try {
+      await checkinAPI.manual({
+        appointment_id: appointmentId,
+        participant_id: viewerParticipantId,
+        method: 'manual',
+        source: 'participant_self',
+      });
+      setCheckinDone(true);
+      toast.success('Check-in confirmé');
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Erreur lors du check-in');
+    } finally {
+      setCheckingIn(false);
+    }
+  };
+
+  return (
+    <div className="mb-4 bg-white border border-slate-200 rounded-xl p-4" data-testid="participant-checkin-block">
+      <h3 className="text-sm font-semibold text-slate-900 mb-2">Votre check-in</h3>
+      {checkinDone ? (
+        <div className="flex items-center gap-2 text-emerald-600 text-sm">
+          <Check className="w-4 h-4" /> Check-in confirmé
+        </div>
+      ) : (
+        <Button size="sm" className="h-10" onClick={handleCheckin} disabled={checkingIn} data-testid="participant-checkin-btn">
+          {checkingIn ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Check className="w-4 h-4 mr-1.5" />}
+          Confirmer ma présence
+        </Button>
+      )}
+    </div>
+  );
+}
 
 export default function AppointmentDetail() {
   const { id } = useParams();
@@ -390,6 +487,11 @@ export default function AppointmentDetail() {
   const pendingCount = participants.filter(p => p.status === 'invited').length;
   const guaranteedCount = participants.filter(p => p.status === 'accepted_guaranteed').length;
 
+  // Viewer role: organizer sees everything, participant sees read-only
+  const isOrganizer = appointment.viewer_role !== 'participant';
+  const viewerParticipantStatus = appointment.viewer_participant_status;
+  const viewerInvitationToken = appointment.viewer_invitation_token;
+
   const isEnded = (() => {
     if (!appointment?.start_datetime) return false;
     const start = parseUTC(appointment.start_datetime);
@@ -418,23 +520,43 @@ export default function AppointmentDetail() {
         <AppointmentHeader
           appointment={appointment} isCancelled={isCancelled} isPendingGuarantee={isPendingGuarantee}
           organizerParticipant={organizerParticipant} organizerCheckinDone={organizerCheckinDone} checkingIn={checkingIn}
-          handleOrganizerCheckin={handleOrganizerCheckin} handleResumeGuarantee={handleResumeGuarantee} resumingGuarantee={resumingGuarantee}
-          handleCheckActivation={handleCheckActivation} checkingActivation={checkingActivation} navigate={navigate}
+          handleOrganizerCheckin={isOrganizer ? handleOrganizerCheckin : undefined}
+          handleResumeGuarantee={isOrganizer ? handleResumeGuarantee : undefined} resumingGuarantee={resumingGuarantee}
+          handleCheckActivation={isOrganizer ? handleCheckActivation : undefined} checkingActivation={checkingActivation} navigate={navigate}
+          isOrganizer={isOrganizer}
         />
+
+        {/* Participant action banner — accept/decline if invited */}
+        {!isOrganizer && viewerParticipantStatus === 'invited' && !isCancelled && (
+          <ParticipantActionBanner token={viewerInvitationToken} onActionComplete={() => {
+            setLoading(true);
+            appointmentAPI.get(id).then(res => { setAppointment(res.data); setLoading(false); }).catch(() => setLoading(false));
+          }} />
+        )}
+
+        {/* Trust signal for participants */}
+        {!isOrganizer && guaranteedCount > 0 && (
+          <div className="mb-4 flex items-center gap-2 px-4 py-2.5 bg-emerald-50 border border-emerald-200 rounded-lg text-xs font-medium text-emerald-700" data-testid="trust-signal-banner">
+            <ShieldCheck className="w-4 h-4 flex-shrink-0" />
+            {guaranteedCount} participant{guaranteedCount > 1 ? 's' : ''} {guaranteedCount > 1 ? 'ont' : 'a'} déjà confirmé {guaranteedCount > 1 ? 'leur' : 'son'} engagement
+          </div>
+        )}
 
         {/* #2 — Essentials (date, lieu, lien, confiance) */}
         <AppointmentEssentials
           appointment={appointment} isCancelled={isCancelled} organizerParticipant={organizerParticipant}
-          guaranteedCount={guaranteedCount} canEdit={canEdit} onEdit={handleOpenProposalForm}
+          guaranteedCount={guaranteedCount} canEdit={isOrganizer && canEdit} onEdit={isOrganizer ? handleOpenProposalForm : undefined}
         />
 
-        {/* #3 — Actions immédiates (calendrier + annuler) — visible, compact */}
-        <SecondaryActions
-          appointment={appointment} isCancelled={isCancelled}
-          syncStatus={syncStatus} syncingProvider={syncingProvider}
-          onSyncCalendar={handleSyncCalendar} onDownloadICS={handleDownloadICS}
-          onShowCancelModal={() => setShowCancelModal(true)}
-        />
+        {/* #3 — Actions organisateur (calendrier + annuler) */}
+        {isOrganizer && (
+          <SecondaryActions
+            appointment={appointment} isCancelled={isCancelled}
+            syncStatus={syncStatus} syncingProvider={syncingProvider}
+            onSyncCalendar={handleSyncCalendar} onDownloadICS={handleDownloadICS}
+            onShowCancelModal={() => setShowCancelModal(true)}
+          />
+        )}
 
         {/* #4 — Engagement financier */}
         <EngagementSummary appointment={appointment} isCancelled={isCancelled} />
@@ -443,19 +565,27 @@ export default function AppointmentDetail() {
         {/* #5 — Participants */}
         <ParticipantsSection
           participants={participants} isCancelled={isCancelled} appointmentId={id}
-          resendingToken={resendingToken} onResend={handleResendInvitation}
+          resendingToken={isOrganizer ? resendingToken : null} onResend={isOrganizer ? handleResendInvitation : undefined}
           acceptedCount={acceptedCount} pendingCount={pendingCount} guaranteedCount={guaranteedCount}
+          isOrganizer={isOrganizer}
         />
 
-        {/* #6 — Check-in / Confirmation (juste avant preuves) */}
-        <OrganizerCheckinBlock
-          appointment={appointment} organizerParticipant={organizerParticipant}
-          organizerCheckinDone={organizerCheckinDone} organizerCheckinData={organizerCheckinData}
-          checkingIn={checkingIn} handleOrganizerCheckin={handleOrganizerCheckin}
-          isCancelled={isCancelled} isPendingGuarantee={isPendingGuarantee}
-        />
+        {/* #6 — Check-in / Confirmation */}
+        {isOrganizer && (
+          <OrganizerCheckinBlock
+            appointment={appointment} organizerParticipant={organizerParticipant}
+            organizerCheckinDone={organizerCheckinDone} organizerCheckinData={organizerCheckinData}
+            checkingIn={checkingIn} handleOrganizerCheckin={handleOrganizerCheckin}
+            isCancelled={isCancelled} isPendingGuarantee={isPendingGuarantee}
+          />
+        )}
 
-        {/* #7 — Preuves & Tracking — folded by default */}
+        {/* Participant check-in section */}
+        {!isOrganizer && ['accepted', 'accepted_guaranteed'].includes(viewerParticipantStatus) && !isCancelled && (
+          <ParticipantCheckinBlock appointmentId={id} viewerParticipantId={appointment.viewer_participant_id} viewerInvitationToken={viewerInvitationToken} />
+        )}
+
+        {/* #7 — Preuves & Tracking — visible for both roles (read-only for participant) */}
         {!isCancelled && (
           <details className="mb-4 bg-white border border-slate-200 rounded-xl overflow-hidden group" data-testid="proof-tracking-details">
             <summary className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-slate-50 transition-colors select-none min-h-[44px]">
@@ -476,9 +606,9 @@ export default function AppointmentDetail() {
                 <EvidenceDashboard participants={participants} evidenceData={evidenceData} appointment={appointment} />
               )}
               {appointment.appointment_type === 'video' && (
-                <ProofSessionsPanel participants={participants} proofSessions={proofSessions} validatingSession={validatingSession} onValidateSession={handleValidateSession} />
+                <ProofSessionsPanel participants={participants} proofSessions={proofSessions} validatingSession={validatingSession} onValidateSession={isOrganizer ? handleValidateSession : undefined} />
               )}
-              {appointment.appointment_type === 'video' && (
+              {isOrganizer && appointment.appointment_type === 'video' && (
                 <VideoEvidencePanel
                   appointment={appointment} videoEvidence={videoEvidence} videoIngestionLogs={videoIngestionLogs}
                   showVideoIngest={showVideoIngest} setShowVideoIngest={setShowVideoIngest}
@@ -494,7 +624,7 @@ export default function AppointmentDetail() {
                   onFileSelect={handleFileSelect}
                 />
               )}
-              {isEnded && (
+              {isOrganizer && isEnded && (
                 <AttendancePanel
                   attendance={attendance} evaluating={evaluating}
                   onEvaluate={handleEvaluateAttendance} onReevaluate={handleReevaluateAttendance}
@@ -511,7 +641,7 @@ export default function AppointmentDetail() {
           </details>
         )}
 
-        {/* #7b — Result Card (viral share) — visible after attendance evaluation */}
+        {/* #7b — Result Card (viral share) — visible for both roles */}
         {isEnded && attendance && (
           <ResultCardSection
             attendance={attendance}
@@ -520,14 +650,16 @@ export default function AppointmentDetail() {
           />
         )}
 
-        {/* #8 — Modal de modification (ouvert par le crayon) */}
-        <EditProposalModal
-          open={showProposalForm} onClose={() => setShowProposalForm(false)}
-          proposalForm={proposalForm} setProposalForm={setProposalForm}
-          submittingProposal={submittingProposal} onSubmitProposal={handleSubmitProposal}
-        />
+        {/* #8 — Modal de modification (organisateur only) */}
+        {isOrganizer && (
+          <EditProposalModal
+            open={showProposalForm} onClose={() => setShowProposalForm(false)}
+            proposalForm={proposalForm} setProposalForm={setProposalForm}
+            submittingProposal={submittingProposal} onSubmitProposal={handleSubmitProposal}
+          />
+        )}
 
-        {/* #9 — Proposition active + Historique (visible si données) */}
+        {/* #9 — Proposition active + Historique (visible for both) */}
         {(activeProposal || proposalHistory.length > 0) && (
           <details className="mb-4 bg-white border border-slate-200 rounded-xl overflow-hidden group" data-testid="modifications-details">
             <summary className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-slate-50 transition-colors select-none min-h-[44px]">
@@ -540,7 +672,7 @@ export default function AppointmentDetail() {
             <div className="border-t border-slate-100">
               <ModificationProposals
                 activeProposal={activeProposal}
-                respondingProposal={respondingProposal} onRespondProposal={handleRespondProposal} onCancelProposal={handleCancelProposal}
+                respondingProposal={respondingProposal} onRespondProposal={handleRespondProposal} onCancelProposal={isOrganizer ? handleCancelProposal : undefined}
                 proposalHistory={proposalHistory} showHistory={showHistory} setShowHistory={setShowHistory}
               />
             </div>
@@ -548,11 +680,13 @@ export default function AppointmentDetail() {
         )}
       </div>
 
-      <CancelModal
-        show={showCancelModal} onClose={() => setShowCancelModal(false)}
-        onConfirm={handleCancelAppointment} cancelling={cancelling}
-        participantCount={participants.length}
-      />
+      {isOrganizer && (
+        <CancelModal
+          show={showCancelModal} onClose={() => setShowCancelModal(false)}
+          onConfirm={handleCancelAppointment} cancelling={cancelling}
+          participantCount={participants.length}
+        />
+      )}
     </div>
   );
 }

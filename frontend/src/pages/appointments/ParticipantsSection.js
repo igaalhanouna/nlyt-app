@@ -23,7 +23,7 @@ const getStatusBadge = (status, participant) => {
 };
 
 export default function ParticipantsSection({
-  participants, isCancelled, appointmentId, resendingToken, onResend, acceptedCount, pendingCount, guaranteedCount,
+  participants, isCancelled, appointmentId, resendingToken, onResend, acceptedCount, pendingCount, guaranteedCount, isOrganizer = true,
 }) {
   if (!participants.length) return null;
   const visible = participants.slice(0, 3);
@@ -55,7 +55,7 @@ export default function ParticipantsSection({
             </div>
             <div className="flex items-center gap-1.5 flex-shrink-0">
               {getStatusBadge(p.status, p)}
-              {p.status === 'invited' && !isCancelled && !p.is_organizer && (
+              {isOrganizer && p.status === 'invited' && !isCancelled && !p.is_organizer && (
                 <button
                   title="Renvoyer"
                   disabled={resendingToken === p.invitation_token}
@@ -75,7 +75,7 @@ export default function ParticipantsSection({
         <p className="text-xs text-slate-400 text-center mt-2">et {remaining} autre{remaining > 1 ? 's' : ''}</p>
       )}
 
-      {!isCancelled && (
+      {isOrganizer && !isCancelled && (
         <Link to={`/appointments/${appointmentId}/participants`} className="block mt-3">
           <Button variant="outline" className="w-full h-10 text-sm gap-2" data-testid="manage-participants-btn">
             <Users className="w-4 h-4" />

@@ -1,16 +1,14 @@
 import React from 'react';
-import { Calendar, Clock, MapPin, Users, Video, ExternalLink, Shield, UserCheck } from 'lucide-react';
+import { Calendar, Clock, MapPin, Users, Video } from 'lucide-react';
 import { formatDateTimeFr } from '../../utils/dateFormat';
 
 const PROVIDER_LABELS = {
   zoom: 'Zoom', teams: 'Microsoft Teams', meet: 'Google Meet',
 };
 
-export default function InvitationAppointmentDetails({ appointment, otherParticipants, confirmedCount, totalParticipants, effectiveStatus }) {
+export default function InvitationAppointmentDetails({ appointment, otherParticipants }) {
   const isVideo = appointment.appointment_type === 'video';
   const providerLabel = PROVIDER_LABELS[(appointment.meeting_provider || '').toLowerCase()] || appointment.meeting_provider || 'Visioconférence';
-  const isEngagementFinalized = ['accepted', 'accepted_guaranteed'].includes(effectiveStatus);
-  const displayLocation = appointment.location_display_name || appointment.location || '';
 
   return (
     <div className="p-6 border-b border-slate-100">
@@ -29,43 +27,20 @@ export default function InvitationAppointmentDetails({ appointment, otherPartici
           <span>{appointment.duration_minutes} minutes</span>
         </div>
 
-        {/* Location — full address */}
-        {!isVideo && displayLocation && (
-          <div className="flex items-start gap-3 text-slate-600">
-            <MapPin className="w-5 h-5 text-slate-400 mt-0.5" />
-            <span data-testid="appointment-location">{displayLocation}</span>
+        {!isVideo && appointment.location && (
+          <div className="flex items-center gap-3 text-slate-600">
+            <MapPin className="w-5 h-5 text-slate-400" />
+            <span data-testid="appointment-location">{appointment.location}</span>
           </div>
         )}
 
-        {/* Video meeting — provider + join link block */}
         {isVideo && (
-          <div className="flex items-start gap-3 text-slate-600">
-            <Video className="w-5 h-5 text-slate-400 mt-0.5" />
-            <div>
-              <span>{providerLabel}</span>
-            </div>
+          <div className="flex items-center gap-3 text-slate-600">
+            <Video className="w-5 h-5 text-slate-400" />
+            <span>{providerLabel}</span>
           </div>
         )}
 
-        {/* Meeting Link CTA — prominent block */}
-        {isVideo && isEngagementFinalized && appointment.meeting_join_url && (
-          <a
-            href={appointment.meeting_join_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-3 mt-1 px-4 py-3 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
-            data-testid="meeting-join-block"
-          >
-            <Video className="w-5 h-5 text-blue-600 flex-shrink-0" />
-            <div className="flex-1">
-              <span className="text-sm font-semibold text-blue-700">Rejoindre la réunion</span>
-              <span className="block text-xs text-blue-500 truncate">{providerLabel}</span>
-            </div>
-            <ExternalLink className="w-4 h-4 text-blue-400 flex-shrink-0" />
-          </a>
-        )}
-
-        {/* Participants */}
         {otherParticipants && otherParticipants.length > 0 && (
           <div className="flex items-start gap-3 text-slate-600">
             <Users className="w-5 h-5 text-slate-400 mt-0.5" />
@@ -86,16 +61,6 @@ export default function InvitationAppointmentDetails({ appointment, otherPartici
                   </span>
                 ))}
               </div>
-            </div>
-          </div>
-        )}
-
-        {/* Trust signal */}
-        {confirmedCount > 0 && (
-          <div className="mt-2 pt-3 border-t border-dashed border-slate-200">
-            <div className="flex items-center gap-2 text-xs font-medium text-emerald-600" data-testid="trust-signal">
-              <Shield className="w-3.5 h-3.5" />
-              {confirmedCount} participant{confirmedCount > 1 ? 's' : ''} {confirmedCount > 1 ? 'ont' : 'a'} déjà confirmé {confirmedCount > 1 ? 'leur' : 'son'} engagement
             </div>
           </div>
         )}

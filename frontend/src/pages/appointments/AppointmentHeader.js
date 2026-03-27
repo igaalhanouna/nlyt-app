@@ -21,8 +21,9 @@ export default function AppointmentHeader({
   organizerParticipant, organizerCheckinDone, checkingIn,
   handleOrganizerCheckin, handleResumeGuarantee, resumingGuarantee,
   handleCheckActivation, checkingActivation, navigate,
+  isOrganizer = true,
 }) {
-  const canCheckin = organizerParticipant?.status === 'accepted_guaranteed' && !isCancelled && !isPendingGuarantee;
+  const canCheckin = isOrganizer && organizerParticipant?.status === 'accepted_guaranteed' && !isCancelled && !isPendingGuarantee;
   const isVideo = appointment.appointment_type === 'video';
   const proofLink = organizerParticipant?.invitation_token
     ? `/proof/${appointment.appointment_id}?token=${organizerParticipant.invitation_token}`
@@ -51,8 +52,8 @@ export default function AppointmentHeader({
         </span>
       </div>
 
-      {/* Pending guarantee banner */}
-      {isPendingGuarantee && (
+      {/* Pending guarantee banner (organizer only) */}
+      {isOrganizer && isPendingGuarantee && (
         <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-3" data-testid="pending-guarantee-banner">
           <div className="flex items-start gap-2.5">
             <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />

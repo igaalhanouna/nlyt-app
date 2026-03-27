@@ -199,7 +199,7 @@ function ActionCard({ item, onRemind, onAccept, onDecline, now }) {
             <Bell className="w-3.5 h-3.5 mr-1.5" /> Relancer
           </Button>
         )}
-        <Link to={isParticipant && item.invitation_token ? `/invitation/${item.invitation_token}` : `/appointments/${item.appointment_id}`} className="flex-1 md:flex-none">
+        <Link to={`/appointments/${item.appointment_id}`} className="flex-1 md:flex-none">
           <Button size="sm" variant="ghost" className="h-11 md:h-8 text-xs w-full" data-testid={`view-action-${item.appointment_id}`}>
             <Eye className="w-3.5 h-3.5 mr-1.5" /> Voir détails
           </Button>
@@ -229,9 +229,7 @@ function TimelineCard({ item, isPast, onDelete, onRemind, now }) {
   const pending = item.pending_count || 0;
   const progressPct = total > 0 ? Math.round((accepted / total) * 100) : 100;
 
-  const detailLink = isParticipant && item.invitation_token
-    ? `/invitation/${item.invitation_token}`
-    : `/appointments/${item.appointment_id}`;
+  const detailLink = `/appointments/${item.appointment_id}`;
 
   return (
     <div

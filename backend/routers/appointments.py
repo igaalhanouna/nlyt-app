@@ -1359,17 +1359,40 @@ async def get_appointment(appointment_id: str, request: Request):
     if not appointment:
         raise HTTPException(status_code=404, detail="Rendez-vous introuvable")
     
+    # Check access: workspace member OR participant of this appointment
+    viewer_role = None
     membership = db.workspace_memberships.find_one({
         "workspace_id": appointment['workspace_id'],
         "user_id": user['user_id']
     }, {"_id": 0})
     
-    if not membership:
+    if membership:
+        viewer_role = "organizer"
+    else:
+        # Check if user is a participant (by user_id or email)
+        participant_match = db.participants.find_one({
+            "appointment_id": appointment_id,
+            "$or": [
+                {"user_id": user["user_id"]},
+                {"email": user.get("email", "")}
+            ]
+        }, {"_id": 0, "participant_id": 1, "invitation_token": 1, "status": 1})
+        
+        if participant_match:
+            viewer_role = "participant"
+    
+    if not viewer_role:
         raise HTTPException(status_code=403, detail="Accès refusé")
     
     # Normalize legacy naive datetimes to UTC on read
     if appointment.get('start_datetime'):
         appointment['start_datetime'] = normalize_to_utc(appointment['start_datetime'])
+    
+    appointment['viewer_role'] = viewer_role
+    if viewer_role == "participant" and participant_match:
+        appointment['viewer_participant_id'] = participant_match.get('participant_id')
+        appointment['viewer_invitation_token'] = participant_match.get('invitation_token')
+        appointment['viewer_participant_status'] = participant_match.get('status')
     
     return appointment
 

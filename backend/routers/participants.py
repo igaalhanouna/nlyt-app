@@ -89,12 +89,27 @@ async def list_participants(appointment_id: str, request: Request):
     if not appointment:
         raise HTTPException(status_code=404, detail="Rendez-vous introuvable")
     
+    # Check access: workspace member OR participant of this appointment
+    has_access = False
     membership = db.workspace_memberships.find_one({
         "workspace_id": appointment['workspace_id'],
         "user_id": user['user_id']
     }, {"_id": 0})
     
-    if not membership:
+    if membership:
+        has_access = True
+    else:
+        participant_match = db.participants.find_one({
+            "appointment_id": appointment_id,
+            "$or": [
+                {"user_id": user["user_id"]},
+                {"email": user.get("email", "")}
+            ]
+        }, {"_id": 0, "participant_id": 1})
+        if participant_match:
+            has_access = True
+    
+    if not has_access:
         raise HTTPException(status_code=403, detail="Accès refusé")
     
     participants = list(db.participants.find({"appointment_id": appointment_id}, {"_id": 0}))

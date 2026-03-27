@@ -1,0 +1,101 @@
+{
+  "summary": "Unified Participant/Organizer View - All tests passed. The new architecture where authenticated participants access /appointments/{id} instead of /invitation/{token} is working correctly. Backend correctly returns viewer_role='participant' with viewer_participant_id and viewer_invitation_token. Frontend correctly hides organizer-only sections (calendar sync, cancel, edit, manage participants, video ingestion) while showing participant-specific elements (action banner, trust signal, engagement summary, financial breakdown, proof section read-only).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": {
+    "backend_pytest": [
+      "✅ GET /api/appointments/{id} returns viewer_role='participant' for participant user",
+      "✅ GET /api/appointments/{id} returns viewer_role='organizer' for workspace member",
+      "✅ GET /api/appointments/{id} returns 401/403 for unauthorized user",
+      "✅ GET /api/participants/?appointment_id={id} accessible by participant (not 403)",
+      "✅ GET /api/participants/?appointment_id={id} accessible by organizer",
+      "✅ Appointment response includes all required fields for participant view",
+      "✅ GET /api/appointments/my-timeline returns participant items with appointment_id",
+      "✅ Participant timeline items have all required fields",
+      "✅ POST /api/appointments/{id}/cancel returns 403 for participant",
+      "✅ PATCH /api/appointments/{id} returns 403 for participant",
+      "✅ POST /api/participants/ returns 403 for participant"
+    ],
+    "frontend_playwright": [
+      "✅ Participant view: engagement summary visible (50 EUR, 15 min tolérance, 0h annulation)",
+      "✅ Participant view: financial breakdown visible (70% compensation, 20% commission, 10% charity)",
+      "✅ Participant view: participants list visible (read-only)",
+      "✅ Participant view: trust signal banner visible ('1 participant a déjà confirmé son engagement')",
+      "✅ Participant view: action banner visible with Accept/Decline buttons (status='invited')",
+      "✅ Participant view: proof section visible",
+      "✅ Participant view: NO 'Gérer les participants' button",
+      "✅ Participant view: NO cancel button",
+      "✅ Participant view: NO calendar sync section",
+      "✅ Participant view: NO resend invitation buttons",
+      "✅ Participant view: NO edit pencil button",
+      "✅ Organizer view: 'Gérer les participants' button visible",
+      "✅ Organizer view: calendar sync buttons visible (.ics, Google)",
+      "✅ Organizer view: cancel link visible",
+      "✅ Organizer view: check-in section visible",
+      "✅ Organizer view: proof section visible",
+      "✅ Dashboard: participant items link to /appointments/{id} NOT /invitation/{token}"
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_unified_participant_view.py",
+    "/app/test_reports/pytest/pytest_unified_participant_view.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "✅ Backend appointments.py correctly checks workspace membership first, then participant match",
+    "✅ Backend returns viewer_role='participant' with viewer_participant_id and viewer_invitation_token",
+    "✅ Backend participants.py correctly allows participant access to list participants",
+    "✅ Frontend AppointmentDetail.js correctly uses isOrganizer flag to conditionally render sections",
+    "✅ Frontend ParticipantsSection.js correctly hides 'Gérer les participants' and resend buttons for participants",
+    "✅ Frontend AppointmentHeader.js correctly hides organizer-only actions for participants",
+    "✅ Frontend OrganizerDashboard.js correctly links participant items to /appointments/{id}"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_unified_participant_view.py"
+  ],
+  "success_rate": {
+    "backend": "100% (11/11 passed)",
+    "frontend": "100% (17/17 UI checks passed)"
+  },
+  "test_credentials": {
+    "user": "testuser_audit@nlyt.app / Test123!",
+    "participant_appointment": "7f5d0fa9-d8ac-4d24-b2f1-eb0eecb22782",
+    "organizer_appointment": "5661bffc-56fd-4cff-a0c0-ef196deadf1d"
+  },
+  "seed_data_creation": "None - used existing test data",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Unified participant/organizer view verified. Authenticated participants now access /appointments/{id} instead of /invitation/{token}. Backend GET /api/appointments/{id} returns viewer_role='participant' with viewer_participant_id and viewer_invitation_token when user is participant. Frontend conditionally hides organizer-only sections (calendar sync, cancel, edit, manage participants, video ingestion) based on isOrganizer flag. Dashboard participant items correctly link to /appointments/{id}. The /invitation/{token} page is preserved for non-authenticated users.",
+  "verified_features": {
+    "backend_access_control": {
+      "description": "GET /api/appointments/{id} checks workspace membership first, then participant match",
+      "file": "/app/backend/routers/appointments.py line 1353-1396",
+      "verification": "Returns viewer_role='participant' or 'organizer' based on access type"
+    },
+    "participant_list_access": {
+      "description": "GET /api/participants/?appointment_id={id} accessible by participants",
+      "file": "/app/backend/routers/participants.py line 83-129",
+      "verification": "Participants can view list but cannot add/modify"
+    },
+    "frontend_conditional_rendering": {
+      "description": "AppointmentDetail.js uses isOrganizer flag to show/hide sections",
+      "file": "/app/frontend/src/pages/appointments/AppointmentDetail.js",
+      "verification": "Organizer-only sections hidden for participants"
+    },
+    "dashboard_links": {
+      "description": "Participant items in dashboard link to /appointments/{id}",
+      "file": "/app/frontend/src/pages/dashboard/OrganizerDashboard.js",
+      "verification": "Links use appointment_id, not invitation_token"
+    }
+  },
+  "mocked_apis": {
+    "Stripe": "Dev mode - payment methods are pm_dev_* format"
+  }
+}

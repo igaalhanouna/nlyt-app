@@ -17,8 +17,6 @@ import InvitationResponseSection from './InvitationResponseSection';
 import InvitationCheckinSection from './InvitationCheckinSection';
 import QRDisplayModal from './QRDisplayModal';
 import InvitationAccountChoice from './InvitationAccountChoice';
-import EngagementSummary from '../appointments/EngagementSummary';
-import FinancialBreakdown from '../appointments/FinancialBreakdown';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL || '';
 
@@ -505,8 +503,6 @@ export default function InvitationPage() {
   // ─── Computed Values ───────────────────────────────────────
 
   const { participant, appointment, organizer, engagement_rules, other_participants } = invitation;
-  const confirmedCount = invitation.confirmed_count || 0;
-  const totalParticipants = invitation.total_participants || 0;
 
   const isAppointmentCancelled = appointment.status === 'cancelled';
   const isAppointmentDeleted = appointment.status === 'deleted';
@@ -573,11 +569,6 @@ export default function InvitationPage() {
               statusBadge={<InvitationStatusBadge status={effectiveStatus} guaranteeRevalidation={guaranteeRevalidation} />}
             />
 
-            {/* Engagement Summary — visible in 1 second */}
-            <div className="px-6 pt-5 pb-1" data-testid="invitation-engagement-summary">
-              <EngagementSummary appointment={appointment} isCancelled={false} />
-            </div>
-
             {guaranteeRevalidation?.requires_revalidation && (effectiveStatus === 'accepted_guaranteed') && (
               <GuaranteeRevalidationBanner
                 guaranteeRevalidation={guaranteeRevalidation}
@@ -589,9 +580,6 @@ export default function InvitationPage() {
             <InvitationAppointmentDetails
               appointment={appointment}
               otherParticipants={other_participants}
-              confirmedCount={confirmedCount}
-              totalParticipants={totalParticipants}
-              effectiveStatus={effectiveStatus}
             />
 
             <ModificationProposalSection
@@ -611,11 +599,6 @@ export default function InvitationPage() {
             />
 
             <EngagementRulesCard engagementRules={engagement_rules} />
-
-            {/* Financial Breakdown */}
-            <div className="px-6 pb-2" data-testid="invitation-financial-breakdown">
-              <FinancialBreakdown appointment={appointment} isCancelled={false} />
-            </div>
 
             {showAccountChoice ? (
               <InvitationAccountChoice
