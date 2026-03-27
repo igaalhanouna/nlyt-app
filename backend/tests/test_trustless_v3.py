@@ -348,3 +348,161 @@ class TestReclassificationConflict:
             and not reclassified.get('is_organizer', False)
         )
         assert is_conflict is False, "Org reclassifying themselves = no conflict"
+
+
+# ═══════════════════════════════════════════════════════════════════
+# 4. Additional coverage — mixed profiles, idempotence
+# ═══════════════════════════════════════════════════════════════════
+
+class TestMixedProfiles:
+    """Test multiple beneficiaries with different proof levels on the same RDV."""
+
+    @patch('services.attendance_service._execute_release')
+    @patch('services.attendance_service._execute_capture_and_distribution')
+    @patch('services.attendance_service._has_admissible_proof')
+    @patch('services.attendance_service.db')
+    def test_mixed_profiles_only_proven_get_compensation(self, mock_db, mock_proof, mock_capture, mock_release):
+        """
+        Org (GPS proof) + p1 (no proof) + p2 (QR proof) + p3 (no_show).
+        Only org and p2 should be eligible beneficiaries.
+        """
+        from services.attendance_service import _process_financial_outcomes
+
+        mock_db.attendance_records.find.return_value = [
+            {"record_id": "r_org", "participant_id": "p_org", "outcome": "on_time", "review_required": False},
+            {"record_id": "r1", "participant_id": "p1", "outcome": "on_time", "review_required": False},
+            {"record_id": "r2", "participant_id": "p2", "outcome": "late", "review_required": False},
+            {"record_id": "r3", "participant_id": "p3", "outcome": "no_show", "review_required": False},
+        ]
+        mock_db.payment_guarantees.find_one.return_value = {
+            "guarantee_id": "g3", "participant_id": "p3", "status": "completed", "penalty_amount": 30
+        }
+
+        def proof_side_effect(pid, aid):
+            return pid in ("p_org", "p2")  # org=GPS, p2=QR. p1=no proof.
+
+        mock_proof.side_effect = proof_side_effect
+
+        parts = [
+            {"participant_id": "p_org", "user_id": "org_user", "is_organizer": True, "status": "accepted_guaranteed"},
+            {"participant_id": "p1", "user_id": "user1", "is_organizer": False, "status": "accepted_guaranteed"},
+            {"participant_id": "p2", "user_id": "user2", "is_organizer": False, "status": "accepted_guaranteed"},
+            {"participant_id": "p3", "user_id": "user3", "is_organizer": False, "status": "accepted_guaranteed"},
+        ]
+        apt = {
+            "appointment_id": "apt1", "organizer_id": "org_user", "penalty_amount": 30,
+            "penalty_currency": "eur", "platform_commission_percent": 20.0,
+            "affected_compensation_percent": 50.0, "charity_percent": 10.0,
+        }
+
+        def find_part(ps, pid):
+            return next((p for p in ps if p["participant_id"] == pid), None)
+
+        with patch('services.attendance_service._find_participant', side_effect=lambda ps, pid: find_part(parts, pid)):
+            _process_financial_outcomes("apt1", apt, parts)
+
+        mock_capture.assert_called_once()
+        eligible = mock_capture.call_args[0][3]
+        user_ids = {b["user_id"] for b in eligible}
+        assert "org_user" in user_ids, "Org with GPS should be eligible"
+        assert "user2" in user_ids, "p2 with QR should be eligible"
+        assert "user1" not in user_ids, "p1 without proof should be excluded"
+        assert "user3" not in user_ids, "p3 (no_show) should be excluded"
+        assert len(eligible) == 2
+
+    @patch('services.attendance_service._execute_release')
+    @patch('services.attendance_service._execute_capture_and_distribution')
+    @patch('services.attendance_service._has_admissible_proof')
+    @patch('services.attendance_service.db')
+    def test_org_late_with_proof_participant_on_time_manual_review_excluded(self, mock_db, mock_proof, mock_capture, mock_release):
+        """
+        Org (late, GPS proof) + p1 (on_time, GPS) + p2 (manual_review).
+        p3 is no_show. Org and p1 eligible. p2 excluded (manual_review).
+        """
+        from services.attendance_service import _process_financial_outcomes
+
+        mock_db.attendance_records.find.return_value = [
+            {"record_id": "r_org", "participant_id": "p_org", "outcome": "late", "review_required": False},
+            {"record_id": "r1", "participant_id": "p1", "outcome": "on_time", "review_required": False},
+            {"record_id": "r2", "participant_id": "p2", "outcome": "manual_review", "review_required": True},
+            {"record_id": "r3", "participant_id": "p3", "outcome": "no_show", "review_required": False},
+        ]
+        mock_db.payment_guarantees.find_one.return_value = {
+            "guarantee_id": "g3", "participant_id": "p3", "status": "completed", "penalty_amount": 30
+        }
+
+        def proof_side_effect(pid, aid):
+            return pid in ("p_org", "p1")
+
+        mock_proof.side_effect = proof_side_effect
+
+        parts = [
+            {"participant_id": "p_org", "user_id": "org_user", "is_organizer": True, "status": "accepted_guaranteed"},
+            {"participant_id": "p1", "user_id": "user1", "is_organizer": False, "status": "accepted_guaranteed"},
+            {"participant_id": "p2", "user_id": "user2", "is_organizer": False, "status": "accepted_guaranteed"},
+            {"participant_id": "p3", "user_id": "user3", "is_organizer": False, "status": "accepted_guaranteed"},
+        ]
+        apt = {
+            "appointment_id": "apt1", "organizer_id": "org_user", "penalty_amount": 30,
+            "penalty_currency": "eur", "platform_commission_percent": 20.0,
+            "affected_compensation_percent": 50.0, "charity_percent": 10.0,
+        }
+
+        def find_part(ps, pid):
+            return next((p for p in ps if p["participant_id"] == pid), None)
+
+        with patch('services.attendance_service._find_participant', side_effect=lambda ps, pid: find_part(parts, pid)):
+            _process_financial_outcomes("apt1", apt, parts)
+
+        mock_capture.assert_called_once()
+        eligible = mock_capture.call_args[0][3]
+        user_ids = {b["user_id"] for b in eligible}
+        assert "org_user" in user_ids, "Late org with proof should be eligible"
+        assert "user1" in user_ids, "On-time p1 with proof should be eligible"
+        assert "user2" not in user_ids, "manual_review p2 should NOT be eligible"
+        assert len(eligible) == 2
+
+
+class TestIdempotence:
+    """Test that _process_financial_outcomes is idempotent."""
+
+    @patch('services.attendance_service._execute_release')
+    @patch('services.attendance_service._execute_capture_and_distribution')
+    @patch('services.attendance_service._has_admissible_proof')
+    @patch('services.attendance_service.db')
+    def test_double_call_no_double_capture(self, mock_db, mock_proof, mock_capture, mock_release):
+        """Calling _process_financial_outcomes twice should not double-capture."""
+        from services.attendance_service import _process_financial_outcomes
+
+        mock_db.attendance_records.find.return_value = [
+            {"record_id": "r1", "participant_id": "p1", "outcome": "no_show", "review_required": False},
+            {"record_id": "r_org", "participant_id": "p_org", "outcome": "on_time", "review_required": False},
+        ]
+        mock_db.payment_guarantees.find_one.return_value = {
+            "guarantee_id": "g1", "participant_id": "p1", "status": "completed", "penalty_amount": 30
+        }
+        mock_proof.return_value = True
+
+        parts = [
+            {"participant_id": "p_org", "user_id": "org_user", "is_organizer": True, "status": "accepted_guaranteed"},
+            {"participant_id": "p1", "user_id": "user1", "is_organizer": False, "status": "accepted_guaranteed"},
+        ]
+        apt = {
+            "appointment_id": "apt1", "organizer_id": "org_user", "penalty_amount": 30,
+            "penalty_currency": "eur", "platform_commission_percent": 20.0,
+            "affected_compensation_percent": 50.0, "charity_percent": 10.0,
+        }
+
+        def find_part(ps, pid):
+            return next((p for p in ps if p["participant_id"] == pid), None)
+
+        with patch('services.attendance_service._find_participant', side_effect=lambda ps, pid: find_part(parts, pid)):
+            _process_financial_outcomes("apt1", apt, parts)
+            # Second call — simulate guarantee already captured
+            mock_db.payment_guarantees.find_one.return_value = {
+                "guarantee_id": "g1", "participant_id": "p1", "status": "captured", "penalty_amount": 30
+            }
+            _process_financial_outcomes("apt1", apt, parts)
+
+        # _execute_capture should be called only ONCE (second call skips because status=captured → no valid guarantee)
+        assert mock_capture.call_count == 1, f"Expected 1 capture call, got {mock_capture.call_count}"

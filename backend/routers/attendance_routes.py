@@ -131,8 +131,7 @@ async def reclassify(record_id: str, body: ReclassifyRequest, request: Request):
             {"_id": 0, "is_organizer": 1, "user_id": 1}
         )
         if reclassified_participant and not reclassified_participant.get('is_organizer', False):
-            # Organizer is reclassifying a non-organizer participant to no_show/late
-            # → organizer would receive compensation = conflict of interest
+            logger.warning(f"[TRUSTLESS][CONFLIT] Reclassification bloquée: organizer {user['user_id']} tentait de reclassifier {record['participant_id']} → {body.new_outcome} (conflit d'intérêt)")
             raise HTTPException(
                 status_code=403,
                 detail="Conflit d'interet : vous etes beneficiaire financier de cette decision. Ce litige sera arbitre par la plateforme."

@@ -968,17 +968,20 @@ def _process_reclassification(record: dict, previous_outcome: str, new_outcome: 
     if not guarantee:
         return  # No guarantee → no financial action
 
-    # Build present participants list (on_time only — late is penalized)
+    # Build present participants list — V3: on_time OR late, WITH admissible proof
     records = list(db.attendance_records.find({"appointment_id": appointment_id}, {"_id": 0}))
     present_participants = []
     for r in records:
-        if r.get('outcome') == 'on_time':
+        if r.get('outcome') in ('on_time', 'late'):
             p = _find_participant(participants, r['participant_id'])
             if p and p.get('user_id'):
-                present_participants.append({
-                    "user_id": p["user_id"],
-                    "participant_id": p["participant_id"],
-                })
+                if _has_admissible_proof(r['participant_id'], appointment_id):
+                    present_participants.append({
+                        "user_id": p["user_id"],
+                        "participant_id": p["participant_id"],
+                    })
+                else:
+                    logger.info(f"[FINANCIAL][RECLASS_GARDE_FOU] {r['participant_id']} outcome={r['outcome']} sans preuve admissible. Exclu de la compensation.")
 
     # Handle transition: was penalized → now non-penalized → cancel distribution + release
     if previous_outcome in PENALIZED and new_outcome in NON_PENALIZED:
