@@ -331,6 +331,14 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API
 - [x] Fix: filtre élargi à `['accepted', 'accepted_guaranteed', 'accepted_pending_guarantee']`
 - [x] Testé: 100% backend (12/12), 100% frontend (11/11) — iteration_98
 
+## Feature — Alerte organisateur dans "Action requise" (Fév 2026)
+- [x] Règle: organisateur dans "Action requise" si < 50% garanti ET deadline annulation dans < 24h
+- [x] Wording naturel: "Personne n'a encore sécurisé sa présence" (0 garanti) / "Seulement X/Y présence(s) sécurisée(s)" (partiel)
+- [x] CTAs: Relancer (ambre) + Annuler (rouge outline) + Voir détails
+- [x] Annuler déclenche POST /cancel et déplace dans Historique
+- [x] Protection: jamais pour RDV annulés/passés/sans participants
+- [x] Testé: 100% backend (17/17) + 100% frontend (12/12) — iteration_100
+
 ## Audit & Fix — Section "Action requise" (Fév 2026)
 - [x] Audit complet de la logique backend `my-timeline` et du rendu frontend `ActionRequiredSection`
 - [x] Règle redéfinie: "Action requise = participant doit agir (répondre OU payer) + RDV futur + RDV non annulé"
