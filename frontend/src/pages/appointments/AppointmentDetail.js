@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { appointmentAPI, participantAPI, calendarAPI, invitationAPI, attendanceAPI, checkinAPI, modificationAPI, videoEvidenceAPI, proofAPI } from '../../services/api';
 import { Button } from '../../components/ui/button';
 import { Loader2, ChevronDown, Activity, Fingerprint, ShieldCheck, Check, X, CreditCard } from 'lucide-react';
@@ -296,6 +296,8 @@ function FinancialResultSection({ appointment, participants }) {
 export default function AppointmentDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const cameFromDisputes = location.state?.from === 'disputes';
   const { user } = useAuth();
 
   // Core state
@@ -722,7 +724,11 @@ export default function AppointmentDetail() {
   return (
     <div className="min-h-screen bg-background">
       <AppNavbar />
-      <AppBreadcrumb items={[{ label: 'Tableau de bord', href: '/dashboard' }, { label: appointment.title }]} />
+      <AppBreadcrumb items={
+        cameFromDisputes
+          ? [{ label: 'Tableau de bord', href: '/dashboard' }, { label: 'Decisions en attente', href: '/disputes' }, { label: appointment.title }]
+          : [{ label: 'Tableau de bord', href: '/dashboard' }, { label: appointment.title }]
+      } />
 
       <div className="max-w-6xl mx-auto px-4 md:px-6 pb-12">
 

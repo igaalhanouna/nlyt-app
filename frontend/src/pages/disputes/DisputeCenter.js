@@ -147,14 +147,19 @@ export default function DisputeCenter() {
                 className="bg-white rounded-xl border border-slate-200 overflow-hidden"
                 data-testid={`dispute-group-${apt.appointment_id}`}
               >
-                {/* Appointment header */}
-                <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+                {/* Appointment header — fully clickable */}
+                <Link
+                  to={`/appointments/${apt.appointment_id}`}
+                  state={{ from: 'disputes' }}
+                  className="block px-4 py-3 border-b border-slate-100 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer group"
+                  data-testid={`dispute-apt-link-${apt.appointment_id}`}
+                >
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="flex-shrink-0 w-9 h-9 rounded-lg bg-amber-50 flex items-center justify-center">
                       <AlertTriangle className="w-4 h-4 text-amber-600" />
                     </div>
                     <div className="min-w-0">
-                      <h3 className="text-sm font-semibold text-slate-900 truncate" data-testid={`dispute-apt-title-${apt.appointment_id}`}>
+                      <h3 className="text-sm font-semibold text-slate-900 truncate group-hover:text-slate-700" data-testid={`dispute-apt-title-${apt.appointment_id}`}>
                         {apt.title}
                       </h3>
                       <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
@@ -169,13 +174,9 @@ export default function DisputeCenter() {
                     <span className="text-xs text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full font-medium">
                       {apt.records.length} cas
                     </span>
-                    <Link to={`/appointments/${apt.appointment_id}`}>
-                      <Button variant="ghost" size="sm" className="h-8 text-xs gap-1 text-slate-500">
-                        Voir le RDV <ChevronRight className="w-3 h-3" />
-                      </Button>
-                    </Link>
+                    <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-slate-600 transition-colors" />
                   </div>
-                </div>
+                </Link>
 
                 {/* Records */}
                 <div className="divide-y divide-slate-50">
