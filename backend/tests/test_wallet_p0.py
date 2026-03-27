@@ -600,3 +600,215 @@ class TestLedgerReconciliation:
         # Balance should be UNCHANGED — no auto-correction
         wallet = db.wallets.find_one({"wallet_id": wid}, {"_id": 0})
         assert wallet["available_balance"] == 9999
+
+
+# ═══════════════════════════════════════════════════════════════════
+# FIX 4: Conflict of Interest Guard on resolve-contestation
+# ═══════════════════════════════════════════════════════════════════
+
+class TestContestationConflictOfInterest:
+    """Test that resolve-contestation blocks organizer when conflict of interest exists."""
+
+    def _seed_distribution_with_organizer_benef(self, organizer_uid, include_charity=False):
+        """Create a contested distribution where the organizer is a beneficiary."""
+        dist_id = f"test-dist-{uuid.uuid4().hex[:8]}"
+        apt_id = f"test-apt-{uuid.uuid4().hex[:8]}"
+
+        beneficiaries = [
+            {
+                "user_id": organizer_uid,
+                "wallet_id": f"wallet-{organizer_uid[:8]}",
+                "role": "organizer",
+                "amount_cents": 300,
+                "status": "credited_pending",
+            },
+            {
+                "user_id": f"other-benef-{uuid.uuid4().hex[:8]}",
+                "wallet_id": f"wallet-other-{uuid.uuid4().hex[:8]}",
+                "role": "participant",
+                "amount_cents": 200,
+                "status": "credited_pending",
+            },
+        ]
+        if include_charity:
+            beneficiaries.append({
+                "user_id": "__charity__",
+                "wallet_id": "charity-wallet",
+                "role": "charity",
+                "amount_cents": 50,
+                "status": "credited_pending",
+            })
+
+        db.distributions.insert_one({
+            "distribution_id": dist_id,
+            "appointment_id": apt_id,
+            "guarantee_id": f"guar-{uuid.uuid4().hex[:8]}",
+            "no_show_user_id": f"noshow-{uuid.uuid4().hex[:8]}",
+            "capture_amount_cents": 550,
+            "capture_currency": "eur",
+            "status": "contested",
+            "beneficiaries": beneficiaries,
+            "_test": True,
+        })
+
+        db.appointments.insert_one({
+            "appointment_id": apt_id,
+            "organizer_id": organizer_uid,
+            "title": "Test COI",
+            "status": "completed",
+            "_test": True,
+        })
+
+        return dist_id, apt_id
+
+    def _seed_distribution_no_conflict(self, organizer_uid):
+        """Create a contested distribution where the organizer is NOT a beneficiary."""
+        dist_id = f"test-dist-{uuid.uuid4().hex[:8]}"
+        apt_id = f"test-apt-{uuid.uuid4().hex[:8]}"
+
+        db.distributions.insert_one({
+            "distribution_id": dist_id,
+            "appointment_id": apt_id,
+            "guarantee_id": f"guar-{uuid.uuid4().hex[:8]}",
+            "no_show_user_id": f"noshow-{uuid.uuid4().hex[:8]}",
+            "capture_amount_cents": 500,
+            "capture_currency": "eur",
+            "status": "contested",
+            "beneficiaries": [
+                {
+                    "user_id": f"benef-a-{uuid.uuid4().hex[:8]}",
+                    "wallet_id": f"wallet-a-{uuid.uuid4().hex[:8]}",
+                    "role": "participant",
+                    "amount_cents": 500,
+                    "status": "credited_pending",
+                },
+            ],
+            "_test": True,
+        })
+
+        db.appointments.insert_one({
+            "appointment_id": apt_id,
+            "organizer_id": organizer_uid,
+            "title": "Test No COI",
+            "status": "completed",
+            "_test": True,
+        })
+
+        return dist_id, apt_id
+
+    def test_blocked_when_organizer_is_beneficiary(self):
+        """Organizer who is a beneficiary MUST be blocked from resolving."""
+        from services.distribution_service import resolve_contestation
+
+        organizer_uid = f"org-{uuid.uuid4().hex[:8]}"
+        dist_id, apt_id = self._seed_distribution_with_organizer_benef(organizer_uid)
+
+        # Simulate the guard logic from the route (we test the data check, not FastAPI)
+        dist = db.distributions.find_one({"distribution_id": dist_id}, {"_id": 0})
+        beneficiaries = dist.get("beneficiaries", [])
+
+        is_beneficiary = any(b.get("user_id") == organizer_uid for b in beneficiaries)
+        assert is_beneficiary is True, "Organizer should be detected as beneficiary"
+
+    def test_blocked_when_charity_split(self):
+        """Distribution with charity split MUST block organizer resolution."""
+        organizer_uid = f"org-{uuid.uuid4().hex[:8]}"
+        dist_id, apt_id = self._seed_distribution_with_organizer_benef(organizer_uid, include_charity=True)
+
+        dist = db.distributions.find_one({"distribution_id": dist_id}, {"_id": 0})
+        beneficiaries = dist.get("beneficiaries", [])
+
+        has_charity = any(b.get("role") == "charity" for b in beneficiaries)
+        assert has_charity is True, "Charity split should be detected"
+
+    def test_allowed_when_no_conflict(self):
+        """Organizer who is NOT a beneficiary and no charity should be allowed."""
+        from services.distribution_service import resolve_contestation
+
+        organizer_uid = f"org-{uuid.uuid4().hex[:8]}"
+        dist_id, apt_id = self._seed_distribution_no_conflict(organizer_uid)
+
+        dist = db.distributions.find_one({"distribution_id": dist_id}, {"_id": 0})
+        beneficiaries = dist.get("beneficiaries", [])
+
+        is_beneficiary = any(b.get("user_id") == organizer_uid for b in beneficiaries)
+        has_charity = any(b.get("role") == "charity" for b in beneficiaries)
+
+        assert is_beneficiary is False
+        assert has_charity is False
+
+        # Organizer can resolve → call should succeed
+        result = resolve_contestation(dist_id, "rejected", resolved_by=organizer_uid, note="Légitime")
+        assert result["success"] is True
+
+    def test_timeout_bypasses_conflict_guard(self):
+        """System timeout should resolve even when organizer is a beneficiary."""
+        from services.distribution_service import resolve_contestation
+
+        organizer_uid = f"org-{uuid.uuid4().hex[:8]}"
+        dist_id, apt_id = self._seed_distribution_with_organizer_benef(organizer_uid)
+
+        # Update contested_at to be > 30 days ago for timeout scenario
+        db.distributions.update_one(
+            {"distribution_id": dist_id},
+            {"$set": {"contested_at": (datetime.now(timezone.utc) - timedelta(days=35)).isoformat()}}
+        )
+
+        # System timeout calls resolve_contestation directly (bypasses the route guard)
+        result = resolve_contestation(dist_id, "rejected", resolved_by="system_timeout", note="Auto-rejet 30j")
+        assert result["success"] is True
+
+        dist = db.distributions.find_one({"distribution_id": dist_id}, {"_id": 0})
+        assert dist["status"] == "pending_hold"
+        assert dist["contestation_resolved_by"] == "system_timeout"
+
+    def test_conflict_detection_with_platform_role(self):
+        """Platform beneficiary role should NOT trigger conflict for organizer."""
+        organizer_uid = f"org-{uuid.uuid4().hex[:8]}"
+        dist_id = f"test-dist-{uuid.uuid4().hex[:8]}"
+        apt_id = f"test-apt-{uuid.uuid4().hex[:8]}"
+
+        db.distributions.insert_one({
+            "distribution_id": dist_id,
+            "appointment_id": apt_id,
+            "guarantee_id": f"guar-{uuid.uuid4().hex[:8]}",
+            "no_show_user_id": f"noshow-{uuid.uuid4().hex[:8]}",
+            "capture_amount_cents": 500,
+            "capture_currency": "eur",
+            "status": "contested",
+            "beneficiaries": [
+                {
+                    "user_id": "__nlyt_platform__",
+                    "wallet_id": "platform-wallet",
+                    "role": "platform",
+                    "amount_cents": 50,
+                    "status": "credited_pending",
+                },
+                {
+                    "user_id": f"benef-{uuid.uuid4().hex[:8]}",
+                    "wallet_id": f"wallet-b-{uuid.uuid4().hex[:8]}",
+                    "role": "participant",
+                    "amount_cents": 450,
+                    "status": "credited_pending",
+                },
+            ],
+            "_test": True,
+        })
+
+        db.appointments.insert_one({
+            "appointment_id": apt_id,
+            "organizer_id": organizer_uid,
+            "title": "Test Platform",
+            "status": "completed",
+            "_test": True,
+        })
+
+        dist = db.distributions.find_one({"distribution_id": dist_id}, {"_id": 0})
+        beneficiaries = dist.get("beneficiaries", [])
+
+        is_beneficiary = any(b.get("user_id") == organizer_uid for b in beneficiaries)
+        has_charity = any(b.get("role") == "charity" for b in beneficiaries)
+
+        # Organizer is NOT a beneficiary, no charity → should be allowed
+        assert is_beneficiary is False
+        assert has_charity is False

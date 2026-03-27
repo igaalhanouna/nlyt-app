@@ -188,18 +188,39 @@ class ResolveContestationRequest(BaseModel):
 @router.post("/distributions/{distribution_id}/resolve-contestation")
 async def resolve_contest(distribution_id: str, body: ResolveContestationRequest, request: Request):
     """
-    Resolve a contested distribution (admin or organizer).
+    Resolve a contested distribution (organizer, with conflict-of-interest guard).
     resolution: "upheld" (cancel distribution, refund) or "rejected" (resume hold).
+
+    Trustless guards:
+    - Organizer is BLOCKED if they are a beneficiary of this distribution (judge-and-party)
+    - Organizer is BLOCKED if the distribution includes a charity split (platform-only)
     """
     user = await get_current_user(request)
-    # Verify the user is the appointment organizer
     dist = get_distribution(distribution_id)
     if not dist:
         raise HTTPException(status_code=404, detail="Distribution introuvable")
     apt = db.appointments.find_one({"appointment_id": dist["appointment_id"]}, {"_id": 0})
     if not apt or apt.get("organizer_id") != user["user_id"]:
         raise HTTPException(status_code=403, detail="Seul l'organisateur peut résoudre une contestation")
-    result = resolve_contestation(distribution_id, body.resolution, resolved_by=user["user_id"], note=body.note)
+
+    user_id = user["user_id"]
+    beneficiaries = dist.get("beneficiaries", [])
+
+    # Guard 1: Conflict of interest — organizer is a beneficiary
+    if any(b.get("user_id") == user_id for b in beneficiaries):
+        raise HTTPException(
+            status_code=403,
+            detail="Conflit d'intérêt : vous êtes bénéficiaire de cette distribution. La résolution est réservée à la plateforme."
+        )
+
+    # Guard 2: Charity split — reserved to platform/admin
+    if any(b.get("role") == "charity" for b in beneficiaries):
+        raise HTTPException(
+            status_code=403,
+            detail="Cette distribution implique un flux charité. La résolution est réservée à la plateforme."
+        )
+
+    result = resolve_contestation(distribution_id, body.resolution, resolved_by=user_id, note=body.note)
     if not result.get("success"):
         raise HTTPException(status_code=400, detail=result.get("error", "Erreur résolution"))
     return result
