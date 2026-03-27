@@ -79,9 +79,11 @@ SaaS de gestion de presence avec garanties financieres. Optimisation du "Viral L
 - Will track: earnings, penalties, payouts
 
 ### P1 — Manual Review UI Enhancements
-- Dashboard notification for organizers with pending reviews
-- Email notification to participants when status is resolved
-- Review stats in organizer dashboard
+- [x] Dashboard notification for organizers with pending reviews (PendingReviewBanner)
+- [x] Page Decisions en attente (/disputes) — centralized review center
+- [x] Navbar badge with live counter
+- [x] Email notification to organizer when review cases are created
+- [ ] Email notification to participants when status is resolved
 
 ### P2 — Future
 - [ ] Charity Payouts V2 (Stripe Transfers)
