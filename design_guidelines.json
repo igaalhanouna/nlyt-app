@@ -1,0 +1,107 @@
+{
+  "theme": "Light",
+  "archetype": "4 (Swiss & High-Contrast) - Modified for SaaS",
+  "domain": "SaaS Platform (NLYT)",
+  "page_name": "Résultats d'engagement",
+  "route": "/impact",
+  "colors": {
+    "background": "bg-slate-50",
+    "card": "bg-white",
+    "border": "border-slate-200",
+    "text_primary": "text-slate-900",
+    "text_secondary": "text-slate-500",
+    "positive": "text-emerald-600",
+    "negative": "text-red-600",
+    "positive_bg": "bg-emerald-50",
+    "negative_bg": "bg-red-50",
+    "impact_accent": "text-amber-500",
+    "impact_bg": "bg-amber-50"
+  },
+  "typography": {
+    "heading_1": "text-2xl sm:text-3xl font-bold tracking-tight text-slate-900",
+    "heading_2": "text-xl font-semibold text-slate-900",
+    "body": "text-sm text-slate-600",
+    "label": "text-sm font-semibold text-slate-900",
+    "metric_value": "text-3xl font-bold tracking-tight"
+  },
+  "layout": {
+    "container": "max-w-5xl mx-auto px-4 py-8 space-y-8",
+    "header_cards": "grid grid-cols-1 md:grid-cols-3 gap-6",
+    "sections": "space-y-12"
+  },
+  "components_to_use": [
+    {
+      "name": "Card",
+      "path": "src/components/ui/card.jsx",
+      "usage": "Use for Synthesis Header (the 3 metric cards) and as containers for the list sections. Keep rounded-xl and border-slate-200."
+    },
+    {
+      "name": "Badge",
+      "path": "src/components/ui/badge.jsx",
+      "usage": "Use to display net balance state (positive/negative) and solidarity impact tags."
+    }
+  ],
+  "content_strategy": {
+    "terminology": {
+      "avoid": ["transactions", "ledger", "comptabilité", "factures", "solde comptable"],
+      "use": ["Résultats d'engagement", "Impact solidaire", "Vous avez reçu", "Vous avez payé", "Solde net", "reversés à"]
+    },
+    "sections": [
+      {
+        "id": "synthesis",
+        "title": "Vos résultats d'engagement",
+        "description": "Vue d'ensemble de vos participations et de leur impact financier.",
+        "cards": [
+          {
+            "label": "Total reçu",
+            "icon": "ArrowUpRight",
+            "color_classes": "text-emerald-600 bg-emerald-50"
+          },
+          {
+            "label": "Total payé",
+            "icon": "ArrowDownRight",
+            "color_classes": "text-red-600 bg-red-50"
+          },
+          {
+            "label": "Solde net",
+            "icon": "Wallet",
+            "color_classes": "text-slate-900 bg-slate-100"
+          }
+        ]
+      },
+      {
+        "id": "engagements",
+        "title": "Détail de vos engagements",
+        "description": "Historique de vos rendez-vous. Cliquez sur un engagement pour voir le détail.",
+        "ui_pattern": "A clean vertical list inside a Card. Each row displays the appointment date, name, and a clear badge/text stating 'Vous avez reçu X€' or 'Vous avez payé Y€'."
+      },
+      {
+        "id": "impact",
+        "title": "Votre impact solidaire",
+        "description": "Les contributions générées par vos engagements et reversées aux associations.",
+        "ui_pattern": "A distinct visually warm section (using amber-50 or emerald-50 accents) highlighting the total amount donated, followed by a breakdown per association (e.g., '10€ reversés à Restos du Cœur')."
+      }
+    ]
+  },
+  "testing": {
+    "attributes_required": [
+      "data-testid='impact-page-container'",
+      "data-testid='total-received-card'",
+      "data-testid='total-paid-card'",
+      "data-testid='net-balance-card'",
+      "data-testid='engagement-list'",
+      "data-testid='engagement-item'",
+      "data-testid='solidarity-impact-section'",
+      "data-testid='charity-total'",
+      "data-testid='charity-item'"
+    ]
+  },
+  "instructions_to_main_agent": [
+    "Update src/components/AppNavbar.js to include a link to the '/impact' route. Label it 'Résultats financiers' or 'Impact' and place it appropriately in the navigation.",
+    "Implement the UI in src/pages/ImpactPage.js.",
+    "Ensure strict adherence to the existing design system (slate, emerald, red). DO NOT invent new gradient colors or shadows.",
+    "Make sure the terminology strictly follows the user-centric 'Vous avez reçu/payé' pattern. No accounting jargon.",
+    "The layout must allow the user to read their 'Total reçu', 'Total payé', 'Solde net', and 'Impact solidaire' within 3 seconds of landing on the page.",
+    "Ensure each appointment row has a clear navigation Link to '/appointments/:id'."
+  ]
+}
