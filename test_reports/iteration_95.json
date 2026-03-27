@@ -1,0 +1,100 @@
+{
+  "summary": "Invitation Page Enrichment - All tests passed. The participant invitation view (InvitationPage) now aligns with the organizer view (AppointmentDetail) in terms of information richness. 3 critical adjustments verified: 1) EngagementSummary grid visible at top (penalty amount 50 EUR, tolerance 0 min, cancellation 24h), 2) Meeting join link shown as prominent block ONLY for finalized participants (security verified), 3) Trust signal '1 participant a déjà confirmé son engagement' displayed when confirmed_count > 0.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": {
+    "backend_pytest": [
+      "✅ GET /api/invitations/{token} returns 200",
+      "✅ appointment.cancellation_deadline_hours present",
+      "✅ appointment.penalty_amount present",
+      "✅ appointment.penalty_currency present (EUR)",
+      "✅ appointment.location_display_name present",
+      "✅ appointment.affected_compensation_percent present",
+      "✅ appointment.platform_commission_percent present",
+      "✅ appointment.charity_percent present",
+      "✅ confirmed_count present in response",
+      "✅ total_participants present in response",
+      "✅ Trust signal visible when confirmed_count > 0",
+      "✅ Trust signal hidden when confirmed_count = 0",
+      "✅ meeting_join_url empty for non-finalized participant (status=invited)",
+      "✅ meeting_join_url visible for finalized participant (status=accepted_guaranteed)",
+      "✅ other_participants have status field for badge coloring",
+      "✅ engagement_rules has all required fields",
+      "✅ Physical appointment shows location address"
+    ],
+    "frontend_playwright": [
+      "✅ Invitation page loads successfully",
+      "✅ EngagementSummary grid at top with penalty amount (50 EUR), tolerance (0 min), cancellation (24h)",
+      "✅ FinancialBreakdown block shows compensation % (60%), commission % (20%), charity % (20%)",
+      "✅ Trust signal displayed: '1 participant a déjà confirmé son engagement'",
+      "✅ Trust signal hidden when confirmed_count = 0",
+      "✅ Meeting join block visible for finalized participant with correct URL",
+      "✅ Meeting join block hidden for non-finalized participant (security)",
+      "✅ Participant badges with correct colors (green=accepted, amber=pending)",
+      "✅ EngagementRulesCard displays correctly",
+      "✅ Accept/Decline buttons present and functional",
+      "✅ Visual design preserved (same colors, badges, components)"
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_invitation_enrichment.py",
+    "/app/test_reports/pytest/pytest_invitation_enrichment.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "✅ Backend invitations.py correctly returns all new fields in appointment object",
+    "✅ Backend correctly calculates confirmed_count from other_participants with status in (accepted, accepted_guaranteed)",
+    "✅ Backend correctly hides meeting_join_url for non-finalized participants (security)",
+    "✅ Frontend InvitationPage.js imports and uses EngagementSummary and FinancialBreakdown components",
+    "✅ Frontend InvitationAppointmentDetails.js shows trust signal only when confirmedCount > 0",
+    "✅ Frontend InvitationAppointmentDetails.js shows meeting join block only for finalized participants"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_invitation_enrichment.py"
+  ],
+  "success_rate": {
+    "backend": "100% (17 passed)",
+    "frontend": "100% (all UI elements verified)"
+  },
+  "test_credentials": {
+    "token_with_confirmed": "ff28e36a-1e66-4be5-ae29-8bc8d129840b (confirmed_count=1, trust signal visible)",
+    "token_no_confirmed": "2c24eb23-934d-4a88-908e-a1355a62272b (confirmed_count=0, trust signal hidden)",
+    "token_finalized": "2adf14af-7f04-428d-8583-5b0a7cc0e4ad (status=accepted_guaranteed, meeting link visible)"
+  },
+  "seed_data_creation": "None - used existing test data",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Invitation page enrichment verified. The GET /api/invitations/{token} endpoint now returns: appointment.cancellation_deadline_hours, appointment.penalty_amount, appointment.penalty_currency, appointment.location_display_name, appointment.affected_compensation_percent, appointment.platform_commission_percent, appointment.charity_percent, confirmed_count, total_participants. Frontend displays EngagementSummary grid at top, FinancialBreakdown block, trust signal when confirmed_count > 0, and meeting join link only for finalized participants.",
+  "verified_features": {
+    "engagement_summary": {
+      "description": "Grid at top showing penalty amount, tolerance, cancellation deadline",
+      "component": "EngagementSummary from /app/frontend/src/pages/appointments/EngagementSummary.js",
+      "verification": "Visible in 1 second at top of invitation page"
+    },
+    "financial_breakdown": {
+      "description": "Block showing compensation %, commission %, charity %",
+      "component": "FinancialBreakdown from /app/frontend/src/pages/appointments/FinancialBreakdown.js",
+      "verification": "Displays correct percentages from API"
+    },
+    "trust_signal": {
+      "description": "'X participant(s) a/ont déjà confirmé son/leur engagement'",
+      "component": "InvitationAppointmentDetails.js",
+      "verification": "Visible when confirmed_count > 0, hidden when confirmed_count = 0"
+    },
+    "meeting_link_security": {
+      "description": "Meeting join URL only exposed to finalized participants",
+      "backend": "invitations.py line 224 - is_engagement_finalized check",
+      "verification": "Empty for status=invited, visible for status=accepted_guaranteed"
+    }
+  },
+  "mocked_apis": {
+    "Stripe": "Dev mode - payment methods are pm_dev_* format"
+  }
+}

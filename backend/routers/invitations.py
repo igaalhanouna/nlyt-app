@@ -219,12 +219,21 @@ async def get_invitation_details(request: Request, token: str):
             "title": appointment.get('title', ''),
             "appointment_type": appointment.get('appointment_type', ''),
             "location": appointment.get('location', ''),
+            "location_display_name": appointment.get('location_display_name', ''),
             "meeting_provider": appointment.get('meeting_provider', ''),
             "meeting_join_url": appointment.get('meeting_join_url', '') if is_engagement_finalized else '',
             "start_datetime": utc_start,
             "formatted_date": formatted_date,
             "duration_minutes": appointment.get('duration_minutes', 60),
             "tolerated_delay_minutes": appointment.get('tolerated_delay_minutes', 0),
+            "cancellation_deadline_hours": appointment.get('cancellation_deadline_hours', 24),
+            "penalty_amount": appointment.get('penalty_amount', 0),
+            "penalty_currency": appointment.get('penalty_currency', 'EUR').upper(),
+            "affected_compensation_percent": appointment.get('affected_compensation_percent', 70),
+            "platform_commission_percent": appointment.get('platform_commission_percent', 30),
+            "charity_percent": appointment.get('charity_percent', 0),
+            "charity_association_name": appointment.get('charity_association_name', None),
+            "charity_association_id": appointment.get('charity_association_id', None),
             "status": appointment.get('status', '')
         },
         "organizer": {
@@ -250,6 +259,8 @@ async def get_invitation_details(request: Request, token: str):
             }
             for p in other_participants
         ],
+        "confirmed_count": sum(1 for p in other_participants if p.get('status') in ('accepted', 'accepted_guaranteed')),
+        "total_participants": len(other_participants) + 1,
         "policy_summary": policy_snapshot.get('summary') if policy_snapshot else None,
         "guarantee_revalidation": guarantee_revalidation,
         "has_existing_account": db.users.count_documents({"email": participant.get('email', ''), "is_verified": True}) > 0
