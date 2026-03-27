@@ -69,23 +69,29 @@ SaaS de gestion de presence avec garanties financieres. Optimisation du "Viral L
 - [x] **gps_radius_meters persistence** — field now saved in appointment creation/update
 - [x] **AttendancePanel reclassify fix** — uses record_id instead of participant_id
 
+### Phase 7 — Transparency & User Impact (March 2026)
+- [x] **Disputes Center** — /disputes centralized review page with navbar badge
+- [x] **FinancialResultSection V2** — per-participant financial outcome display in appointment detail
+- [x] **Financial Badge Dashboard** — financial summary badges on timeline cards (Historique tab)
+- [x] **Personalized Financial Wording** — first-person perspective ("Vous avez ete dedommage" / "Vous avez paye")
+- [x] **Page Resultats d'engagement** (`/mes-resultats`) — dedicated financial synthesis page with:
+  - 3 synthesis cards (Total recu, Total paye, Solde net)
+  - Engagement detail list with user-centric wording
+  - Impact solidaire section (total charity + per-association breakdown)
+  - Navbar integration (desktop + mobile)
+
 ---
 
 ## Pending / Upcoming Tasks
 
-### P0 — Wallet System
+### P0 — Wallet System (Next)
 - User wallet for managing balances
 - wallet_service.py already has base functions
 - Will track: earnings, penalties, payouts
 
-### P1 — Manual Review UI Enhancements
-- [x] Dashboard notification for organizers with pending reviews (PendingReviewBanner)
-- [x] Page Decisions en attente (/disputes) — centralized review center
-- [x] Navbar badge with live counter
-- [x] Email notification to organizer when review cases are created
-- [x] **FinancialResultSection V2** — refonte complete de l'affichage financier par participant : statut (penalise/compense/present/dispense/review), montants, explications humaines, repartition (vue organisateur)
-- [x] **Financial Badge Dashboard** — resume financier visible directement sur les cartes de RDV dans l'onglet Historique (penalty/compensation/clean/review)
-- [ ] Email notification to participants when status is resolved
+### P1 — Notifications & Tolerance
+- [ ] Email notification to participants when dispute status is resolved
+- [ ] Buffer zone for lateness (2 min grace period)
 
 ### P2 — Future
 - [ ] Charity Payouts V2 (Stripe Transfers)
