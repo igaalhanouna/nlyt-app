@@ -74,7 +74,7 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API
 
 ## Completed — Stripe Connect Fix (Mars 2026)
 - [x] Diagnostic: clé Stripe système (`sk_test_emergent`) overridait le .env (vraie clé `sk_test_51TDBIh...`)
-- [x] Fix: `load_dotenv(override=True)` dans server.py pour que .env prenne le dessus
+- [x] Fix: `load_dotenv(override=True)` dans server.py pour que .env prenne le dessus (REVERT en Fév 2026 — voir "Fix — Déploiement production")
 - [x] Purge: 106 comptes fictifs (`acct_dev_*`/`acct_demo_*`) supprimés de la DB
 - [x] Fix: `create_dashboard_link()` détecte maintenant `acct_dev_*` ET `acct_demo_*`
 - [x] Testé: création compte Express réel, URL onboarding Stripe, redirect depuis le frontend
@@ -354,6 +354,11 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API
 - [x] Protection: RDV annulés ne tombent jamais dans `action_required` même si `status=invited`
 - [x] Organisateur: jamais dans `action_required` (design validé)
 - [x] Testé: 100% backend (26/26) + 100% frontend (10/10) — iteration_99
+
+## Fix — Déploiement production (Fév 2026)
+- [x] `load_dotenv(override=True)` dans server.py écrasait les secrets Kubernetes (MONGO_URL, STRIPE_API_KEY, etc.) avec les valeurs du `.env` sandbox local
+- [x] Fix: changé en `load_dotenv()` (override=False par défaut) — compatible sandbox ET production K8s
+- [x] Note: l'ancien `override=True` avait été ajouté pour Stripe Connect sandbox mais cassait le déploiement K8s
 
 ## Upcoming Tasks
 - [ ] P2: Test réel Teams (compte non-pro)
