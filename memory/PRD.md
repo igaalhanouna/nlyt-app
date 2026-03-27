@@ -33,9 +33,22 @@ SaaS d'engagement ponctuel avec garantie financière. Optimisation du "Viral Loo
 
 ### Declarative Phase (Feb 2026)
 - Feuille de présence collaborative pour cas `manual_review`
-- 3 conditions cumulatives pour résolution automatique (MEDIUM confidence) : unanimité, cohérence globale, absence de contradiction
+- 3 conditions cumulatives pour résolution automatique (MEDIUM confidence): unanimité, cohérence globale, absence de contradiction
 - Échec → Dispute (LOW confidence) avec soumission de preuves complémentaires
-- Deadline : 48h pour déclarations, 7 jours pour preuves complémentaires
+- Deadline: 48h pour déclarations, 7 jours pour preuves complémentaires
+
+## Navigation Structure
+| Navbar Entry | Route | Page | Description |
+|-------------|-------|------|-------------|
+| Tableau de bord | `/dashboard` | OrganizerDashboard | Timeline engagements |
+| Présences | `/presences` | DisputeCenter | Cas `manual_review` à vérifier |
+| Litiges | `/litiges` | DisputesListPage | Litiges déclaratifs ouverts/résolus |
+| Contributions | `/mes-resultats` | FinancialResultsPage | Synthèse financière |
+| Paramètres | `/settings` | Settings | Configuration compte |
+
+### Sub-routes
+- `/litiges/:id` → DisputeDetailPage (détail litige + soumission preuves)
+- `/appointments/:id/attendance-sheet` → AttendanceSheetPage (feuille de présence collaborative)
 
 ## Completed Features
 
@@ -60,21 +73,23 @@ SaaS d'engagement ponctuel avec garantie financière. Optimisation du "Viral Loo
 - 3-way delay split: on_time / late / late_penalized
 - evaluate_participant restructured (physical + video)
 - _process_financial_outcomes: Cas A/B V3 strict
-- _process_reclassification: PENALIZED = (no_show, late_penalized)
 - Conflict of interest extended to late_penalized
-- Frontend labels updated (6 outcome categories)
 - 34 tests passing (100%)
 
-### Phase 5 — Declarative Phase & Disputes (Feb 2026)
-- Backend: declarative_service.py (matrix analysis, unanimity, coherence, contradiction checks)
-- Backend: declarative_routes.py (attendance sheets API), dispute_routes.py (disputes API)
-- Backend: Scheduler jobs for deadline enforcement (48h sheets, 7d disputes)
-- Frontend: AttendanceSheetPage.js (status selection + submit)
-- Frontend: DisputesListPage.js (open/resolved split, status badges)
-- Frontend: DisputeDetailPage.js (summary, evidence submission, resolution)
-- Frontend: AppointmentDetail.js CTA banners (collecting/disputed phases)
-- 25 declarative tests + 34 V3 tests = 59/59 passing (100%)
-- E2E frontend testing: 19/19 backend + 28/28 frontend (iteration_108, 100%)
+### Phase 5 — Declarative Phase & Disputes
+- Backend: declarative_service.py, declarative_routes.py, dispute_routes.py
+- Frontend: AttendanceSheetPage, DisputesListPage, DisputeDetailPage
+- AppointmentDetail CTA banners (collecting/disputed phases)
+- 59/59 backend tests passing, E2E frontend tested (iteration_108)
+
+### Phase 5b — Frontend Conformity Audit (Mar 2026)
+- Renamed "Décisions" → "Présences" (navbar, breadcrumbs, page title, banner)
+- Added "Litiges" navbar entry → /litiges
+- Routes restructured: /presences (DisputeCenter), /litiges (DisputesListPage)
+- Added AppNavbar to all new pages (DisputesListPage, DisputeDetailPage, AttendanceSheetPage)
+- PendingReviewBanner updated: links to /presences, wording "présences à vérifier"
+- Removed dead file DisputeDetail.js
+- E2E frontend tested (iteration_109, 100%)
 
 ## Upcoming Tasks
 - P0: Wallet System
