@@ -427,9 +427,9 @@ def send_post_engagement_emails(appointment_id: str, appointment: dict):
             if comp_amount > 0:
                 card_type = "compensation_received"
                 amount_str = _fmt_amount(comp_amount)
-                headline = f"Vous avez r\u00e9cup\u00e9r\u00e9 {amount_str}."
+                headline = f"Vous avez \u00e9t\u00e9 indemnis\u00e9 de {amount_str}."
                 subtitle = "Parce que votre temps compte."
-                subject = f"Vous avez r\u00e9cup\u00e9r\u00e9 {amount_str} \u2014 {title}"
+                subject = f"Vous avez \u00e9t\u00e9 indemnis\u00e9 de {amount_str} \u2014 {title}"
             else:
                 card_type = "engagement_respected"
                 headline = "Engagement respect\u00e9."

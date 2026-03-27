@@ -66,7 +66,7 @@ export function ResultCard({ card, compact = false }) {
     headline = 'Engagement respect\u00e9.';
     subtitle = 'Tout le monde \u00e9tait l\u00e0.';
   } else if (card.card_type === 'compensation_received') {
-    headline = amountStr ? `Vous avez r\u00e9cup\u00e9r\u00e9 ${amountStr}.` : 'Vous avez \u00e9t\u00e9 compens\u00e9.';
+    headline = amountStr ? `Vous avez \u00e9t\u00e9 indemnis\u00e9 de ${amountStr}.` : 'Vous avez \u00e9t\u00e9 indemnis\u00e9.';
     subtitle = 'Parce que votre temps compte.';
   } else if (card.card_type === 'charity_donation') {
     headline = 'Vous n\u2019avez pas perdu votre temps. Vous avez aid\u00e9 une association.';
