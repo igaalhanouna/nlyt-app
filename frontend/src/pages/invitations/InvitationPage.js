@@ -533,6 +533,25 @@ export default function InvitationPage() {
           />
         )}
 
+        {/* Existing account banner (Phase 5 — Viral Loop) */}
+        {!isAppointmentUnavailable && invitation?.has_existing_account && effectiveStatus === 'invited' && (
+          <div
+            data-testid="existing-account-banner"
+            className="mb-4 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex items-center justify-between gap-3 flex-wrap"
+          >
+            <p className="text-sm text-blue-800 font-medium">
+              Vous avez déjà un compte NLYT — connectez-vous pour accepter plus vite.
+            </p>
+            <a
+              href={`/login?redirect=/invitation/${token}`}
+              data-testid="existing-account-login-link"
+              className="shrink-0 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 px-4 py-1.5 rounded-lg transition-colors"
+            >
+              Se connecter
+            </a>
+          </div>
+        )}
+
         {/* Main Card */}
         {!isAppointmentUnavailable && (
           <div className="bg-white rounded-2xl shadow-xl overflow-hidden" data-testid="invitation-card">

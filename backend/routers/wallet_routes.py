@@ -17,6 +17,7 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 from typing import Optional
 from middleware.auth_middleware import get_current_user
+from database import db
 from services.wallet_service import (
     ensure_wallet,
     get_transactions,
@@ -98,6 +99,50 @@ async def get_my_impact(request: Request):
     """Get charity impact summary for the current user."""
     user = await get_current_user(request)
     return get_charity_impact(user["user_id"])
+
+
+@router.get("/milestones")
+async def get_my_milestones(request: Request):
+    """Get engagement milestones for the current user + CTA organiser."""
+    user = await get_current_user(request)
+    uid = user["user_id"]
+
+    # Count engagements where user was present (on_time or late)
+    attended = db.attendance_records.count_documents({
+        "participant_email": user.get("email"),
+        "outcome": {"$in": ["on_time", "late"]},
+    })
+
+    # Count engagements organized
+    organized = db.appointments.count_documents({
+        "organizer_id": uid,
+        "status": {"$nin": ["deleted", "draft"]},
+    })
+
+    # Milestone thresholds
+    thresholds = [1, 3, 5, 10, 25, 50, 100]
+    milestones = []
+    for t in thresholds:
+        milestones.append({
+            "threshold": t,
+            "reached": attended >= t,
+            "label": f"{t} engagement{'s' if t > 1 else ''} tenu{'s' if t > 1 else ''}",
+        })
+
+    # Next milestone
+    next_milestone = None
+    for t in thresholds:
+        if attended < t:
+            next_milestone = t
+            break
+
+    return {
+        "attended_count": attended,
+        "organized_count": organized,
+        "milestones": milestones,
+        "next_milestone": next_milestone,
+        "show_organizer_cta": organized == 0 and attended >= 1,
+    }
 
 
 @router.get("/distributions/{distribution_id}")

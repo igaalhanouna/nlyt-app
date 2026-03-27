@@ -1,0 +1,87 @@
+{
+  "summary": "Phase 5 (Invitation Banner) and Phase 6 (Milestones Wallet) - All tests pass. Backend: 10/10 pytest tests pass. Frontend: MilestonesSection renders correctly with all data-testid attributes, invitation banner shows for users with existing accounts.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": {
+    "backend_pytest": [
+      "✅ Backend health check passes",
+      "✅ GET /api/wallet/milestones requires authentication (401 without token)",
+      "✅ GET /api/wallet/milestones returns correct structure (attended_count, organized_count, milestones, next_milestone, show_organizer_cta)",
+      "✅ Milestones thresholds are correct: [1, 3, 5, 10, 25, 50, 100]",
+      "✅ Each milestone has correct structure (threshold, reached, label)",
+      "✅ Milestones reached logic correct based on attended_count",
+      "✅ show_organizer_cta is false when user has organized appointments",
+      "✅ next_milestone is correctly calculated",
+      "✅ Invitation endpoint returns proper error for invalid token",
+      "✅ GET /api/result-cards/{cardId} works (regression check)"
+    ],
+    "frontend_playwright": [
+      "✅ Login page loads at /signin with data-testid attributes",
+      "✅ Login flow works with test credentials",
+      "✅ Wallet page loads at /settings/wallet",
+      "✅ MilestonesSection renders with data-testid='milestones-section'",
+      "✅ Attended count shows '15' with data-testid='milestones-attended-count'",
+      "✅ All 7 milestone badges present: [1, 3, 5, 10, 25, 50, 100] with data-testid='milestone-badge-{n}'",
+      "✅ Progress bar visible with data-testid='milestones-progress-bar' showing 15/25",
+      "✅ Organizer CTA not visible (correct - user has organized appointments)",
+      "✅ Invitation banner visible when has_existing_account=true and status=invited",
+      "✅ Banner has data-testid='existing-account-banner'",
+      "✅ Login link has data-testid='existing-account-login-link' with correct redirect",
+      "✅ Card page /card/:cardId regression check passes"
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_milestones_and_banner.py",
+    "/app/test_reports/pytest/pytest_milestones_banner.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "✅ GET /api/wallet/milestones correctly counts attended engagements from attendance_records",
+    "✅ Milestones thresholds hardcoded as [1, 3, 5, 10, 25, 50, 100] - matches requirements",
+    "✅ show_organizer_cta logic: organized == 0 AND attended >= 1",
+    "✅ has_existing_account computed dynamically from users collection (verified users)",
+    "✅ Invitation banner only shows when has_existing_account=true AND status='invited'",
+    "✅ Login redirect URL correctly includes invitation token"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_milestones_and_banner.py"
+  ],
+  "success_rate": {
+    "backend": "100% (10/10 tests passed)",
+    "frontend": "100% (all UI checks passed)"
+  },
+  "test_credentials": {
+    "user": "testuser_audit@nlyt.app / Test123!",
+    "test_invitation_token": "2ee6406d-9682-4f07-8228-89177ecb0d02",
+    "test_card_id": "44bda97c-47d5-4645-a28a-6ccee99f3432"
+  },
+  "seed_data_creation": "Updated participant 2ee6406d-9682-4f07-8228-89177ecb0d02 email to testuser_audit@nlyt.app to test has_existing_account banner",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Phase 5 and 6 complete. Milestones endpoint returns attended_count=15 for test user (has reached milestones 1,3,5,10). Organizer CTA not shown because user has organized_count=132. Invitation banner shows for participants whose email matches a verified user account. Login route is /signin not /login.",
+  "verification_summary": {
+    "phase_5_invitation_banner": {
+      "banner_visibility": "VERIFIED - Shows when has_existing_account=true AND status=invited",
+      "data_testid_banner": "VERIFIED - data-testid='existing-account-banner'",
+      "data_testid_login_link": "VERIFIED - data-testid='existing-account-login-link'",
+      "redirect_url": "VERIFIED - /login?redirect=/invitation/{token}"
+    },
+    "phase_6_milestones": {
+      "endpoint_structure": "VERIFIED - Returns attended_count, organized_count, milestones, next_milestone, show_organizer_cta",
+      "thresholds": "VERIFIED - [1, 3, 5, 10, 25, 50, 100]",
+      "auth_required": "VERIFIED - Returns 401 without token",
+      "frontend_section": "VERIFIED - data-testid='milestones-section'",
+      "frontend_count": "VERIFIED - data-testid='milestones-attended-count' shows 15",
+      "frontend_badges": "VERIFIED - data-testid='milestone-badge-{n}' for all 7 thresholds",
+      "frontend_progress": "VERIFIED - data-testid='milestones-progress-bar' shows 15/25",
+      "organizer_cta": "VERIFIED - Not shown when organized_count > 0"
+    }
+  }
+}

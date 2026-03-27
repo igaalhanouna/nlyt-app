@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import SettingsPageLayout from '../../components/SettingsPageLayout';
+import MilestonesSection from './MilestonesSection';
 
 /* ─── Config & Helpers ──────────────────────────────────────── */
 
@@ -974,6 +975,8 @@ export default function WalletPage() {
         />
 
         <ImpactSection impact={impact} />
+
+        <MilestonesSection />
 
         <PayoutHistory payouts={payouts} />
 
