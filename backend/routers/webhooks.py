@@ -94,38 +94,6 @@ async def stripe_webhook(request: Request):
                     )
                     
                     if participant:
-                        # ── AUTO-SAVE card as default payment method on user profile ──
-                        user_id = participant.get("user_id")
-                        pm_id = participant.get("stripe_payment_method_id")
-                        if user_id and pm_id:
-                            existing_pm = db.users.find_one(
-                                {"user_id": user_id, "default_payment_method_id": {"$exists": True, "$ne": None}},
-                                {"_id": 0, "user_id": 1}
-                            )
-                            if not existing_pm:
-                                try:
-                                    if STRIPE_API_KEY and STRIPE_API_KEY != 'sk_test_emergent' and not pm_id.startswith("pm_dev_"):
-                                        pm = stripe.PaymentMethod.retrieve(pm_id)
-                                        card = pm.get("card", {})
-                                    else:
-                                        card = {"last4": "4242", "brand": "visa", "exp_month": 12, "exp_year": 2030}
-                                    db.users.update_one(
-                                        {"user_id": user_id},
-                                        {"$set": {
-                                            "stripe_customer_id": session.get("customer"),
-                                            "default_payment_method_id": pm_id,
-                                            "default_payment_method_last4": card.get("last4", "****"),
-                                            "default_payment_method_brand": card.get("brand", "unknown"),
-                                            "default_payment_method_exp": f"{card.get('exp_month', '??')}/{card.get('exp_year', '????')}",
-                                            "payment_method_consent": True,
-                                            "payment_method_setup_at": datetime.now(timezone.utc).isoformat(),
-                                            "updated_at": datetime.now(timezone.utc).isoformat(),
-                                        }}
-                                    )
-                                    print(f"[WEBHOOK] Auto-saved payment method {pm_id[:12]}... as default for user {user_id}")
-                                except Exception as pm_err:
-                                    print(f"[WEBHOOK] Auto-save payment method error (non-blocking): {pm_err}")
-
                         appointment = db.appointments.find_one(
                             {"appointment_id": participant.get("appointment_id")},
                             {"_id": 0}

@@ -197,6 +197,7 @@ async def get_appointment_defaults(user: dict = Depends(get_current_user)):
 async def get_payment_method(user: dict = Depends(get_current_user)):
     """
     Return the user's saved default payment method for organizer guarantees.
+    Auto-recovers from participant records if missing on user profile.
     """
     user_data = db.users.find_one(
         {"user_id": user['user_id']},
@@ -207,6 +208,55 @@ async def get_payment_method(user: dict = Depends(get_current_user)):
     )
 
     if not user_data or not user_data.get("default_payment_method_id"):
+        # ── AUTO-RECOVERY: check participants for a saved card ──
+        participant_with_card = db.participants.find_one(
+            {
+                "$or": [
+                    {"user_id": user["user_id"]},
+                    {"email": user.get("email")},
+                ],
+                "stripe_payment_method_id": {"$exists": True, "$ne": None},
+            },
+            {"_id": 0, "stripe_payment_method_id": 1, "stripe_customer_id": 1},
+            sort=[("updated_at", -1)],
+        )
+        if participant_with_card and participant_with_card.get("stripe_payment_method_id"):
+            pm_id = participant_with_card["stripe_payment_method_id"]
+            cust_id = participant_with_card.get("stripe_customer_id")
+            card = {"last4": "****", "brand": "unknown", "exp_month": "??", "exp_year": "????"}
+            try:
+                import stripe as stripe_mod
+                stripe_api_key = os.environ.get("STRIPE_API_KEY", "")
+                if stripe_api_key and not pm_id.startswith("pm_dev_"):
+                    stripe_mod.api_key = stripe_api_key
+                    pm_obj = stripe_mod.PaymentMethod.retrieve(pm_id)
+                    card = pm_obj.get("card", card)
+            except Exception:
+                pass
+            from datetime import datetime, timezone
+            db.users.update_one(
+                {"user_id": user["user_id"]},
+                {"$set": {
+                    "stripe_customer_id": cust_id,
+                    "default_payment_method_id": pm_id,
+                    "default_payment_method_last4": card.get("last4", "****"),
+                    "default_payment_method_brand": card.get("brand", "unknown"),
+                    "default_payment_method_exp": f"{card.get('exp_month', '??')}/{card.get('exp_year', '????')}",
+                    "payment_method_consent": True,
+                    "payment_method_setup_at": datetime.now(timezone.utc).isoformat(),
+                    "updated_at": datetime.now(timezone.utc).isoformat(),
+                }}
+            )
+            return {
+                "has_payment_method": True,
+                "payment_method": {
+                    "last4": card.get("last4", "****"),
+                    "brand": card.get("brand", "unknown"),
+                    "exp": f"{card.get('exp_month', '??')}/{card.get('exp_year', '????')}",
+                    "consent": True,
+                    "setup_at": datetime.now(timezone.utc).isoformat(),
+                }
+            }
         return {"has_payment_method": False}
 
     return {
