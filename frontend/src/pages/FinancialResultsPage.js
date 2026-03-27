@@ -173,7 +173,7 @@ export default function FinancialResultsPage() {
                           </p>
                         )}
                         {!isPaid && !isReceived && (
-                          <p className="text-sm text-slate-400">Aucun impact</p>
+                          <p className="text-sm text-slate-400">Aucun dédommagement</p>
                         )}
                         {hasCharity && (
                           <p className="text-xs text-rose-500 font-medium">
