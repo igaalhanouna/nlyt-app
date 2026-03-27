@@ -287,12 +287,13 @@ class StripeGuaranteeService:
         
         # Handle dev mode auto-confirmation
         if guarantee.get("dev_mode") and guarantee.get("status") == "dev_pending":
+            pm_id = f"pm_dev_{guarantee['guarantee_id'][:8]}"
             # Auto-confirm in dev mode
             db.payment_guarantees.update_one(
                 {"stripe_session_id": session_id},
                 {"$set": {
                     "status": "completed",
-                    "stripe_payment_method_id": f"pm_dev_{guarantee['guarantee_id'][:8]}",
+                    "stripe_payment_method_id": pm_id,
                     "completed_at": datetime.now(timezone.utc).isoformat(),
                     "updated_at": datetime.now(timezone.utc).isoformat()
                 }}
@@ -304,10 +305,38 @@ class StripeGuaranteeService:
                 {"$set": {
                     "status": "accepted_guaranteed",
                     "guarantee_id": guarantee['guarantee_id'],
+                    "stripe_payment_method_id": pm_id,
                     "guaranteed_at": datetime.now(timezone.utc).isoformat(),
                     "updated_at": datetime.now(timezone.utc).isoformat()
                 }}
             )
+            
+            # Auto-save as default payment method on user profile (dev mode)
+            participant = db.participants.find_one(
+                {"participant_id": guarantee['participant_id']},
+                {"_id": 0, "user_id": 1}
+            )
+            if participant and participant.get("user_id"):
+                uid = participant["user_id"]
+                existing_pm = db.users.find_one(
+                    {"user_id": uid, "default_payment_method_id": {"$exists": True, "$ne": None}},
+                    {"_id": 0, "user_id": 1}
+                )
+                if not existing_pm:
+                    db.users.update_one(
+                        {"user_id": participant["user_id"]},
+                        {"$set": {
+                            "stripe_customer_id": guarantee.get("stripe_customer_id"),
+                            "default_payment_method_id": pm_id,
+                            "default_payment_method_last4": "4242",
+                            "default_payment_method_brand": "visa",
+                            "default_payment_method_exp": "12/2030",
+                            "payment_method_consent": True,
+                            "payment_method_setup_at": datetime.now(timezone.utc).isoformat(),
+                            "updated_at": datetime.now(timezone.utc).isoformat(),
+                        }}
+                    )
+                    print(f"[GUARANTEE_DEV] Auto-saved dev payment method for user {participant['user_id']}")
             
             return {
                 "success": True,

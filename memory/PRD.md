@@ -264,6 +264,15 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API
 - [x] CTA "Organiser un engagement" affiché quand organized_count=0 ET attended_count>=1
 - [x] Testé: 100% backend + frontend (iteration_90)
 
+## Completed — Fix critique: Auto-save carte Stripe sur profil utilisateur (Mars 2026)
+- [x] AUDIT: carte saisie via invitation checkout n'était PAS propagée au profil users (double saisie requise)
+- [x] FIX webhook: propagation automatique du payment_method vers users.default_payment_method_id après checkout réussi
+- [x] FIX dev mode: même propagation dans get_guarantee_status (polling path)
+- [x] Condition: ne PAS écraser une carte existante ($exists + $ne: None)
+- [x] Bug MongoDB résolu: projection vide retournant {} (falsy) causait skip silencieux
+- [x] Testé: scénario A (new user → carte auto-sauvée ✅), scénario B (existing user → carte non écrasée ✅)
+- [x] Vérifié: GET /api/user-settings/me/payment-method retourne has_payment_method=true après flow
+
 ## Upcoming Tasks
 - [ ] P1: Emails post-engagement enrichis avec CTAs viraux (Viral Loop Phase 4)
 - [ ] P2: Bannière connexion sur InvitationPage pour utilisateurs existants (Viral Loop Phase 5)
