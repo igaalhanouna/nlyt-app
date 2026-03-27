@@ -360,6 +360,15 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API
 - [x] Fix: changé en `load_dotenv()` (override=False par défaut) — compatible sandbox ET production K8s
 - [x] Note: l'ancien `override=True` avait été ajouté pour Stripe Connect sandbox mais cassait le déploiement K8s
 
+## Fix — CTA "Finaliser ma garantie" sur la page détail (Fév 2026)
+- [x] **Cause racine**: Double blocage — backend rejetait re-accept pour `accepted_pending_guarantee`, frontend n'avait aucun CTA pour ce statut
+- [x] **Backend** (invitations.py): `accepted_pending_guarantee` retiré de la liste des statuts bloquants dans 3 endpoints (respond_to_invitation, accept_with_account, login_and_accept)
+- [x] **Frontend** (AppointmentDetail.js): Nouveau composant `ParticipantGuaranteeBanner` — bandeau ambre avec "Finaliser ma garantie" (→ Stripe checkout) et "Refuser" (→ declined)
+- [x] **Comportement "Refuser"**: Vrai refus d'invitation, statut final = `declined`, `declined_at` renseigné, aucune interaction Stripe
+- [x] **Idempotence**: Bouton `disabled` pendant le chargement, chaque re-accept crée une nouvelle session Stripe (anciennes expirent ~24h)
+- [x] **Cohérence Dashboard/Détail**: Le dashboard envoie vers `/appointments/{id}`, la page détail gère maintenant le flow complet
+- [x] Testé: 100% backend (9/9) + 100% frontend (8/8) — iteration_102
+
 ## Upcoming Tasks
 - [ ] P2: Test réel Teams (compte non-pro)
 - [ ] P2: Configurer le webhook Stripe en production
