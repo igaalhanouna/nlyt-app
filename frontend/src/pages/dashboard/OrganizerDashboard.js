@@ -111,7 +111,7 @@ function ImpactCard({ totalCharityCents }) {
 }
 
 // ── Action Required Section ──
-function ActionRequiredSection({ items, onRemind, onAccept, onDecline, now }) {
+function ActionRequiredSection({ items, onRemind, onAccept, onDecline, onCancel, now }) {
   if (items.length === 0) return null;
   return (
     <div className="mb-6 bg-red-50/60 border border-red-200 rounded-lg p-5" data-testid="action-required-section">
@@ -122,15 +122,16 @@ function ActionRequiredSection({ items, onRemind, onAccept, onDecline, now }) {
       </div>
       <div className="space-y-3">
         {items.slice(0, 8).map(item => (
-          <ActionCard key={`${item.role}-${item.appointment_id}`} item={item} onRemind={onRemind} onAccept={onAccept} onDecline={onDecline} now={now} />
+          <ActionCard key={`${item.role}-${item.appointment_id}`} item={item} onRemind={onRemind} onAccept={onAccept} onDecline={onDecline} onCancel={onCancel} now={now} />
         ))}
       </div>
     </div>
   );
 }
 
-function ActionCard({ item, onRemind, onAccept, onDecline, now }) {
+function ActionCard({ item, onRemind, onAccept, onDecline, onCancel, now }) {
   const isParticipant = item.role === 'participant';
+  const isOrgAlert = !isParticipant && item.action_required;
 
   return (
     <div className="bg-white border border-red-100 rounded-lg p-4" data-testid={`action-card-${item.appointment_id}`}>
@@ -140,7 +141,7 @@ function ActionCard({ item, onRemind, onAccept, onDecline, now }) {
           {isParticipant ? `Invitation de ${item.counterparty_name}` : 'Créé par vous'}
         </span>
         {item.pending_label && (
-          <span className={`ml-auto text-xs font-semibold ${isParticipant ? 'text-blue-600' : 'text-red-600'}`}>{item.pending_label}</span>
+          <span className={`ml-auto text-xs font-semibold ${isParticipant ? 'text-blue-600' : 'text-amber-600'}`}>{item.pending_label}</span>
         )}
       </div>
 
@@ -184,7 +185,7 @@ function ActionCard({ item, onRemind, onAccept, onDecline, now }) {
       )}
 
       {/* CTAs */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-wrap">
         {isParticipant && item.status === 'invited' ? (
           <>
             <Button size="sm" className="h-11 md:h-8 text-xs flex-1 md:flex-none bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => onAccept(item)} data-testid={`accept-btn-${item.appointment_id}`}>
@@ -200,6 +201,15 @@ function ActionCard({ item, onRemind, onAccept, onDecline, now }) {
               <CreditCard className="w-3.5 h-3.5 mr-1.5" /> Finaliser ma garantie
             </Button>
           </Link>
+        ) : isOrgAlert ? (
+          <>
+            <Button size="sm" className="h-11 md:h-8 text-xs flex-1 md:flex-none bg-amber-600 hover:bg-amber-700 text-white" onClick={() => onRemind(item)} data-testid={`remind-action-${item.appointment_id}`}>
+              <Bell className="w-3.5 h-3.5 mr-1.5" /> Relancer
+            </Button>
+            <Button size="sm" variant="outline" className="h-11 md:h-8 text-xs flex-1 md:flex-none border-red-200 text-red-600 hover:bg-red-50" onClick={() => onCancel(item)} data-testid={`cancel-action-${item.appointment_id}`}>
+              <Ban className="w-3.5 h-3.5 mr-1.5" /> Annuler
+            </Button>
+          </>
         ) : (
           <Button size="sm" variant="outline" className="h-11 md:h-8 text-xs flex-1 md:flex-none border-red-200 text-red-600 hover:bg-red-50" onClick={() => onRemind(item)} data-testid={`remind-action-${item.appointment_id}`}>
             <Bell className="w-3.5 h-3.5 mr-1.5" /> Relancer
@@ -508,6 +518,27 @@ export default function OrganizerDashboard() {
     }
   };
 
+  const handleCancelAppointment = async (item) => {
+    if (!window.confirm(`Annuler l'engagement "${item.title}" ? Les participants seront notifiés.`)) return;
+    try {
+      await appointmentAPI.cancel(item.appointment_id);
+      const aptId = item.appointment_id;
+      setTimeline(prev => ({
+        action_required: prev.action_required.filter(i => i.appointment_id !== aptId),
+        upcoming: prev.upcoming.filter(i => i.appointment_id !== aptId),
+        past: [...prev.past, { ...item, appointment_status: 'cancelled' }],
+      }));
+      setCounts(prev => ({
+        ...prev,
+        action_required: Math.max(0, prev.action_required - 1),
+        past: prev.past + 1,
+      }));
+      toast.success('Engagement annulé');
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Erreur lors de l'annulation");
+    }
+  };
+
   const handleRemind = async (item) => {
     try {
       await appointmentAPI.remind(item.appointment_id);
@@ -770,6 +801,7 @@ export default function OrganizerDashboard() {
             onRemind={handleRemind}
             onAccept={handleAcceptInvitation}
             onDecline={handleDeclineInvitation}
+            onCancel={handleCancelAppointment}
             now={now}
           />
         )}

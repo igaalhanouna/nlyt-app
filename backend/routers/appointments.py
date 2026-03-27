@@ -965,11 +965,14 @@ async def get_my_timeline(request: Request):
             participants = list(db.participants.find(
                 {"appointment_id": apt["appointment_id"]},
                 {"_id": 0, "participant_id": 1, "email": 1, "first_name": 1,
-                 "last_name": 1, "status": 1, "invitation_token": 1}
+                 "last_name": 1, "status": 1, "invitation_token": 1, "is_organizer": 1}
             ))
+            non_org_parts = [p for p in participants if not p.get("is_organizer")]
             accepted = sum(1 for p in participants if p.get("status") in ("accepted", "accepted_guaranteed"))
+            guaranteed = sum(1 for p in non_org_parts if p.get("status") == "accepted_guaranteed")
             pending = sum(1 for p in participants if p.get("status") in ("invited", "accepted_pending_guarantee"))
             total = len(participants)
+            non_org_count = len(non_org_parts)
 
             # Counterparty: list participant names (max 2 + "et X autres")
             names = []
@@ -982,21 +985,39 @@ async def get_my_timeline(request: Request):
             else:
                 counterparty = f"{names[0]}, {names[1]} et {len(names) - 2} autre{'s' if len(names) - 2 > 1 else ''}"
 
-            # Organizer items are NEVER action_required — they appear in "À venir"
-            # with pending indicators. Only participant invitations go in "Action requise".
             is_past = apt.get("start_datetime", "") < now_str
+            is_cancelled = apt.get("status") == "cancelled"
             action_required = False
+            org_alert_label = None
+
+            # Organizer action_required: < 50% guaranteed AND within 24h of cancellation deadline
+            if not is_past and not is_cancelled and non_org_count > 0:
+                cancel_h = apt.get("cancellation_deadline_hours", 0)
+                start_dt = _parse_dt(apt.get("start_datetime", ""))
+                if start_dt:
+                    now_dt = datetime.now(timezone.utc)
+                    hours_to_start = (start_dt - now_dt).total_seconds() / 3600
+                    hours_to_deadline = hours_to_start - cancel_h
+                    if guaranteed < non_org_count / 2 and hours_to_deadline < 24:
+                        action_required = True
+                        if guaranteed == 0:
+                            org_alert_label = "Personne n'a encore sécurisé sa présence"
+                        else:
+                            org_alert_label = f"Seulement {guaranteed}/{non_org_count} présence{'s' if guaranteed > 1 else ''} sécurisée{'s' if guaranteed > 1 else ''}"
 
             # Determine available actions
-            actions = ["view_details"]
-            if not is_past and pending > 0:
-                actions.insert(0, "remind")
-            if not is_past:
-                actions.append("delete")
+            if action_required:
+                actions = ["remind", "cancel", "view_details"]
+            else:
+                actions = ["view_details"]
+                if not is_past and pending > 0:
+                    actions.insert(0, "remind")
+                if not is_past:
+                    actions.append("delete")
 
             # Pending wording for organizer
-            pending_label = None
-            if pending > 0 and not is_past:
+            pending_label = org_alert_label
+            if not pending_label and pending > 0 and not is_past:
                 pending_label = f"En attente de réponse ({pending})"
 
             items.append({
@@ -1021,6 +1042,7 @@ async def get_my_timeline(request: Request):
                 "cancellation_deadline_hours": apt.get("cancellation_deadline_hours", 0),
                 "participants_count": total,
                 "accepted_count": accepted,
+                "guaranteed_count": guaranteed,
                 "pending_count": pending,
                 "actions": actions,
                 "pending_label": pending_label,
