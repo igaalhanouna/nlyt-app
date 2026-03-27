@@ -290,7 +290,9 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API
 - [x] Déduplication : si user est à la fois organisateur et participant, affiché une seule fois (en tant qu'organisateur)
 - [x] Composants existants conservés : Impact card, Calendar sync, Workspace switcher, Stats
 - [x] Charte graphique strictement conservée (couleurs, badges, composants)
-- [x] Testé : 100% backend + frontend (iteration_93)
+- [x] FIX: "Action requise" contient UNIQUEMENT invitations participant non traitées (0 items organisateur)
+- [x] UX: Cartes enrichies avec adresse, garantie, tolérance retard, conditions d'annulation en grille verticale aérée
+- [x] Testé : 100% backend + frontend (iteration_93 + iteration_94)
 
 ## Completed — Validation Stripe réelle pour réutilisation de carte (Fév 2026)
 - [x] BUG CRITIQUE CORRIGÉ: `SetupIntent.create()` manquait `payment_method_types=["card"]` → la validation silencieuse échouait systématiquement en production
