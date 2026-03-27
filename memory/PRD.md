@@ -383,6 +383,16 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API
 - [x] **Frontend** : Nouveau composant `FinancialResultSection` — section "Résultat financier" avec pénalité, compensation, wallet impact
 - [x] Testé: 100% backend (11/11) + 100% frontend (10/10) — iteration_103
 
+## Test E2E Stripe — Validation complète (Fév 2026)
+- [x] **Clé Stripe réelle** : Correction du chargement de la clé — la sentinelle `sk_test_emergent` masquait la vraie clé `.env`. Fix: cleanup de la var système dans `server.py` avant `load_dotenv()`
+- [x] **Checkout Session** : URL réelle `https://checkout.stripe.com/...` générée ✅
+- [x] **PaymentMethod réel** : Visa test card `pm_1TFYj2...` attaché au customer ✅
+- [x] **Capture Stripe réelle** : `PaymentIntent pi_3TFYj5... | succeeded | 2500 eur` ✅
+- [x] **Charge Stripe réelle** : `ch_3TFYj5... | 2500 eur | captured=True` ✅
+- [x] **Distribution** : `2500 cents | pending_hold` ✅
+- [x] **Raison capture** : `late_beyond_tolerance` ✅
+- [x] **Erreurs testées** : carte refusée ✅, PM inexistant ✅, montant 0 ✅, double capture ✅
+
 ## Upcoming Tasks
 - [ ] P2: Test réel Teams (compte non-pro)
 - [ ] P2: Configurer le webhook Stripe en production

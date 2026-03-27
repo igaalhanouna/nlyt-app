@@ -7,6 +7,10 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 import os
 
+# Allow .env to provide real Stripe key when system env has only the sentinel
+if os.environ.get('STRIPE_API_KEY') == 'sk_test_emergent':
+    del os.environ['STRIPE_API_KEY']
+
 load_dotenv()
 
 from routers import auth, workspaces, appointments, participants, contracts, calendar_routes, disputes, admin, webhooks, debug, invitations, user_settings, charity_associations, attendance_routes, checkin_routes, modification_routes, video_evidence_routes, proof_routes, wallet_routes, connect_routes, impact_routes, external_events_routes, result_cards
