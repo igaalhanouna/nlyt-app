@@ -31,6 +31,12 @@ SaaS d'engagement ponctuel avec garantie financière. Optimisation du "Viral Loo
 ### Conflict of Interest
 - Reclassification vers `no_show` ou `late_penalized` bloquée si l'organisateur en serait bénéficiaire
 
+### Declarative Phase (Feb 2026)
+- Feuille de présence collaborative pour cas `manual_review`
+- 3 conditions cumulatives pour résolution automatique (MEDIUM confidence) : unanimité, cohérence globale, absence de contradiction
+- Échec → Dispute (LOW confidence) avec soumission de preuves complémentaires
+- Deadline : 48h pour déclarations, 7 jours pour preuves complémentaires
+
 ## Completed Features
 
 ### Phase 1 — Core
@@ -50,7 +56,7 @@ SaaS d'engagement ponctuel avec garantie financière. Optimisation du "Viral Loo
 - Wording: "dédommagé de", "indemnisé le ou les participants", "geste solidaire"
 - Check-in temporal boundaries [start-30m, end+1h]
 
-### Phase 4 — V3 Trustless (Current)
+### Phase 4 — V3 Trustless
 - 3-way delay split: on_time / late / late_penalized
 - evaluate_participant restructured (physical + video)
 - _process_financial_outcomes: Cas A/B V3 strict
@@ -58,6 +64,17 @@ SaaS d'engagement ponctuel avec garantie financière. Optimisation du "Viral Loo
 - Conflict of interest extended to late_penalized
 - Frontend labels updated (6 outcome categories)
 - 34 tests passing (100%)
+
+### Phase 5 — Declarative Phase & Disputes (Feb 2026)
+- Backend: declarative_service.py (matrix analysis, unanimity, coherence, contradiction checks)
+- Backend: declarative_routes.py (attendance sheets API), dispute_routes.py (disputes API)
+- Backend: Scheduler jobs for deadline enforcement (48h sheets, 7d disputes)
+- Frontend: AttendanceSheetPage.js (status selection + submit)
+- Frontend: DisputesListPage.js (open/resolved split, status badges)
+- Frontend: DisputeDetailPage.js (summary, evidence submission, resolution)
+- Frontend: AppointmentDetail.js CTA banners (collecting/disputed phases)
+- 25 declarative tests + 34 V3 tests = 59/59 passing (100%)
+- E2E frontend testing: 19/19 backend + 28/28 frontend (iteration_108, 100%)
 
 ## Upcoming Tasks
 - P0: Wallet System
@@ -72,5 +89,5 @@ SaaS d'engagement ponctuel avec garantie financière. Optimisation du "Viral Loo
 - P2: Pages dédiées charité & Leaderboard
 
 ## Test Credentials
-- User 1: testuser_audit@nlyt.app
-- User 2: igaal.hanouna@gmail.com
+- User 1: testuser_audit@nlyt.app / TestAudit123!
+- User 2: igaal.hanouna@gmail.com / OrgTest123!
