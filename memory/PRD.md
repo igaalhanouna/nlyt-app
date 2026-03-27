@@ -73,9 +73,18 @@ SaaS d'engagement ponctuel avec garantie financiere. Optimisation du "Viral Loop
 ### Phase 6 — Wallet Financial Safety P0 (21 tests)
 ### Phase 7 — Wallet UX (iteration_110, 100%)
 ### Phase 8 — Buffer Zone 2 min (10 tests, 100%) - DONE
+### Phase 9 — Dispute Resolution Emails (10 tests, 100%) - DONE
+
+## Dispute Resolution Emails (Mar 2026)
+- Trigger: appel non-bloquant dans `resolve_dispute()` apres toute resolution
+- 3 variantes: participant cible, organisateur, beneficiaire impacte
+- Source de decision: jamais "organisateur" expose (toujours "Resolution validee")
+- Bloc financier: 4 cas (capture, liberation, aucun impact, dedommagement annule)
+- CTA contextuel: wallet si impact financier, page RDV sinon
+- Idempotence via collection `sent_emails` (email_type + dispute_id + user_id)
+- Organizer = target → 1 seul email (variante target)
 
 ## Upcoming Tasks
-- P1: Email notification participant apres resolution dispute
 - P1: Configurer webhook Stripe en production
 
 ## Backlog

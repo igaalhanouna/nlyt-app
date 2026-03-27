@@ -506,3 +506,242 @@ def send_post_engagement_emails(appointment_id: str, appointment: dict):
         html = _base_template(body, accent="info")
 
         _send_async(user["email"], subject, html, f"post_engagement_{card_type}", appointment_id, user_id)
+
+
+# ─── 7. Dispute resolution emails ────────────────────────────
+
+
+# Outcome labels (French, non-accusatory, user-facing)
+_OUTCOME_LABELS = {
+    "on_time": "Présent(e) à l'heure",
+    "late": "Présent(e) avec retard toléré",
+    "late_penalized": "Retard au-delà de la tolérance",
+    "no_show": "Absence constatée",
+    "waived": "Aucune pénalité applicable",
+}
+
+# Source labels — NEVER expose individual human actors as decision makers
+_SOURCE_LABELS = {
+    "system": "Évaluation automatique",
+    "organizer": "Résolution validée",
+    "declarative_consensus": "Consensus déclaratif",
+    "platform_arbitration": "Résolution validée",
+    "platform": "Résolution validée",
+    "system_timeout": "Résolution automatique (délai expiré)",
+}
+
+
+def _fmt_penalty(amount, currency="eur"):
+    """Format a penalty amount (in euros, not cents) for display."""
+    if not amount:
+        return "—"
+    currency_symbol = {"eur": "€", "usd": "$", "gbp": "£"}.get(currency.lower(), currency.upper())
+    formatted = f"{amount:,.2f}".replace(",", "\u00a0").replace(".", ",")
+    return f"{formatted} {currency_symbol}"
+
+
+def _build_target_financial_html(guarantee_status, penalty_amount, penalty_currency):
+    """Build financial impact HTML for the target participant."""
+    amount_str = _fmt_penalty(penalty_amount, penalty_currency)
+    if guarantee_status == "captured":
+        return (
+            '<div style="background:#FEF2F2;border-left:4px solid #EF4444;padding:16px 20px;margin:20px 0;border-radius:0 8px 8px 0;">'
+            '<p style="margin:0 0 6px;font-weight:600;color:#991B1B;font-size:14px;">Impact financier</p>'
+            f'<p style="margin:0;color:#7F1D1D;font-size:14px;">Votre garantie de <strong>{amount_str}</strong> a été appliquée en tant que pénalité. Ce montant sera redistribué aux participants présents sous forme de dédommagement.</p>'
+            '</div>'
+        )
+    elif guarantee_status == "released":
+        return (
+            '<div style="background:#F0FDF4;border-left:4px solid #10B981;padding:16px 20px;margin:20px 0;border-radius:0 8px 8px 0;">'
+            '<p style="margin:0 0 6px;font-weight:600;color:#166534;font-size:14px;">Impact financier</p>'
+            f'<p style="margin:0;color:#15803D;font-size:14px;">Votre garantie de <strong>{amount_str}</strong> a été libérée. Aucune pénalité ne vous est appliquée.</p>'
+            '</div>'
+        )
+    else:
+        return (
+            '<div style="background:#F8FAFC;border-left:4px solid #94A3B8;padding:16px 20px;margin:20px 0;border-radius:0 8px 8px 0;">'
+            '<p style="margin:0 0 6px;font-weight:600;color:#1E293B;font-size:14px;">Impact financier</p>'
+            '<p style="margin:0;color:#475569;font-size:14px;">Cette résolution n\'a aucun impact financier sur votre compte.</p>'
+            '</div>'
+        )
+
+
+def _build_organizer_financial_text(guarantee_status, penalty_amount, penalty_currency, target_name):
+    """Build financial summary text for the organizer."""
+    amount_str = _fmt_penalty(penalty_amount, penalty_currency)
+    if guarantee_status == "captured":
+        return f"La garantie de {target_name} ({amount_str}) a été capturée et redistribuée."
+    elif guarantee_status == "released":
+        return f"La garantie de {target_name} ({amount_str}) a été libérée."
+    return "Aucun impact financier."
+
+
+def send_dispute_resolution_emails(dispute_id: str):
+    """
+    Send notification emails when a dispute is resolved.
+
+    Recipients:
+      A. Target participant (always)
+      B. Organizer (always, unless same user as target)
+      C. Beneficiaries who lost a distribution (only if cancelled)
+
+    Idempotent via sent_emails (dispute_resolved_{role} + dispute_id + user_id).
+    Non-blocking via _send_async threads.
+    """
+    from services.email_service import (
+        _base_template, _btn, _info_box, _alert_box,
+        _detail_row, _greeting, _paragraph,
+        format_email_datetime, SITE_URL,
+    )
+
+    dispute = db.declarative_disputes.find_one({"dispute_id": dispute_id}, {"_id": 0})
+    if not dispute or dispute.get("status") != "resolved":
+        logger.warning(f"[DISPUTE_EMAIL] Skipped: dispute {dispute_id} not resolved")
+        return
+
+    appointment_id = dispute["appointment_id"]
+    appointment = db.appointments.find_one({"appointment_id": appointment_id}, {"_id": 0})
+    if not appointment:
+        logger.warning(f"[DISPUTE_EMAIL] Skipped: appointment {appointment_id} not found")
+        return
+
+    target_pid = dispute["target_participant_id"]
+    target_participant = db.participants.find_one({"participant_id": target_pid}, {"_id": 0})
+    target_user_id = target_participant.get("user_id", "") if target_participant else ""
+
+    record = db.attendance_records.find_one(
+        {"appointment_id": appointment_id, "participant_id": target_pid},
+        {"_id": 0}
+    )
+
+    resolution = dispute.get("resolution", {})
+    final_outcome = resolution.get("final_outcome", record.get("outcome", "") if record else "")
+    resolved_by = resolution.get("resolved_by", "platform")
+
+    guarantee = db.payment_guarantees.find_one(
+        {"participant_id": target_pid, "appointment_id": appointment_id},
+        {"_id": 0}
+    )
+    guarantee_status = guarantee.get("status") if guarantee else None
+
+    distribution = db.distributions.find_one(
+        {"appointment_id": appointment_id, "no_show_participant_id": target_pid},
+        {"_id": 0}
+    )
+    distribution_status = distribution.get("status") if distribution else None
+
+    # Shared context
+    title = appointment.get("title", "Rendez-vous")
+    tz = appointment.get("appointment_timezone", "Europe/Paris")
+    date_display = format_email_datetime(appointment.get("start_datetime", ""), tz)
+    outcome_label = _OUTCOME_LABELS.get(final_outcome, final_outcome or "—")
+    source_label = _SOURCE_LABELS.get(resolved_by, "Résolution validée")
+    penalty_amount = (guarantee.get("penalty_amount") if guarantee else None) or appointment.get("penalty_amount", 0)
+    penalty_currency = appointment.get("penalty_currency", "eur")
+    organizer_user_id = appointment.get("organizer_id", "")
+    has_financial_impact = guarantee_status in ("captured", "released")
+
+    appointment_url = f"{SITE_URL}/appointments/{appointment_id}"
+    wallet_url = f"{SITE_URL}/wallet"
+
+    # ─── A. Target participant ───
+    if target_user_id:
+        target_user = _get_user(target_user_id)
+        if target_user and target_user.get("email"):
+            cta_url = wallet_url if has_financial_impact else appointment_url
+            cta_label = "Voir mon wallet" if has_financial_impact else "Voir le rendez-vous"
+
+            body = (
+                _greeting(target_user.get("first_name", ""))
+                + _paragraph(
+                    f"Le litige concernant votre présence au rendez-vous "
+                    f"<strong>{title}</strong> du <strong>{date_display}</strong> a été résolu."
+                )
+                + _info_box(
+                    _detail_row("Statut de présence :", f"<strong>{outcome_label}</strong>")
+                    + _detail_row("Base de décision :", source_label)
+                )
+                + _build_target_financial_html(guarantee_status, penalty_amount, penalty_currency)
+                + _btn(cta_url, cta_label)
+            )
+            _send_async(
+                target_user["email"],
+                f"Litige résolu — {title}",
+                _base_template(body, accent="neutral"),
+                "dispute_resolved_target", dispute_id, target_user_id,
+            )
+
+    # ─── B. Organizer ───
+    if organizer_user_id and organizer_user_id != target_user_id:
+        org_user = _get_user(organizer_user_id)
+        if org_user and org_user.get("email"):
+            target_name = "Participant"
+            if target_participant:
+                target_name = " ".join(filter(None, [
+                    target_participant.get("first_name"),
+                    target_participant.get("last_name"),
+                ])) or target_participant.get("email", "Participant")
+
+            org_fin_text = _build_organizer_financial_text(
+                guarantee_status, penalty_amount, penalty_currency, target_name
+            )
+
+            body = (
+                _greeting(org_user.get("first_name", ""))
+                + _paragraph(
+                    f"Un litige a été résolu pour votre rendez-vous "
+                    f"<strong>{title}</strong> du <strong>{date_display}</strong>."
+                )
+                + _info_box(
+                    _detail_row("Participant concerné :", f"<strong>{target_name}</strong>")
+                    + _detail_row("Décision finale :", f"<strong>{outcome_label}</strong>")
+                    + _detail_row("Base de décision :", source_label)
+                )
+                + _paragraph(org_fin_text)
+                + _btn(appointment_url, "Voir le rendez-vous")
+            )
+            _send_async(
+                org_user["email"],
+                f"Litige résolu — {title}",
+                _base_template(body, accent="neutral"),
+                "dispute_resolved_organizer", dispute_id, organizer_user_id,
+            )
+
+    # ─── C. Beneficiaries: dédommagement annulé ───
+    if distribution and distribution_status == "cancelled":
+        for beneficiary in distribution.get("beneficiaries", []):
+            b_role = beneficiary.get("role", "")
+            if b_role not in ("organizer", "participant"):
+                continue
+            b_user_id = beneficiary.get("user_id", "")
+            if not b_user_id or b_user_id == target_user_id:
+                continue
+
+            b_user = _get_user(b_user_id)
+            if not b_user or not b_user.get("email"):
+                continue
+
+            b_amount = _fmt_amount(beneficiary.get("amount_cents", 0))
+
+            body = (
+                _greeting(b_user.get("first_name", ""))
+                + _paragraph(
+                    f"Suite à la résolution d'un litige pour le rendez-vous "
+                    f"<strong>{title}</strong> du <strong>{date_display}</strong>, "
+                    f"votre dédommagement a été mis à jour."
+                )
+                + _alert_box(
+                    f'<p style="margin:0;color:#92400E;font-size:14px;">'
+                    f'Le dédommagement de <strong>{b_amount}</strong> précédemment attribué '
+                    f'a été annulé suite à la résolution du litige.</p>'
+                )
+                + _btn(wallet_url, "Voir mon wallet")
+            )
+            _send_async(
+                b_user["email"],
+                f"Mise à jour de votre dédommagement — {title}",
+                _base_template(body, accent="warning"),
+                "dispute_resolved_beneficiary", dispute_id, b_user_id,
+            )
+
+    logger.info(f"[DISPUTE_EMAIL] Emails queued for dispute {dispute_id}")

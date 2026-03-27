@@ -511,6 +511,14 @@ def resolve_dispute(dispute_id: str, final_outcome: str, resolution_note: str, r
     )
 
     # Apply to attendance record
+    previous_outcome = None
+    existing_record = db.attendance_records.find_one(
+        {"appointment_id": dispute['appointment_id'], "participant_id": dispute['target_participant_id']},
+        {"_id": 0, "outcome": 1}
+    )
+    if existing_record:
+        previous_outcome = existing_record.get("outcome")
+
     db.attendance_records.update_one(
         {"appointment_id": dispute['appointment_id'], "participant_id": dispute['target_participant_id']},
         {"$set": {
@@ -542,6 +550,13 @@ def resolve_dispute(dispute_id: str, final_outcome: str, resolution_note: str, r
         participants = list(db.participants.find({"appointment_id": appointment_id}, {"_id": 0}))
         _process_financial_outcomes(appointment_id, appointment, participants)
         logger.info(f"[DISPUTE] All disputes resolved for {appointment_id}. Financial engine relaunched.")
+
+    # Non-blocking: send dispute resolution emails
+    try:
+        from services.financial_emails import send_dispute_resolution_emails
+        send_dispute_resolution_emails(dispute_id)
+    except Exception as e:
+        logger.warning(f"[DISPUTE] Email notification error (non-blocking): {e}")
 
     return {"success": True}
 
