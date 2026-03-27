@@ -16,7 +16,7 @@ import base64
 import logging
 
 from database import db
-from services.evidence_service import _parse_appointment_start, now_utc, CHECKIN_WINDOW_BEFORE_MINUTES
+from services.evidence_service import _parse_appointment_start, now_utc, CHECKIN_WINDOW_BEFORE_MINUTES, CHECKIN_WINDOW_AFTER_HOURS
 logger = logging.getLogger(__name__)
 
 sys.path.append('/app/backend')
@@ -91,17 +91,26 @@ def _resolve_participant(invitation_token: str) -> tuple:
     if appointment.get('status') != 'active':
         raise HTTPException(status_code=400, detail="Ce rendez-vous n'est plus actif")
 
-    # Hard time gate: check-in opens 30min before start_datetime
+    # Hard time gate: check-in window = [start - 30min, end + 1h]
     try:
         start_utc = _parse_appointment_start(appointment)
         current = now_utc()
+        duration = appointment.get("duration_minutes", 60)
         opens_at = start_utc - timedelta(minutes=CHECKIN_WINDOW_BEFORE_MINUTES)
+        closes_at = start_utc + timedelta(minutes=duration) + timedelta(hours=CHECKIN_WINDOW_AFTER_HOURS)
         if current < opens_at:
             minutes_left = int((opens_at - current).total_seconds() / 60)
             raise HTTPException(
                 status_code=400,
                 detail=f"Le check-in ouvre 30 minutes avant le rendez-vous. Revenez dans {minutes_left} min."
             )
+        if current > closes_at:
+            raise HTTPException(
+                status_code=400,
+                detail="Le check-in est termine. La fenetre de check-in a expire (1h apres la fin du rendez-vous)."
+            )
+    except HTTPException:
+        raise
     except (ValueError, TypeError):
         pass  # If date parsing fails, don't block — let evidence assessment handle it
 
