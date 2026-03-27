@@ -6,10 +6,11 @@ import {
   Wallet, Loader2, ExternalLink, AlertTriangle,
   CheckCircle, Clock, XCircle, RefreshCw, ArrowUpRight, ArrowDownLeft,
   Banknote, ShieldAlert, ChevronDown, ChevronUp, Flag, Lock,
-  Info, Scale, CircleDot, Heart
+  Info, Scale, CircleDot, Heart, CalendarClock
 } from 'lucide-react';
 import { toast } from 'sonner';
-import SettingsPageLayout from '../../components/SettingsPageLayout';
+import AppNavbar from '../../components/AppNavbar';
+import AppBreadcrumb from '../../components/AppBreadcrumb';
 import MilestonesSection from './MilestonesSection';
 
 /* ─── Config & Helpers ──────────────────────────────────────── */
@@ -57,55 +58,60 @@ function BalanceCards({ wallet, onPayout, payoutLoading }) {
   if (!wallet) return null;
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-8" data-testid="wallet-balances">
-      <div className="bg-white border border-slate-200 rounded-lg p-4">
-        <div className="flex items-center gap-2 mb-1">
-          <Lock className="w-3.5 h-3.5 text-blue-500" />
-          <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">En attente</p>
-        </div>
-        <p className="text-xl font-bold text-slate-700" data-testid="pending-balance">
-          {fmt(wallet.pending_balance, wallet.currency)}
-        </p>
-        <p className="text-[11px] text-slate-400 mt-1">Fonds en période de vérification (15j)</p>
-      </div>
-      <div className="bg-white border border-emerald-200 rounded-lg p-4">
-        <div className="flex items-center gap-2 mb-1">
-          <Wallet className="w-3.5 h-3.5 text-emerald-500" />
-          <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Disponible</p>
-        </div>
-        <p className="text-xl font-bold text-slate-900" data-testid="available-balance">
-          {fmt(wallet.available_balance, wallet.currency)}
-        </p>
-        <p className="text-[11px] text-slate-400 mt-1">Dans votre wallet, non encore retiré</p>
-      </div>
-      <div className="bg-white border border-slate-200 rounded-lg p-4">
-        <div className="flex items-center gap-2 mb-1">
-          <Banknote className="w-3.5 h-3.5 text-slate-400" />
-          <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Retirable vers votre banque</p>
-        </div>
-        <p className="text-xl font-bold text-slate-500" data-testid="withdrawable-balance">
-          {wallet.can_payout ? fmt(wallet.available_balance, wallet.currency) : fmt(0, wallet.currency)}
-        </p>
-        {wallet.can_payout ? (
-          <Button
-            size="sm"
-            className="mt-2 w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs"
-            onClick={onPayout}
-            disabled={payoutLoading}
-            data-testid="payout-btn"
-          >
-            {payoutLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <ArrowUpRight className="w-3.5 h-3.5 mr-1.5" />}
-            Retirer vers mon compte
-          </Button>
-        ) : (
-          <p className="text-[11px] text-slate-400 mt-1">
-            {wallet.stripe_connect_status !== 'active'
-              ? 'Liez votre compte bancaire pour retirer'
-              : wallet.available_balance < wallet.minimum_payout
-                ? `Min. ${fmt(wallet.minimum_payout, wallet.currency)} pour retirer`
-                : 'Aucun fonds retirable'}
+    <div className="mb-8" data-testid="wallet-balances">
+      {/* Primary: 2 cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+        <div className="bg-white border-2 border-emerald-200 rounded-xl p-5">
+          <div className="flex items-center gap-2 mb-1.5">
+            <Wallet className="w-4 h-4 text-emerald-500" />
+            <p className="text-xs font-semibold text-emerald-700 uppercase tracking-wide">Disponible</p>
+          </div>
+          <p className="text-2xl font-bold text-slate-900" data-testid="available-balance">
+            {fmt(wallet.available_balance, wallet.currency)}
           </p>
-        )}
+          <p className="text-xs text-slate-500 mt-1">Fonds disponibles pour retrait</p>
+          {wallet.can_payout && wallet.available_balance > 0 && (
+            <Button
+              size="sm"
+              className="mt-3 w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs"
+              onClick={onPayout}
+              disabled={payoutLoading}
+              data-testid="payout-btn"
+            >
+              {payoutLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <ArrowUpRight className="w-3.5 h-3.5 mr-1.5" />}
+              Retirer vers mon compte
+            </Button>
+          )}
+          {!wallet.can_payout && wallet.available_balance > 0 && (
+            <p className="text-[11px] text-slate-400 mt-2">
+              {wallet.stripe_connect_status !== 'active'
+                ? 'Liez votre compte bancaire pour retirer'
+                : wallet.available_balance < wallet.minimum_payout
+                  ? `Min. ${fmt(wallet.minimum_payout, wallet.currency)} pour retirer`
+                  : ''}
+            </p>
+          )}
+        </div>
+        <div className="bg-white border border-slate-200 rounded-xl p-5">
+          <div className="flex items-center gap-2 mb-1.5">
+            <Clock className="w-4 h-4 text-blue-500" />
+            <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide">En verification</p>
+          </div>
+          <p className="text-2xl font-bold text-slate-700" data-testid="pending-balance">
+            {fmt(wallet.pending_balance, wallet.currency)}
+          </p>
+          <p className="text-xs text-slate-500 mt-1">Fonds en periode de verification (15 jours)</p>
+        </div>
+      </div>
+      {/* Secondary: total withdrawn */}
+      <div className="flex items-center justify-between bg-slate-50 border border-slate-100 rounded-lg px-4 py-2.5" data-testid="total-withdrawn-row">
+        <div className="flex items-center gap-2">
+          <Banknote className="w-3.5 h-3.5 text-slate-400" />
+          <span className="text-xs text-slate-500">Total retire vers votre banque</span>
+        </div>
+        <span className="text-sm font-semibold text-slate-600" data-testid="total-withdrawn">
+          {fmt(wallet.total_withdrawn, wallet.currency)}
+        </span>
       </div>
     </div>
   );
@@ -708,19 +714,66 @@ function PayoutHistory({ payouts }) {
   );
 }
 
+/* ─── Upcoming Unlocks ──────────────────────────────────────── */
+
+function UpcomingUnlocks({ distributions }) {
+  const pending = (distributions || [])
+    .filter(d => d.status === 'pending_hold' && d.hold_expires_at)
+    .sort((a, b) => (a.hold_expires_at || '').localeCompare(b.hold_expires_at || ''));
+
+  if (pending.length === 0) return null;
+
+  return (
+    <div className="mb-8" data-testid="upcoming-unlocks">
+      <h2 className="text-base font-semibold text-slate-900 mb-3">Prochains deblocages</h2>
+      <div className="bg-white border border-blue-100 rounded-lg divide-y divide-blue-50">
+        {pending.map((d) => {
+          const userBenef = d.beneficiaries?.find(b => b.status === 'credited_pending');
+          const amount = userBenef?.amount_cents || 0;
+          const expiresDate = d.hold_expires_at ? new Date(d.hold_expires_at) : null;
+          const daysLeft = expiresDate ? Math.max(0, Math.ceil((expiresDate - new Date()) / (1000 * 60 * 60 * 24))) : null;
+
+          return (
+            <div key={d.distribution_id} className="p-3.5 flex items-center justify-between" data-testid={`unlock-${d.distribution_id}`}>
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center flex-shrink-0">
+                  <CalendarClock className="w-4 h-4 text-blue-500" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-slate-800">
+                    {fmt(amount, d.capture_currency)} disponibles{expiresDate ? ` le ${fmtDate(d.hold_expires_at)}` : ''}
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    {daysLeft !== null
+                      ? daysLeft === 0 ? 'Disponible aujourd\'hui' : `Dans ${daysLeft} jour${daysLeft > 1 ? 's' : ''} — periode de verification`
+                      : 'En cours de verification'}
+                  </p>
+                </div>
+              </div>
+              {d.status === 'contested' && (
+                <span className="text-[10px] font-medium px-2 py-0.5 rounded bg-orange-100 text-orange-700">Conteste</span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 /* ─── Transaction History ───────────────────────────────────── */
 
 const TX_TYPE_LABELS = {
-  credit_pending: { label: 'Crédit en attente', icon: ArrowDownLeft, color: 'text-blue-600' },
-  credit_available: { label: 'Crédit disponible', icon: ArrowDownLeft, color: 'text-emerald-600' },
-  debit_payout: { label: 'Retrait', icon: ArrowUpRight, color: 'text-red-600' },
-  debit_refund: { label: 'Remboursement', icon: ArrowUpRight, color: 'text-orange-600' },
+  credit_pending: { label: 'Dedommagement recu', sublabel: 'En verification', icon: ArrowDownLeft, color: 'text-emerald-600', bgColor: 'bg-emerald-50' },
+  credit_available: { label: 'Fonds debloques', sublabel: 'Verification terminee', icon: CheckCircle, color: 'text-emerald-600', bgColor: 'bg-emerald-50' },
+  debit_payout: { label: 'Retrait', sublabel: 'Vers votre compte bancaire', icon: ArrowUpRight, color: 'text-slate-600', bgColor: 'bg-slate-50' },
+  debit_refund: { label: 'Remboursement', sublabel: 'Contestation acceptee', icon: ArrowUpRight, color: 'text-orange-600', bgColor: 'bg-orange-50' },
 };
 
 function TransactionHistory({ transactions, txTotal }) {
   return (
     <div data-testid="transaction-history">
-      <h2 className="text-base font-semibold text-slate-900 mb-3">Historique des transactions</h2>
+      <h2 className="text-base font-semibold text-slate-900 mb-3">Historique recent</h2>
       {transactions.length === 0 ? (
         <div className="bg-white border border-slate-200 rounded-lg p-8 text-center" data-testid="no-transactions">
           <Clock className="w-7 h-7 text-slate-300 mx-auto mb-2" />
@@ -735,16 +788,16 @@ function TransactionHistory({ transactions, txTotal }) {
             return (
               <div key={tx.transaction_id} className="p-3 flex items-center justify-between" data-testid={`tx-${tx.transaction_id}`}>
                 <div className="flex items-center gap-3">
-                  <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${isCredit ? 'bg-emerald-50' : 'bg-red-50'}`}>
-                    <TxIcon className={`w-3.5 h-3.5 ${txCfg.color}`} />
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${txCfg.bgColor}`}>
+                    <TxIcon className={`w-4 h-4 ${txCfg.color}`} />
                   </div>
                   <div className="min-w-0">
                     <p className="text-xs font-medium text-slate-900">{txCfg.label}</p>
-                    <p className="text-[11px] text-slate-500 truncate">{tx.description || '—'}</p>
+                    <p className="text-[11px] text-slate-400 truncate">{tx.description || txCfg.sublabel}</p>
                   </div>
                 </div>
                 <div className="text-right flex-shrink-0">
-                  <p className={`text-xs font-semibold ${isCredit ? 'text-emerald-600' : 'text-red-600'}`}>
+                  <p className={`text-sm font-semibold ${isCredit ? 'text-emerald-600' : 'text-slate-600'}`}>
                     {isCredit ? '+' : '-'}{fmt(tx.amount, tx.currency)}
                   </p>
                   <p className="text-[10px] text-slate-400">{fmtDateShort(tx.created_at)}</p>
@@ -897,20 +950,29 @@ export default function WalletPage() {
 
   if (loading) {
     return (
-      <SettingsPageLayout title="Wallet" description="Vos fonds internes, distributions reçues et compte de paiement">
+      <div className="min-h-screen bg-slate-50">
+        <AppNavbar />
         <div className="flex items-center justify-center py-24">
           <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
           <span className="ml-3 text-slate-500">Chargement...</span>
         </div>
-      </SettingsPageLayout>
+      </div>
     );
   }
 
   return (
-    <SettingsPageLayout
-      title="Wallet"
-      description="Vos fonds internes, distributions reçues et compte de paiement"
-    >
+    <div className="min-h-screen bg-slate-50" data-testid="wallet-page">
+      <AppNavbar />
+      <AppBreadcrumb items={[
+        { label: 'Tableau de bord', href: '/dashboard' },
+        { label: 'Wallet' },
+      ]} />
+      <div className="max-w-2xl mx-auto px-4 md:px-6 pb-12">
+
+        <div className="mb-6">
+          <h1 className="text-xl font-bold text-slate-900" data-testid="wallet-title">Wallet</h1>
+          <p className="text-sm text-slate-500 mt-1">Vos fonds, dedommagements et retraits</p>
+        </div>
 
         <BalanceCards wallet={wallet} onPayout={() => setShowPayoutConfirm(true)} payoutLoading={payoutLoading} />
 
@@ -949,7 +1011,7 @@ export default function WalletPage() {
             <p className="text-sm font-medium text-emerald-900 mb-2">Confirmer le retrait</p>
             <p className="text-xs text-emerald-700 mb-3">
               Vous allez retirer <span className="font-bold">{fmt(wallet.available_balance, wallet.currency)}</span> vers votre compte bancaire.
-              Ce transfert est irréversible.
+              Ce transfert est irreversible.
             </p>
             <div className="flex flex-col sm:flex-row gap-2">
               <Button
@@ -967,20 +1029,25 @@ export default function WalletPage() {
           </div>
         )}
 
-        <DistributionsSection
-          distributions={distributions}
-          currentUserId={currentUserId}
-          onContest={handleContest}
-          onRefresh={fetchData}
-        />
+        <UpcomingUnlocks distributions={distributions} />
+
+        <TransactionHistory transactions={transactions} txTotal={txTotal} />
+
+        <div className="mt-8">
+          <DistributionsSection
+            distributions={distributions}
+            currentUserId={currentUserId}
+            onContest={handleContest}
+            onRefresh={fetchData}
+          />
+        </div>
 
         <ImpactSection impact={impact} />
 
         <MilestonesSection />
 
         <PayoutHistory payouts={payouts} />
-
-        <TransactionHistory transactions={transactions} txTotal={txTotal} />
-    </SettingsPageLayout>
+      </div>
+    </div>
   );
 }

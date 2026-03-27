@@ -96,7 +96,8 @@ function App() {
               <Route path="/settings/workspace" element={<PrivateRoute><WorkspaceSettings /></PrivateRoute>} />
               <Route path="/settings/integrations" element={<PrivateRoute><Integrations /></PrivateRoute>} />
               <Route path="/settings/payment" element={<PrivateRoute><PaymentSettings /></PrivateRoute>} />
-              <Route path="/settings/wallet" element={<PrivateRoute><WalletPage /></PrivateRoute>} />
+              <Route path="/wallet" element={<PrivateRoute><WalletPage /></PrivateRoute>} />
+              <Route path="/settings/wallet" element={<Navigate to="/wallet" replace />} />
               <Route path="/mes-resultats" element={<PrivateRoute><FinancialResultsPage /></PrivateRoute>} />
             </Routes>
             <Toaster />

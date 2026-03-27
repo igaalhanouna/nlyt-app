@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from './ui/button';
-import { Settings, LogOut, Menu, X, AlertTriangle, TrendingUp, Scale, ClipboardCheck } from 'lucide-react';
+import { Settings, LogOut, Menu, X, AlertTriangle, TrendingUp, Scale, ClipboardCheck, Wallet } from 'lucide-react';
 import { attendanceAPI } from '../services/api';
 
 export default function AppNavbar() {
@@ -40,6 +40,7 @@ export default function AppNavbar() {
     if (path === '/settings') return pathname.startsWith('/settings');
     if (path === '/presences') return pathname === '/presences';
     if (path === '/litiges') return pathname.startsWith('/litiges');
+    if (path === '/wallet') return pathname === '/wallet';
     if (path === '/mes-resultats') return pathname === '/mes-resultats';
     return false;
   };
@@ -88,6 +89,9 @@ export default function AppNavbar() {
             </Link>
             <Link to="/mes-resultats" className={linkClass('/mes-resultats')} data-testid="navbar-results-link">
               Contributions
+            </Link>
+            <Link to="/wallet" className={linkClass('/wallet')} data-testid="navbar-wallet-link">
+              Wallet
             </Link>
             <Link to="/settings" className={linkClass('/settings')} data-testid="navbar-settings-link">
               <span className="flex items-center gap-1.5">
@@ -166,6 +170,10 @@ export default function AppNavbar() {
               <Link to="/mes-resultats" className={mobileLinkClass('/mes-resultats')} data-testid="mobile-nav-results">
                 <TrendingUp className="w-4.5 h-4.5" />
                 Contributions
+              </Link>
+              <Link to="/wallet" className={mobileLinkClass('/wallet')} data-testid="mobile-nav-wallet">
+                <Wallet className="w-4.5 h-4.5" />
+                Wallet
               </Link>
               <Link to="/settings" className={mobileLinkClass('/settings')} data-testid="mobile-nav-settings">
                 <Settings className="w-4.5 h-4.5" />
