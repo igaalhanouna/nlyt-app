@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from './ui/button';
-import { Settings, LogOut, Menu, X, AlertTriangle, TrendingUp } from 'lucide-react';
+import { Settings, LogOut, Menu, X, AlertTriangle, TrendingUp, Scale, ClipboardCheck } from 'lucide-react';
 import { attendanceAPI } from '../services/api';
 
 export default function AppNavbar() {
@@ -38,7 +38,8 @@ export default function AppNavbar() {
   const isActive = (path) => {
     if (path === '/dashboard') return pathname === '/dashboard' || pathname === '/dashboard/participant';
     if (path === '/settings') return pathname.startsWith('/settings');
-    if (path === '/disputes') return pathname.startsWith('/disputes');
+    if (path === '/presences') return pathname === '/presences';
+    if (path === '/litiges') return pathname.startsWith('/litiges');
     if (path === '/mes-resultats') return pathname === '/mes-resultats';
     return false;
   };
@@ -74,13 +75,16 @@ export default function AppNavbar() {
             <Link to="/dashboard" className={linkClass('/dashboard')} data-testid="navbar-dashboard-link">
               Tableau de bord
             </Link>
-            <Link to="/disputes" className={`${linkClass('/disputes')} relative flex items-center gap-1.5`} data-testid="navbar-disputes-link">
-              Decisions
+            <Link to="/presences" className={`${linkClass('/presences')} relative flex items-center gap-1.5`} data-testid="navbar-presences-link">
+              Presences
               {pendingReviewCount > 0 && (
-                <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-amber-500 text-white text-[10px] font-bold leading-none" data-testid="navbar-disputes-badge">
+                <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-amber-500 text-white text-[10px] font-bold leading-none" data-testid="navbar-presences-badge">
                   {pendingReviewCount}
                 </span>
               )}
+            </Link>
+            <Link to="/litiges" className={linkClass('/litiges')} data-testid="navbar-litiges-link">
+              Litiges
             </Link>
             <Link to="/mes-resultats" className={linkClass('/mes-resultats')} data-testid="navbar-results-link">
               Contributions
@@ -146,14 +150,18 @@ export default function AppNavbar() {
               <Link to="/dashboard" className={mobileLinkClass('/dashboard')} data-testid="mobile-nav-dashboard">
                 Tableau de bord
               </Link>
-              <Link to="/disputes" className={mobileLinkClass('/disputes')} data-testid="mobile-nav-disputes">
-                <AlertTriangle className="w-4.5 h-4.5" />
-                Decisions
+              <Link to="/presences" className={mobileLinkClass('/presences')} data-testid="mobile-nav-presences">
+                <ClipboardCheck className="w-4.5 h-4.5" />
+                Presences
                 {pendingReviewCount > 0 && (
                   <span className="ml-auto inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full bg-amber-500 text-white text-xs font-bold">
                     {pendingReviewCount}
                   </span>
                 )}
+              </Link>
+              <Link to="/litiges" className={mobileLinkClass('/litiges')} data-testid="mobile-nav-litiges">
+                <Scale className="w-4.5 h-4.5" />
+                Litiges
               </Link>
               <Link to="/mes-resultats" className={mobileLinkClass('/mes-resultats')} data-testid="mobile-nav-results">
                 <TrendingUp className="w-4.5 h-4.5" />

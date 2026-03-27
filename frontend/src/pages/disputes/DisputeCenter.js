@@ -44,14 +44,14 @@ export default function DisputeCenter() {
   const [loading, setLoading] = useState(true);
   const [reclassifying, setReclassifying] = useState(null);
   const [confirmAction, setConfirmAction] = useState(null);
-  const { saveScroll } = useScrollRestore('disputes', !loading);
+  const { saveScroll } = useScrollRestore('presences', !loading);
 
   const loadReviews = useCallback(async () => {
     try {
       const res = await attendanceAPI.pendingReviews();
       setReviews(res.data.pending_reviews || []);
     } catch {
-      toast.error('Erreur lors du chargement des decisions en attente');
+      toast.error('Erreur lors du chargement des présences');
     } finally {
       setLoading(false);
     }
@@ -102,22 +102,22 @@ export default function DisputeCenter() {
       <AppNavbar />
       <AppBreadcrumb items={[
         { label: 'Tableau de bord', href: '/dashboard' },
-        { label: 'Decisions en attente' },
+        { label: 'Présences' },
       ]} />
 
       <div className="max-w-4xl mx-auto px-4 md:px-6 pb-12">
         {/* Header */}
         <div className="flex items-start justify-between mb-6">
           <div>
-            <h1 className="text-xl font-bold text-slate-900" data-testid="disputes-title">
-              Decisions en attente
+            <h1 className="text-xl font-bold text-slate-900" data-testid="presences-title">
+              Présences à vérifier
             </h1>
             <p className="text-sm text-slate-500 mt-1">
-              Cas necessitant votre verification avant action financiere
+              Cas nécessitant votre vérification avant action financière
             </p>
           </div>
           {totalCount > 0 && (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-100 text-amber-800 text-sm font-semibold rounded-full" data-testid="disputes-count-badge">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-100 text-amber-800 text-sm font-semibold rounded-full" data-testid="presences-count-badge">
               <AlertTriangle className="w-3.5 h-3.5" />
               {totalCount}
             </span>
@@ -130,7 +130,7 @@ export default function DisputeCenter() {
             <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
           </div>
         ) : totalCount === 0 ? (
-          <div className="bg-white rounded-xl border border-slate-200 p-12 text-center" data-testid="disputes-empty">
+          <div className="bg-white rounded-xl border border-slate-200 p-12 text-center" data-testid="presences-empty">
             <CheckCircle className="w-12 h-12 text-emerald-400 mx-auto mb-4" />
             <h2 className="text-lg font-semibold text-slate-900 mb-2">Tout est en ordre</h2>
             <p className="text-sm text-slate-500 mb-6">Aucune decision en attente. Tous les cas ont ete traites.</p>
@@ -152,7 +152,7 @@ export default function DisputeCenter() {
                 {/* Appointment header — fully clickable */}
                 <Link
                   to={`/appointments/${apt.appointment_id}`}
-                  state={{ from: 'disputes' }}
+                  state={{ from: 'presences' }}
                   onClick={saveScroll}
                   className="block px-4 py-3 border-b border-slate-100 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer group"
                   data-testid={`dispute-apt-link-${apt.appointment_id}`}

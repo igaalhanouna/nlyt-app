@@ -368,7 +368,8 @@ export default function AppointmentDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const cameFromDisputes = location.state?.from === 'disputes';
+  const cameFromDisputes = location.state?.from === 'litiges';
+  const cameFromPresences = location.state?.from === 'presences';
   const cameFromContributions = location.state?.from === 'contributions';
   const fromTab = location.state?.fromTab;
   const { user } = useAuth();
@@ -802,13 +803,15 @@ export default function AppointmentDetail() {
     <div className="min-h-screen bg-background">
       <AppNavbar />
       <AppBreadcrumb items={
-        cameFromDisputes
-          ? [{ label: 'Tableau de bord', href: '/dashboard' }, { label: 'Decisions en attente', href: '/disputes' }, { label: appointment.title }]
-          : cameFromContributions
-            ? [{ label: 'Tableau de bord', href: '/dashboard' }, { label: 'Contributions', href: '/mes-resultats' }, { label: appointment.title }]
-            : fromTab
-              ? [{ label: 'Tableau de bord', href: backHref }, { label: backLabel, href: backHref }, { label: appointment.title }]
-              : [{ label: 'Tableau de bord', href: '/dashboard' }, { label: appointment.title }]
+        cameFromPresences
+          ? [{ label: 'Tableau de bord', href: '/dashboard' }, { label: 'Présences', href: '/presences' }, { label: appointment.title }]
+          : cameFromDisputes
+            ? [{ label: 'Tableau de bord', href: '/dashboard' }, { label: 'Litiges', href: '/litiges' }, { label: appointment.title }]
+            : cameFromContributions
+              ? [{ label: 'Tableau de bord', href: '/dashboard' }, { label: 'Contributions', href: '/mes-resultats' }, { label: appointment.title }]
+              : fromTab
+                ? [{ label: 'Tableau de bord', href: backHref }, { label: backLabel, href: backHref }, { label: appointment.title }]
+                : [{ label: 'Tableau de bord', href: '/dashboard' }, { label: appointment.title }]
       } />
 
       <div className="max-w-6xl mx-auto px-4 md:px-6 pb-12">
@@ -876,7 +879,7 @@ export default function AppointmentDetail() {
               </p>
             </div>
             <button
-              onClick={() => navigate('/disputes')}
+              onClick={() => navigate('/litiges')}
               className="flex-shrink-0 px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded-lg hover:bg-red-700 transition-colors"
               data-testid="go-to-disputes-btn"
             >

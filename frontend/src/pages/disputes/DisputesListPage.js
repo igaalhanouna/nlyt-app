@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, AlertTriangle, CheckCircle, Clock, ChevronRight, Loader2, Scale } from 'lucide-react';
 import api from '../../services/api';
+import AppNavbar from '../../components/AppNavbar';
+import AppBreadcrumb from '../../components/AppBreadcrumb';
 
 const STATUS_LABELS = {
   opened: { label: 'Ouvert', color: 'bg-blue-100 text-blue-700' },
@@ -41,13 +43,12 @@ export default function DisputesListPage() {
 
   return (
     <div className="min-h-screen bg-slate-50" data-testid="disputes-list-page">
+      <AppNavbar />
+      <AppBreadcrumb items={[
+        { label: 'Tableau de bord', href: '/dashboard' },
+        { label: 'Litiges' },
+      ]} />
       <div className="max-w-2xl mx-auto p-4 sm:p-6">
-        <button
-          onClick={() => navigate('/dashboard')}
-          className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 mb-6"
-        >
-          <ArrowLeft className="w-4 h-4" /> Retour au dashboard
-        </button>
 
         <div className="flex items-center gap-2 mb-6">
           <Scale className="w-5 h-5 text-slate-600" />
@@ -86,7 +87,7 @@ function DisputeCard({ dispute }) {
 
   return (
     <Link
-      to={`/disputes/${dispute.dispute_id}`}
+      to={`/litiges/${dispute.dispute_id}`}
       className="block bg-white rounded-xl border border-slate-200 hover:border-slate-300 transition-colors p-4"
       data-testid={`dispute-card-${dispute.dispute_id}`}
     >

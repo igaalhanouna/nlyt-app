@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, AlertTriangle, CheckCircle, Clock, Upload, FileText, Loader2, Scale, MessageSquare } from 'lucide-react';
 import api from '../../services/api';
+import AppNavbar from '../../components/AppNavbar';
+import AppBreadcrumb from '../../components/AppBreadcrumb';
 
 const STATUS_LABELS = {
   opened: { label: 'Ouvert', color: 'bg-blue-100 text-blue-700', icon: Scale },
@@ -73,7 +75,7 @@ export default function DisputeDetailPage() {
         <div className="max-w-lg mx-auto bg-white rounded-xl border p-6 text-center">
           <AlertTriangle className="w-8 h-8 text-amber-500 mx-auto mb-3" />
           <p className="text-slate-600">Litige introuvable</p>
-          <button onClick={() => navigate('/disputes')} className="mt-4 text-sm text-blue-600 underline">Retour</button>
+          <button onClick={() => navigate('/litiges')} className="mt-4 text-sm text-blue-600 underline">Retour</button>
         </div>
       </div>
     );
@@ -87,14 +89,13 @@ export default function DisputeDetailPage() {
 
   return (
     <div className="min-h-screen bg-slate-50" data-testid="dispute-detail-page">
+      <AppNavbar />
+      <AppBreadcrumb items={[
+        { label: 'Tableau de bord', href: '/dashboard' },
+        { label: 'Litiges', href: '/litiges' },
+        { label: dispute.appointment_title || 'Litige' },
+      ]} />
       <div className="max-w-2xl mx-auto p-4 sm:p-6">
-        <button
-          onClick={() => navigate('/disputes')}
-          className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 mb-6"
-          data-testid="back-to-disputes"
-        >
-          <ArrowLeft className="w-4 h-4" /> Retour aux litiges
-        </button>
 
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
           {/* Header */}
