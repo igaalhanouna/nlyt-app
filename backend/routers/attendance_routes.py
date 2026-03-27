@@ -123,6 +123,21 @@ async def reclassify(record_id: str, body: ReclassifyRequest, request: Request):
             detail="Seul l'organisateur peut reclassifier"
         )
 
+    # V3 Trustless: block reclassification if organizer has financial conflict of interest
+    if body.new_outcome in ('no_show', 'late'):
+        # Check: is the organizer a beneficiary of this reclassification?
+        reclassified_participant = db.participants.find_one(
+            {"participant_id": record['participant_id']},
+            {"_id": 0, "is_organizer": 1, "user_id": 1}
+        )
+        if reclassified_participant and not reclassified_participant.get('is_organizer', False):
+            # Organizer is reclassifying a non-organizer participant to no_show/late
+            # → organizer would receive compensation = conflict of interest
+            raise HTTPException(
+                status_code=403,
+                detail="Conflit d'interet : vous etes beneficiaire financier de cette decision. Ce litige sera arbitre par la plateforme."
+            )
+
     result = reclassify_participant(
         record_id=record_id,
         new_outcome=body.new_outcome,

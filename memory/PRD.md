@@ -80,6 +80,16 @@ SaaS de gestion de presence avec garanties financieres. Optimisation du "Viral L
   - Impact solidaire section (total charity + per-association breakdown)
   - Navbar integration (desktop + mobile)
 
+### Phase 8 — Trustless V3 (March 2026)
+- [x] **Audit systeme de penalites** — audit complet (flux, matrice, risques, edge cases)
+- [x] **Refonte conceptuelle V3** — design trustless valide par le product owner
+- [x] **`_has_admissible_proof()`** — helper verifiant preuve Niveau 1-2 (GPS, QR, Zoom/Teams, NLYT Proof)
+- [x] **Garde-fou beneficiaire** — compensation uniquement si `outcome in (on_time, late)` + preuve admissible
+- [x] **Cas B : situation insuffisamment documentee** — si personne n'a de preuve Niveau 1-2, tout gele, aucune capture
+- [x] **Cas A : absence etablie, presence non prouvee** — capture bloquee si aucun beneficiaire avec preuve admissible (force review)
+- [x] **Blocage reclassification conflit d'interet** — organisateur ne peut plus reclassifier no_show/late quand il est beneficiaire
+- [x] **17 tests unitaires** — `tests/test_trustless_v3.py` couvrant preuve, Cas A, Cas B, conflit d'interet
+
 ---
 
 ## Pending / Upcoming Tasks

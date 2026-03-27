@@ -29,6 +29,38 @@ GRACE_WINDOW_MINUTES = 30
 AUTO_CAPTURE_ENABLED = False
 
 
+def _has_admissible_proof(participant_id: str, appointment_id: str) -> bool:
+    """
+    V3 Trustless: Check if a participant has admissible proof of presence (Niveau 1 or 2).
+    Returns True if at least one evidence item is NOT purely manual/declarative.
+    Niveau 1: GPS in radius, NLYT Proof >= 55
+    Niveau 2: QR code, medium GPS, API video (Zoom/Teams)
+    Niveau 3 (excluded): manual_checkin alone, Google Meet alone, 0 evidence
+    """
+    evidence = list(db.evidence_items.find(
+        {"appointment_id": appointment_id, "participant_id": participant_id},
+        {"_id": 0, "evidence_type": 1, "source": 1, "gps_within_radius": 1}
+    ))
+    if not evidence:
+        return False
+    for e in evidence:
+        etype = e.get("evidence_type", "")
+        source = e.get("source", "")
+        # GPS evidence (strong or medium) = Niveau 1-2
+        if etype == "gps" and e.get("gps_within_radius"):
+            return True
+        # QR code = Niveau 2
+        if etype == "qr_scan":
+            return True
+        # Video API (Zoom/Teams) = Niveau 2
+        if etype in ("video_api", "video_evidence") and source in ("zoom", "teams", "zoom_api", "teams_api"):
+            return True
+        # NLYT Proof session with decent score = Niveau 1-2
+        if etype == "proof_session":
+            return True
+    return False
+
+
 def _get_best_proof_session(appointment_id: str, participant_id: str) -> dict | None:
     """
     Get the best (highest score) completed proof session for a participant.
@@ -696,10 +728,10 @@ def _process_financial_outcomes(appointment_id: str, appointment: dict, particip
     """
     Post-evaluation hook: process capture/release for all evaluated participants.
     
-    Financial rules:
-    - on_time → release guarantee
-    - late (beyond tolerance) → capture + distribution (penalized)
-    - no_show → capture + distribution (penalized)
+    V3 Trustless rules:
+    - Beneficiary must have admissible proof (Niveau 1-2) to receive compensation
+    - Cas A: payeur absent (established) + beneficiary unproven → capture, compensation to charity/platform
+    - Cas B: nobody has Niveau 1-2 proof → all gelé, no capture, no distribution
     """
     from services.stripe_guarantee_service import StripeGuaranteeService
     from services.distribution_service import create_distribution
@@ -713,16 +745,49 @@ def _process_financial_outcomes(appointment_id: str, appointment: dict, particip
         {"_id": 0}
     ))
 
-    # Build lookup of present participants (on_time only — late beyond tolerance is penalized)
-    present_participants = []
+    # --- V3 Cas B detection: if nobody has Niveau 1-2 proof, everything is gelé ---
+    anyone_has_proof = False
     for r in records:
-        if r.get('outcome') == 'on_time':
+        if r.get('outcome') in ('on_time', 'late') and not r.get('review_required', True):
+            pid = r['participant_id']
+            if _has_admissible_proof(pid, appointment_id):
+                anyone_has_proof = True
+                break
+        elif r.get('outcome') in ('on_time', 'late') and r.get('review_required', False):
+            pid = r['participant_id']
+            if _has_admissible_proof(pid, appointment_id):
+                anyone_has_proof = True
+                break
+
+    if not anyone_has_proof:
+        # Cas B: insufficient global proof → force all to manual_review, no financial action
+        logger.info(f"[FINANCIAL][CAS_B] No participant has Niveau 1-2 proof for {appointment_id}. All gelé.")
+        for r in records:
+            if r.get('outcome') in ('no_show', 'late') and not r.get('review_required', True):
+                db.attendance_records.update_one(
+                    {"record_id": r['record_id']},
+                    {"$set": {
+                        "review_required": True,
+                        "cas_b_override": True,
+                        "cas_b_reason": "Aucun participant avec preuve admissible. Situation insuffisamment documentee."
+                    }}
+                )
+                logger.info(f"[FINANCIAL][CAS_B] Forced review_required for {r['record_id']} (was {r['outcome']})")
+        return
+
+    # --- Build list of eligible beneficiaries (V3: on_time OR late, WITH admissible proof) ---
+    eligible_beneficiaries = []
+    for r in records:
+        if r.get('outcome') in ('on_time', 'late'):
             p = _find_participant(participants, r['participant_id'])
             if p and p.get('user_id'):
-                present_participants.append({
-                    "user_id": p["user_id"],
-                    "participant_id": p["participant_id"],
-                })
+                if _has_admissible_proof(r['participant_id'], appointment_id):
+                    eligible_beneficiaries.append({
+                        "user_id": p["user_id"],
+                        "participant_id": p["participant_id"],
+                    })
+                else:
+                    logger.info(f"[FINANCIAL][GARDE_FOU] {r['participant_id']} has outcome={r['outcome']} but no admissible proof. Excluded from compensation.")
 
     for record in records:
         if record.get('review_required', True):
@@ -742,13 +807,30 @@ def _process_financial_outcomes(appointment_id: str, appointment: dict, particip
         outcome = record.get('outcome')
 
         if outcome in ('no_show', 'late'):
-            # late = beyond tolerance → penalized like no_show
+            # Cas A check: capture only if at least 1 other has admissible proof
+            no_show_user_id = participant.get('user_id')
+            others_with_proof = [b for b in eligible_beneficiaries if b["user_id"] != no_show_user_id]
+            if not others_with_proof:
+                # No other participant has admissible proof → don't auto-capture, force review
+                logger.info(f"[FINANCIAL][CAS_A_BLOCK] No proven beneficiary for {record['participant_id']} capture. Forcing review.")
+                db.attendance_records.update_one(
+                    {"record_id": record['record_id']},
+                    {"$set": {
+                        "review_required": True,
+                        "cas_a_override": True,
+                        "cas_a_reason": "Absence etablie mais aucun beneficiaire avec preuve admissible."
+                    }}
+                )
+                continue
+
             capture_reason = "no_show" if outcome == "no_show" else "late_beyond_tolerance"
             _execute_capture_and_distribution(
-                appointment, participant, guarantee, present_participants, capture_reason
+                appointment, participant, guarantee, eligible_beneficiaries, capture_reason
             )
         elif outcome == 'on_time':
             _execute_release(guarantee)
+        elif outcome == 'late' and record.get('review_required', True):
+            pass  # Already handled above
 
 
 def _execute_capture_and_distribution(
