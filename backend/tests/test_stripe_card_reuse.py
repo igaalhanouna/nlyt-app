@@ -331,7 +331,7 @@ def test_5_endpoint_fallback(stripe_data):
     """
     import httpx
 
-    api_url = os.environ.get('FRONTEND_URL', '').rstrip('/') or 'https://nlyt-acquisition.preview.emergentagent.com'
+    api_url = os.environ.get('FRONTEND_URL', '').rstrip('/') or 'https://check-in-flow-1.preview.emergentagent.com'
 
     # Setup: user with SCA card in DB
     user_id = f"test_user_fallback_{uuid.uuid4().hex[:6]}"
@@ -599,7 +599,7 @@ def test_9_no_double_state(stripe_data):
 
     # Call endpoint — card will fail, should fall back to Checkout
     import httpx
-    api_url = os.environ.get('FRONTEND_URL', '').rstrip('/') or 'https://nlyt-acquisition.preview.emergentagent.com'
+    api_url = os.environ.get('FRONTEND_URL', '').rstrip('/') or 'https://check-in-flow-1.preview.emergentagent.com'
 
     resp = httpx.post(
         f"{api_url}/api/invitations/{token}/respond",
