@@ -982,9 +982,10 @@ async def get_my_timeline(request: Request):
             else:
                 counterparty = f"{names[0]}, {names[1]} et {len(names) - 2} autre{'s' if len(names) - 2 > 1 else ''}"
 
-            # Determine action_required for organizer
+            # Organizer items are NEVER action_required — they appear in "À venir"
+            # with pending indicators. Only participant invitations go in "Action requise".
             is_past = apt.get("start_datetime", "") < now_str
-            action_required = not is_past and pending > 0
+            action_required = False
 
             # Determine available actions
             actions = ["view_details"]
@@ -1011,10 +1012,13 @@ async def get_my_timeline(request: Request):
                 "title": apt.get("title", ""),
                 "appointment_type": apt.get("appointment_type", "physical"),
                 "location": apt.get("location", ""),
+                "location_display_name": apt.get("location_display_name", ""),
                 "meeting_provider": apt.get("meeting_provider", ""),
                 "duration_minutes": apt.get("duration_minutes", 60),
                 "penalty_amount": apt.get("penalty_amount", 0),
                 "penalty_currency": apt.get("penalty_currency", "EUR"),
+                "tolerated_delay_minutes": apt.get("tolerated_delay_minutes", 0),
+                "cancellation_deadline_hours": apt.get("cancellation_deadline_hours", 0),
                 "participants_count": total,
                 "accepted_count": accepted,
                 "pending_count": pending,
@@ -1090,10 +1094,13 @@ async def get_my_timeline(request: Request):
             "title": apt.get("title", ""),
             "appointment_type": apt.get("appointment_type", "physical"),
             "location": apt.get("location", ""),
+            "location_display_name": apt.get("location_display_name", ""),
             "meeting_provider": apt.get("meeting_provider", ""),
             "duration_minutes": apt.get("duration_minutes", 60),
             "penalty_amount": apt.get("penalty_amount", 0),
             "penalty_currency": apt.get("penalty_currency", "EUR"),
+            "tolerated_delay_minutes": apt.get("tolerated_delay_minutes", 0),
+            "cancellation_deadline_hours": apt.get("cancellation_deadline_hours", 0),
             "participant_status": p_status,
             "participant_id": part.get("participant_id"),
             "invitation_token": part.get("invitation_token"),

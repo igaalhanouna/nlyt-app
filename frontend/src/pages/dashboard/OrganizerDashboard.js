@@ -133,42 +133,75 @@ function ActionCard({ item, onRemind, onAccept, onDecline, now }) {
   const isParticipant = item.role === 'participant';
 
   return (
-    <div className="bg-white border border-red-100 rounded-lg p-3 md:p-3" data-testid={`action-card-${item.appointment_id}`}>
-      <div className="flex items-start gap-3 mb-2 md:mb-0">
-        <div className="flex-1 min-w-0">
-          {/* Role label */}
-          <div className="flex items-center gap-2 mb-1">
-            <span className={`text-[11px] font-medium ${isParticipant ? 'text-blue-600' : 'text-slate-500'}`} data-testid={`role-label-${item.appointment_id}`}>
-              {isParticipant ? `Invitation de ${item.counterparty_name}` : 'Créé par vous'}
-            </span>
-          </div>
-          <p className="font-semibold text-sm text-slate-900 truncate">{item.title}</p>
-          <p className="text-xs text-slate-500 mt-0.5">{formatDateTimeCompactFr(item.starts_at)} · {item.duration_minutes} min</p>
-        </div>
-        <div className="text-xs text-right whitespace-nowrap flex-shrink-0">
-          {item.pending_label && (
-            <span className={`font-semibold ${isParticipant ? 'text-blue-600' : 'text-red-600'}`}>{item.pending_label}</span>
+    <div className="bg-white border border-red-100 rounded-lg p-4" data-testid={`action-card-${item.appointment_id}`}>
+      {/* Role label */}
+      <div className="flex items-center gap-2 mb-2">
+        <span className={`text-[11px] font-medium ${isParticipant ? 'text-blue-600' : 'text-slate-500'}`} data-testid={`role-label-${item.appointment_id}`}>
+          {isParticipant ? `Invitation de ${item.counterparty_name}` : 'Créé par vous'}
+        </span>
+        {item.pending_label && (
+          <span className={`ml-auto text-xs font-semibold ${isParticipant ? 'text-blue-600' : 'text-red-600'}`}>{item.pending_label}</span>
+        )}
+      </div>
+
+      {/* Title */}
+      <p className="font-semibold text-base text-slate-900 mb-2">{item.title}</p>
+
+      {/* Metadata grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5 text-xs text-slate-600 mb-3">
+        <span className="flex items-center gap-1.5">
+          <Calendar className="w-3.5 h-3.5 text-slate-400" />
+          {formatDateTimeCompactFr(item.starts_at)}
+        </span>
+        <span className="flex items-center gap-1.5">
+          <Clock className="w-3.5 h-3.5 text-slate-400" />
+          {item.duration_minutes} min
+        </span>
+        <span className="flex items-center gap-1.5">
+          {item.appointment_type === 'physical'
+            ? <><MapPin className="w-3.5 h-3.5 text-slate-400" /> {item.location_display_name || item.location || 'Physique'}</>
+            : <><Video className="w-3.5 h-3.5 text-slate-400" /> {item.meeting_provider || 'Visioconférence'}</>
+          }
+        </span>
+        {item.penalty_amount > 0 && (
+          <span className="flex items-center gap-1.5">
+            <CreditCard className="w-3.5 h-3.5 text-slate-400" />
+            Garantie : {fmtEuro(item.penalty_amount)}
+          </span>
+        )}
+      </div>
+
+      {/* Engagement rules */}
+      {(item.tolerated_delay_minutes > 0 || item.cancellation_deadline_hours > 0) && (
+        <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-slate-500 mb-3 pb-3 border-b border-slate-100">
+          {item.tolerated_delay_minutes > 0 && (
+            <span>Tolérance retard : {item.tolerated_delay_minutes} min</span>
+          )}
+          {item.cancellation_deadline_hours > 0 && (
+            <span>Annulation possible jusqu'à {item.cancellation_deadline_hours}h avant</span>
           )}
         </div>
-      </div>
-      <div className="flex items-center gap-2 mt-2 md:mt-0">
+      )}
+
+      {/* CTAs */}
+      <div className="flex items-center gap-2">
         {isParticipant && item.status === 'invited' ? (
           <>
-            <Button size="sm" className="h-11 md:h-7 text-xs flex-1 md:flex-none bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => onAccept(item)} data-testid={`accept-btn-${item.appointment_id}`}>
+            <Button size="sm" className="h-11 md:h-8 text-xs flex-1 md:flex-none bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => onAccept(item)} data-testid={`accept-btn-${item.appointment_id}`}>
               <Check className="w-3.5 h-3.5 mr-1.5" /> Accepter
             </Button>
-            <Button size="sm" variant="outline" className="h-11 md:h-7 text-xs flex-1 md:flex-none border-slate-200 text-slate-600" onClick={() => onDecline(item)} data-testid={`decline-btn-${item.appointment_id}`}>
+            <Button size="sm" variant="outline" className="h-11 md:h-8 text-xs flex-1 md:flex-none border-slate-200 text-slate-600" onClick={() => onDecline(item)} data-testid={`decline-btn-${item.appointment_id}`}>
               <X className="w-3.5 h-3.5 mr-1.5" /> Refuser
             </Button>
           </>
         ) : (
-          <Button size="sm" variant="outline" className="h-11 md:h-7 text-xs flex-1 md:flex-none border-red-200 text-red-600 hover:bg-red-50" onClick={() => onRemind(item)} data-testid={`remind-action-${item.appointment_id}`}>
+          <Button size="sm" variant="outline" className="h-11 md:h-8 text-xs flex-1 md:flex-none border-red-200 text-red-600 hover:bg-red-50" onClick={() => onRemind(item)} data-testid={`remind-action-${item.appointment_id}`}>
             <Bell className="w-3.5 h-3.5 mr-1.5" /> Relancer
           </Button>
         )}
         <Link to={isParticipant && item.invitation_token ? `/invitation/${item.invitation_token}` : `/appointments/${item.appointment_id}`} className="flex-1 md:flex-none">
-          <Button size="sm" variant="ghost" className="h-11 md:h-7 text-xs w-full" data-testid={`view-action-${item.appointment_id}`}>
-            <Eye className="w-3.5 h-3.5 mr-1.5" /> Voir
+          <Button size="sm" variant="ghost" className="h-11 md:h-8 text-xs w-full" data-testid={`view-action-${item.appointment_id}`}>
+            <Eye className="w-3.5 h-3.5 mr-1.5" /> Voir détails
           </Button>
         </Link>
       </div>
@@ -209,46 +242,19 @@ function TimelineCard({ item, isPast, onDelete, onRemind, now }) {
       }`}
       data-testid={`timeline-card-${item.appointment_id}`}
     >
-      <Link to={detailLink} className="block p-4">
-        {/* Role label */}
-        <div className="flex items-center gap-2 mb-1.5">
+      <Link to={detailLink} className="block p-4 pb-2">
+        {/* Row 0: Role label + Badges */}
+        <div className="flex items-center justify-between gap-2 mb-2">
           <span className={`text-[11px] font-medium ${isParticipant ? 'text-blue-600' : 'text-slate-400'}`} data-testid={`timeline-role-${item.appointment_id}`}>
             {isParticipant ? `Invitation de ${item.counterparty_name}` : 'Créé par vous'}
           </span>
-          {isParticipant && (
-            <span className="text-slate-300">·</span>
-          )}
-          {isParticipant && !isPast && (
-            <span className={`text-[11px] font-medium ${item.counterparty_name ? 'text-slate-500' : ''}`}>
-              Avec {item.counterparty_name}
-            </span>
-          )}
-        </div>
-
-        {/* Row 1: Title + Badges */}
-        <div className="flex items-start justify-between gap-2 mb-2">
-          <h4 className={`font-semibold text-sm leading-tight ${isPast && !isOngoing ? 'text-slate-500' : 'text-slate-900'}`}>
-            {isOngoing && <Play className="w-3.5 h-3.5 inline mr-1 text-blue-600" />}
-            {item.title}
-            {item.converted_from?.source && (
-              <span className={`ml-2 inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
-                item.converted_from.source === 'google'
-                  ? 'bg-[#4285F4]/10 text-[#4285F4]'
-                  : 'bg-[#0078D4]/10 text-[#0078D4]'
-              }`}>
-                via {item.converted_from.source === 'google' ? 'Google' : 'Outlook'}
-              </span>
-            )}
-          </h4>
-          <div className="flex items-center gap-1.5 flex-shrink-0 flex-wrap justify-end">
-            {/* Risk badge (organizer only, upcoming) */}
+          <div className="flex items-center gap-1.5 flex-shrink-0">
             {riskCfg && risk !== 'secured' && (
               <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium rounded-full border ${riskCfg.className}`}>
                 <RiskIcon className="w-3 h-3" />
                 {riskCfg.label}
               </span>
             )}
-            {/* Status badge: temporal for organizer, participant status for participant */}
             {isParticipant && pBadge ? (
               <span className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${pBadge.className}`}>
                 {pBadge.label}
@@ -261,41 +267,70 @@ function TimelineCard({ item, isPast, onDelete, onRemind, now }) {
           </div>
         </div>
 
-        {/* Row 2: Meta */}
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500 mb-3">
-          <span>{formatDateTimeCompactFr(item.starts_at)}</span>
-          <span className="text-slate-300">·</span>
-          <span>{item.duration_minutes} min</span>
-          <span className="text-slate-300">·</span>
-          <span className="flex items-center gap-1">
+        {/* Row 1: Title */}
+        <h4 className={`font-semibold text-sm leading-tight mb-2.5 ${isPast && !isOngoing ? 'text-slate-500' : 'text-slate-900'}`}>
+          {isOngoing && <Play className="w-3.5 h-3.5 inline mr-1 text-blue-600" />}
+          {item.title}
+          {item.converted_from?.source && (
+            <span className={`ml-2 inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
+              item.converted_from.source === 'google'
+                ? 'bg-[#4285F4]/10 text-[#4285F4]'
+                : 'bg-[#0078D4]/10 text-[#0078D4]'
+            }`}>
+              via {item.converted_from.source === 'google' ? 'Google' : 'Outlook'}
+            </span>
+          )}
+        </h4>
+
+        {/* Row 2: Metadata grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5 text-xs text-slate-500 mb-3">
+          <span className="flex items-center gap-1.5">
+            <Calendar className="w-3.5 h-3.5 text-slate-400" />
+            {formatDateTimeCompactFr(item.starts_at)}
+          </span>
+          <span className="flex items-center gap-1.5">
+            <Clock className="w-3.5 h-3.5 text-slate-400" />
+            {item.duration_minutes} min
+          </span>
+          <span className="flex items-center gap-1.5">
             {item.appointment_type === 'physical'
-              ? <><MapPin className="w-3 h-3" /> Physique</>
-              : <><Video className="w-3 h-3" /> {item.meeting_provider || 'Visio'}</>
+              ? <><MapPin className="w-3.5 h-3.5 text-slate-400" /> <span className="truncate">{item.location_display_name || item.location || 'Physique'}</span></>
+              : <><Video className="w-3.5 h-3.5 text-slate-400" /> {item.meeting_provider || 'Visioconférence'}</>
             }
           </span>
           {item.penalty_amount > 0 && (
-            <>
-              <span className="text-slate-300">·</span>
-              <span className="flex items-center gap-1 text-slate-600 font-medium">
-                <Euro className="w-3 h-3" /> {fmtEuro(item.penalty_amount)}
-              </span>
-            </>
+            <span className="flex items-center gap-1.5 font-medium text-slate-600">
+              <CreditCard className="w-3.5 h-3.5 text-slate-400" />
+              Garantie : {fmtEuro(item.penalty_amount)}
+            </span>
           )}
           {/* Counterparty for organizer */}
           {!isParticipant && item.counterparty_name && item.counterparty_name !== 'Aucun participant' && (
-            <>
-              <span className="text-slate-300">·</span>
-              <span className="text-slate-500">Avec {item.counterparty_name}</span>
-            </>
+            <span className="flex items-center gap-1.5">
+              <Users className="w-3.5 h-3.5 text-slate-400" />
+              Avec {item.counterparty_name}
+            </span>
           )}
         </div>
 
-        {/* Row 3: Participants + Progress (organizer only) */}
+        {/* Row 3: Engagement rules (if not past) */}
+        {!isPast && (item.tolerated_delay_minutes > 0 || item.cancellation_deadline_hours > 0) && (
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-slate-400 mb-3 pb-2 border-b border-slate-100">
+            {item.tolerated_delay_minutes > 0 && (
+              <span>Tolérance retard : {item.tolerated_delay_minutes} min</span>
+            )}
+            {item.cancellation_deadline_hours > 0 && (
+              <span>Annulation possible jusqu'à {item.cancellation_deadline_hours}h avant</span>
+            )}
+          </div>
+        )}
+
+        {/* Row 4: Participants + Progress (organizer only) */}
         {!isParticipant && total > 0 && (
-          <div className="space-y-2">
+          <div className="space-y-2 mb-1">
             <div className="flex items-center justify-between text-xs">
               <span className="text-slate-600 flex items-center gap-1.5">
-                <Users className="w-3.5 h-3.5" />
+                <UserCheck className="w-3.5 h-3.5" />
                 <span className="font-medium">{accepted}</span>/{total} confirmé{accepted !== 1 ? 's' : ''}
                 {pending > 0 && <span className="text-amber-600 ml-1">({pending} en attente)</span>}
               </span>
@@ -314,7 +349,7 @@ function TimelineCard({ item, isPast, onDelete, onRemind, now }) {
 
         {/* Pending label for participant */}
         {isParticipant && item.pending_label && (
-          <div className="mt-1">
+          <div className="mb-1">
             <span className="text-xs font-medium text-blue-600">{item.pending_label}</span>
           </div>
         )}
