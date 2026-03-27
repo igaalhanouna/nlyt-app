@@ -1250,30 +1250,56 @@ async def get_my_timeline(request: Request):
                 review = [r for r in records if r.get("review_required")]
 
                 # Build the badge — prioritize personal impact
-                parts = []
-                badge_type = "clean"
+                total_penalty_cents = org_penalty_cents + other_captured
+                all_penalized_count = (1 if org_penalized else 0) + len(other_penalized)
 
-                if org_penalized and org_penalty_cents > 0:
-                    parts.append(f"Vous avez ete penalise — {org_penalty_cents / 100:.0f} €")
+                if org_penalized and other_penalized:
+                    # Self + others penalized
+                    count_others = len(other_penalized)
+                    label = f"Vous et {count_others} autre{'s' if count_others > 1 else ''} participant{'s' if count_others > 1 else ''} ont ete dedommages"
+                    if total_penalty_cents > 0:
+                        label += f" — {total_penalty_cents / 100:.0f} €"
                     badge_type = "penalty"
-
-                if org_comp_cents > 0:
-                    parts.append(f"Vous avez recu +{org_comp_cents / 100:.0f} €")
-                    badge_type = "compensation" if badge_type == "clean" else badge_type
-
-                if other_penalized:
+                    if org_comp_cents > 0:
+                        label += f" | Vous avez recu +{org_comp_cents / 100:.0f} €"
+                    item["financial_badge"] = {
+                        "type": badge_type,
+                        "label": label,
+                        "amount_cents": total_penalty_cents,
+                    }
+                elif org_penalized:
+                    # Only self penalized
+                    label = f"Vous avez ete dedommage — {org_penalty_cents / 100:.0f} €" if org_penalty_cents > 0 else "Vous avez ete dedommage"
+                    badge_type = "penalty"
+                    if org_comp_cents > 0:
+                        label += f" | Vous avez recu +{org_comp_cents / 100:.0f} €"
+                    item["financial_badge"] = {
+                        "type": badge_type,
+                        "label": label,
+                        "amount_cents": org_penalty_cents,
+                    }
+                elif other_penalized:
+                    # Only others penalized
                     count = len(other_penalized)
+                    parts = []
+                    if org_comp_cents > 0:
+                        parts.append(f"Vous avez recu +{org_comp_cents / 100:.0f} €")
                     if other_captured > 0:
-                        parts.append(f"{count} participant{'s' if count > 1 else ''} penalise{'s' if count > 1 else ''} — {other_captured / 100:.0f} €")
+                        parts.append(f"{count} participant{'s' if count > 1 else ''} dedommage{'s' if count > 1 else ''} — {other_captured / 100:.0f} €")
                     else:
-                        parts.append(f"{count} participant{'s' if count > 1 else ''} penalise{'s' if count > 1 else ''}")
-                    badge_type = "penalty" if badge_type == "clean" else badge_type
-
-                if parts:
+                        parts.append(f"{count} participant{'s' if count > 1 else ''} dedommage{'s' if count > 1 else ''}")
+                    badge_type = "compensation" if org_comp_cents > 0 else "penalty"
                     item["financial_badge"] = {
                         "type": badge_type,
                         "label": " | ".join(parts),
-                        "amount_cents": org_comp_cents or other_captured or org_penalty_cents,
+                        "amount_cents": org_comp_cents or other_captured,
+                    }
+                elif org_comp_cents > 0:
+                    # Compensation only (no penalties visible)
+                    item["financial_badge"] = {
+                        "type": "compensation",
+                        "label": f"Vous avez recu +{org_comp_cents / 100:.0f} €",
+                        "amount_cents": org_comp_cents,
                     }
                 elif review:
                     item["financial_badge"] = {
@@ -1306,9 +1332,21 @@ async def get_my_timeline(request: Request):
                 elif p_record["outcome"] in ("late", "no_show"):
                     p_dist = next((d for d in dists if d.get("no_show_participant_id") == pid), None)
                     captured = p_dist.get("capture_amount_cents", 0) if p_dist else 0
+                    # Check if others were also penalized
+                    others_penalized = [r for r in records
+                                        if r["outcome"] in ("late", "no_show")
+                                        and not r.get("review_required")
+                                        and r["participant_id"] != pid]
+                    if others_penalized:
+                        count_others = len(others_penalized)
+                        label = f"Vous et {count_others} autre{'s' if count_others > 1 else ''} participant{'s' if count_others > 1 else ''} ont ete dedommages"
+                    else:
+                        label = "Vous avez ete dedommage"
+                    if captured > 0:
+                        label += f" — {captured / 100:.0f} €"
                     item["financial_badge"] = {
                         "type": "penalty",
-                        "label": f"Vous avez ete penalise — {captured / 100:.0f} €" if captured else "Vous avez ete penalise",
+                        "label": label,
                         "amount_cents": captured,
                     }
                 elif p_record["outcome"] == "on_time":
