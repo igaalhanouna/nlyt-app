@@ -1,0 +1,94 @@
+{
+  "summary": "Participant Check-in Bug Fix (Iteration 98) - All tests passed. The ParticipantCheckinBlock now correctly sends invitation_token to /api/checkin/manual, uses checked_in field for status, and includes accepted_pending_guarantee in status filter. Frontend participant view correctly shows check-in status and hides organizer-only elements.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": {
+    "backend_pytest": [
+      "✅ GET /api/appointments/my-timeline returns timeline data",
+      "✅ Timeline participant items have invitation_token field",
+      "✅ GET /api/appointments/{id} returns viewer_role field",
+      "✅ Participant view has viewer_invitation_token",
+      "✅ POST /api/checkin/manual requires invitation_token (422 without)",
+      "✅ POST /api/checkin/manual with invalid token returns 404",
+      "✅ POST /api/checkin/manual accepts correct payload structure (invitation_token, device_info, lat, lon, gps_consent)",
+      "✅ GET /api/checkin/status/{id} returns checked_in field (not checkins)",
+      "✅ Double check-in returns 409 Conflict",
+      "✅ GET /api/checkin/evidence/{id} without auth returns 401",
+      "✅ GET /api/checkin/evidence/{id} accessible by participant",
+      "✅ _resolve_participant accepts accepted_pending_guarantee status"
+    ],
+    "frontend_playwright": [
+      "✅ Login flow works correctly",
+      "✅ Dashboard loads with timeline (46 upcoming, 102 history)",
+      "✅ Organizer view: 'Check-in avec GPS' button visible",
+      "✅ Organizer view: Proof tracking section visible",
+      "✅ Organizer view: Participants list with 'Garanti' status",
+      "✅ Participant view: Check-in block shows 'Check-in confirmé'",
+      "✅ Participant view: Trust signal banner visible ('2 participants ont déjà confirmé leur engagement')",
+      "✅ Participant view: 'Annuler l'engagement' NOT visible (correct)",
+      "✅ Participant view: 'Gérer les participants' NOT visible (correct)",
+      "✅ Participant view: Proof tracking section visible",
+      "✅ Participant view: Financial breakdown visible"
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_participant_checkin_bugfix.py",
+    "/app/test_reports/pytest/pytest_participant_checkin_bugfix.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "✅ ParticipantCheckinBlock (line 79-124) correctly sends invitation_token in payload",
+    "✅ ParticipantCheckinBlock uses res.data?.checked_in for status check (line 86)",
+    "✅ ParticipantCheckinBlock includes GPS for physical appointments (lines 98-108)",
+    "✅ Status filter at line 641 includes accepted_pending_guarantee",
+    "✅ Backend ManualCheckinRequest expects invitation_token (checkin_routes.py line 41)",
+    "✅ Backend get_checkin_status returns checked_in field (line 270)",
+    "✅ Backend _resolve_participant accepts accepted_pending_guarantee status (line 80)"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_participant_checkin_bugfix.py"
+  ],
+  "success_rate": {
+    "backend": "100% (12/12 passed)",
+    "frontend": "100% (11/11 UI checks passed)"
+  },
+  "test_credentials": {
+    "organizer_user": "testuser_audit@nlyt.app / Test123!",
+    "participant_appointment": "71b9df43-4032-4bdf-8e30-5c4369340acf",
+    "participant_invitation_token": "285cbc51-31fe-476c-bdba-2c91c73bef9e"
+  },
+  "seed_data_creation": "None - used existing test data",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Participant check-in bug fix verified. ParticipantCheckinBlock now correctly: (1) sends invitation_token to /api/checkin/manual, (2) uses checked_in field for status, (3) includes accepted_pending_guarantee in status filter. The test appointment 71b9df43-4032-4bdf-8e30-5c4369340acf has already been checked in (will return 409 on retry). For fresh check-in tests, create a new appointment or use a different one.",
+  "verified_bug_fixes": {
+    "fix_1_payload": {
+      "description": "Frontend sent wrong payload (appointment_id, participant_id instead of invitation_token)",
+      "file": "/app/frontend/src/pages/appointments/AppointmentDetail.js",
+      "line": "94",
+      "verification": "ParticipantCheckinBlock now sends {invitation_token, device_info, latitude?, longitude?, gps_consent?}"
+    },
+    "fix_2_status_field": {
+      "description": "Check-in status used wrong response field (checkins instead of checked_in)",
+      "file": "/app/frontend/src/pages/appointments/AppointmentDetail.js",
+      "line": "86",
+      "verification": "Now uses res.data?.checked_in correctly"
+    },
+    "fix_3_status_filter": {
+      "description": "Status filter excluded accepted_pending_guarantee",
+      "file": "/app/frontend/src/pages/appointments/AppointmentDetail.js",
+      "line": "641",
+      "verification": "Filter now includes ['accepted', 'accepted_guaranteed', 'accepted_pending_guarantee']"
+    }
+  },
+  "mocked_apis": {
+    "Stripe": "Dev mode - payment methods are pm_dev_* format"
+  }
+}

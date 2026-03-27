@@ -76,31 +76,49 @@ function ParticipantActionBanner({ token, onActionComplete }) {
   );
 }
 
-function ParticipantCheckinBlock({ appointmentId, viewerParticipantId, viewerInvitationToken }) {
+function ParticipantCheckinBlock({ appointmentId, viewerParticipantId, viewerInvitationToken, appointmentType }) {
   const [checkinDone, setCheckinDone] = useState(false);
   const [checkingIn, setCheckingIn] = useState(false);
 
   useEffect(() => {
     if (!viewerInvitationToken) return;
     checkinAPI.getStatus(appointmentId, viewerInvitationToken).then(res => {
-      const myCheckin = (res.data?.checkins || []).find(c => c.participant_id === viewerParticipantId);
-      if (myCheckin) setCheckinDone(true);
+      if (res.data?.checked_in) setCheckinDone(true);
     }).catch(() => {});
   }, [appointmentId, viewerParticipantId, viewerInvitationToken]);
 
   const handleCheckin = async () => {
     setCheckingIn(true);
     try {
-      await checkinAPI.manual({
-        appointment_id: appointmentId,
-        participant_id: viewerParticipantId,
-        method: 'manual',
-        source: 'participant_self',
-      });
+      const payload = {
+        invitation_token: viewerInvitationToken,
+        device_info: navigator.userAgent,
+      };
+      // Request GPS for physical appointments
+      if (appointmentType === 'physical' && navigator.geolocation) {
+        try {
+          const pos = await new Promise((resolve, reject) =>
+            navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 8000, enableHighAccuracy: true })
+          );
+          payload.latitude = pos.coords.latitude;
+          payload.longitude = pos.coords.longitude;
+          payload.gps_consent = true;
+        } catch (geoErr) {
+          // GPS optional — continue without it
+        }
+      }
+      await checkinAPI.manual(payload);
       setCheckinDone(true);
       toast.success('Check-in confirmé');
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Erreur lors du check-in');
+      const status = err.response?.status;
+      const detail = err.response?.data?.detail;
+      if (status === 409) {
+        setCheckinDone(true);
+        toast.info('Check-in déjà effectué');
+      } else {
+        toast.error(detail || 'Erreur lors du check-in');
+      }
     } finally {
       setCheckingIn(false);
     }
@@ -620,8 +638,8 @@ export default function AppointmentDetail() {
         )}
 
         {/* Participant check-in section */}
-        {!isOrganizer && ['accepted', 'accepted_guaranteed'].includes(viewerParticipantStatus) && !isCancelled && (
-          <ParticipantCheckinBlock appointmentId={id} viewerParticipantId={appointment.viewer_participant_id} viewerInvitationToken={viewerInvitationToken} />
+        {!isOrganizer && ['accepted', 'accepted_guaranteed', 'accepted_pending_guarantee'].includes(viewerParticipantStatus) && !isCancelled && (
+          <ParticipantCheckinBlock appointmentId={id} viewerParticipantId={appointment.viewer_participant_id} viewerInvitationToken={viewerInvitationToken} appointmentType={appointment.appointment_type} />
         )}
 
         {/* #7 — Preuves & Tracking — visible for both roles (read-only for participant) */}
