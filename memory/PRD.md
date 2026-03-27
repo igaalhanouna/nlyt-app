@@ -242,6 +242,16 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API
 - [x] Mobile-first, minimaliste, cohérent charte existante (#0A0A0B header, accent strip, rounded cards)
 - [x] Testé: 100% backend (14/14), 100% frontend (iteration_88)
 
+## Completed — Viral Loop Phase 4: Emails post-engagement viraux (Mars 2026)
+- [x] 3 variantes d'email post-engagement : "Engagement respecté", "Vous avez récupéré X€", "Votre temps a aidé quelqu'un"
+- [x] Carte de résultat intégrée visuellement dans chaque email (HTML inline, accent colors)
+- [x] CTA principal : "Créer un engagement" (conversion participant → organisateur)
+- [x] CTA secondaire : "Partager mon résultat" (lien vers /card/:cardId public)
+- [x] Auto-création idempotente des result_cards en DB lors de l'envoi
+- [x] Hooké dans evaluate_appointment() (non-bloquant, fire-and-forget)
+- [x] Idempotence via sent_emails collection (email_type: post_engagement_{card_type})
+- [x] Testé: 100% backend (23/23), 100% frontend (iteration_89)
+
 ## Upcoming Tasks
 - [ ] P1: Emails post-engagement enrichis avec CTAs viraux (Viral Loop Phase 4)
 - [ ] P2: Bannière connexion sur InvitationPage pour utilisateurs existants (Viral Loop Phase 5)
