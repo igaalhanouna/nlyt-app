@@ -1,0 +1,125 @@
+{
+  "summary": "Iteration 108 - Declarative Phase E2E Testing: All 5 features tested successfully. Backend API tests passed (19/19). Frontend UI tests passed for DisputesListPage, DisputeDetailPage, AttendanceSheetPage, and AppointmentDetail CTA banners.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/appointments/{id}", "issue": "React key warning: 'Encountered two children with the same key' for participant IDs - likely duplicate participant entries in test data", "priority": "LOW"}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": {
+    "backend_pytest": [
+      "✅ test_01_get_sheet_returns_200 - GET /api/attendance-sheets/{appointment_id} returns 200",
+      "✅ test_02_sheet_has_declarations_with_target_names - Sheet declarations have target_name enriched",
+      "✅ test_03_get_sheet_status_returns_200 - GET /api/attendance-sheets/{appointment_id}/status returns status info",
+      "✅ test_04_get_sheet_404_for_nonexistent - Returns 404 for nonexistent appointment",
+      "✅ test_05_get_sheet_401_without_auth - Returns 401 without authentication",
+      "✅ test_01_list_disputes_returns_200 - GET /api/disputes/mine returns 200 with disputes list",
+      "✅ test_02_disputes_list_has_correct_structure - Disputes have required fields",
+      "✅ test_03_disputes_list_has_status_badges - Disputes have valid status values",
+      "✅ test_04_get_dispute_detail_returns_200 - GET /api/disputes/{dispute_id} returns 200",
+      "✅ test_05_dispute_detail_has_summary - Dispute has declaration_summary with counts",
+      "✅ test_06_resolved_dispute_has_resolution - Resolved dispute has resolution details",
+      "✅ test_07_get_dispute_404_for_nonexistent - Returns 404 for nonexistent dispute",
+      "✅ test_08_disputes_401_without_auth - Returns 401 without authentication",
+      "✅ test_01_submit_evidence_returns_200 - POST /api/disputes/{dispute_id}/evidence works",
+      "✅ test_02_evidence_appears_in_dispute_detail - Submitted evidence appears in detail",
+      "✅ test_03_cannot_submit_evidence_to_resolved_dispute - Returns 400 for resolved dispute",
+      "✅ test_01_submit_sheet_validation - Sheet submission validates input",
+      "✅ test_02_submit_sheet_success - POST /api/attendance-sheets/{appointment_id}/submit works",
+      "✅ test_03_cannot_submit_twice - Cannot submit same sheet twice"
+    ],
+    "frontend_playwright": [
+      "✅ DisputesListPage: data-testid='disputes-list-page' found",
+      "✅ DisputesListPage: Title 'Litiges en cours' displayed",
+      "✅ DisputesListPage: 2 dispute cards found (1 open, 1 resolved)",
+      "✅ DisputesListPage: Status badges displayed correctly (amber for 'En attente de preuves', green for 'Résolu')",
+      "✅ DisputesListPage: 'Résolus' section separates resolved disputes",
+      "✅ DisputeDetailPage: data-testid='dispute-detail-page' found",
+      "✅ DisputeDetailPage: data-testid='dispute-title' shows 'Litige — Test Dispute RDV'",
+      "✅ DisputeDetailPage: data-testid='dispute-summary' section found",
+      "✅ DisputeDetailPage: data-testid='back-to-disputes' button found",
+      "✅ DisputeDetailPage: data-testid='show-evidence-form-btn' found for open disputes",
+      "✅ DisputeDetailPage: data-testid='evidence-textarea' found and fillable",
+      "✅ DisputeDetailPage: data-testid='submit-evidence-btn' found",
+      "✅ DisputeDetailPage (resolved): data-testid='dispute-resolution' section found",
+      "✅ DisputeDetailPage (resolved): Resolution shows 'Résultat : on_time', 'Décidé par : Plateforme'",
+      "✅ AttendanceSheetPage: data-testid='attendance-sheet-page' found",
+      "✅ AttendanceSheetPage: data-testid='sheet-title' shows 'Confirmer les présences'",
+      "✅ AttendanceSheetPage: data-testid='back-to-appointment' button found",
+      "✅ AttendanceSheetPage: Declaration items with participant names displayed",
+      "✅ AttendanceSheetPage: 4 status selection buttons (Présent(e) à l'heure, Présent(e) en retard, Absent(e), Je ne sais pas)",
+      "✅ AttendanceSheetPage: data-testid='submit-sheet-btn' initially disabled",
+      "✅ AttendanceSheetPage: Submit button enabled after selecting status",
+      "✅ AttendanceSheetPage: data-testid='sheet-submitted-state' displayed after submission",
+      "✅ AppointmentDetail: data-testid='declarative-cta-banner' found for collecting phase",
+      "✅ AppointmentDetail: data-testid='go-to-sheet-btn' shows 'Confirmer les présences'",
+      "✅ AppointmentDetail: Amber banner message about unverified presences",
+      "✅ AppointmentDetail: data-testid='dispute-active-banner' found for disputed phase",
+      "✅ AppointmentDetail: data-testid='go-to-disputes-btn' shows 'Voir le litige'",
+      "✅ AppointmentDetail: Red banner message about ongoing dispute"
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_declarative_phase_iter108.py",
+    "/app/backend/tests/seed_declarative_test_data.py",
+    "/app/test_reports/pytest/pytest_declarative_phase_iter108.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "✅ declarative_routes.py: Well-structured endpoints with proper authentication and error handling",
+    "✅ dispute_routes.py: Proper access control - users can only see disputes for appointments they participate in",
+    "✅ declarative_service.py: Comprehensive logic for sheet submission, analysis, and dispute resolution",
+    "✅ AttendanceSheetPage.js: Clean component with all required data-testid attributes",
+    "✅ DisputesListPage.js: Proper separation of open and resolved disputes",
+    "✅ DisputeDetailPage.js: Evidence submission form with proper validation",
+    "✅ AppointmentDetail.js: CTA banners correctly conditional on declarative_phase value",
+    "✅ French language used throughout with clear user-centric messaging"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_declarative_phase_iter108.py",
+    "/app/backend/tests/seed_declarative_test_data.py"
+  ],
+  "success_rate": {
+    "backend": "100% (19/19 passed)",
+    "frontend": "100% (all UI flows tested successfully)"
+  },
+  "test_credentials": {
+    "organizer": "igaal.hanouna@gmail.com / OrgTest123!",
+    "participant": "testuser_audit@nlyt.app / TestAudit123!"
+  },
+  "seed_data_creation": "Created test data using /app/backend/tests/seed_declarative_test_data.py: attendance_sheets collection with pending/submitted sheets, declarative_disputes collection with open and resolved disputes, appointments with declarative_phase='collecting' and 'disputed'",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Declarative Phase features fully tested. Key routes: /disputes (list), /disputes/:id (detail), /appointments/:id/attendance-sheet (sheet). Backend APIs: /api/attendance-sheets/{apt_id}, /api/attendance-sheets/{apt_id}/status, /api/attendance-sheets/{apt_id}/submit, /api/disputes/mine, /api/disputes/{id}, /api/disputes/{id}/evidence. All data-testid attributes verified: attendance-sheet-page, sheet-title, declaration-{pid}, select-{pid}-{status}, submit-sheet-btn, sheet-submitted-state, back-to-appointment, disputes-list-page, dispute-card-{id}, dispute-detail-page, dispute-title, dispute-summary, back-to-disputes, evidence-textarea, submit-evidence-btn, show-evidence-form-btn, dispute-resolution, declarative-cta-banner, go-to-sheet-btn, dispute-active-banner, go-to-disputes-btn.",
+  "features_verified": {
+    "DisputesListPage": {
+      "route": "/disputes",
+      "data_testids": ["disputes-list-page", "dispute-card-{dispute_id}"],
+      "features": ["Empty state when no disputes", "Dispute cards with status badges", "Open/resolved separation"]
+    },
+    "DisputeDetailPage": {
+      "route": "/disputes/:id",
+      "data_testids": ["dispute-detail-page", "dispute-title", "dispute-summary", "back-to-disputes", "evidence-textarea", "submit-evidence-btn", "show-evidence-form-btn", "dispute-resolution"],
+      "features": ["Dispute summary with participant name", "Evidence section", "Evidence submission form", "Resolution display when resolved"]
+    },
+    "AttendanceSheetPage": {
+      "route": "/appointments/:id/attendance-sheet",
+      "data_testids": ["attendance-sheet-page", "sheet-title", "declaration-{pid}", "select-{pid}-{status}", "submit-sheet-btn", "sheet-submitted-state", "back-to-appointment"],
+      "features": ["Participant list with status options", "Submit button disabled until all selected", "Submitted state displays confirmation"]
+    },
+    "AppointmentDetail_CTA_Banners": {
+      "route": "/appointments/:id",
+      "data_testids": ["declarative-cta-banner", "go-to-sheet-btn", "dispute-active-banner", "go-to-disputes-btn"],
+      "features": ["Amber CTA banner for collecting phase", "Red CTA banner for disputed phase"]
+    },
+    "Backend_APIs": {
+      "attendance_sheets": ["GET /{apt_id}", "GET /{apt_id}/status", "POST /{apt_id}/submit"],
+      "disputes": ["GET /mine", "GET /{id}", "POST /{id}/evidence", "POST /{id}/resolve"]
+    }
+  }
+}
