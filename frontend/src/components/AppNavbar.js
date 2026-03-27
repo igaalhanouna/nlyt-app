@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from './ui/button';
-import { Settings, LogOut, Menu, X, AlertTriangle } from 'lucide-react';
+import { Settings, LogOut, Menu, X, AlertTriangle, TrendingUp } from 'lucide-react';
 import { attendanceAPI } from '../services/api';
 
 export default function AppNavbar() {
@@ -39,6 +39,7 @@ export default function AppNavbar() {
     if (path === '/dashboard') return pathname === '/dashboard' || pathname === '/dashboard/participant';
     if (path === '/settings') return pathname.startsWith('/settings');
     if (path === '/disputes') return pathname.startsWith('/disputes');
+    if (path === '/mes-resultats') return pathname === '/mes-resultats';
     return false;
   };
 
@@ -80,6 +81,9 @@ export default function AppNavbar() {
                   {pendingReviewCount}
                 </span>
               )}
+            </Link>
+            <Link to="/mes-resultats" className={linkClass('/mes-resultats')} data-testid="navbar-results-link">
+              Mes resultats
             </Link>
             <Link to="/settings" className={linkClass('/settings')} data-testid="navbar-settings-link">
               <span className="flex items-center gap-1.5">
@@ -150,6 +154,10 @@ export default function AppNavbar() {
                     {pendingReviewCount}
                   </span>
                 )}
+              </Link>
+              <Link to="/mes-resultats" className={mobileLinkClass('/mes-resultats')} data-testid="mobile-nav-results">
+                <TrendingUp className="w-4.5 h-4.5" />
+                Mes resultats
               </Link>
               <Link to="/settings" className={mobileLinkClass('/settings')} data-testid="mobile-nav-settings">
                 <Settings className="w-4.5 h-4.5" />

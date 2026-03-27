@@ -38,6 +38,7 @@ import Integrations from './pages/settings/Integrations';
 import PaymentSettings from './pages/settings/PaymentSettings';
 import WalletPage from './pages/settings/WalletPage';
 import ImpactPage from './pages/ImpactPage';
+import FinancialResultsPage from './pages/FinancialResultsPage';
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth();
@@ -92,6 +93,7 @@ function App() {
               <Route path="/settings/integrations" element={<PrivateRoute><Integrations /></PrivateRoute>} />
               <Route path="/settings/payment" element={<PrivateRoute><PaymentSettings /></PrivateRoute>} />
               <Route path="/settings/wallet" element={<PrivateRoute><WalletPage /></PrivateRoute>} />
+              <Route path="/mes-resultats" element={<PrivateRoute><FinancialResultsPage /></PrivateRoute>} />
             </Routes>
             <Toaster />
           </div>

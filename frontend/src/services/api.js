@@ -197,6 +197,10 @@ export const externalEventsAPI = {
   prefill: (externalEventId) => api.get(`/api/external-events/${externalEventId}/prefill`),
 };
 
+export const financialAPI = {
+  getMyResults: () => api.get('/api/financial/my-results'),
+};
+
 export const resultCardsAPI = {
   create: (data) => api.post('/api/result-cards', data),
   getMyCards: () => api.get('/api/result-cards/my-cards'),
