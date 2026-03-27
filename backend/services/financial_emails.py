@@ -440,12 +440,12 @@ def send_post_engagement_emails(appointment_id: str, appointment: dict):
             if charity_total > 0:
                 card_type = "charity_donation"
                 c_amount_str = _fmt_amount(charity_total, charity_currency)
-                headline = "Votre temps a aid\u00e9 quelqu\u2019un."
+                headline = "Vous n\u2019avez pas perdu votre temps. Vous avez aid\u00e9 une association."
                 if charity_assoc_name:
                     subtitle = f"{c_amount_str} revers\u00e9s \u00e0 {charity_assoc_name}."
                 else:
                     subtitle = f"{c_amount_str} revers\u00e9s \u00e0 une association."
-                subject = f"Votre temps a aid\u00e9 quelqu\u2019un \u2014 {title}"
+                subject = f"Vous n\u2019avez pas perdu votre temps \u2014 {title}"
             else:
                 continue  # no viral email for plain no-show without charity
 

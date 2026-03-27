@@ -69,7 +69,7 @@ export function ResultCard({ card, compact = false }) {
     headline = amountStr ? `Vous avez r\u00e9cup\u00e9r\u00e9 ${amountStr}.` : 'Vous avez \u00e9t\u00e9 compens\u00e9.';
     subtitle = 'Parce que votre temps compte.';
   } else if (card.card_type === 'charity_donation') {
-    headline = 'Votre temps perdu a aid\u00e9 quelqu\u2019un.';
+    headline = 'Vous n\u2019avez pas perdu votre temps. Vous avez aid\u00e9 une association.';
     const parts = [];
     if (amountStr) parts.push(amountStr);
     if (card.association_name) parts.push(`revers\u00e9s \u00e0 ${card.association_name}`);
