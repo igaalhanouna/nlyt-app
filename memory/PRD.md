@@ -273,6 +273,13 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API
 - [x] Testé: scénario A (new user → carte auto-sauvée ✅), scénario B (existing user → carte non écrasée ✅)
 - [x] Vérifié: GET /api/user-settings/me/payment-method retourne has_payment_method=true après flow
 
+## Completed — Fix critique: Réutilisation carte existante lors d'acceptation (Mars 2026)
+- [x] AUDIT: le backend créait TOUJOURS une session Stripe Checkout, même si l'utilisateur avait une carte enregistrée
+- [x] Nouvelle méthode create_guarantee_with_saved_card() — crée la garantie directement sans Stripe redirect
+- [x] 3 endpoints modifiés: respond_to_invitation, login_and_accept, accept-with-account (check saved card avant Checkout)
+- [x] Frontend gère le retour reused_card=true (message de confirmation, pas de redirect)
+- [x] Testé: 100% backend (iteration_92), flow E2E vérifié via curl
+
 ## Upcoming Tasks
 - [ ] P1: Emails post-engagement enrichis avec CTAs viraux (Viral Loop Phase 4)
 - [ ] P2: Bannière connexion sur InvitationPage pour utilisateurs existants (Viral Loop Phase 5)
