@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useWorkspace } from '../../contexts/WorkspaceContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { appointmentAPI, walletAPI, externalEventsAPI } from '../../services/api';
@@ -197,7 +197,7 @@ function ActionCard({ item, onRemind, onAccept, onDecline, onCancel, now }) {
             </Button>
           </>
         ) : isParticipant && item.participant_status === 'accepted_pending_guarantee' ? (
-          <Link to={`/appointments/${item.appointment_id}`} className="flex-1 md:flex-none">
+          <Link to={`/appointments/${item.appointment_id}`} state={{ fromTab: 'action_required' }} className="flex-1 md:flex-none">
             <Button size="sm" className="h-11 md:h-8 text-xs w-full bg-amber-600 hover:bg-amber-700 text-white" data-testid={`finalize-guarantee-btn-${item.appointment_id}`}>
               <CreditCard className="w-3.5 h-3.5 mr-1.5" /> Finaliser ma garantie
             </Button>
@@ -216,7 +216,7 @@ function ActionCard({ item, onRemind, onAccept, onDecline, onCancel, now }) {
             <Bell className="w-3.5 h-3.5 mr-1.5" /> Relancer
           </Button>
         )}
-        <Link to={`/appointments/${item.appointment_id}`} className="flex-1 md:flex-none">
+        <Link to={`/appointments/${item.appointment_id}`} state={{ fromTab: 'action_required' }} className="flex-1 md:flex-none">
           <Button size="sm" variant="ghost" className="h-11 md:h-8 text-xs w-full" data-testid={`view-action-${item.appointment_id}`}>
             <Eye className="w-3.5 h-3.5 mr-1.5" /> Voir détails
           </Button>
@@ -227,7 +227,7 @@ function ActionCard({ item, onRemind, onAccept, onDecline, onCancel, now }) {
 }
 
 // ── Timeline Card (unified for organizer + participant) ──
-function TimelineCard({ item, isPast, onDelete, onRemind, now }) {
+function TimelineCard({ item, isPast, onDelete, onRemind, now, fromTab }) {
   const isParticipant = item.role === 'participant';
   const badge = getTemporalBadge(item, now);
   const isOngoing = badge.key === 'ongoing';
@@ -247,6 +247,7 @@ function TimelineCard({ item, isPast, onDelete, onRemind, now }) {
   const progressPct = total > 0 ? Math.round((accepted / total) * 100) : 100;
 
   const detailLink = `/appointments/${item.appointment_id}`;
+  const navState = { fromTab: fromTab || (isPast ? 'past' : 'upcoming') };
 
   return (
     <div
@@ -257,7 +258,7 @@ function TimelineCard({ item, isPast, onDelete, onRemind, now }) {
       }`}
       data-testid={`timeline-card-${item.appointment_id}`}
     >
-      <Link to={detailLink} className="block p-4 pb-2">
+      <Link to={detailLink} state={navState} className="block p-4 pb-2">
         {/* Row 0: Role label + Badges */}
         <div className="flex items-center justify-between gap-2 mb-2">
           <span className={`text-[11px] font-medium ${isParticipant ? 'text-blue-600' : 'text-slate-400'}`} data-testid={`timeline-role-${item.appointment_id}`}>
@@ -388,7 +389,7 @@ function TimelineCard({ item, isPast, onDelete, onRemind, now }) {
 
       {/* Actions row */}
       <div className="flex items-center gap-2 px-4 pb-3 pt-1">
-        <Link to={detailLink} className="flex-1 md:flex-none">
+        <Link to={detailLink} state={navState} className="flex-1 md:flex-none">
           <Button size="sm" variant="outline" className="h-11 md:h-7 text-xs w-full md:w-auto" data-testid={`view-details-${item.appointment_id}`}>
             <Eye className="w-3.5 h-3.5 mr-1.5" /> Voir détails
           </Button>
@@ -425,6 +426,13 @@ export default function OrganizerDashboard() {
   const { user } = useAuth();
   const { currentWorkspace, workspaces, selectWorkspace } = useWorkspace();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Active tab from URL (?tab=upcoming|past|stats), default "upcoming"
+  const activeTab = searchParams.get('tab') || 'upcoming';
+  const setActiveTab = useCallback((val) => {
+    setSearchParams({ tab: val }, { replace: true });
+  }, [setSearchParams]);
 
   // Timeline state
   const [timeline, setTimeline] = useState({ action_required: [], upcoming: [], past: [] });
@@ -841,7 +849,7 @@ export default function OrganizerDashboard() {
               <Link to="/appointments/create"><Button variant="outline">Créer votre premier engagement</Button></Link>
             </div>
           ) : (
-            <Tabs defaultValue="upcoming">
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
               <TabsList className="mb-6 w-full md:w-auto h-11 md:h-9">
                 <TabsTrigger value="upcoming" data-testid="tab-upcoming" className="px-2 md:px-3 text-xs md:text-sm">
                   <Calendar className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1 md:mr-1.5" />
@@ -874,7 +882,7 @@ export default function OrganizerDashboard() {
                   <div className="space-y-3">
                     {upcomingMerged.map(merged =>
                       merged.type === 'timeline' ? (
-                        <TimelineCard key={`tl-${merged.data.appointment_id}`} item={merged.data} isPast={false} onDelete={handleDeleteClick} onRemind={handleRemind} now={now} />
+                        <TimelineCard key={`tl-${merged.data.appointment_id}`} item={merged.data} isPast={false} onDelete={handleDeleteClick} onRemind={handleRemind} now={now} fromTab="upcoming" />
                       ) : (
                         <ExternalEventCard key={`ext-${merged.data.external_event_id}`} event={merged.data} />
                       )
@@ -892,7 +900,7 @@ export default function OrganizerDashboard() {
                 ) : (
                   <div className="space-y-3">
                     {timeline.past.slice(0, pastVisible).map(item => (
-                      <TimelineCard key={`past-${item.role}-${item.appointment_id}`} item={item} isPast={true} onDelete={handleDeleteClick} onRemind={handleRemind} now={now} />
+                      <TimelineCard key={`past-${item.role}-${item.appointment_id}`} item={item} isPast={true} onDelete={handleDeleteClick} onRemind={handleRemind} now={now} fromTab="past" />
                     ))}
                     {timeline.past.length > pastVisible && (
                       <div className="pt-4 text-center">

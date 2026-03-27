@@ -369,7 +369,12 @@ export default function AppointmentDetail() {
   const navigate = useNavigate();
   const location = useLocation();
   const cameFromDisputes = location.state?.from === 'disputes';
+  const fromTab = location.state?.fromTab;
   const { user } = useAuth();
+
+  const TAB_LABELS = { upcoming: 'A venir', past: 'Historique', action_required: 'Action requise', stats: 'Statistiques' };
+  const backLabel = fromTab ? TAB_LABELS[fromTab] || 'Tableau de bord' : null;
+  const backHref = fromTab ? `/dashboard?tab=${fromTab}` : '/dashboard';
 
   // Core state
   const [appointment, setAppointment] = useState(null);
@@ -759,7 +764,7 @@ export default function AppointmentDetail() {
     <div className="min-h-screen flex items-center justify-center">
       <div className="text-center">
         <p className="text-slate-600 mb-4">Rendez-vous introuvable</p>
-        <Button onClick={() => navigate('/dashboard')}>Retour au tableau de bord</Button>
+        <Button onClick={() => navigate(backHref)}>Retour au tableau de bord</Button>
       </div>
     </div>
   );
@@ -798,7 +803,9 @@ export default function AppointmentDetail() {
       <AppBreadcrumb items={
         cameFromDisputes
           ? [{ label: 'Tableau de bord', href: '/dashboard' }, { label: 'Decisions en attente', href: '/disputes' }, { label: appointment.title }]
-          : [{ label: 'Tableau de bord', href: '/dashboard' }, { label: appointment.title }]
+          : fromTab
+            ? [{ label: 'Tableau de bord', href: backHref }, { label: backLabel, href: backHref }, { label: appointment.title }]
+            : [{ label: 'Tableau de bord', href: '/dashboard' }, { label: appointment.title }]
       } />
 
       <div className="max-w-6xl mx-auto px-4 md:px-6 pb-12">
