@@ -331,6 +331,13 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API
 - [x] Fix: filtre élargi à `['accepted', 'accepted_guaranteed', 'accepted_pending_guarantee']`
 - [x] Testé: 100% backend (12/12), 100% frontend (11/11) — iteration_98
 
+## Fix — Bucketing "À venir" / "Historique" basé sur end_time (Fév 2026)
+- [x] Règle: "À venir" = now < start + duration (pas terminé) / "Historique" = now >= start + duration OU cancelled OU declined
+- [x] RDV en cours (commencé mais pas terminé) restent dans "À venir" au lieu de basculer prématurément
+- [x] Declined/cancelled_by_participant forcés dans "Historique" même si date future
+- [x] Logique `is_ended` utilisée partout (org + participant) au lieu de `is_past` basé sur `start_datetime`
+- [x] Testé: 100% backend (12/12) + 100% frontend (10/10) — iteration_101
+
 ## Feature — Alerte organisateur dans "Action requise" (Fév 2026)
 - [x] Règle: organisateur dans "Action requise" si < 50% garanti ET deadline annulation dans < 24h
 - [x] Wording naturel: "Personne n'a encore sécurisé sa présence" (0 garanti) / "Seulement X/Y présence(s) sécurisée(s)" (partiel)
