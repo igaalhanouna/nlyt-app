@@ -196,13 +196,17 @@ export default function AppointmentDetail() {
       const [appointmentRes, participantsRes] = await Promise.all([
         appointmentAPI.get(id), participantAPI.list(id)
       ]);
-      setAppointment(appointmentRes.data);
+      const apt = appointmentRes.data;
+      setAppointment(apt);
       const allParticipants = participantsRes.data.participants || [];
       setParticipants(allParticipants);
 
+      const viewerIsOrganizer = apt.viewer_role !== 'participant';
       const orgP = allParticipants.find(p => p.is_organizer === true);
       setOrganizerParticipant(orgP || null);
-      if (orgP?.invitation_token) {
+
+      // Organizer check-in status — only fetch for organizer viewers
+      if (viewerIsOrganizer && orgP?.invitation_token) {
         checkinAPI.getStatus(id, orgP.invitation_token).then(res => {
           if (res.data?.evidence_count > 0) {
             setOrganizerCheckinDone(true);
@@ -212,18 +216,53 @@ export default function AppointmentDetail() {
         }).catch(() => {});
       }
 
-      // Non-blocking parallel loads
-      calendarAPI.getSyncStatus(id).then(res => setSyncStatus(res.data)).catch(() => {});
-      attendanceAPI.get(id).then(res => setAttendance(res.data)).catch(() => {});
+      // Shared loads (both roles see the same evidence + attendance)
       checkinAPI.getEvidence(id).then(res => setEvidenceData(res.data)).catch(() => {});
+      attendanceAPI.get(id).then(res => setAttendance(res.data)).catch(() => {});
       modificationAPI.getActive(id).then(res => setActiveProposal(res.data?.proposal || null)).catch(() => {});
       modificationAPI.getForAppointment(id).then(res => setProposalHistory(res.data?.proposals || [])).catch(() => {});
-      videoEvidenceAPI.get(id).then(res => setVideoEvidence(res.data)).catch(() => {});
-      videoEvidenceAPI.getLogs(id).then(res => setVideoIngestionLogs(res.data?.logs || [])).catch(() => {});
       proofAPI.getSessions(id).then(res => setProofSessions(res.data?.sessions || [])).catch(() => {});
+
+      // Organizer-only loads
+      if (viewerIsOrganizer) {
+        calendarAPI.getSyncStatus(id).then(res => setSyncStatus(res.data)).catch(() => {});
+        videoEvidenceAPI.get(id).then(res => setVideoEvidence(res.data)).catch(() => {});
+        videoEvidenceAPI.getLogs(id).then(res => setVideoIngestionLogs(res.data?.logs || [])).catch(() => {});
+      }
     } catch { toast.error('Erreur lors du chargement'); }
     finally { setLoading(false); }
   };
+
+  // ─── Polling: reload every 30s when appointment is active ───
+  useEffect(() => {
+    if (!appointment || loading) return;
+    const start = parseUTC(appointment.start_datetime);
+    if (!start) return;
+    const end = new Date(start.getTime() + (appointment.duration_minutes || 60) * 60000);
+    const now = new Date();
+    // Only poll if appointment is upcoming (< 2h before) or ongoing
+    const twoHoursBefore = new Date(start.getTime() - 2 * 3600000);
+    if (now < twoHoursBefore || now > new Date(end.getTime() + 3600000)) return;
+
+    let intervalId;
+    const poll = () => {
+      if (document.hidden) return;
+      // Silent refresh — don't set loading
+      Promise.all([
+        participantAPI.list(id),
+        checkinAPI.getEvidence(id),
+        attendanceAPI.get(id),
+        proofAPI.getSessions(id),
+      ]).then(([partRes, evRes, attRes, proofRes]) => {
+        setParticipants(partRes.data.participants || []);
+        setEvidenceData(evRes.data);
+        setAttendance(attRes.data);
+        setProofSessions(proofRes.data?.sessions || []);
+      }).catch(() => {});
+    };
+    intervalId = setInterval(poll, 30000);
+    return () => clearInterval(intervalId);
+  }, [appointment?.appointment_id, loading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── Handlers ───
   const handleOrganizerCheckin = async () => {

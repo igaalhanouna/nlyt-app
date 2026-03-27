@@ -140,7 +140,8 @@ export default function ProofSessionsPanel({ participants, proofSessions, valida
                       )}
                     </td>
                     <td className="py-2.5 px-3 text-right">
-                      {!session.final_status && !isActive && (
+                      {/* Validation buttons only shown for organizer (when onValidateSession is provided) */}
+                      {!session.final_status && !isActive && onValidateSession && (
                         <div className="flex items-center gap-1 justify-end">
                           <Button variant="outline" size="sm" className="h-6 text-xs px-2 text-emerald-700 border-emerald-200 hover:bg-emerald-50"
                             onClick={() => onValidateSession(session.session_id, 'present')} disabled={validatingSession === session.session_id}
@@ -158,6 +159,10 @@ export default function ProofSessionsPanel({ participants, proofSessions, valida
                             <UserX className="w-3 h-3" />
                           </Button>
                         </div>
+                      )}
+                      {/* Read-only status for participant (when onValidateSession is not provided) */}
+                      {!session.final_status && !isActive && !onValidateSession && (
+                        <span className="text-xs text-slate-400">En attente de validation</span>
                       )}
                       {session.final_status && (
                         <span className="text-xs text-slate-400">Validé</span>

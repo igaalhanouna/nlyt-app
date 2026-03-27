@@ -1,0 +1,111 @@
+{
+  "summary": "Evidence Access Control & Polling Features (Iteration 97) - All tests passed. The evidence endpoint is now correctly opened to participants (same data for all, transparency). Frontend correctly conditions organizer-only fetches on viewer_role. Polling added for appointment detail (30s) and dashboard (60s).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": {
+    "backend_pytest": [
+      "✅ GET /api/checkin/evidence/{id} returns 200 for authenticated participant (not 403)",
+      "✅ GET /api/checkin/evidence/{id} returns 200 for organizer",
+      "✅ GET /api/checkin/evidence/{id} returns same data structure for participant as for organizer",
+      "✅ GET /api/checkin/evidence/{id} returns 401/403 for unauthorized user",
+      "✅ GET /api/appointments/{id} returns viewer_role='participant' for participant",
+      "✅ GET /api/appointments/{id} returns viewer_role='organizer' for organizer",
+      "✅ Participant view has viewer_invitation_token",
+      "✅ Participant view has viewer_participant_status",
+      "✅ GET /api/appointments/my-timeline works for dashboard polling",
+      "✅ GET /api/attendance/{id} returns 403 for participant (organizer-only)",
+      "✅ GET /api/attendance/{id} accessible by organizer",
+      "✅ GET /api/proof/sessions/{id} accessible by participant",
+      "✅ GET /api/calendar/sync-status/{id} returns 403/404 for participant",
+      "✅ GET /api/video-evidence/{id} returns 403 for participant"
+    ],
+    "frontend_playwright": [
+      "✅ Participant view: action banner visible with Accept/Decline buttons (status='invited')",
+      "✅ Participant view: trust signal banner visible ('1 participant a déjà confirmé son engagement')",
+      "✅ Participant view: proof tracking section visible ('Preuves de présence')",
+      "✅ Participant view: financial breakdown visible (Répartition)",
+      "✅ Participant view: participants list visible (read-only)",
+      "✅ Participant view: NO Google Calendar sync button",
+      "✅ Participant view: NO cancel link",
+      "✅ Participant view: NO manage participants link",
+      "✅ Participant view: NO resend invitation buttons",
+      "✅ Participant view: NO edit pencil button",
+      "✅ Organizer view: .ics download button visible",
+      "✅ Organizer view: Google Calendar sync button visible",
+      "✅ Organizer view: 'Annuler l'engagement' (cancel) link visible",
+      "✅ Organizer view: 'Gérer les participants' button visible",
+      "✅ Organizer view: Check-in avec GPS button visible",
+      "✅ Organizer view: Proof tracking section visible",
+      "✅ Organizer view: Edit pencil icon visible"
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_evidence_access_and_polling.py",
+    "/app/test_reports/pytest/pytest_evidence_access_polling.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "✅ Backend checkin_routes.py correctly checks participant access for evidence endpoint (line 309-324)",
+    "✅ Backend returns same evidence data structure for both organizer and participant (transparency)",
+    "✅ Frontend AppointmentDetail.js correctly conditions organizer check-in fetch on viewerIsOrganizer (line 209)",
+    "✅ Frontend AppointmentDetail.js polling useEffect correctly implemented (30s interval, line 237-265)",
+    "✅ Frontend OrganizerDashboard.js polling useEffect correctly implemented (60s interval, line 425-439)",
+    "✅ Frontend ProofSessionsPanel.js validation buttons now correctly hidden for participants (fixed)",
+    "✅ Frontend VideoEvidencePanel only rendered for organizer (line 650)",
+    "✅ Frontend AttendancePanel only rendered for organizer (line 666)"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_evidence_access_and_polling.py",
+    "/app/frontend/src/pages/appointments/ProofSessionsPanel.js"
+  ],
+  "success_rate": {
+    "backend": "100% (14/14 passed)",
+    "frontend": "100% (17/17 UI checks passed)"
+  },
+  "test_credentials": {
+    "user": "testuser_audit@nlyt.app / Test123!",
+    "participant_appointment": "7f5d0fa9-d8ac-4d24-b2f1-eb0eecb22782",
+    "organizer_appointment": "5661bffc-56fd-4cff-a0c0-ef196deadf1d"
+  },
+  "seed_data_creation": "None - used existing test data",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Evidence endpoint now open to participants with same data structure (transparency). Frontend correctly hides organizer-only elements based on viewer_role. Polling implemented: 30s for appointment detail (when active), 60s for dashboard. ProofSessionsPanel validation buttons now correctly hidden for participants (shows 'En attente de validation' instead). VideoEvidencePanel and AttendancePanel remain organizer-only.",
+  "verified_features": {
+    "evidence_endpoint_access": {
+      "description": "GET /api/checkin/evidence/{id} now accessible by participants",
+      "file": "/app/backend/routers/checkin_routes.py line 283-356",
+      "verification": "Returns 200 with same data structure for both organizer and participant"
+    },
+    "viewer_role_conditional_fetches": {
+      "description": "loadData() conditions organizer-only fetches on viewer_role",
+      "file": "/app/frontend/src/pages/appointments/AppointmentDetail.js line 209",
+      "verification": "Organizer check-in status only fetched when viewerIsOrganizer=true"
+    },
+    "appointment_detail_polling": {
+      "description": "Polling every 30s when appointment is active",
+      "file": "/app/frontend/src/pages/appointments/AppointmentDetail.js line 237-265",
+      "verification": "useEffect with setInterval(poll, 30000) when appointment is upcoming/ongoing"
+    },
+    "dashboard_polling": {
+      "description": "Polling every 60s for dashboard timeline",
+      "file": "/app/frontend/src/pages/dashboard/OrganizerDashboard.js line 425-439",
+      "verification": "useEffect with setInterval(poll, 60000)"
+    },
+    "proof_sessions_read_only": {
+      "description": "ProofSessionsPanel validation buttons hidden for participants",
+      "file": "/app/frontend/src/pages/appointments/ProofSessionsPanel.js line 143-170",
+      "verification": "Buttons only rendered when onValidateSession is provided"
+    }
+  },
+  "mocked_apis": {
+    "Stripe": "Dev mode - payment methods are pm_dev_* format"
+  }
+}

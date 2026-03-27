@@ -421,6 +421,23 @@ export default function OrganizerDashboard() {
     loadImportSettings().then(() => loadExternalEvents());
   }, [currentWorkspace]);
 
+  // Dashboard polling: refresh timeline every 60s when page is visible
+  useEffect(() => {
+    const poll = () => {
+      if (document.hidden) return;
+      appointmentAPI.myTimeline().then(res => {
+        setTimeline({
+          action_required: res.data.action_required || [],
+          upcoming: res.data.upcoming || [],
+          past: res.data.past || [],
+        });
+        setCounts(res.data.counts || { action_required: 0, upcoming: 0, past: 0, total: 0 });
+      }).catch(() => {});
+    };
+    const intervalId = setInterval(poll, 60000);
+    return () => clearInterval(intervalId);
+  }, [currentWorkspace]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const loadTimeline = async () => {
     setLoading(true);
     try {

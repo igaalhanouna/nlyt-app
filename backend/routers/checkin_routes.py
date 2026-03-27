@@ -278,12 +278,13 @@ async def get_checkin_status(appointment_id: str, invitation_token: str):
     }
 
 
-# --- AUTHENTICATED ENDPOINTS (organizer) ---
+# --- AUTHENTICATED ENDPOINTS (organizer + participant) ---
 
 @router.get("/evidence/{appointment_id}")
 async def get_appointment_evidence(appointment_id: str, request: Request):
     """
-    Get all evidence for an appointment (organizer view).
+    Get all evidence for an appointment.
+    Accessible by workspace members (organizer) AND participants.
 
     !! ZONE PROTÉGÉE — Chaîne de preuves de présence !!
     Voir /app/backend/docs/EVIDENCE_CHAIN.md
@@ -293,6 +294,7 @@ async def get_appointment_evidence(appointment_id: str, request: Request):
     - Inclut l'organisateur (PAS de filtre sur is_organizer)
     - Filtre par statut : accepted, accepted_pending_guarantee, accepted_guaranteed
     - Structure : { participants: [{ participant_id, participant_name, evidence: [...], aggregation }] }
+    - Même information pour tous (transparence), actions différenciées côté frontend
     """
     user = await get_current_user(request)
 
@@ -302,11 +304,26 @@ async def get_appointment_evidence(appointment_id: str, request: Request):
     if not appointment:
         raise HTTPException(status_code=404, detail="Rendez-vous introuvable")
 
+    # Access: workspace member OR participant
+    has_access = False
     membership = db.workspace_memberships.find_one({
         "workspace_id": appointment['workspace_id'],
         "user_id": user['user_id']
     }, {"_id": 0})
-    if not membership:
+    if membership:
+        has_access = True
+    else:
+        participant_match = db.participants.find_one({
+            "appointment_id": appointment_id,
+            "$or": [
+                {"user_id": user["user_id"]},
+                {"email": user.get("email", "")}
+            ]
+        }, {"_id": 0, "participant_id": 1})
+        if participant_match:
+            has_access = True
+
+    if not has_access:
         raise HTTPException(status_code=403, detail="Accès refusé")
 
     evidence = get_evidence_for_appointment(appointment_id)
