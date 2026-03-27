@@ -1256,12 +1256,12 @@ async def get_my_timeline(request: Request):
                 badge_type = "clean"
 
                 if org_penalized:
-                    lbl = f"Vous avez dedommage {org_penalty_cents / 100:.0f} €" if org_penalty_cents > 0 else "Vous avez dedommage"
+                    lbl = f"Vous avez indemnis\u00e9 de {org_penalty_cents / 100:.0f} \u20ac" if org_penalty_cents > 0 else "Vous avez indemnis\u00e9"
                     parts.append(lbl)
                     badge_type = "penalty"
 
                 if org_comp_cents > 0:
-                    parts.append(f"Vous avez ete dedommage de +{org_comp_cents / 100:.0f} €")
+                    parts.append(f"Vous avez \u00e9t\u00e9 d\u00e9dommag\u00e9 de +{org_comp_cents / 100:.0f} \u20ac")
                     if badge_type == "clean":
                         badge_type = "compensation"
 
@@ -1302,7 +1302,7 @@ async def get_my_timeline(request: Request):
                 elif p_record["outcome"] in ("late", "no_show"):
                     p_dist = next((d for d in dists if d.get("no_show_participant_id") == pid), None)
                     captured = p_dist.get("capture_amount_cents", 0) if p_dist else 0
-                    label = f"Vous avez dedommage {captured / 100:.0f} €" if captured > 0 else "Vous avez dedommage"
+                    label = f"Vous avez indemnis\u00e9 de {captured / 100:.0f} \u20ac" if captured > 0 else "Vous avez indemnis\u00e9"
                     item["financial_badge"] = {
                         "type": "penalty",
                         "label": label,
@@ -1318,7 +1318,7 @@ async def get_my_timeline(request: Request):
                     if comp_cents > 0:
                         item["financial_badge"] = {
                             "type": "compensation",
-                            "label": f"Vous avez ete dedommage de +{comp_cents / 100:.0f} €",
+                            "label": f"Vous avez \u00e9t\u00e9 d\u00e9dommag\u00e9 de +{comp_cents / 100:.0f} \u20ac",
                             "amount_cents": comp_cents,
                         }
                     else:

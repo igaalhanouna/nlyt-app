@@ -160,18 +160,18 @@ export default function FinancialResultsPage() {
                       <div className="text-right space-y-0.5">
                         {isPaid && (
                           <p className="text-sm font-semibold text-red-600" data-testid="eng-paid-amount">
-                            Vous avez paye {fmt(eng.paid_cents, eng.currency)}
+                            {"Vous avez indemnis\u00e9 de "}{fmt(eng.paid_cents, eng.currency)}
                           </p>
                         )}
                         {isReceived && (
                           <p className="text-sm font-semibold text-emerald-600" data-testid="eng-received-amount">
-                            Vous avez ete dedommage de +{fmt(eng.received_cents, eng.currency)}
+                            {"Vous avez \u00e9t\u00e9 d\u00e9dommag\u00e9 de +"}{fmt(eng.received_cents, eng.currency)}
                           </p>
                         )}
                         {hasCharity && (
-                          <p className="text-xs text-slate-400">
-                            dont {fmt(eng.charity_cents, eng.currency)} solidaire
-                            {eng.charity_association_name && ` (${eng.charity_association_name})`}
+                          <p className="text-xs text-rose-500 font-medium">
+                            {"Vous avez contribu\u00e9 \u00e0 un geste solidaire de "}{fmt(eng.charity_cents, eng.currency)}
+                            {eng.charity_association_name && ` pour ${eng.charity_association_name}`}
                           </p>
                         )}
                         {!isPaid && !isReceived && (
