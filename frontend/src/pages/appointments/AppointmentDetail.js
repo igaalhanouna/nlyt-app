@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { appointmentAPI, participantAPI, calendarAPI, invitationAPI, attendanceAPI, checkinAPI, modificationAPI, videoEvidenceAPI, proofAPI } from '../../services/api';
 import { Button } from '../../components/ui/button';
-import { Loader2, ChevronDown, Activity, Fingerprint, ShieldCheck, Check, X } from 'lucide-react';
+import { Loader2, ChevronDown, Activity, Fingerprint, ShieldCheck, Check, X, CreditCard } from 'lucide-react';
 import { toast } from 'sonner';
 import { parseUTC, utcToLocalInput, localInputToUTC } from '../../utils/dateFormat';
 import AppNavbar from '../../components/AppNavbar';
@@ -69,6 +69,74 @@ function ParticipantActionBanner({ token, onActionComplete }) {
           <Check className="w-4 h-4 mr-1.5" /> Accepter
         </Button>
         <Button size="sm" variant="outline" className="h-10 border-slate-200" onClick={() => handleRespond('decline')} disabled={responding} data-testid="participant-decline-btn">
+          <X className="w-4 h-4 mr-1.5" /> Refuser
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function ParticipantGuaranteeBanner({ token, onActionComplete }) {
+  const [processing, setProcessing] = useState(false);
+  const API_URL = process.env.REACT_APP_BACKEND_URL;
+
+  const handleFinalize = async () => {
+    setProcessing(true);
+    try {
+      const resp = await fetch(`${API_URL}/api/invitations/${token}/respond`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'accept' }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.detail || 'Erreur');
+
+      if (data.requires_guarantee && data.checkout_url) {
+        toast.info('Redirection vers la page de garantie...');
+        window.location.href = data.checkout_url;
+        return;
+      }
+      if (data.reused_card) {
+        toast.success(data.message || 'Garantie confirmée avec votre carte enregistrée');
+      } else {
+        toast.success('Garantie finalisée');
+      }
+      onActionComplete();
+    } catch (err) {
+      toast.error(err.message || 'Erreur lors de la finalisation');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleDecline = async () => {
+    setProcessing(true);
+    try {
+      const resp = await fetch(`${API_URL}/api/invitations/${token}/respond`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'decline' }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.detail || 'Erreur');
+      toast.success('Invitation refusée');
+      onActionComplete();
+    } catch (err) {
+      toast.error(err.message || 'Erreur');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  return (
+    <div className="mb-4 bg-amber-50 border border-amber-200 rounded-xl p-4" data-testid="participant-guarantee-banner">
+      <p className="text-sm font-semibold text-amber-800 mb-3">Votre garantie n'est pas encore finalisée</p>
+      <div className="flex gap-2">
+        <Button size="sm" className="h-10 bg-amber-600 hover:bg-amber-700 text-white" onClick={handleFinalize} disabled={processing} data-testid="finalize-guarantee-btn">
+          {processing ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <CreditCard className="w-4 h-4 mr-1.5" />}
+          Finaliser ma garantie
+        </Button>
+        <Button size="sm" variant="outline" className="h-10 border-slate-200" onClick={handleDecline} disabled={processing} data-testid="decline-guarantee-btn">
           <X className="w-4 h-4 mr-1.5" /> Refuser
         </Button>
       </div>
@@ -586,6 +654,14 @@ export default function AppointmentDetail() {
         {/* Participant action banner — accept/decline if invited */}
         {!isOrganizer && viewerParticipantStatus === 'invited' && !isCancelled && (
           <ParticipantActionBanner token={viewerInvitationToken} onActionComplete={() => {
+            setLoading(true);
+            appointmentAPI.get(id).then(res => { setAppointment(res.data); setLoading(false); }).catch(() => setLoading(false));
+          }} />
+        )}
+
+        {/* Participant guarantee banner — finalize or decline if accepted_pending_guarantee */}
+        {!isOrganizer && viewerParticipantStatus === 'accepted_pending_guarantee' && !isCancelled && (
+          <ParticipantGuaranteeBanner token={viewerInvitationToken} onActionComplete={() => {
             setLoading(true);
             appointmentAPI.get(id).then(res => { setAppointment(res.data); setLoading(false); }).catch(() => setLoading(false));
           }} />

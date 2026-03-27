@@ -293,7 +293,8 @@ async def respond_to_invitation(request: Request, token: str, response: Invitati
     
     # Check if already responded
     current_status = participant.get('status', 'invited')
-    if current_status in ['accepted', 'accepted_guaranteed', 'accepted_pending_guarantee', 'declined']:
+    # Allow accepted_pending_guarantee to retry (finalize guarantee) or decline
+    if current_status in ['accepted', 'accepted_guaranteed', 'declined']:
         raise HTTPException(
             status_code=400, 
             detail=f"Vous avez déjà répondu à cette invitation (statut actuel: {current_status})"
@@ -504,7 +505,8 @@ async def accept_with_account(request: Request, token: str, body: AcceptWithAcco
         raise HTTPException(status_code=400, detail="Email manquant sur cette invitation")
 
     # 2. Check participant hasn't already responded
-    if participant.get('status') in ['accepted', 'accepted_guaranteed', 'accepted_pending_guarantee', 'declined']:
+    # Allow accepted_pending_guarantee to retry (finalize guarantee) or decline
+    if participant.get('status') in ['accepted', 'accepted_guaranteed', 'declined']:
         raise HTTPException(status_code=400, detail="Vous avez déjà répondu à cette invitation")
 
     # 3. Check no existing account for this email
@@ -629,7 +631,7 @@ async def login_and_accept(request: Request, token: str, body: LoginAndAcceptReq
     participant = db.participants.find_one({"invitation_token": token}, {"_id": 0})
     if not participant:
         raise HTTPException(status_code=404, detail="Invitation non trouvée")
-    if participant.get('status') in ['accepted', 'accepted_guaranteed', 'accepted_pending_guarantee', 'declined']:
+    if participant.get('status') in ['accepted', 'accepted_guaranteed', 'declined']:
         raise HTTPException(status_code=400, detail="Vous avez déjà répondu à cette invitation")
 
     email = participant.get('email', '')
