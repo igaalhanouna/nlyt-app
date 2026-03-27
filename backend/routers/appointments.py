@@ -932,6 +932,209 @@ async def retry_organizer_guarantee(appointment_id: str, request: Request):
             raise HTTPException(status_code=500, detail=result.get('error', 'Erreur Stripe'))
 
 
+
+@router.get("/my-timeline")
+async def get_my_timeline(request: Request):
+    """
+    Unified dashboard timeline merging organizer + participant items.
+    Returns 3 buckets: action_required, upcoming, past.
+    Each item has a stable, explicit structure for frontend rendering.
+    """
+    user = await get_current_user(request)
+    user_id = user["user_id"]
+    user_email = user.get("email", "")
+    now_str = now_utc().isoformat()
+    items = []
+
+    # ── 1. Fetch organizer appointments ──
+    memberships = list(db.workspace_memberships.find(
+        {"user_id": user_id}, {"_id": 0, "workspace_id": 1}
+    ))
+    ws_ids = [m["workspace_id"] for m in memberships]
+
+    if ws_ids:
+        org_appointments = list(db.appointments.find(
+            {"workspace_id": {"$in": ws_ids}, "status": {"$ne": "deleted"}},
+            {"_id": 0}
+        ).sort("start_datetime", 1))
+
+        for apt in org_appointments:
+            if apt.get("start_datetime"):
+                apt["start_datetime"] = normalize_to_utc(apt["start_datetime"])
+
+            participants = list(db.participants.find(
+                {"appointment_id": apt["appointment_id"]},
+                {"_id": 0, "participant_id": 1, "email": 1, "first_name": 1,
+                 "last_name": 1, "status": 1, "invitation_token": 1}
+            ))
+            accepted = sum(1 for p in participants if p.get("status") in ("accepted", "accepted_guaranteed"))
+            pending = sum(1 for p in participants if p.get("status") in ("invited", "accepted_pending_guarantee"))
+            total = len(participants)
+
+            # Counterparty: list participant names (max 2 + "et X autres")
+            names = []
+            for p in participants:
+                n = f"{p.get('first_name', '')} {p.get('last_name', '')}".strip()
+                if n:
+                    names.append(n)
+            if len(names) <= 2:
+                counterparty = ", ".join(names) if names else "Aucun participant"
+            else:
+                counterparty = f"{names[0]}, {names[1]} et {len(names) - 2} autre{'s' if len(names) - 2 > 1 else ''}"
+
+            # Determine action_required for organizer
+            is_past = apt.get("start_datetime", "") < now_str
+            action_required = not is_past and pending > 0
+
+            # Determine available actions
+            actions = ["view_details"]
+            if not is_past and pending > 0:
+                actions.insert(0, "remind")
+            if not is_past:
+                actions.append("delete")
+
+            # Pending wording for organizer
+            pending_label = None
+            if pending > 0 and not is_past:
+                pending_label = f"En attente de réponse ({pending})"
+
+            items.append({
+                "appointment_id": apt["appointment_id"],
+                "role": "organizer",
+                "status": apt.get("status", "active"),
+                "action_required": action_required,
+                "starts_at": apt.get("start_datetime", ""),
+                "sort_date": apt.get("start_datetime", ""),
+                "counterparty_name": counterparty,
+                "is_user_organizer": True,
+                "is_user_participant": False,
+                "title": apt.get("title", ""),
+                "appointment_type": apt.get("appointment_type", "physical"),
+                "location": apt.get("location", ""),
+                "meeting_provider": apt.get("meeting_provider", ""),
+                "duration_minutes": apt.get("duration_minutes", 60),
+                "penalty_amount": apt.get("penalty_amount", 0),
+                "penalty_currency": apt.get("penalty_currency", "EUR"),
+                "participants_count": total,
+                "accepted_count": accepted,
+                "pending_count": pending,
+                "actions": actions,
+                "pending_label": pending_label,
+                "converted_from": apt.get("converted_from"),
+                "appointment_status": apt.get("status", "active"),
+            })
+
+    # ── 2. Fetch participant invitations ──
+    my_participations = list(db.participants.find(
+        {"$or": [{"user_id": user_id}, {"email": user_email}]},
+        {"_id": 0}
+    ))
+
+    # Deduplicate: exclude participations where user is also organizer
+    org_apt_ids = {item["appointment_id"] for item in items}
+
+    for part in my_participations:
+        apt_id = part.get("appointment_id")
+        if apt_id in org_apt_ids:
+            continue  # skip — already shown as organizer
+
+        apt = db.appointments.find_one(
+            {"appointment_id": apt_id, "status": {"$ne": "deleted"}},
+            {"_id": 0}
+        )
+        if not apt:
+            continue
+
+        if apt.get("start_datetime"):
+            apt["start_datetime"] = normalize_to_utc(apt["start_datetime"])
+
+        # Get organizer name as counterparty
+        organizer = db.users.find_one(
+            {"user_id": apt.get("organizer_id")},
+            {"_id": 0, "first_name": 1, "last_name": 1}
+        )
+        organizer_name = "Organisateur"
+        if organizer:
+            organizer_name = f"{organizer.get('first_name', '')} {organizer.get('last_name', '')}".strip() or "Organisateur"
+
+        p_status = part.get("status", "invited")
+        is_past = apt.get("start_datetime", "") < now_str
+
+        # Action required: invitation pending response
+        action_required = p_status == "invited" and not is_past
+
+        # Available actions
+        actions = ["view_details"]
+        if p_status == "invited" and not is_past:
+            actions = ["accept", "decline", "view_details"]
+        elif p_status in ("accepted", "accepted_guaranteed") and not is_past:
+            actions = ["view_details"]
+
+        # Pending wording for participant
+        pending_label = None
+        if p_status == "invited" and not is_past:
+            pending_label = "Votre réponse est attendue"
+        elif p_status == "accepted_pending_guarantee" and not is_past:
+            pending_label = "Garantie en attente"
+
+        items.append({
+            "appointment_id": apt_id,
+            "role": "participant",
+            "status": p_status,
+            "action_required": action_required,
+            "starts_at": apt.get("start_datetime", ""),
+            "sort_date": apt.get("start_datetime", ""),
+            "counterparty_name": organizer_name,
+            "is_user_organizer": False,
+            "is_user_participant": True,
+            "title": apt.get("title", ""),
+            "appointment_type": apt.get("appointment_type", "physical"),
+            "location": apt.get("location", ""),
+            "meeting_provider": apt.get("meeting_provider", ""),
+            "duration_minutes": apt.get("duration_minutes", 60),
+            "penalty_amount": apt.get("penalty_amount", 0),
+            "penalty_currency": apt.get("penalty_currency", "EUR"),
+            "participant_status": p_status,
+            "participant_id": part.get("participant_id"),
+            "invitation_token": part.get("invitation_token"),
+            "participants_count": 0,
+            "accepted_count": 0,
+            "pending_count": 0,
+            "actions": actions,
+            "pending_label": pending_label,
+            "converted_from": apt.get("converted_from"),
+            "appointment_status": apt.get("status", "active"),
+        })
+
+    # ── 3. Bucket into action_required / upcoming / past ──
+    action_required = sorted(
+        [i for i in items if i["action_required"]],
+        key=lambda x: x["sort_date"]
+    )
+    upcoming = sorted(
+        [i for i in items if not i["action_required"] and i["sort_date"] >= now_str],
+        key=lambda x: x["sort_date"]
+    )
+    past = sorted(
+        [i for i in items if i["sort_date"] < now_str and not i["action_required"]],
+        key=lambda x: x["sort_date"],
+        reverse=True
+    )
+
+    return {
+        "action_required": action_required,
+        "upcoming": upcoming,
+        "past": past,
+        "counts": {
+            "action_required": len(action_required),
+            "upcoming": len(upcoming),
+            "past": len(past),
+            "total": len(items),
+        }
+    }
+
+
+
 @router.get("/")
 async def list_appointments(workspace_id: str = None, skip: int = 0, limit: int = 20, time_filter: str = None, request: Request = None):
     user = await get_current_user(request)
