@@ -331,6 +331,15 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API
 - [x] Fix: filtre élargi à `['accepted', 'accepted_guaranteed', 'accepted_pending_guarantee']`
 - [x] Testé: 100% backend (12/12), 100% frontend (11/11) — iteration_98
 
+## Audit & Fix — Section "Action requise" (Fév 2026)
+- [x] Audit complet de la logique backend `my-timeline` et du rendu frontend `ActionRequiredSection`
+- [x] Règle redéfinie: "Action requise = participant doit agir (répondre OU payer) + RDV futur + RDV non annulé"
+- [x] `accepted_pending_guarantee` ajouté à `action_required` avec CTA "Finaliser ma garantie" (ambre)
+- [x] RDV `cancelled` déplacés de "À venir" vers "Historique" (via `_is_past_item()`)
+- [x] Protection: RDV annulés ne tombent jamais dans `action_required` même si `status=invited`
+- [x] Organisateur: jamais dans `action_required` (design validé)
+- [x] Testé: 100% backend (26/26) + 100% frontend (10/10) — iteration_99
+
 ## Upcoming Tasks
 - [ ] P2: Test réel Teams (compte non-pro)
 - [ ] P2: Configurer le webhook Stripe en production
