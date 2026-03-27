@@ -51,7 +51,7 @@ export default function FinancialResultsPage() {
       <AppNavbar />
       <AppBreadcrumb items={[
         { label: 'Tableau de bord', href: '/dashboard' },
-        { label: 'Mes resultats' },
+        { label: 'Contributions' },
       ]} />
 
       <div className="max-w-5xl mx-auto px-4 md:px-6 pb-12">
@@ -59,10 +59,10 @@ export default function FinancialResultsPage() {
         {/* Page title */}
         <div className="pt-2 pb-6">
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900" data-testid="page-title">
-            Vos resultats d'engagement
+            Vos contributions
           </h1>
           <p className="text-sm text-slate-500 mt-1">
-            Vue d'ensemble de vos participations et de leur impact.
+            Vue d'ensemble de vos engagements et de leur impact.
           </p>
         </div>
 
@@ -168,14 +168,14 @@ export default function FinancialResultsPage() {
                             {"Vous avez \u00e9t\u00e9 d\u00e9dommag\u00e9 de +"}{fmt(eng.received_cents, eng.currency)}
                           </p>
                         )}
+                        {!isPaid && !isReceived && (
+                          <p className="text-sm text-slate-400">Aucun impact</p>
+                        )}
                         {hasCharity && (
                           <p className="text-xs text-rose-500 font-medium">
                             {"Vous avez contribu\u00e9 \u00e0 un geste solidaire de "}{fmt(eng.charity_cents, eng.currency)}
                             {eng.charity_association_name && ` pour ${eng.charity_association_name}`}
                           </p>
-                        )}
-                        {!isPaid && !isReceived && (
-                          <p className="text-sm text-slate-400">Aucun impact</p>
                         )}
                       </div>
                       <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-500 transition-colors" />

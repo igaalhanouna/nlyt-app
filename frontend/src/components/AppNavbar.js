@@ -83,7 +83,7 @@ export default function AppNavbar() {
               )}
             </Link>
             <Link to="/mes-resultats" className={linkClass('/mes-resultats')} data-testid="navbar-results-link">
-              Mes resultats
+              Contributions
             </Link>
             <Link to="/settings" className={linkClass('/settings')} data-testid="navbar-settings-link">
               <span className="flex items-center gap-1.5">
@@ -157,7 +157,7 @@ export default function AppNavbar() {
               </Link>
               <Link to="/mes-resultats" className={mobileLinkClass('/mes-resultats')} data-testid="mobile-nav-results">
                 <TrendingUp className="w-4.5 h-4.5" />
-                Mes resultats
+                Contributions
               </Link>
               <Link to="/settings" className={mobileLinkClass('/settings')} data-testid="mobile-nav-settings">
                 <Settings className="w-4.5 h-4.5" />
