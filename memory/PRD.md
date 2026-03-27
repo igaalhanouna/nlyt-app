@@ -252,6 +252,18 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API
 - [x] Idempotence via sent_emails collection (email_type: post_engagement_{card_type})
 - [x] Testé: 100% backend (23/23), 100% frontend (iteration_89)
 
+## Completed — Viral Loop Phase 5: Bannière connexion InvitationPage (Mars 2026)
+- [x] Bannière bleue "Vous avez déjà un compte NLYT — connectez-vous pour accepter plus vite"
+- [x] Visible uniquement quand has_existing_account=true ET status=invited
+- [x] Lien direct /signin?redirect=/invitation/{token}
+- [x] Testé: 100% backend + frontend (iteration_90)
+
+## Completed — Viral Loop Phase 6: Milestones wallet + CTA Organiser (Mars 2026)
+- [x] Endpoint GET /api/wallet/milestones (attended_count, milestones 1/3/5/10/25/50/100, next_milestone, show_organizer_cta)
+- [x] Composant MilestonesSection dans WalletPage (compteur, barre de progression, badges, CTA)
+- [x] CTA "Organiser un engagement" affiché quand organized_count=0 ET attended_count>=1
+- [x] Testé: 100% backend + frontend (iteration_90)
+
 ## Upcoming Tasks
 - [ ] P1: Emails post-engagement enrichis avec CTAs viraux (Viral Loop Phase 4)
 - [ ] P2: Bannière connexion sur InvitationPage pour utilisateurs existants (Viral Loop Phase 5)

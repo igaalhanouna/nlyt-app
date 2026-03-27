@@ -543,7 +543,7 @@ export default function InvitationPage() {
               Vous avez déjà un compte NLYT — connectez-vous pour accepter plus vite.
             </p>
             <a
-              href={`/login?redirect=/invitation/${token}`}
+              href={`/signin?redirect=/invitation/${token}`}
               data-testid="existing-account-login-link"
               className="shrink-0 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 px-4 py-1.5 rounded-lg transition-colors"
             >
