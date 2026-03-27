@@ -302,13 +302,16 @@ def evaluate_participant(participant: dict, appointment: dict) -> dict:
                 "proof_context": {"source": "none", "note": "Aucune session NLYT Proof, aucune preuve API vidéo."},
             }
 
-        # --- PHYSICAL APPOINTMENT (original logic, unchanged) ---
+        # --- PHYSICAL APPOINTMENT ---
+        delay_minutes = aggregation.get('delay_minutes')
+
         if strength == 'strong' and timing == 'on_time':
             return {
                 "outcome": "on_time",
                 "decision_basis": "strong_evidence_on_time",
                 "confidence": "high",
                 "review_required": False,
+                "delay_minutes": delay_minutes,
                 "evidence_summary": aggregation
             }
 
@@ -318,6 +321,7 @@ def evaluate_participant(participant: dict, appointment: dict) -> dict:
                 "decision_basis": "strong_evidence_late",
                 "confidence": "high",
                 "review_required": False,
+                "delay_minutes": delay_minutes,
                 "evidence_summary": aggregation
             }
 
@@ -326,7 +330,8 @@ def evaluate_participant(participant: dict, appointment: dict) -> dict:
                 "outcome": "on_time",
                 "decision_basis": "medium_evidence_on_time",
                 "confidence": "medium",
-                "review_required": True,
+                "review_required": False,
+                "delay_minutes": delay_minutes,
                 "evidence_summary": aggregation
             }
 
@@ -335,7 +340,8 @@ def evaluate_participant(participant: dict, appointment: dict) -> dict:
                 "outcome": "late",
                 "decision_basis": "medium_evidence_late",
                 "confidence": "medium",
-                "review_required": True,
+                "review_required": False,
+                "delay_minutes": delay_minutes,
                 "evidence_summary": aggregation
             }
 
@@ -426,6 +432,8 @@ def evaluate_appointment(appointment_id: str) -> dict:
             "decision_basis": evaluation['decision_basis'],
             "confidence": evaluation['confidence'],
             "review_required": evaluation['review_required'],
+            "delay_minutes": evaluation.get('delay_minutes'),
+            "tolerated_delay_minutes": appointment.get('tolerated_delay_minutes', 0),
             "decided_by": "system",
             "decided_at": now_utc().isoformat(),
             "notes": None,
@@ -592,7 +600,11 @@ def _refresh_appointment_summary(appointment_id: str):
 def _process_financial_outcomes(appointment_id: str, appointment: dict, participants: list):
     """
     Post-evaluation hook: process capture/release for all evaluated participants.
-    Only acts on high-confidence decisions (review_required == False).
+    
+    Financial rules:
+    - on_time → release guarantee
+    - late (beyond tolerance) → capture + distribution (penalized)
+    - no_show → capture + distribution (penalized)
     """
     from services.stripe_guarantee_service import StripeGuaranteeService
     from services.distribution_service import create_distribution
@@ -606,10 +618,10 @@ def _process_financial_outcomes(appointment_id: str, appointment: dict, particip
         {"_id": 0}
     ))
 
-    # Build lookup of present participants (on_time or late, not review_required)
+    # Build lookup of present participants (on_time only — late beyond tolerance is penalized)
     present_participants = []
     for r in records:
-        if r.get('outcome') in ('on_time', 'late'):
+        if r.get('outcome') == 'on_time':
             p = _find_participant(participants, r['participant_id'])
             if p and p.get('user_id'):
                 present_participants.append({
@@ -634,16 +646,19 @@ def _process_financial_outcomes(appointment_id: str, appointment: dict, particip
 
         outcome = record.get('outcome')
 
-        if outcome == 'no_show':
+        if outcome in ('no_show', 'late'):
+            # late = beyond tolerance → penalized like no_show
+            capture_reason = "no_show" if outcome == "no_show" else "late_beyond_tolerance"
             _execute_capture_and_distribution(
-                appointment, participant, guarantee, present_participants
+                appointment, participant, guarantee, present_participants, capture_reason
             )
-        elif outcome in ('on_time', 'late'):
+        elif outcome == 'on_time':
             _execute_release(guarantee)
 
 
 def _execute_capture_and_distribution(
-    appointment: dict, participant: dict, guarantee: dict, present_participants: list
+    appointment: dict, participant: dict, guarantee: dict, present_participants: list,
+    capture_reason: str = "no_show"
 ):
     """Capture guarantee and create distribution."""
     from services.stripe_guarantee_service import StripeGuaranteeService
@@ -661,7 +676,7 @@ def _execute_capture_and_distribution(
         return
 
     # Capture
-    capture_result = StripeGuaranteeService.capture_guarantee(guarantee_id, "no_show")
+    capture_result = StripeGuaranteeService.capture_guarantee(guarantee_id, capture_reason)
     if not capture_result.get('success'):
         logger.error(f"[FINANCIAL] Capture failed for {guarantee_id}: {capture_result.get('error')}")
         return
@@ -739,13 +754,19 @@ def _process_reclassification(record: dict, previous_outcome: str, new_outcome: 
     """
     Post-reclassification hook: handle financial transitions.
 
+    Penalized outcomes: no_show, late (beyond tolerance)
+    Non-penalized outcomes: on_time, waived
+
     Transitions:
-    - manual_review → no_show : capture + distribution
-    - manual_review → on_time/late : release
-    - no_show → on_time/late : cancel distribution + release
-    - on_time/late → no_show : capture + distribution (if guarantee exists)
+    - manual_review → no_show/late : capture + distribution
+    - manual_review → on_time : release
+    - no_show/late → on_time : cancel distribution + release
+    - on_time → no_show/late : capture + distribution (if guarantee exists)
     """
     from services.distribution_service import cancel_distribution as cancel_dist
+
+    PENALIZED = ('no_show', 'late')
+    NON_PENALIZED = ('on_time', 'waived')
 
     appointment_id = record['appointment_id']
     participant_id = record['participant_id']
@@ -770,11 +791,11 @@ def _process_reclassification(record: dict, previous_outcome: str, new_outcome: 
     if not guarantee:
         return  # No guarantee → no financial action
 
-    # Build present participants list from current records
+    # Build present participants list (on_time only — late is penalized)
     records = list(db.attendance_records.find({"appointment_id": appointment_id}, {"_id": 0}))
     present_participants = []
     for r in records:
-        if r.get('outcome') in ('on_time', 'late'):
+        if r.get('outcome') == 'on_time':
             p = _find_participant(participants, r['participant_id'])
             if p and p.get('user_id'):
                 present_participants.append({
@@ -782,23 +803,22 @@ def _process_reclassification(record: dict, previous_outcome: str, new_outcome: 
                     "participant_id": p["participant_id"],
                 })
 
-    # Handle transition: was no_show → now present → cancel distribution + release
-    if previous_outcome == 'no_show' and new_outcome in ('on_time', 'late', 'waived'):
-        # Cancel existing distribution
+    # Handle transition: was penalized → now non-penalized → cancel distribution + release
+    if previous_outcome in PENALIZED and new_outcome in NON_PENALIZED:
         existing_dist = db.distributions.find_one({"guarantee_id": guarantee['guarantee_id']}, {"_id": 0})
         if existing_dist and existing_dist['status'] not in ('cancelled', 'completed'):
             cancel_dist(existing_dist['distribution_id'], f"Reclassifié: {previous_outcome} → {new_outcome}")
 
-        # Release guarantee if still captured/completed
         if guarantee.get('status') in ('completed', 'dev_pending'):
             _execute_release(guarantee)
 
         logger.info(f"[FINANCIAL] Reclassification {previous_outcome}→{new_outcome}: cancelled distribution + released guarantee")
 
-    # Handle transition: was not no_show → now no_show → capture + distribution
-    elif new_outcome == 'no_show' and previous_outcome != 'no_show':
+    # Handle transition: was non-penalized → now penalized → capture + distribution
+    elif new_outcome in PENALIZED and previous_outcome not in PENALIZED:
         if guarantee.get('status') in ('completed', 'dev_pending'):
-            _execute_capture_and_distribution(appointment, participant, guarantee, present_participants)
+            capture_reason = "no_show" if new_outcome == "no_show" else "late_beyond_tolerance"
+            _execute_capture_and_distribution(appointment, participant, guarantee, present_participants, capture_reason)
             logger.info(f"[FINANCIAL] Reclassification {previous_outcome}→{new_outcome}: captured + distributed")
 
 

@@ -1448,6 +1448,49 @@ async def get_appointment(appointment_id: str, request: Request):
         appointment['viewer_invitation_token'] = participant_match.get('invitation_token')
         appointment['viewer_participant_status'] = participant_match.get('status')
     
+    # Include financial data if attendance has been evaluated
+    if appointment.get('attendance_evaluated'):
+        att_records = list(db.attendance_records.find(
+            {"appointment_id": appointment_id},
+            {"_id": 0}
+        ))
+        appointment['attendance_records'] = att_records
+
+        distributions = list(db.distributions.find(
+            {"appointment_id": appointment_id},
+            {"_id": 0}
+        ))
+        appointment['distributions'] = distributions
+
+        # Build per-participant financial summary
+        fin_summary = []
+        for rec in att_records:
+            pid = rec.get('participant_id')
+            guarantee = db.payment_guarantees.find_one(
+                {"participant_id": pid, "appointment_id": appointment_id},
+                {"_id": 0, "guarantee_id": 1, "status": 1, "penalty_amount": 1}
+            )
+            dist = None
+            if guarantee:
+                dist = db.distributions.find_one(
+                    {"guarantee_id": guarantee['guarantee_id']},
+                    {"_id": 0}
+                )
+            fin_summary.append({
+                "participant_id": pid,
+                "outcome": rec.get('outcome'),
+                "delay_minutes": rec.get('delay_minutes'),
+                "tolerated_delay_minutes": rec.get('tolerated_delay_minutes'),
+                "guarantee_status": guarantee.get('status') if guarantee else None,
+                "penalty_amount": guarantee.get('penalty_amount') if guarantee else None,
+                "captured": guarantee.get('status') == 'captured' if guarantee else False,
+                "distribution_id": dist.get('distribution_id') if dist else None,
+                "distribution_status": dist.get('status') if dist else None,
+                "capture_amount_cents": dist.get('capture_amount_cents') if dist else None,
+                "beneficiaries": dist.get('beneficiaries', []) if dist else [],
+            })
+        appointment['financial_summary'] = fin_summary
+    
     return appointment
 
 @router.patch("/{appointment_id}")

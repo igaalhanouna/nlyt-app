@@ -765,13 +765,16 @@ def aggregate_evidence(appointment_id: str, participant_id: str, appointment: di
         elif strength == "medium":
             strength = "weak"
 
-    # Determine timing
+    # Determine timing and delay_minutes
     timing = None
+    delay_minutes = None
     if earliest_timestamp:
         try:
             start_utc = _parse_appointment_start(appointment)
             tolerated_delay = appointment.get('tolerated_delay_minutes', 0)
             deadline = start_utc + timedelta(minutes=tolerated_delay)
+            delay_from_start = (earliest_timestamp - start_utc).total_seconds() / 60
+            delay_minutes = round(max(0, delay_from_start), 1)
             timing = "on_time" if earliest_timestamp <= deadline else "late"
         except (ValueError, TypeError):
             pass
@@ -779,6 +782,7 @@ def aggregate_evidence(appointment_id: str, participant_id: str, appointment: di
     # Additional: if timing says "on_time" but temporal is "too_early", flag it
     if worst_temporal == 'too_early' and timing == 'on_time':
         timing = None  # Cannot determine timing if check-in was way too early
+        delay_minutes = None
 
     confidence_map = {"strong": "high", "medium": "medium", "weak": "low", "none": "low"}
 
@@ -786,6 +790,7 @@ def aggregate_evidence(appointment_id: str, participant_id: str, appointment: di
         "strength": strength,
         "signals": signals,
         "timing": timing,
+        "delay_minutes": delay_minutes,
         "confidence": confidence_map.get(strength, "low"),
         "evidence_count": len(evidence_items),
         "earliest_evidence": earliest_timestamp.isoformat() if earliest_timestamp else None,

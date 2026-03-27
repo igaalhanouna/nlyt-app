@@ -209,6 +209,89 @@ function ParticipantCheckinBlock({ appointmentId, viewerParticipantId, viewerInv
   );
 }
 
+function FinancialResultSection({ appointment, participants }) {
+  const financialSummary = appointment?.financial_summary;
+  if (!financialSummary || financialSummary.length === 0) return null;
+
+  const hasPenalty = financialSummary.some(f => f.outcome === 'late' || f.outcome === 'no_show');
+  if (!hasPenalty && !financialSummary.some(f => f.guarantee_status === 'released')) return null;
+
+  const getParticipantName = (pid) => {
+    const p = participants?.find(pp => pp.participant_id === pid);
+    if (!p) return 'Participant';
+    const name = [p.first_name, p.last_name].filter(Boolean).join(' ');
+    return name || p.email || 'Participant';
+  };
+
+  const outcomeLabel = (f) => {
+    if (f.outcome === 'no_show') return { text: 'Absent', color: 'text-red-700 bg-red-50' };
+    if (f.outcome === 'late') {
+      const delay = f.delay_minutes != null ? Math.round(f.delay_minutes) : '?';
+      return { text: `Retard ${delay}min (tolérance: ${f.tolerated_delay_minutes || 0}min)`, color: 'text-amber-700 bg-amber-50' };
+    }
+    if (f.outcome === 'on_time') return { text: 'Présent', color: 'text-emerald-700 bg-emerald-50' };
+    return { text: f.outcome, color: 'text-slate-600 bg-slate-50' };
+  };
+
+  return (
+    <div className="mb-4 bg-white border border-slate-200 rounded-xl overflow-hidden" data-testid="financial-result-section">
+      <div className="px-4 py-3 border-b border-slate-100">
+        <div className="flex items-center gap-2">
+          <CreditCard className="w-4 h-4 text-slate-400" />
+          <span className="text-sm font-semibold text-slate-900">Résultat financier</span>
+        </div>
+      </div>
+      <div className="p-4 space-y-3">
+        {financialSummary.map((f) => {
+          const label = outcomeLabel(f);
+          const isPenalized = f.outcome === 'late' || f.outcome === 'no_show';
+          const penaltyEur = f.penalty_amount || (f.capture_amount_cents ? f.capture_amount_cents / 100 : 0);
+
+          return (
+            <div key={f.participant_id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2 border-b border-slate-50 last:border-0" data-testid={`financial-row-${f.participant_id}`}>
+              <div className="flex flex-col gap-1">
+                <span className="text-sm font-medium text-slate-800">{getParticipantName(f.participant_id)}</span>
+                <span className={`text-xs font-medium px-2 py-0.5 rounded-full w-fit ${label.color}`}>{label.text}</span>
+              </div>
+              <div className="flex flex-col items-end gap-0.5">
+                {isPenalized && penaltyEur > 0 && (
+                  <>
+                    <span className="text-sm font-semibold text-red-700" data-testid={`penalty-amount-${f.participant_id}`}>
+                      -{penaltyEur.toFixed(2)} €
+                    </span>
+                    <span className="text-xs text-slate-500">
+                      {f.captured ? 'Capturé' : f.guarantee_status === 'completed' ? 'Capture en cours' : 'En attente'}
+                    </span>
+                  </>
+                )}
+                {!isPenalized && f.guarantee_status === 'released' && (
+                  <span className="text-xs font-medium text-emerald-600">Garantie libérée</span>
+                )}
+                {!isPenalized && f.guarantee_status !== 'released' && f.guarantee_status && (
+                  <span className="text-xs text-slate-500">Garantie: {f.guarantee_status}</span>
+                )}
+              </div>
+            </div>
+          );
+        })}
+
+        {/* Distribution details */}
+        {financialSummary.filter(f => f.beneficiaries?.length > 0).map(f => (
+          <div key={`dist-${f.participant_id}`} className="mt-2 bg-slate-50 rounded-lg p-3">
+            <span className="text-xs font-semibold text-slate-700 mb-1 block">Compensation</span>
+            {f.beneficiaries.map((b, i) => (
+              <div key={i} className="flex justify-between text-xs text-slate-600 py-0.5">
+                <span>{b.role === 'organizer' ? 'Organisateur' : b.role === 'affected' ? 'Participant présent' : b.role === 'charity' ? 'Association' : b.role === 'platform' ? 'Plateforme' : b.role}</span>
+                <span className="font-medium text-emerald-700">+{(b.amount_cents / 100).toFixed(2)} €</span>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function AppointmentDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -781,6 +864,11 @@ export default function AppointmentDetail() {
             appointment={appointment}
             userId={user?.user_id}
           />
+        )}
+
+        {/* #7c — Résultat financier — visible for both roles */}
+        {appointment.attendance_evaluated && appointment.financial_summary && (
+          <FinancialResultSection appointment={appointment} participants={participants} />
         )}
 
         {/* #8 — Modal de modification (organisateur only) */}
