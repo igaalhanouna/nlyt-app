@@ -84,6 +84,7 @@ SaaS de gestion de presence avec garanties financieres. Optimisation du "Viral L
 - [x] Navbar badge with live counter
 - [x] Email notification to organizer when review cases are created
 - [x] **FinancialResultSection V2** — refonte complete de l'affichage financier par participant : statut (penalise/compense/present/dispense/review), montants, explications humaines, repartition (vue organisateur)
+- [x] **Financial Badge Dashboard** — resume financier visible directement sur les cartes de RDV dans l'onglet Historique (penalty/compensation/clean/review)
 - [ ] Email notification to participants when status is resolved
 
 ### P2 — Future

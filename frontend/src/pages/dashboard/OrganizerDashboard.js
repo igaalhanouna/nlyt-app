@@ -10,7 +10,7 @@ import {
   Trash2, Check, X, Clock, Building2, ChevronDown, Plus, Ban,
   ShieldCheck, CreditCard, History, Play, AlertTriangle, Bell,
   ArrowRight, Flame, Shield, Euro, Eye, Heart, Loader2,
-  UserCheck, Mail, ChevronRight
+  UserCheck, Mail, ChevronRight, CheckCircle
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDateTimeCompactFr, parseUTC } from '../../utils/dateFormat';
@@ -366,6 +366,22 @@ function TimelineCard({ item, isPast, onDelete, onRemind, now }) {
         {isParticipant && item.pending_label && (
           <div className="mb-1">
             <span className="text-xs font-medium text-blue-600">{item.pending_label}</span>
+          </div>
+        )}
+
+        {/* Financial badge for past items */}
+        {isPast && item.financial_badge && (
+          <div className={`flex items-center gap-1.5 text-xs font-medium mt-1 mb-1 ${
+            item.financial_badge.type === 'penalty' ? 'text-red-600' :
+            item.financial_badge.type === 'compensation' ? 'text-emerald-600' :
+            item.financial_badge.type === 'review' ? 'text-amber-600' :
+            'text-slate-500'
+          }`} data-testid={`financial-badge-${item.appointment_id}`}>
+            {item.financial_badge.type === 'penalty' && <AlertTriangle className="w-3 h-3" />}
+            {item.financial_badge.type === 'compensation' && <CreditCard className="w-3 h-3" />}
+            {item.financial_badge.type === 'review' && <Clock className="w-3 h-3" />}
+            {item.financial_badge.type === 'clean' && <CheckCircle className="w-3 h-3" />}
+            <span>{item.financial_badge.label}</span>
           </div>
         )}
       </Link>

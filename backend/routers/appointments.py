@@ -1183,6 +1183,116 @@ async def get_my_timeline(request: Request):
         reverse=True
     )
 
+    # ── 4. Enrich past items with financial badge ──
+    past_apt_ids = list({i["appointment_id"] for i in past})
+    if past_apt_ids:
+        # Batch-fetch attendance records and distributions for past appointments
+        all_att_records = list(db.attendance_records.find(
+            {"appointment_id": {"$in": past_apt_ids}},
+            {"_id": 0, "appointment_id": 1, "participant_id": 1, "outcome": 1, "review_required": 1}
+        ))
+        all_distributions = list(db.distributions.find(
+            {"appointment_id": {"$in": past_apt_ids}},
+            {"_id": 0, "appointment_id": 1, "capture_amount_cents": 1, "beneficiaries": 1, "no_show_participant_id": 1}
+        ))
+        # Map participant_id → user_id for compensation lookup
+        past_participant_ids = list({i.get("participant_id") for i in past if i.get("participant_id")})
+        participant_user_map = {}
+        if past_participant_ids:
+            for p in db.participants.find(
+                {"participant_id": {"$in": past_participant_ids}},
+                {"_id": 0, "participant_id": 1, "user_id": 1}
+            ):
+                participant_user_map[p["participant_id"]] = p.get("user_id")
+
+        for item in past:
+            apt_id = item["appointment_id"]
+            records = [r for r in all_att_records if r["appointment_id"] == apt_id]
+            dists = [d for d in all_distributions if d["appointment_id"] == apt_id]
+
+            if not records:
+                item["financial_badge"] = None
+                continue
+
+            if item["role"] == "organizer":
+                # Organizer view: summary of all penalties
+                penalized = [r for r in records if r["outcome"] in ("late", "no_show") and not r.get("review_required")]
+                review = [r for r in records if r.get("review_required")]
+                total_captured = sum(d.get("capture_amount_cents", 0) for d in dists)
+
+                if penalized and total_captured > 0:
+                    count = len(penalized)
+                    item["financial_badge"] = {
+                        "type": "penalty",
+                        "label": f"{count} penalite{'s' if count > 1 else ''} — {total_captured / 100:.0f} € preleves",
+                        "amount_cents": total_captured,
+                    }
+                elif review:
+                    item["financial_badge"] = {
+                        "type": "review",
+                        "label": f"{len(review)} decision{'s' if len(review) > 1 else ''} en attente",
+                        "amount_cents": 0,
+                    }
+                else:
+                    item["financial_badge"] = {
+                        "type": "clean",
+                        "label": "Engagement respecte — aucune penalite",
+                        "amount_cents": 0,
+                    }
+            else:
+                # Participant view: personal outcome
+                pid = item.get("participant_id")
+                p_record = next((r for r in records if r["participant_id"] == pid), None)
+                if not p_record:
+                    item["financial_badge"] = None
+                    continue
+
+                p_user_id = participant_user_map.get(pid)
+
+                if p_record.get("review_required"):
+                    item["financial_badge"] = {
+                        "type": "review",
+                        "label": "Verification en cours",
+                        "amount_cents": 0,
+                    }
+                elif p_record["outcome"] in ("late", "no_show"):
+                    # Find the distribution for this participant's penalty
+                    p_dist = next((d for d in dists if d.get("no_show_participant_id") == pid), None)
+                    captured = p_dist.get("capture_amount_cents", 0) if p_dist else 0
+                    item["financial_badge"] = {
+                        "type": "penalty",
+                        "label": f"Penalite — {captured / 100:.0f} € preleves" if captured else "Penalite appliquee",
+                        "amount_cents": captured,
+                    }
+                elif p_record["outcome"] == "on_time":
+                    # Check if received compensation from another participant's penalty
+                    comp_cents = 0
+                    if p_user_id:
+                        for d in dists:
+                            for b in d.get("beneficiaries", []):
+                                if b.get("user_id") == p_user_id and b.get("role") != "platform":
+                                    comp_cents += b.get("amount_cents", 0)
+                    if comp_cents > 0:
+                        item["financial_badge"] = {
+                            "type": "compensation",
+                            "label": f"Compensation recue — +{comp_cents / 100:.0f} €",
+                            "amount_cents": comp_cents,
+                        }
+                    else:
+                        item["financial_badge"] = {
+                            "type": "clean",
+                            "label": "Engagement respecte — aucune penalite",
+                            "amount_cents": 0,
+                        }
+                elif p_record["outcome"] == "waived":
+                    item["financial_badge"] = {
+                        "type": "clean",
+                        "label": "Aucune penalite applicable",
+                        "amount_cents": 0,
+                    }
+                else:
+                    item["financial_badge"] = None
+
     return {
         "action_required": action_required,
         "upcoming": upcoming,
