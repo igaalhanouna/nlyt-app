@@ -124,14 +124,14 @@ function ActionRequiredSection({ items, onRemind, onAccept, onDecline, onCancel,
       </div>
       <div className="space-y-3">
         {items.slice(0, 8).map(item => (
-          <ActionCard key={`${item.role}-${item.appointment_id}`} item={item} onRemind={onRemind} onAccept={onAccept} onDecline={onDecline} onCancel={onCancel} now={now} />
+          <ActionCard key={`${item.role}-${item.appointment_id}`} item={item} onRemind={onRemind} onAccept={onAccept} onDecline={onDecline} onCancel={onCancel} now={now} onNavigate={onNavigate} />
         ))}
       </div>
     </div>
   );
 }
 
-function ActionCard({ item, onRemind, onAccept, onDecline, onCancel, now }) {
+function ActionCard({ item, onRemind, onAccept, onDecline, onCancel, now, onNavigate }) {
   const isParticipant = item.role === 'participant';
   const isOrgAlert = !isParticipant && item.action_required;
 
