@@ -321,6 +321,16 @@ Email: Resend | Payments: Stripe | Video: Zoom/Teams/Meet API
 - [x] Dev mode préservé: pm_dev_* skip validation Stripe correctement
 - [x] Testé: 9/9 scénarios Stripe réels passés (test_stripe_card_reuse.py)
 
+## Bug Fix — Check-in participant depuis vue unifiée (Fév 2026)
+- [x] BUG CRITIQUE: bouton "Confirmer ma présence" ne fonctionnait pas pour les participants
+- [x] Cause racine 1: `ParticipantCheckinBlock` envoyait `{appointment_id, participant_id}` au lieu de `{invitation_token}` → 422 Unprocessable Entity
+- [x] Cause racine 2: vérification statut check-in utilisait `res.data.checkins` (inexistant) au lieu de `res.data.checked_in`
+- [x] Cause racine 3: filtre statut excluait `accepted_pending_guarantee` de l'affichage du bouton
+- [x] Fix: payload corrigé avec `invitation_token`, GPS automatique pour RDV physiques, gestion 409 (double-clic)
+- [x] Fix: utilisation de `res.data?.checked_in` pour détection d'état
+- [x] Fix: filtre élargi à `['accepted', 'accepted_guaranteed', 'accepted_pending_guarantee']`
+- [x] Testé: 100% backend (12/12), 100% frontend (11/11) — iteration_98
+
 ## Upcoming Tasks
 - [ ] P2: Test réel Teams (compte non-pro)
 - [ ] P2: Configurer le webhook Stripe en production
