@@ -160,7 +160,7 @@ export default function FinancialResultsPage() {
                       <div className="text-right space-y-0.5">
                         {isPaid && (
                           <p className="text-sm font-semibold text-red-600" data-testid="eng-paid-amount">
-                            {"Vous avez indemnis\u00e9 de "}{fmt(eng.paid_cents, eng.currency)}
+                            {"Vous avez indemnis\u00e9 le ou les participants de "}{fmt(eng.paid_cents, eng.currency)}
                           </p>
                         )}
                         {isReceived && (
