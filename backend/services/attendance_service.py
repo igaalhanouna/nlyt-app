@@ -25,6 +25,11 @@ logger = logging.getLogger(__name__)
 # Grace window after appointment end before evaluation (minutes)
 GRACE_WINDOW_MINUTES = 30
 
+# Buffer zone: absorbs micro-delays (GPS latency, app load time, etc.)
+# Applied AFTER admissible proof is confirmed, BEFORE the 3-way delay split.
+# Internal constant, not configurable by organizer, not visible to users.
+BUFFER_ZONE_MINUTES = 2
+
 # Feature flag: no auto-capture in V1
 AUTO_CAPTURE_ENABLED = False
 
@@ -376,23 +381,30 @@ def evaluate_participant(participant: dict, appointment: dict) -> dict:
                 "evidence_summary": aggregation
             }
 
-        # 3-way delay split
-        if delay_minutes <= 0:
+        # 3-way delay split (with buffer zone absorption)
+        effective_delay = max(0, delay_minutes - BUFFER_ZONE_MINUTES)
+        buffer_applied = effective_delay != delay_minutes
+
+        if effective_delay <= 0:
             return {
                 "outcome": "on_time",
                 "decision_basis": "admissible_proof_on_time",
                 "confidence": "high",
                 "review_required": False,
                 "delay_minutes": delay_minutes,
+                "effective_delay_minutes": effective_delay,
+                "buffer_zone_applied": buffer_applied,
                 "evidence_summary": aggregation
             }
-        elif tolerated > 0 and delay_minutes <= tolerated:
+        elif tolerated > 0 and effective_delay <= tolerated:
             return {
                 "outcome": "late",
                 "decision_basis": "admissible_proof_late_within_tolerance",
                 "confidence": "high",
                 "review_required": False,
                 "delay_minutes": delay_minutes,
+                "effective_delay_minutes": effective_delay,
+                "buffer_zone_applied": buffer_applied,
                 "evidence_summary": aggregation
             }
         else:
@@ -402,6 +414,8 @@ def evaluate_participant(participant: dict, appointment: dict) -> dict:
                 "confidence": "high",
                 "review_required": False,
                 "delay_minutes": delay_minutes,
+                "effective_delay_minutes": effective_delay,
+                "buffer_zone_applied": buffer_applied,
                 "evidence_summary": aggregation
             }
 
