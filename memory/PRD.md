@@ -76,6 +76,18 @@ SaaS d'engagement ponctuel avec garantie financiere. Optimisation du "Viral Loop
 ### Phase 9 — Dispute Resolution Emails (10 tests, 100%) - DONE
 ### Phase 10 — Modification Emails & Video Param Fix (10 tests, 100%) - DONE
 ### Phase 11 — Check-in Time Window Alignment P0 (15 tests, 100%) - DONE
+### Phase 12 — Agenda Calendar View V1 (14 tests frontend, 100%) - DONE
+
+## Agenda Calendar View (Mar 2026)
+- Route: /agenda, navbar position: juste apres "Tableau de bord"
+- Vue mois uniquement (V1), toggle semaine differe
+- Donnees: appointmentAPI.myTimeline() + externalEventsAPI.list(), merge client-side
+- Tri: heure croissante, NLYT prioritaire a meme heure
+- Differentiation: dots solides (NLYT) vs dots creux (Google/Microsoft)
+- Clic jour: panneau detail avec evenements
+- Clic NLYT: navigate vers /appointments/{id}
+- Clic externe: non-cliquable (V1)
+- Aucun endpoint backend ajoute, zero logique metier nouvelle
 
 ## Check-in Time Window (Mar 2026)
 - Regle unique: ouverture start-30min, fermeture end+60min
