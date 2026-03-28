@@ -893,8 +893,6 @@ export default function AppointmentDetail() {
           <ParticipantCheckinBlock appointmentId={id} viewerParticipantId={appointment.viewer_participant_id} viewerInvitationToken={viewerInvitationToken} appointmentType={appointment.appointment_type} />
         )}
 
-        {/* Check-in / Confirmation section handles are above, no more PendingReviewSection */}
-
         {/* #7 — Preuves & Tracking — visible for both roles (read-only for participant) */}
         {!isCancelled && (
           <details className="mb-4 bg-white border border-slate-200 rounded-xl overflow-hidden group" data-testid="proof-tracking-details">

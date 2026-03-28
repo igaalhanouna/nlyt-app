@@ -122,6 +122,17 @@ SaaS d'engagement ponctuel avec garantie financiere. Optimisation du "Viral Loop
 - Removed states: `evaluating`, `reclassifying`, `reclassifyDropdown`
 - Tests: 10/10 frontend tests passed (iteration_117)
 
+### Phase 18b — Data Integrity Cleanup (Feb 2026) - DONE
+- Audit exhaustif de 199 RDV évalués, 335 records, 15 disputes, 8 sheets
+- FIX 1: 3 appointments `disputed` sans disputes → phase reset
+- FIX 2: 2 disputes orphelines (resolved, sans record) → supprimées
+- FIX 3: 34 records `organizer_manual` (demo seed) → re-stamped `legacy_demo_seed`
+- FIX 4: 1 RDV `manual_review` sans phase → phase déclarative initialisée
+- FIX 5: 2 test fixtures (test-dispute-*, test-pending-*) → purgées avec données liées
+- Vérification finale: 0 anomalie sur 10 checks
+- `api.js`: fonctions mortes supprimées (evaluate, reevaluate, reclassify)
+- Backend endpoints reclassify/evaluate/reevaluate: toujours routés mais 0 appel UI
+
 ## Upcoming Tasks
 - P1: Dashboard admin plateforme (arbitrage final des litiges escalades "maintained")
 - P1: Configurer webhook Stripe en production

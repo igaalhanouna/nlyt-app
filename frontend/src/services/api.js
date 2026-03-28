@@ -113,10 +113,7 @@ export const calendarAPI = {
 };
 
 export const attendanceAPI = {
-  evaluate: (appointment_id) => api.post(`/api/attendance/evaluate/${appointment_id}`),
-  reevaluate: (appointment_id) => api.post(`/api/attendance/reevaluate/${appointment_id}`),
   get: (appointment_id) => api.get(`/api/attendance/${appointment_id}`),
-  reclassify: (record_id, data) => api.put(`/api/attendance/reclassify/${record_id}`, data),
   pendingReviews: () => api.get('/api/attendance/pending-reviews/list'),
   pendingSheets: () => api.get('/api/attendance-sheets/pending'),
 };
