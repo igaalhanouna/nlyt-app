@@ -81,6 +81,17 @@ SaaS d'engagement ponctuel avec garantie financiere. Optimisation du "Viral Loop
 ### Phase 12c — Toggle Harmonisation Dashboard/Agenda (iteration_113, 100%) - DONE
 ### Phase 13 — Auto-creation meeting on type switch (11/11 unit tests) - DONE
 ### Phase 14 — Presences page realignment: declarative only (iteration_114, 100%) - DONE
+### Phase 15 — Dispute Decision Logic Phase 2 (iteration_115, 100%) - DONE
+
+## Dispute Decision Logic Phase 2 (Mar 2026)
+- Organizer is the SOLE accuser_user_id on all disputes
+- Rule: "Si l'organisateur ne soutient pas l'absence, il n'y a pas de litige financier"
+- New fields on disputes: accuser_user_id, accused_participant_id, accused_user_id, decision, decision_at, decision_by
+- Concede: POST /api/disputes/{id}/concede — resolves dispute with outcome=waived (no penalty)
+- Maintain: POST /api/disputes/{id}/maintain — escalates to platform for arbitration
+- Frontend: Decision buttons visible ONLY to accuser_user_id when decision is null
+- Guards: non-accuser rejected, double-decision rejected, already-resolved rejected
+- Backfill script: /app/backend/scripts/backfill_disputes.py (ran for 28 existing disputes)
 
 ## Agenda Calendar View (Mar 2026)
 - Route: /agenda, navbar position: juste apres "Tableau de bord"
@@ -135,13 +146,15 @@ SaaS d'engagement ponctuel avec garantie financiere. Optimisation du "Viral Loop
 
 ## Upcoming Tasks
 - P1: Configurer webhook Stripe en production
+- P2: Dashboard admin plateforme (arbitrage final des litiges escalades "maintained")
 
 ## Backlog
-- P2: Dashboard admin plateforme (arbitrage escalades)
 - P2: Charity Payouts V2 (Stripe Transfers)
 - P2: Webhooks temps reel Zoom/Teams
 - P2: Detection causalite organisateur
 - P2: Pages dediees charite & Leaderboard
+- P2: Delete API externe lors d'un switch visio -> physique (V2)
+- P2: Notification push/email a l'accusateur lors de la creation d'un litige
 
 ## Test Credentials
 - User 1: testuser_audit@nlyt.app / TestAudit123!
