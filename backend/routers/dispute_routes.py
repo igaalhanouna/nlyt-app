@@ -46,7 +46,7 @@ POSITION_LABELS = {
 
 
 def _get_anonymized_summary(appointment_id: str, target_pid: str) -> dict:
-    """Build anonymized declaration summary for a dispute target."""
+    """Build declaration summary with declarant first names."""
     sheets = list(db.attendance_sheets.find(
         {"appointment_id": appointment_id, "status": "submitted"},
         {"_id": 0}
@@ -55,9 +55,11 @@ def _get_anonymized_summary(appointment_id: str, target_pid: str) -> dict:
     absent_count = 0
     present_count = 0
     unknown_count = 0
+    declarants = []
 
     for s in sheets:
-        if s.get('submitted_by_participant_id') == target_pid:
+        submitter_pid = s.get('submitted_by_participant_id')
+        if submitter_pid == target_pid:
             continue
         for d in s.get('declarations', []):
             if d['target_participant_id'] == target_pid:
@@ -69,6 +71,16 @@ def _get_anonymized_summary(appointment_id: str, target_pid: str) -> dict:
                 else:
                     unknown_count += 1
 
+                submitter = db.participants.find_one(
+                    {"participant_id": submitter_pid},
+                    {"_id": 0, "first_name": 1}
+                )
+                first_name = (submitter.get('first_name') or '').strip() if submitter else ''
+                declarants.append({
+                    "first_name": first_name or "Un participant",
+                    "declared_status": status,
+                })
+
     has_tech = db.evidence_items.count_documents({
         "participant_id": target_pid,
         "appointment_id": appointment_id
@@ -79,6 +91,7 @@ def _get_anonymized_summary(appointment_id: str, target_pid: str) -> dict:
         "declared_present_count": present_count,
         "unknown_count": unknown_count,
         "has_tech_evidence": has_tech,
+        "declarants": declarants,
     }
 
 

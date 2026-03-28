@@ -21,7 +21,8 @@ const REASON_LABELS = {
   coherence_failure: 'Incohérence globale des déclarations',
   collusion_signal: 'Suspicion de conflit d\'intérêt',
   tech_signal_contradiction: 'Signal technique contradictoire',
-  small_group_escalation: 'Groupe trop restreint pour le vote déclaratif',
+  no_declarations_received: 'Aucune déclaration reçue dans les délais',
+  small_group_disagreement: 'Les déclarations du groupe se contredisent',
 };
 
 const DECLARATION_LABELS = {
@@ -156,30 +157,7 @@ export default function DisputeDetailPage() {
                 : `La présence de ${targetFirstName} n'a pas pu être vérifiée automatiquement. Les déclarations des participants se contredisent.`
               }
             </p>
-            <div className="bg-slate-50 rounded-lg p-4 space-y-2">
-              <div className="flex flex-wrap gap-3 text-xs">
-                {summary.declared_absent_count > 0 && (
-                  <span className="flex items-center gap-1.5 text-red-600">
-                    <UserX className="w-3.5 h-3.5" />
-                    {summary.declared_absent_count} {summary.declared_absent_count > 1 ? 'ont déclaré' : 'a déclaré'} {isTarget ? 'que vous étiez absent(e)' : `${targetFirstName} absent(e)`}
-                  </span>
-                )}
-                {summary.declared_present_count > 0 && (
-                  <span className="flex items-center gap-1.5 text-emerald-600">
-                    <UserCheck className="w-3.5 h-3.5" />
-                    {summary.declared_present_count} {summary.declared_present_count > 1 ? 'ont déclaré' : 'a déclaré'} {isTarget ? 'que vous étiez présent(e)' : `${targetFirstName} présent(e)`}
-                  </span>
-                )}
-              </div>
-              {summary.has_tech_evidence && (
-                <p className="text-xs text-slate-500">Signal technique détecté</p>
-              )}
-              {dispute.opened_reason && (
-                <p className="text-xs text-slate-400">
-                  {REASON_LABELS[dispute.opened_reason] || dispute.opened_reason}
-                </p>
-              )}
-            </div>
+            <DeclarationSummaryBlock summary={summary} isTarget={isTarget} targetFirstName={targetFirstName} />
           </div>
 
           {/* ─── BLOC 3: Votre déclaration ─── */}
@@ -400,6 +378,86 @@ export default function DisputeDetailPage() {
           Les déclarations individuelles restent confidentielles. Aucune pénalité ne peut être appliquée sans l'accord explicite des deux parties.
         </p>
       </div>
+    </div>
+  );
+}
+
+
+const STATUS_DISPLAY = {
+  absent: { label: 'absent(e)', color: 'text-red-600 bg-red-50 border-red-100', icon: UserX },
+  present_on_time: { label: 'présent(e)', color: 'text-emerald-600 bg-emerald-50 border-emerald-100', icon: UserCheck },
+  present_late: { label: 'présent(e) (en retard)', color: 'text-amber-600 bg-amber-50 border-amber-100', icon: Clock },
+  unknown: { label: 'ne sait pas', color: 'text-slate-500 bg-slate-50 border-slate-100', icon: AlertTriangle },
+};
+
+function formatDeclarantNames(names) {
+  if (names.length === 0) return '';
+  if (names.length === 1) return names[0];
+  if (names.length === 2) return `${names[0]} et ${names[1]}`;
+  return `${names[0]}, ${names[1]} et ${names.length - 2} autre${names.length - 2 > 1 ? 's' : ''}`;
+}
+
+function DeclarationSummaryBlock({ summary, isTarget, targetFirstName }) {
+  const declarants = summary.declarants || [];
+  const hasDeclarants = declarants.length > 0;
+
+  // Group by status
+  const grouped = {};
+  declarants.forEach(d => {
+    const key = d.declared_status || 'unknown';
+    if (!grouped[key]) grouped[key] = [];
+    grouped[key].push(d.first_name);
+  });
+
+  return (
+    <div className="bg-slate-50 rounded-lg p-4 space-y-3" data-testid="declaration-summary-block">
+      {hasDeclarants ? (
+        <>
+          {/* Phrase résumé par groupe */}
+          <div className="space-y-2">
+            {Object.entries(grouped).map(([status, names]) => {
+              const cfg = STATUS_DISPLAY[status] || STATUS_DISPLAY.unknown;
+              const Icon = cfg.icon;
+              const namesStr = formatDeclarantNames(names);
+              const verb = names.length > 1 ? 'ont déclaré' : 'a déclaré';
+              const target = isTarget ? 'que vous étiez' : `que ${targetFirstName} était`;
+              return (
+                <div key={status} className="flex items-start gap-2 text-xs">
+                  <Icon className={`w-3.5 h-3.5 mt-0.5 flex-shrink-0 ${cfg.color.split(' ')[0]}`} />
+                  <span className="text-slate-700">
+                    <span className="font-medium">{namesStr}</span> {verb} {target} <span className={`font-medium ${cfg.color.split(' ')[0]}`}>{cfg.label}</span>
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Liste détaillée individuelle */}
+          {declarants.length > 1 && (
+            <div className="border-t border-slate-200 pt-2.5 mt-2.5 space-y-1.5">
+              {declarants.map((d, i) => {
+                const cfg = STATUS_DISPLAY[d.declared_status] || STATUS_DISPLAY.unknown;
+                const Icon = cfg.icon;
+                return (
+                  <div key={i} className={`flex items-center justify-between px-2.5 py-1.5 rounded-md border ${cfg.color}`} data-testid={`declarant-row-${i}`}>
+                    <span className="text-xs font-medium">{d.first_name}</span>
+                    <span className="flex items-center gap-1 text-xs">
+                      <Icon className="w-3 h-3" />
+                      {cfg.label}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </>
+      ) : (
+        <p className="text-xs text-slate-400">Aucune déclaration de présence reçue</p>
+      )}
+
+      {summary.has_tech_evidence && (
+        <p className="text-xs text-slate-500">Signal technique détecté</p>
+      )}
     </div>
   );
 }
