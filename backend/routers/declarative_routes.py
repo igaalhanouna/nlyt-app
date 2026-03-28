@@ -55,12 +55,15 @@ async def get_pending_sheets(request: Request):
 
         # Enrich target names
         for t in targets:
-            p = db.participants.find_one(
-                {"participant_id": t['target_participant_id']},
-                {"_id": 0, "first_name": 1, "last_name": 1, "email": 1}
-            )
-            if p:
-                t['target_name'] = f"{p.get('first_name', '')} {p.get('last_name', '')}".strip() or p.get('email', '')
+            if t.get('is_self_declaration'):
+                t['target_name'] = 'Vous-même'
+            else:
+                p = db.participants.find_one(
+                    {"participant_id": t['target_participant_id']},
+                    {"_id": 0, "first_name": 1, "last_name": 1, "email": 1}
+                )
+                if p:
+                    t['target_name'] = f"{p.get('first_name', '')} {p.get('last_name', '')}".strip() or p.get('email', '')
 
         result.append({
             "appointment_id": sheet['appointment_id'],
@@ -105,12 +108,15 @@ async def get_my_sheet(appointment_id: str, request: Request):
 
     # Enrich targets with names
     for d in sheet.get('declarations', []):
-        p = db.participants.find_one(
-            {"participant_id": d['target_participant_id']},
-            {"_id": 0, "first_name": 1, "last_name": 1, "email": 1}
-        )
-        if p:
-            d['target_name'] = f"{p.get('first_name', '')} {p.get('last_name', '')}".strip() or p.get('email', '')
+        if d.get('is_self_declaration'):
+            d['target_name'] = 'Vous-même'
+        else:
+            p = db.participants.find_one(
+                {"participant_id": d['target_participant_id']},
+                {"_id": 0, "first_name": 1, "last_name": 1, "email": 1}
+            )
+            if p:
+                d['target_name'] = f"{p.get('first_name', '')} {p.get('last_name', '')}".strip() or p.get('email', '')
 
     return sheet
 

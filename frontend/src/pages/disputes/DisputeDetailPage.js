@@ -184,7 +184,7 @@ export default function DisputeDetailPage() {
 
           {/* ─── BLOC 3: Votre déclaration ─── */}
           <div className="p-5 border-b border-slate-100" data-testid="dispute-my-declaration">
-            <h2 className="text-sm font-semibold text-slate-700 mb-2">Votre déclaration</h2>
+            <h2 className="text-sm font-semibold text-slate-700 mb-2">Votre déclaration sur les présences</h2>
             {dispute.my_declaration ? (
               <p className="text-sm text-slate-600">
                 {isTarget
@@ -205,9 +205,9 @@ export default function DisputeDetailPage() {
           {/* ─── BLOC 4: Votre position (décision) ─── */}
           {dispute.can_submit_position && (
             <div className="p-5 border-b border-slate-100" data-testid="dispute-position-block">
-              <h2 className="text-sm font-semibold text-slate-700 mb-2">Votre position</h2>
+              <h2 className="text-sm font-semibold text-slate-700 mb-2">Votre position sur le litige</h2>
               <p className="text-xs text-slate-500 mb-4">
-                Pour résoudre ce désaccord, confirmez votre position. Si les positions divergent, un arbitre neutre de la plateforme tranchera.
+                Pour résoudre ce désaccord, confirmez votre position sur ce litige. Si les positions divergent, un arbitre neutre de la plateforme tranchera.
               </p>
 
               {confirmPosition === null ? (
@@ -253,7 +253,7 @@ export default function DisputeDetailPage() {
           {/* ─── Position déjà soumise ─── */}
           {dispute.my_position && !dispute.is_resolved && (
             <div className="p-5 border-b border-slate-100" data-testid="dispute-position-submitted">
-              <h2 className="text-sm font-semibold text-slate-700 mb-2">Votre position</h2>
+              <h2 className="text-sm font-semibold text-slate-700 mb-2">Votre position sur le litige</h2>
               <div className="bg-slate-50 rounded-lg p-4">
                 <p className="text-sm text-slate-600">
                   <PositionLabel position={dispute.my_position} isTarget={isTarget} targetFirstName={targetFirstName} />

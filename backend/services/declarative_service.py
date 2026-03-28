@@ -30,6 +30,10 @@ def initialize_declarative_phase(appointment_id: str):
     """
     Called after evaluate_appointment() when manual_review records exist.
     Creates pending attendance sheets for each participant.
+
+    V4 Trustless: ALWAYS creates sheets, even for < 3 participants.
+    No bypass, no direct escalation. Every manual_review goes through Presences first.
+    Targeted participants also get a self-declaration target.
     """
     appointment = db.appointments.find_one({"appointment_id": appointment_id}, {"_id": 0})
     if not appointment:
@@ -45,16 +49,6 @@ def initialize_declarative_phase(appointment_id: str):
         or p.get('user_id') == appointment.get('organizer_id')
     ]
 
-    # RDV with < 3 active participants → escalade directe
-    if len(active_participants) < 3:
-        logger.info(f"[DECLARATIVE] {appointment_id}: < 3 participants, direct escalation")
-        _escalate_all_manual_reviews(appointment_id, active_participants)
-        db.appointments.update_one(
-            {"appointment_id": appointment_id},
-            {"$set": {"declarative_phase": "disputed"}}
-        )
-        return
-
     # Get manual_review records (only these need declaration)
     review_records = list(db.attendance_records.find(
         {"appointment_id": appointment_id, "review_required": True, "outcome": "manual_review"},
@@ -67,24 +61,43 @@ def initialize_declarative_phase(appointment_id: str):
         )
         return
 
+    review_pids = {r['participant_id'] for r in review_records}
     deadline = now_utc() + timedelta(hours=SHEET_DEADLINE_HOURS)
+    sheets_created = 0
 
     # Create one sheet per active participant
     for p in active_participants:
+        p_user_id = p.get('user_id')
+        p_pid = p.get('participant_id')
+
+        if not p_user_id:
+            continue
+
         existing = db.attendance_sheets.find_one({
             "appointment_id": appointment_id,
-            "submitted_by_user_id": p['user_id']
+            "submitted_by_user_id": p_user_id
         })
         if existing:
             continue
 
-        # Targets = only participants in manual_review, excluding self
+        # Targets = participants in manual_review, excluding self
         targets = [
-            {"target_participant_id": r['participant_id'], "target_user_id": _get_user_id(r['participant_id']),
-             "declared_status": None}
+            {"target_participant_id": r['participant_id'],
+             "target_user_id": _get_user_id(r['participant_id']),
+             "declared_status": None,
+             "is_self_declaration": False}
             for r in review_records
-            if r['participant_id'] != p.get('participant_id')
+            if r['participant_id'] != p_pid
         ]
+
+        # Self-declaration: if THIS participant is in manual_review, add themselves
+        if p_pid in review_pids:
+            targets.append({
+                "target_participant_id": p_pid,
+                "target_user_id": p_user_id or '',
+                "declared_status": None,
+                "is_self_declaration": True,
+            })
 
         if not targets:
             continue
@@ -92,14 +105,15 @@ def initialize_declarative_phase(appointment_id: str):
         db.attendance_sheets.insert_one({
             "sheet_id": str(uuid.uuid4()),
             "appointment_id": appointment_id,
-            "submitted_by_user_id": p['user_id'],
-            "submitted_by_participant_id": p.get('participant_id'),
+            "submitted_by_user_id": p_user_id,
+            "submitted_by_participant_id": p_pid,
             "status": "pending",
             "submitted_at": None,
             "declarations": targets,
             "created_at": now_utc().isoformat(),
             "deadline": deadline.isoformat(),
         })
+        sheets_created += 1
 
     db.appointments.update_one(
         {"appointment_id": appointment_id},
@@ -109,23 +123,14 @@ def initialize_declarative_phase(appointment_id: str):
         }}
     )
     logger.info(f"[DECLARATIVE] Phase initialized for {appointment_id}. "
-                f"{len(review_records)} records in review, {len(active_participants)} sheets created. "
+                f"{len(review_records)} records in review, {sheets_created} sheets created, "
+                f"{len(active_participants)} active participants. "
                 f"Deadline: {deadline.isoformat()}")
 
 
 def _get_user_id(participant_id: str) -> str:
     p = db.participants.find_one({"participant_id": participant_id}, {"_id": 0, "user_id": 1})
     return p.get('user_id', '') if p else ''
-
-
-def _escalate_all_manual_reviews(appointment_id: str, participants: list):
-    """For RDV < 3 participants: create a dispute for each manual_review record."""
-    review_records = list(db.attendance_records.find(
-        {"appointment_id": appointment_id, "review_required": True, "outcome": "manual_review"},
-        {"_id": 0}
-    ))
-    for r in review_records:
-        open_dispute(appointment_id, r['participant_id'], "small_group_escalation")
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -209,7 +214,12 @@ def _check_and_trigger_analysis(appointment_id: str):
 # ═══════════════════════════════════════════════════════════════════
 
 def _run_analysis(appointment_id: str):
-    """Analyze all sheets and resolve or open disputes."""
+    """Analyze all sheets and resolve or open disputes.
+
+    V4: Two analysis paths:
+    - Large groups (>= 3 participants): cross-declaration unanimity check
+    - Small groups (< 3 participants): direct comparison including self-declarations
+    """
     db.appointments.update_one(
         {"appointment_id": appointment_id},
         {"$set": {"declarative_phase": "analyzing"}}
@@ -218,7 +228,6 @@ def _run_analysis(appointment_id: str):
     sheets = list(db.attendance_sheets.find({"appointment_id": appointment_id}, {"_id": 0}))
     submitted_sheets = [s for s in sheets if s['status'] == 'submitted']
 
-    # Build the declaration matrix
     review_records = list(db.attendance_records.find(
         {"appointment_id": appointment_id, "review_required": True, "outcome": "manual_review"},
         {"_id": 0}
@@ -231,11 +240,116 @@ def _run_analysis(appointment_id: str):
         )
         return
 
-    # Global coherence check (cross-accusations)
+    # Determine group size
+    appointment = db.appointments.find_one({"appointment_id": appointment_id}, {"_id": 0})
+    participants = list(db.participants.find({"appointment_id": appointment_id}, {"_id": 0}))
+    active_count = len([
+        p for p in participants
+        if p.get('status') in ('accepted', 'accepted_pending_guarantee', 'accepted_guaranteed')
+        or p.get('user_id') == (appointment or {}).get('organizer_id')
+    ])
+
+    if active_count < 3:
+        per_participant_results = _run_small_group_analysis(appointment_id, review_records, submitted_sheets)
+    else:
+        per_participant_results = _run_large_group_analysis(appointment_id, review_records, submitted_sheets)
+
+    # Store analysis
+    db.declarative_analyses.insert_one({
+        "analysis_id": str(uuid.uuid4()),
+        "appointment_id": appointment_id,
+        "analyzed_at": now_utc().isoformat(),
+        "group_size": active_count,
+        "per_participant": per_participant_results,
+    })
+
+    # Apply results
+    any_dispute = False
+    for result in per_participant_results:
+        if result['auto_resolvable']:
+            _apply_declarative_outcome(appointment_id, result)
+        else:
+            open_dispute(appointment_id, result['target_participant_id'], result.get('reason_if_not', 'unknown'))
+            any_dispute = True
+
+    new_phase = "disputed" if any_dispute else "resolved"
+    db.appointments.update_one(
+        {"appointment_id": appointment_id},
+        {"$set": {"declarative_phase": new_phase}}
+    )
+
+    if new_phase == "resolved":
+        from services.attendance_service import reset_cas_a_overrides, _process_financial_outcomes
+        reset_cas_a_overrides(appointment_id)
+        appointment = db.appointments.find_one({"appointment_id": appointment_id}, {"_id": 0})
+        participants = list(db.participants.find({"appointment_id": appointment_id}, {"_id": 0}))
+        _process_financial_outcomes(appointment_id, appointment, participants)
+        logger.info(f"[DECLARATIVE] All manual_reviews resolved for {appointment_id}. Financial engine relaunched.")
+
+
+def _run_small_group_analysis(appointment_id: str, review_records: list, submitted_sheets: list) -> list:
+    """For < 3 participants: direct comparison of ALL declarations including self-declarations.
+
+    Rule: Agreement (all same status) → auto-resolve. Any disagreement → dispute.
+    Self-declarations are included with equal weight (no special treatment).
+    """
+    results = []
+    for record in review_records:
+        target_pid = record['participant_id']
+
+        all_declarations = []
+        for s in submitted_sheets:
+            for d in s.get('declarations', []):
+                if d['target_participant_id'] == target_pid and d.get('declared_status') not in (None, 'unknown'):
+                    all_declarations.append({
+                        'declared_status': d['declared_status'],
+                        'is_self': d.get('is_self_declaration', False),
+                        'submitted_by': s.get('submitted_by_participant_id'),
+                    })
+
+        if not all_declarations:
+            results.append({
+                "target_participant_id": target_pid,
+                "tiers_expressed_count": 0,
+                "auto_resolvable": False,
+                "reason_if_not": "no_declarations_received",
+                "confidence_level": "LOW",
+            })
+            continue
+
+        statuses = set(d['declared_status'] for d in all_declarations)
+        if len(statuses) == 1:
+            # Agreement — all parties said the same thing
+            agreed_status = statuses.pop()
+            results.append({
+                "target_participant_id": target_pid,
+                "tiers_expressed_count": len(all_declarations),
+                "tiers_unanimous": True,
+                "unanimous_status": agreed_status,
+                "auto_resolvable": True,
+                "confidence_level": "MEDIUM",
+            })
+        else:
+            # Disagreement — positions differ
+            results.append({
+                "target_participant_id": target_pid,
+                "tiers_expressed_count": len(all_declarations),
+                "tiers_unanimous": False,
+                "auto_resolvable": False,
+                "reason_if_not": "small_group_disagreement",
+                "confidence_level": "LOW",
+            })
+
+    return results
+
+
+def _run_large_group_analysis(appointment_id: str, review_records: list, submitted_sheets: list) -> list:
+    """For >= 3 participants: cross-declaration analysis with unanimity and coherence checks.
+    Self-declarations are EXCLUDED (tiers only).
+    """
     global_coherence = _check_global_coherence(submitted_sheets)
 
-    per_participant_results = []
-
+    results = []
     for record in review_records:
         target_pid = record['participant_id']
 
@@ -262,7 +376,7 @@ def _run_analysis(appointment_id: str):
                 reasons.append(contradiction.get('reason', 'contradiction'))
             reason = "; ".join(reasons)
 
-        per_participant_results.append({
+        results.append({
             "target_participant_id": target_pid,
             "tiers_expressed_count": unanimity.get('expressed_count', 0),
             "tiers_unanimous": unanimity.get('unanimous', False),
@@ -275,38 +389,7 @@ def _run_analysis(appointment_id: str):
             "reason_if_not": reason,
         })
 
-    # Store analysis
-    db.declarative_analyses.insert_one({
-        "analysis_id": str(uuid.uuid4()),
-        "appointment_id": appointment_id,
-        "analyzed_at": now_utc().isoformat(),
-        "global_coherent": global_coherence.get('coherent', False),
-        "per_participant": per_participant_results,
-    })
-
-    # Apply results
-    any_dispute = False
-    for result in per_participant_results:
-        if result['auto_resolvable']:
-            _apply_declarative_outcome(appointment_id, result)
-        else:
-            open_dispute(appointment_id, result['target_participant_id'], result.get('reason_if_not', 'unknown'))
-            any_dispute = True
-
-    new_phase = "disputed" if any_dispute else "resolved"
-    db.appointments.update_one(
-        {"appointment_id": appointment_id},
-        {"$set": {"declarative_phase": new_phase}}
-    )
-
-    if new_phase == "resolved":
-        # Reset Cas A overrides before re-triggering financial engine
-        from services.attendance_service import reset_cas_a_overrides, _process_financial_outcomes
-        reset_cas_a_overrides(appointment_id)
-        appointment = db.appointments.find_one({"appointment_id": appointment_id}, {"_id": 0})
-        participants = list(db.participants.find({"appointment_id": appointment_id}, {"_id": 0}))
-        _process_financial_outcomes(appointment_id, appointment, participants)
-        logger.info(f"[DECLARATIVE] All manual_reviews resolved for {appointment_id}. Financial engine relaunched.")
+    return results
 
 
 def _check_unanimity(target_pid: str, sheets: list) -> dict:
