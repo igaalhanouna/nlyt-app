@@ -162,6 +162,15 @@ SaaS d'engagement ponctuel avec garantie financiere. Optimisation du "Viral Loop
 - Frontend: `DisputesListPage` action hints with counterpart names
 - Tests: 20/20 (12 backend + 8 frontend, iteration_119)
 
+### Phase 21 — P0 Dispute Perspective Wording Fix (Feb 2026) - DONE
+- **BUG FIX**: `isTarget` on frontend was derived from `my_role === 'participant'` which failed in deadlock cases (organizer = target)
+- Backend: `_enrich_dispute_for_user()` now returns absolute `is_target: bool` (based on `target_user_id == user_id`)
+- Backend: `_get_anonymized_summary()` now accepts `viewer_user_id` and adds `is_me: bool` to each declarant
+- Frontend: `DisputeDetailPage.js` uses `dispute.is_target` instead of role-based check
+- Frontend: `DeclarationSummaryBlock` shows "Vous" when `is_me === true`, with correct verb "avez déclaré"
+- Frontend: `DisputesListPage.js` shows "Votre présence est contestée" when `is_target === true`
+- Tests: 22/22 (9 unit + 6 API + 7 frontend, iteration_120)
+
 ## Upcoming Tasks
 - P1: Dashboard admin plateforme (arbitrage final des litiges escalades "maintained")
 - P1: Configurer webhook Stripe en production
