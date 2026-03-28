@@ -84,7 +84,19 @@ SaaS d'engagement ponctuel avec garantie financiere. Optimisation du "Viral Loop
 ### Phase 15 — Dispute Decision Logic Phase 2 (iteration_115, 100%) - SUPERSEDED BY V4
 ### Phase 16 — V4 Trustless Symmetric Disputes (iteration_116, 100%) - DONE
 
-## V4.1 Dispute Lifecycle — Active-Only List (Mar 2026)
+## V4.2 Strong Proof Lockdown & Small Group Declarative (Mar 2026)
+- RULE: Strong technological proof NEVER creates manual_review, attendance_sheet, or dispute
+- Strong proof = GPS valid, QR code, NLYT Proof >= 55, Video API (Zoom/Teams)
+- Weak/no proof = manual_checkin only, NLYT < 30, no evidence → manual_review → Presences
+- Small groups (< 3 participants): no longer bypass Presences. Sheets always created.
+- Self-declaration: targeted participants declare on themselves (is_self_declaration=true)
+- Small group analysis: direct comparison, agreement → resolve, disagreement → dispute
+- Old _escalate_all_manual_reviews() REMOVED (dead code)
+- Wording: "Votre declaration sur les presences" / "Votre position sur le litige"
+- Lock-down tests: /app/backend/tests/test_strong_proof_lockdown.py (6 tests)
+- Flow tests: /app/backend/tests/test_presences_flow.py (5 tests)
+
+
 - /litiges page shows ONLY active disputes (awaiting_positions, escalated)
 - Resolved disputes (agreed_present, agreed_absent, agreed_late_penalized, resolved) hidden from list
 - Resolved disputes remain accessible via direct URL /litiges/{id}
