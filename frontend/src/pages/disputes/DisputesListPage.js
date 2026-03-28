@@ -110,7 +110,10 @@ function DisputeCard({ dispute }) {
             </p>
           )}
           <p className="text-xs text-slate-500 mt-1.5">
-            Présence contestée : <span className="font-medium">{dispute.target_name || 'Participant'}</span>
+            {dispute.is_target
+              ? <span className="font-medium">Votre présence est contestée</span>
+              : <>Présence contestée : <span className="font-medium">{dispute.target_name || 'Participant'}</span></>
+            }
           </p>
           {actionHint && (
             <div className="flex items-center gap-1.5 mt-2">

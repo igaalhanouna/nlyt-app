@@ -45,8 +45,8 @@ POSITION_LABELS = {
 }
 
 
-def _get_anonymized_summary(appointment_id: str, target_pid: str) -> dict:
-    """Build declaration summary with declarant first names."""
+def _get_anonymized_summary(appointment_id: str, target_pid: str, viewer_user_id: str = None) -> dict:
+    """Build declaration summary with declarant first names and is_me flag."""
     sheets = list(db.attendance_sheets.find(
         {"appointment_id": appointment_id, "status": "submitted"},
         {"_id": 0}
@@ -61,6 +61,7 @@ def _get_anonymized_summary(appointment_id: str, target_pid: str) -> dict:
         submitter_pid = s.get('submitted_by_participant_id')
         if submitter_pid == target_pid:
             continue
+        submitter_uid = s.get('submitted_by_user_id', '')
         for d in s.get('declarations', []):
             if d['target_participant_id'] == target_pid:
                 status = d.get('declared_status', 'unknown')
@@ -79,6 +80,7 @@ def _get_anonymized_summary(appointment_id: str, target_pid: str) -> dict:
                 declarants.append({
                     "first_name": first_name or "Un participant",
                     "declared_status": status,
+                    "is_me": (viewer_user_id is not None and submitter_uid == viewer_user_id),
                 })
 
     has_tech = db.evidence_items.count_documents({
@@ -187,6 +189,7 @@ def _enrich_dispute_for_user(d: dict, user_id: str) -> dict:
 
     d['my_role'] = my_role
     d['my_position'] = my_position
+    d['is_target'] = is_target
     d['other_party_responded'] = other_responded
     d['can_submit_position'] = can_submit_position
     d['can_submit_evidence'] = can_submit_evidence
@@ -237,7 +240,7 @@ async def list_my_disputes(request: Request):
         if target_p:
             d['target_name'] = f"{target_p.get('first_name', '')} {target_p.get('last_name', '')}".strip()
 
-        d['declaration_summary'] = _get_anonymized_summary(d['appointment_id'], d['target_participant_id'])
+        d['declaration_summary'] = _get_anonymized_summary(d['appointment_id'], d['target_participant_id'], user_id)
         d['evidence_submissions_count'] = len(d.get('evidence_submissions', []))
         d.pop('evidence_submissions', None)
 
@@ -279,7 +282,7 @@ async def get_dispute_detail(dispute_id: str, request: Request):
         dispute['target_name'] = f"{target_p.get('first_name', '')} {target_p.get('last_name', '')}".strip()
 
     dispute['declaration_summary'] = _get_anonymized_summary(
-        dispute['appointment_id'], dispute['target_participant_id']
+        dispute['appointment_id'], dispute['target_participant_id'], user['user_id']
     )
 
     _enrich_dispute_for_user(dispute, user['user_id'])

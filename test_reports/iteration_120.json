@@ -1,0 +1,92 @@
+{
+  "summary": "Iteration 120 - P0 Perspective Wording Bug Fix Testing: All 15 backend tests passed (100%), 3 skipped (no matching test data). Frontend verified working correctly. The is_target and is_me fields are correctly returned by the API and used by the frontend for perspective-aware wording.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": {
+    "backend_pytest_unit": [
+      "✅ test_is_target_normal_participant - When user IS the target, is_target=True",
+      "✅ test_is_target_organizer_not_target - When organizer is NOT target, is_target=False",
+      "✅ test_is_target_deadlock_organizer_is_target - Deadlock case: organizer IS target, is_target=True AND my_role=organizer",
+      "✅ test_is_target_deadlock_counterpart - Deadlock counterpart: is_target=False",
+      "✅ test_is_target_observer - Observer: is_target=False",
+      "✅ test_is_me_viewer_is_declarant - Viewer's declaration has is_me=True",
+      "✅ test_is_me_viewer_not_declarant - Non-viewer declarants have is_me=False",
+      "✅ test_is_me_no_viewer - No viewer_user_id: all is_me=False",
+      "✅ test_is_me_multiple_declarants_n3 - N=3 participants: correct is_me flags"
+    ],
+    "backend_pytest_api": [
+      "✅ test_disputes_mine_returns_is_target_field - GET /api/disputes/mine returns is_target boolean",
+      "✅ test_disputes_mine_returns_declaration_summary_with_is_me - declarants[].is_me present",
+      "✅ test_dispute_detail_returns_is_target_field - GET /api/disputes/{id} returns is_target",
+      "✅ test_dispute_detail_returns_is_me_in_declarants - Detail endpoint returns is_me",
+      "✅ test_other_declarants_have_is_me_false - Other declarants have is_me=False",
+      "✅ test_deadlock_organizer_is_target_has_both_flags - Deadlock: my_role=organizer AND is_target=True"
+    ],
+    "frontend_playwright": [
+      "✅ Login flow works for organizer and counterpart",
+      "✅ Dispute detail page loads correctly",
+      "✅ Target perspective: 'Votre présence n'a pas pu être vérifiée' shown when is_target=true",
+      "✅ Non-target perspective: 'La présence de {name}' shown when is_target=false",
+      "✅ is_me=true: 'Vous avez déclaré' with correct verb conjugation",
+      "✅ is_me=false: '{first_name} a déclaré' with third-person conjugation",
+      "✅ Declaration summary shows 'Vous' instead of first_name when is_me=true"
+    ]
+  },
+  "skipped_tests": [
+    "test_organizer_not_target_sees_is_target_false - No dispute where organizer is NOT target (only deadlock case exists)",
+    "test_participant_target_sees_is_target_true - No dispute where participant user is target",
+    "test_viewer_declaration_has_is_me_true - Organizer didn't submit declaration about target"
+  ],
+  "test_report_links": [
+    "/app/backend/tests/test_perspective_wording.py",
+    "/app/backend/tests/test_perspective_wording_api.py",
+    "/app/test_reports/pytest/pytest_perspective_wording_iter120.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_perspective_wording_api.py"
+  ],
+  "success_rate": {
+    "backend": "100% (15/15 tests passed, 3 skipped due to no matching test data)",
+    "frontend": "100% (7/7 tests passed)"
+  },
+  "test_credentials": {
+    "organizer_target": "testuser_audit@nlyt.app / TestAudit123!",
+    "counterpart": "igaal@hotmail.com / Test123!"
+  },
+  "seed_data_creation": "None - used existing dispute 619c6d07-d42f-46ea-8d8b-c64a26225ff5",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "P0 perspective wording fix verified. Key changes: (1) Backend _enrich_dispute_for_user now sets is_target based on target_user_id == user_id, (2) Backend _get_anonymized_summary now accepts viewer_user_id and sets is_me on each declarant, (3) Frontend DisputeDetailPage uses dispute.is_target for target perspective wording, (4) Frontend DeclarationSummaryBlock shows 'Vous' when is_me=true with correct verb conjugation 'avez déclaré'. The only dispute in the database is a resolved deadlock case (organizer=target). To test non-deadlock cases, create a new dispute where organizer != target.",
+  "features_verified": {
+    "1_is_target_in_disputes_mine": "✅ VERIFIED - GET /api/disputes/mine returns is_target boolean",
+    "2_is_target_in_dispute_detail": "✅ VERIFIED - GET /api/disputes/{id} returns is_target boolean",
+    "3_is_me_in_declarants": "✅ VERIFIED - declaration_summary.declarants[].is_me boolean present",
+    "4_is_target_logic": "✅ VERIFIED - is_target=true when target_user_id matches viewer",
+    "5_deadlock_case": "✅ VERIFIED - Deadlock: is_target=true AND my_role=organizer",
+    "6_frontend_target_perspective": "✅ VERIFIED - 'Votre présence est contestée' when is_target=true",
+    "7_frontend_non_target_perspective": "✅ VERIFIED - 'Présence contestée : {name}' when is_target=false",
+    "8_frontend_is_me_vous": "✅ VERIFIED - DeclarationSummaryBlock shows 'Vous' when is_me=true",
+    "9_frontend_verb_conjugation": "✅ VERIFIED - 'avez déclaré' for is_me=true, 'a déclaré' for is_me=false"
+  },
+  "api_response_samples": {
+    "organizer_target_view": {
+      "my_role": "organizer",
+      "is_target": true,
+      "declarants": [{"first_name": "Igaal", "is_me": false}]
+    },
+    "counterpart_view": {
+      "my_role": "participant",
+      "is_target": false,
+      "declarants": [{"first_name": "Igaal", "is_me": true}]
+    }
+  }
+}

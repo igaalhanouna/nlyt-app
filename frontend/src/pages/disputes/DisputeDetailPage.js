@@ -110,7 +110,7 @@ export default function DisputeDetailPage() {
   const deadline = dispute.deadline ? new Date(dispute.deadline) : null;
   const summary = dispute.declaration_summary || {};
   const resolution = dispute.resolution || {};
-  const isTarget = dispute.my_role === 'participant';
+  const isTarget = dispute.is_target === true;
   const targetFirstName = dispute.target_name?.split(' ')[0] || 'Le participant';
 
   return (
@@ -393,12 +393,12 @@ function DeclarationSummaryBlock({ summary, isTarget, targetFirstName }) {
   const declarants = summary.declarants || [];
   const hasDeclarants = declarants.length > 0;
 
-  // Group by status
+  // Group by status, using "Vous" for is_me declarants
   const grouped = {};
   declarants.forEach(d => {
     const key = d.declared_status || 'unknown';
     if (!grouped[key]) grouped[key] = [];
-    grouped[key].push(d.first_name);
+    grouped[key].push(d.is_me ? 'Vous' : d.first_name);
   });
 
   return (
@@ -411,7 +411,9 @@ function DeclarationSummaryBlock({ summary, isTarget, targetFirstName }) {
               const cfg = STATUS_DISPLAY[status] || STATUS_DISPLAY.unknown;
               const Icon = cfg.icon;
               const namesStr = formatDeclarantNames(names);
-              const verb = names.length > 1 ? 'ont déclaré' : 'a déclaré';
+              const hasVous = names.includes('Vous');
+              const onlyVous = names.length === 1 && hasVous;
+              const verb = onlyVous ? 'avez déclaré' : (names.length > 1 ? 'ont déclaré' : 'a déclaré');
               const target = isTarget ? 'que vous étiez' : `que ${targetFirstName} était`;
               return (
                 <div key={status} className="flex items-start gap-2 text-xs">
@@ -430,9 +432,10 @@ function DeclarationSummaryBlock({ summary, isTarget, targetFirstName }) {
               {declarants.map((d, i) => {
                 const cfg = STATUS_DISPLAY[d.declared_status] || STATUS_DISPLAY.unknown;
                 const Icon = cfg.icon;
+                const displayName = d.is_me ? 'Vous' : d.first_name;
                 return (
                   <div key={i} className={`flex items-center justify-between px-2.5 py-1.5 rounded-md border ${cfg.color}`} data-testid={`declarant-row-${i}`}>
-                    <span className="text-xs font-medium">{d.first_name}</span>
+                    <span className="text-xs font-medium">{displayName}</span>
                     <span className="flex items-center gap-1 text-xs">
                       <Icon className="w-3 h-3" />
                       {cfg.label}
