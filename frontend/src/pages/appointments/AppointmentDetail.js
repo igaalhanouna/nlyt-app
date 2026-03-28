@@ -991,6 +991,7 @@ export default function AppointmentDetail() {
                   onReclassify={handleReclassify} reclassifying={reclassifying}
                   reclassifyDropdown={reclassifyDropdown} setReclassifyDropdown={setReclassifyDropdown}
                   participants={participants}
+                  declarativePhase={appointment.declarative_phase}
                   getParticipantEvidence={(pid) => {
                     const pe = evidenceData?.participants?.find(p => p.participant_id === pid);
                     return pe?.evidence || [];
