@@ -17,8 +17,6 @@ import { formatDateTimeCompactFr, parseUTC } from '../../utils/dateFormat';
 import AppNavbar from '../../components/AppNavbar';
 import CalendarSyncPanel from './CalendarSyncPanel';
 import ExternalEventCard from './ExternalEventCard';
-import PendingReviewBanner from './PendingReviewBanner';
-import WalletWidget from './WalletWidget';
 import { useScrollRestore } from '../../hooks/useScrollRestore';
 
 // ── Helpers ──
@@ -834,12 +832,6 @@ export default function OrganizerDashboard() {
             onNavigate={saveScroll}
           />
         )}
-
-        {/* Pending Reviews Banner */}
-        {!loading && <PendingReviewBanner />}
-
-        {/* Wallet Widget */}
-        {!loading && <WalletWidget />}
 
         {/* Main list */}
         <div className="bg-white rounded-lg border border-slate-200 p-4 md:p-6">
