@@ -18,7 +18,7 @@ import requests
 import os
 import json
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://check-in-flow-1.preview.emergentagent.com').rstrip('/')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://dispute-resolver-12.preview.emergentagent.com').rstrip('/')
 
 # Test credentials
 TEST_EMAIL = "stripe-test@nlyt.io"

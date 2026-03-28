@@ -70,7 +70,7 @@ L'application NLYT est **fonctionnelle end-to-end** avec quelques points d'atten
 #### 2.2 Incohérence FRONTEND_URL
 - **Problème** : La variable d'environnement `FRONTEND_URL` dans backend/.env doit correspondre à l'URL déployée
 - **Impact** : Les liens dans les emails pourraient pointer vers la mauvaise URL
-- **Solution** : S'assurer que `FRONTEND_URL=https://check-in-flow-1.preview.emergentagent.com` est cohérent partout
+- **Solution** : S'assurer que `FRONTEND_URL=https://dispute-resolver-12.preview.emergentagent.com` est cohérent partout
 
 ### P2 - MODÉRÉ
 
