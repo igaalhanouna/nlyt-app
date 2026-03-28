@@ -1,21 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { CheckCircle, Clock, ChevronRight, Loader2, Scale, UserX, UserCheck, Timer, AlertTriangle } from 'lucide-react';
+import { CheckCircle, Clock, ChevronRight, Loader2, Scale, AlertTriangle } from 'lucide-react';
 import api from '../../services/api';
 import AppNavbar from '../../components/AppNavbar';
 import AppBreadcrumb from '../../components/AppBreadcrumb';
 
-const STATUS_CONFIG = {
-  awaiting_positions: { label: 'En attente de réponse', color: 'bg-amber-100 text-amber-700' },
-  awaiting_evidence: { label: 'En attente de réponse', color: 'bg-amber-100 text-amber-700' },
-  escalated: { label: 'En cours d\'arbitrage', color: 'bg-blue-100 text-blue-700' },
-  agreed_present: { label: 'Présence confirmée', color: 'bg-emerald-100 text-emerald-700' },
-  agreed_absent: { label: 'Absence confirmée', color: 'bg-red-100 text-red-700' },
-  agreed_late_penalized: { label: 'Retard confirmé', color: 'bg-orange-100 text-orange-700' },
-  resolved: { label: 'Résolu', color: 'bg-emerald-100 text-emerald-700' },
-};
-
-const RESOLVED_STATUSES = ['resolved', 'agreed_present', 'agreed_absent', 'agreed_late_penalized'];
+const RESOLVED_DISPLAY_STATES = ['resolved'];
 
 export default function DisputesListPage() {
   const [disputes, setDisputes] = useState([]);
@@ -42,7 +32,7 @@ export default function DisputesListPage() {
     );
   }
 
-  const active = disputes.filter(d => !RESOLVED_STATUSES.includes(d.status));
+  const active = disputes.filter(d => d.display_state !== 'resolved');
 
   return (
     <div className="min-h-screen bg-slate-50" data-testid="disputes-list-page">
@@ -79,19 +69,27 @@ export default function DisputesListPage() {
 }
 
 function DisputeCard({ dispute }) {
-  const s = STATUS_CONFIG[dispute.status] || STATUS_CONFIG.awaiting_positions;
+  const displayState = dispute.display_state || 'waiting_both';
+  const badgeConfig = {
+    waiting_both: { label: 'En attente', color: 'bg-amber-100 text-amber-700' },
+    waiting_other: { label: 'En attente', color: 'bg-amber-100 text-amber-700' },
+    arbitration: { label: 'En cours d\'arbitrage', color: 'bg-blue-100 text-blue-700' },
+    resolved: { label: 'Résolu', color: 'bg-emerald-100 text-emerald-700' },
+  };
+  const badge = badgeConfig[displayState] || badgeConfig.waiting_both;
   const deadline = dispute.deadline ? new Date(dispute.deadline) : null;
-  const isResolved = RESOLVED_STATUSES.includes(dispute.status);
+  const isResolved = displayState === 'resolved';
 
-  // Determine the action hint for the user
+  // Action hint based on display_state
   let actionHint = null;
   if (!isResolved) {
     if (dispute.can_submit_position) {
       actionHint = { text: 'Votre réponse est attendue', color: 'text-amber-600', icon: AlertTriangle };
-    } else if (dispute.my_position && !dispute.other_party_responded) {
-      actionHint = { text: 'En attente de l\'autre partie', color: 'text-slate-400', icon: Clock };
-    } else if (dispute.status === 'escalated') {
+    } else if (displayState === 'arbitration') {
       actionHint = { text: 'En cours d\'arbitrage', color: 'text-blue-500', icon: Scale };
+    } else if (displayState === 'waiting_other' && dispute.my_position) {
+      const other = dispute.other_party_name || 'l\'autre partie';
+      actionHint = { text: `En attente de ${other}`, color: 'text-slate-400', icon: Clock };
     }
   }
 
@@ -122,10 +120,10 @@ function DisputeCard({ dispute }) {
           )}
         </div>
         <div className="flex flex-col items-end gap-2 flex-shrink-0">
-          <span className={`px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ${s.color}`}>
-            {s.label}
+          <span className={`px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ${badge.color}`}>
+            {badge.label}
           </span>
-          {deadline && !isResolved && dispute.status !== 'escalated' && (
+          {deadline && !isResolved && displayState !== 'arbitration' && (
             <span className="flex items-center gap-1 text-xs text-slate-400">
               <Clock className="w-3 h-3" />
               {deadline.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}

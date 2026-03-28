@@ -6,12 +6,9 @@ import AppNavbar from '../../components/AppNavbar';
 import AppBreadcrumb from '../../components/AppBreadcrumb';
 
 const STATUS_CONFIG = {
-  awaiting_positions: { label: 'En attente de réponse', color: 'bg-amber-100 text-amber-700', icon: Clock },
-  awaiting_evidence: { label: 'En attente de réponse', color: 'bg-amber-100 text-amber-700', icon: Clock },
-  escalated: { label: 'En cours d\'arbitrage', color: 'bg-blue-100 text-blue-700', icon: Scale },
-  agreed_present: { label: 'Présence confirmée', color: 'bg-emerald-100 text-emerald-700', icon: CheckCircle },
-  agreed_absent: { label: 'Absence confirmée', color: 'bg-red-100 text-red-700', icon: UserX },
-  agreed_late_penalized: { label: 'Retard confirmé', color: 'bg-orange-100 text-orange-700', icon: Timer },
+  waiting_both: { label: 'En attente de réponse', color: 'bg-amber-100 text-amber-700', icon: Clock },
+  waiting_other: { label: 'En attente de réponse', color: 'bg-amber-100 text-amber-700', icon: Clock },
+  arbitration: { label: 'En cours d\'arbitrage', color: 'bg-blue-100 text-blue-700', icon: Scale },
   resolved: { label: 'Résolu', color: 'bg-emerald-100 text-emerald-700', icon: CheckCircle },
 };
 
@@ -108,7 +105,7 @@ export default function DisputeDetailPage() {
     );
   }
 
-  const s = STATUS_CONFIG[dispute.status] || STATUS_CONFIG.awaiting_positions;
+  const s = STATUS_CONFIG[dispute.display_state] || STATUS_CONFIG.waiting_both;
   const StatusIcon = s.icon;
   const deadline = dispute.deadline ? new Date(dispute.deadline) : null;
   const summary = dispute.declaration_summary || {};
@@ -236,12 +233,7 @@ export default function DisputeDetailPage() {
                 <p className="text-sm text-slate-600">
                   <PositionLabel position={dispute.my_position} isTarget={isTarget} targetFirstName={targetFirstName} />
                 </p>
-                <p className="text-xs text-slate-400 mt-2">
-                  {dispute.other_party_responded
-                    ? 'L\'autre partie a également répondu.'
-                    : 'En attente de la réponse de l\'autre partie.'
-                  }
-                </p>
+                <DisputeStateMessage dispute={dispute} />
               </div>
             </div>
           )}
@@ -459,6 +451,46 @@ function DeclarationSummaryBlock({ summary, isTarget, targetFirstName }) {
         <p className="text-xs text-slate-500">Signal technique détecté</p>
       )}
     </div>
+  );
+}
+
+
+function DisputeStateMessage({ dispute }) {
+  const state = dispute.display_state;
+  const otherName = dispute.other_party_name || 'l\'autre partie';
+
+  if (state === 'arbitration') {
+    return (
+      <p className="text-xs text-blue-600 mt-2 flex items-center gap-1">
+        <Scale className="w-3 h-3" />
+        Les positions divergent. Un arbitre neutre examinera le dossier.
+      </p>
+    );
+  }
+  if (state === 'waiting_other') {
+    if (dispute.my_position) {
+      return <p className="text-xs text-amber-600 mt-2">En attente de la réponse de {otherName}.</p>;
+    }
+    return <p className="text-xs text-amber-600 mt-2">{otherName} a déjà répondu. C'est à votre tour.</p>;
+  }
+  if (state === 'waiting_both') {
+    return <p className="text-xs text-slate-400 mt-2">Aucune des deux parties ne s'est encore exprimée.</p>;
+  }
+  return null;
+}
+
+function DisputeStatusBadge({ status, displayState }) {
+  const config = {
+    waiting_both: { label: 'En attente', color: 'bg-slate-100 text-slate-600' },
+    waiting_other: { label: 'En attente', color: 'bg-amber-50 text-amber-700' },
+    arbitration: { label: 'En cours d\'arbitrage', color: 'bg-blue-50 text-blue-700' },
+    resolved: { label: 'Résolu', color: 'bg-emerald-50 text-emerald-700' },
+  };
+  const c = config[displayState] || config.waiting_both;
+  return (
+    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${c.color}`} data-testid="dispute-status-badge">
+      {c.label}
+    </span>
   );
 }
 

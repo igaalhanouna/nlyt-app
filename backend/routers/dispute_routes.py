@@ -95,6 +95,48 @@ def _get_anonymized_summary(appointment_id: str, target_pid: str) -> dict:
     }
 
 
+def _is_dispute_counterpart(user_id: str, appointment_id: str, target_participant_id: str) -> bool:
+    """Check if user is the true counterpart: submitted a declaration about the target."""
+    sheet = db.attendance_sheets.find_one({
+        "appointment_id": appointment_id,
+        "submitted_by_user_id": user_id,
+        "status": "submitted",
+    }, {"_id": 0, "declarations": 1})
+    if not sheet:
+        return False
+    return any(
+        decl.get("target_participant_id") == target_participant_id
+        for decl in sheet.get("declarations", [])
+    )
+
+
+def _get_other_party_name(d: dict, my_role: str) -> str:
+    """Get the first name of the party opposite to the current user."""
+    deadlock = d.get("organizer_user_id") == d.get("target_user_id")
+
+    if my_role == "organizer":
+        if deadlock:
+            # Target = organizer → other party is the counterpart, not the target
+            p = db.participants.find_one(
+                {"appointment_id": d["appointment_id"], "participant_id": {"$ne": d["target_participant_id"]}, "user_id": {"$ne": None}},
+                {"_id": 0, "first_name": 1}
+            )
+        else:
+            p = db.participants.find_one(
+                {"participant_id": d.get("target_participant_id")},
+                {"_id": 0, "first_name": 1}
+            )
+    else:
+        # Participant/counterpart → other party is the organizer
+        org_user_id = d.get("organizer_user_id")
+        p = db.participants.find_one(
+            {"appointment_id": d["appointment_id"], "user_id": org_user_id},
+            {"_id": 0, "first_name": 1}
+        )
+
+    return (p.get("first_name") or "").strip() if p else ""
+
+
 def _enrich_dispute_for_user(d: dict, user_id: str) -> dict:
     """Add computed fields for the current user."""
     is_organizer = (d.get('organizer_user_id') == user_id)
@@ -105,6 +147,12 @@ def _enrich_dispute_for_user(d: dict, user_id: str) -> dict:
         my_position = d.get("organizer_position")
         other_responded = d.get("participant_position") is not None
     elif is_target:
+        my_role = "participant"
+        my_position = d.get("participant_position")
+        other_responded = d.get("organizer_position") is not None
+    elif (d.get('organizer_user_id') == d.get('target_user_id')
+          and _is_dispute_counterpart(user_id, d['appointment_id'], d['target_participant_id'])):
+        # Deadlock fix: target IS the organizer → the true counterpart gets "participant" role
         my_role = "participant"
         my_position = d.get("participant_position")
         other_responded = d.get("organizer_position") is not None
@@ -121,12 +169,30 @@ def _enrich_dispute_for_user(d: dict, user_id: str) -> dict:
     )
     can_submit_evidence = d.get("status") in ("awaiting_positions", "awaiting_evidence", "escalated")
 
+    # Compute display state
+    org_pos = d.get("organizer_position")
+    par_pos = d.get("participant_position")
+    status = d.get("status")
+
+    if status in RESOLVED_STATUSES:
+        display_state = "resolved"
+    elif status == "escalated":
+        display_state = "arbitration"
+    elif org_pos is not None and par_pos is not None:
+        display_state = "arbitration"  # Both responded but disagreed (otherwise would be resolved)
+    elif org_pos is not None or par_pos is not None:
+        display_state = "waiting_other"
+    else:
+        display_state = "waiting_both"
+
     d['my_role'] = my_role
     d['my_position'] = my_position
     d['other_party_responded'] = other_responded
     d['can_submit_position'] = can_submit_position
     d['can_submit_evidence'] = can_submit_evidence
     d['is_resolved'] = is_resolved
+    d['display_state'] = display_state
+    d['other_party_name'] = _get_other_party_name(d, my_role) if my_role != "observer" else ""
 
     return d
 

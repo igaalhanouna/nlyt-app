@@ -682,6 +682,21 @@ def submit_dispute_position(dispute_id: str, user_id: str, position: str) -> dic
     is_organizer = (dispute.get("organizer_user_id") == user_id)
     is_participant = (dispute.get("target_user_id") == user_id)
 
+    # Deadlock fix: when target = organizer, the counterpart gets participant role
+    if not is_organizer and not is_participant:
+        if (dispute.get("organizer_user_id") == dispute.get("target_user_id")):
+            # Check if user is the true counterpart (submitted a declaration about the target)
+            sheet = db.attendance_sheets.find_one({
+                "appointment_id": dispute["appointment_id"],
+                "submitted_by_user_id": user_id,
+                "status": "submitted",
+            }, {"_id": 0, "declarations": 1})
+            if sheet and any(
+                decl.get("target_participant_id") == dispute["target_participant_id"]
+                for decl in sheet.get("declarations", [])
+            ):
+                is_participant = True
+
     if not is_organizer and not is_participant:
         return {"error": "Vous n'êtes pas partie prenante de ce litige"}
 
