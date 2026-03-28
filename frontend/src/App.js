@@ -31,6 +31,7 @@ import DisputeCenter from './pages/disputes/DisputeCenter';
 import DisputesListPage from './pages/disputes/DisputesListPage';
 import DisputeDetailPage from './pages/disputes/DisputeDetailPage';
 import AttendanceSheetPage from './pages/declarations/AttendanceSheetPage';
+import PresencesPage from './pages/declarations/PresencesPage';
 
 import ReviewerDashboard from './pages/admin/ReviewerDashboard';
 
@@ -86,7 +87,7 @@ function App() {
               <Route path="/appointments/:id" element={<PrivateRoute><AppointmentDetail /></PrivateRoute>} />
               <Route path="/appointments/:id/participants" element={<PrivateRoute><ParticipantManagement /></PrivateRoute>} />
               
-              <Route path="/presences" element={<PrivateRoute><DisputeCenter /></PrivateRoute>} />
+              <Route path="/presences" element={<PrivateRoute><PresencesPage /></PrivateRoute>} />
               <Route path="/litiges" element={<PrivateRoute><DisputesListPage /></PrivateRoute>} />
               <Route path="/litiges/:id" element={<PrivateRoute><DisputeDetailPage /></PrivateRoute>} />
               <Route path="/appointments/:id/attendance-sheet" element={<PrivateRoute><AttendanceSheetPage /></PrivateRoute>} />

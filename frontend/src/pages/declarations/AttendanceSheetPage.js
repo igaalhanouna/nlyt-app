@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, Clock, CheckCircle, AlertTriangle, HelpCircle, Send, Loader2 } from 'lucide-react';
 import api from '../../services/api';
 import AppNavbar from '../../components/AppNavbar';
@@ -15,6 +15,8 @@ const STATUS_OPTIONS = [
 export default function AttendanceSheetPage() {
   const { id: appointmentId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const cameFromPresences = location.state?.from === 'presences';
   const [sheet, setSheet] = useState(null);
   const [sheetStatus, setSheetStatus] = useState(null);
   const [selections, setSelections] = useState({});
@@ -98,10 +100,11 @@ export default function AttendanceSheetPage() {
   return (
     <div className="min-h-screen bg-slate-50" data-testid="attendance-sheet-page">
       <AppNavbar />
-      <AppBreadcrumb items={[
-        { label: 'Tableau de bord', href: '/dashboard' },
-        { label: 'Confirmer les présences' },
-      ]} />
+      <AppBreadcrumb items={
+        cameFromPresences
+          ? [{ label: 'Presences', href: '/presences' }, { label: 'Confirmer les presences' }]
+          : [{ label: 'Tableau de bord', href: '/dashboard' }, { label: 'Confirmer les presences' }]
+      } />
       <div className="max-w-2xl mx-auto p-4 sm:p-6">
 
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">

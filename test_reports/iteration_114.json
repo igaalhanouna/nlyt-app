@@ -1,0 +1,76 @@
+{
+  "summary": "Iteration 114 - /presences Page Realignment Testing: Verified the new PresencesPage component replaces DisputeCenter for declarative attendance sheet collection. All 9 test cases passed. Backend endpoint GET /api/attendance-sheets/pending returns correct structure. Frontend shows empty state correctly with no reclassification UI or financial terms.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": {
+    "backend_api": [
+      "✅ GET /api/attendance-sheets/pending returns 200 for authenticated user",
+      "✅ Response structure correct: {pending_sheets: [], count: 0}",
+      "✅ Count matches pending (non-submitted) sheets",
+      "✅ Endpoint requires authentication (returns 401 without token)",
+      "✅ GET /api/appointments/my-timeline works (dashboard not affected)",
+      "✅ GET /api/disputes/ works (litiges independent)",
+      "✅ GET /api/auth/me works",
+      "✅ No reclassification fields in pending sheets response"
+    ],
+    "frontend_playwright": [
+      "✅ Login flow: Navigate to /signin, login with igaal@hotmail.com / Test123!, redirect to /dashboard",
+      "✅ Navigate to /presences via navbar-presences-link",
+      "✅ data-testid='presences-page' found",
+      "✅ Title 'Feuilles de presence' visible",
+      "✅ Description text visible",
+      "✅ Empty state (data-testid='presences-empty') visible",
+      "✅ Empty state message 'Aucune feuille de presence en attente' visible",
+      "✅ ZERO elements with data-testid starting with 'reclassify-btn-' found",
+      "✅ No forbidden financial terms found (pénalité, garantie, conflit d'intérêt)",
+      "✅ Navbar Presences link visible and points to /presences",
+      "✅ /litiges page loads correctly (independent from /presences)",
+      "✅ Dashboard loads correctly (not impacted)"
+    ],
+    "code_review_verification": [
+      "✅ App.js line 90: /presences route maps to PresencesPage (not DisputeCenter)",
+      "✅ PresencesPage.js: Uses attendanceAPI.pendingSheets() not pendingReviews()",
+      "✅ AppNavbar.js line 27: Badge calls attendanceAPI.pendingSheets() not pendingReviews()",
+      "✅ declarative_routes.py: GET /pending endpoint filters by declarative_phase='collecting'",
+      "✅ api.js line 121: attendanceAPI.pendingSheets() calls /api/attendance-sheets/pending"
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_presences_page_iter114.py",
+    "/app/test_reports/pytest/pytest_presences_page_iter114.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_presences_page_iter114.py"
+  ],
+  "success_rate": {
+    "backend": "100% (8/8 tests passed)",
+    "frontend": "100% (all UI elements verified)"
+  },
+  "test_credentials": {
+    "user": "igaal@hotmail.com / Test123!"
+  },
+  "seed_data_creation": "None - used existing test data",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "The /presences page realignment is complete. The page now shows attendance sheets for declarative collection (not financial reclassification). Currently no appointments have declarative_phase='collecting', so the list is empty - this is expected behavior. The old DisputeCenter component still exists in codebase but is no longer used on /presences route. The reclassify flow still exists via attendanceAPI.reclassify() but is not accessible from /presences.",
+  "features_verified": {
+    "1_presences_page_loads": "✅ VERIFIED - Title 'Feuilles de presence', description visible, no errors",
+    "2_empty_state": "✅ VERIFIED - Shows 'Aucune feuille de presence en attente' with checkmark icon (data-testid='presences-empty')",
+    "3_no_reclassification_ui": "✅ VERIFIED - ZERO elements with data-testid starting with 'reclassify-btn-'",
+    "4_no_financial_messages": "✅ VERIFIED - Page does NOT contain 'pénalité', 'garantie', 'conflit d'intérêt'",
+    "5_backend_endpoint": "✅ VERIFIED - GET /api/attendance-sheets/pending returns {pending_sheets: [], count: 0}",
+    "6_navbar_badge": "✅ VERIFIED - Presences nav item renders correctly, link points to /presences",
+    "7_litiges_independent": "✅ VERIFIED - /litiges page still works independently",
+    "8_attendance_sheet_accessible": "✅ VERIFIED via code review - Route exists at /appointments/:id/attendance-sheet",
+    "9_dashboard_not_impacted": "✅ VERIFIED - Dashboard loads correctly"
+  }
+}

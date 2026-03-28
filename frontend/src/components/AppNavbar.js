@@ -20,11 +20,11 @@ export default function AppNavbar() {
     return () => { document.body.style.overflow = ''; };
   }, [mobileOpen]);
 
-  // Fetch pending review count
+  // Fetch pending declarative sheets count
   useEffect(() => {
     const fetchCount = async () => {
       try {
-        const res = await attendanceAPI.pendingReviews();
+        const res = await attendanceAPI.pendingSheets();
         setPendingReviewCount(res.data.count || 0);
       } catch {
         // Silently ignore — non-critical
