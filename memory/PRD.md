@@ -151,6 +151,17 @@ SaaS d'engagement ponctuel avec garantie financiere. Optimisation du "Viral Loop
 - Raison `small_group_escalation` remplacée par `no_declarations_received` et `small_group_disagreement`
 - Tests: 16/16 (7 backend + 9 frontend, iteration_118)
 
+### Phase 20 — Dispute Deadlock Fix & 5-State Display (Feb 2026) - DONE
+- **BUG FIX**: When target=organizer, counterpart was locked as "observer" → now correctly gets "participant" role
+- Counterpart detection: must have submitted a declaration about the target (not any random participant)
+- Backend: `_enrich_dispute_for_user()` + `submit_dispute_position()` both support deadlock fallback
+- Backend: new `display_state` field: `waiting_both` | `waiting_other` | `arbitration` | `resolved`
+- Backend: new `other_party_name` field: first name of the opposing party
+- Frontend: `DisputeStateMessage` component with contextual messages + names
+- Frontend: `DisputeStatusBadge` uses display_state instead of raw status
+- Frontend: `DisputesListPage` action hints with counterpart names
+- Tests: 20/20 (12 backend + 8 frontend, iteration_119)
+
 ## Upcoming Tasks
 - P1: Dashboard admin plateforme (arbitrage final des litiges escalades "maintained")
 - P1: Configurer webhook Stripe en production
