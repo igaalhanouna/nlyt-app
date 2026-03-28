@@ -16,6 +16,7 @@ import SelectWorkspace from './pages/workspace/SelectWorkspace';
 import CreateWorkspace from './pages/workspace/CreateWorkspace';
 
 import OrganizerDashboard from './pages/dashboard/OrganizerDashboard';
+import AgendaPage from './pages/agenda/AgendaPage';
 import ParticipantDashboard from './pages/dashboard/ParticipantDashboard';
 
 import AppointmentWizard from './pages/appointments/AppointmentWizard';
@@ -78,6 +79,7 @@ function App() {
               <Route path="/workspace/create" element={<PrivateRoute><CreateWorkspace /></PrivateRoute>} />
               
               <Route path="/dashboard" element={<PrivateRoute><OrganizerDashboard /></PrivateRoute>} />
+              <Route path="/agenda" element={<PrivateRoute><AgendaPage /></PrivateRoute>} />
               <Route path="/dashboard/participant" element={<PrivateRoute><ParticipantDashboard /></PrivateRoute>} />
               
               <Route path="/appointments/create" element={<PrivateRoute><AppointmentWizard /></PrivateRoute>} />

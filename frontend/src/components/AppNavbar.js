@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from './ui/button';
-import { Settings, LogOut, Menu, X, AlertTriangle, TrendingUp, Scale, ClipboardCheck, Wallet } from 'lucide-react';
+import { Settings, LogOut, Menu, X, AlertTriangle, TrendingUp, Scale, ClipboardCheck, Wallet, CalendarDays } from 'lucide-react';
 import { attendanceAPI } from '../services/api';
 
 export default function AppNavbar() {
@@ -75,6 +75,9 @@ export default function AppNavbar() {
           <div className="hidden md:flex items-center gap-6">
             <Link to="/dashboard" className={linkClass('/dashboard')} data-testid="navbar-dashboard-link">
               Tableau de bord
+            </Link>
+            <Link to="/agenda" className={linkClass('/agenda')} data-testid="navbar-agenda-link">
+              Agenda
             </Link>
             <Link to="/presences" className={`${linkClass('/presences')} relative flex items-center gap-1.5`} data-testid="navbar-presences-link">
               Presences
@@ -153,6 +156,10 @@ export default function AppNavbar() {
             <div className="flex-1 p-3 space-y-1 overflow-y-auto">
               <Link to="/dashboard" className={mobileLinkClass('/dashboard')} data-testid="mobile-nav-dashboard">
                 Tableau de bord
+              </Link>
+              <Link to="/agenda" className={mobileLinkClass('/agenda')} data-testid="mobile-nav-agenda">
+                <CalendarDays className="w-4.5 h-4.5" />
+                Agenda
               </Link>
               <Link to="/presences" className={mobileLinkClass('/presences')} data-testid="mobile-nav-presences">
                 <ClipboardCheck className="w-4.5 h-4.5" />
