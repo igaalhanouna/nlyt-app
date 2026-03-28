@@ -335,6 +335,20 @@ def _apply_proposal(proposal: dict):
         update_fields['meeting_created_via_api'] = False
         update_fields['meet_calendar_event_id'] = None
 
+    # When changing video provider (type stays video), clear old meeting data preemptively
+    # so a failed create_meeting leaves clean state instead of stale links from old provider
+    original_values = proposal.get('original_values', {})
+    if ('meeting_provider' in changes
+            and changes.get('appointment_type', original_values.get('appointment_type')) == 'video'
+            and changes['meeting_provider'] != original_values.get('meeting_provider')):
+        update_fields['meeting_join_url'] = None
+        update_fields['external_meeting_id'] = None
+        update_fields['meeting_host_url'] = None
+        update_fields['meeting_password'] = None
+        update_fields['meeting_provider_metadata'] = None
+        update_fields['meeting_created_via_api'] = False
+        update_fields['meet_calendar_event_id'] = None
+
     db.appointments.update_one(
         {"appointment_id": appointment_id},
         {

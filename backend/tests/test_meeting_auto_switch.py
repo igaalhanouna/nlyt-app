@@ -277,3 +277,145 @@ class TestVideoToPhysicalCleanup:
             assert captured_update[field] == expected_val, (
                 f"Field '{field}': expected {expected_val!r}, got {captured_update[field]!r}"
             )
+
+
+class TestProviderChangeCleanup:
+    """When provider changes (video→video), old meeting fields must be cleared preemptively."""
+
+    def test_provider_change_clears_old_meeting_fields(self):
+        """Zoom→Teams: old meeting fields nullified in $set even before create_meeting runs."""
+        from services.modification_service import _apply_proposal
+
+        captured_update = {}
+
+        class FakeCollection:
+            def update_one(self, filter_doc, update_doc, **kwargs):
+                captured_update.update(update_doc.get("$set", {}))
+
+            def find_one(self, *args, **kwargs):
+                return None
+
+        class FakeDB:
+            appointments = FakeCollection()
+            proposals = FakeCollection()
+            participants = FakeCollection()
+            sent_emails = FakeCollection()
+
+        with patch("services.modification_service.db", FakeDB()):
+            fake_proposal = {
+                "proposal_id": "prop-pc-001",
+                "appointment_id": "apt-pc-001",
+                "proposer_id": "user-001",
+                "changes": {"meeting_provider": "teams"},
+                "original_values": {"appointment_type": "video", "meeting_provider": "zoom"},
+                "status": "approved",
+            }
+            try:
+                _apply_proposal(fake_proposal)
+            except Exception:
+                pass
+
+        # All meeting data fields must be nullified
+        expected_cleared = {
+            "meeting_join_url": None,
+            "external_meeting_id": None,
+            "meeting_host_url": None,
+            "meeting_password": None,
+            "meeting_provider_metadata": None,
+            "meeting_created_via_api": False,
+            "meet_calendar_event_id": None,
+        }
+        for field, expected_val in expected_cleared.items():
+            assert field in captured_update, f"Field '{field}' missing from $set on provider change"
+            assert captured_update[field] == expected_val, (
+                f"Field '{field}': expected {expected_val!r}, got {captured_update[field]!r}"
+            )
+        # meeting_provider itself should be set to the NEW value
+        assert captured_update.get("meeting_provider") == "teams"
+
+    def test_provider_change_with_api_failure_leaves_clean_state(self):
+        """If create_meeting fails after provider change, DB should have null meeting fields, not stale Zoom links."""
+        from services.modification_service import _apply_proposal
+
+        captured_sets = []
+
+        class FakeCollection:
+            def __init__(self):
+                self.docs = {}
+
+            def update_one(self, filter_doc, update_doc, **kwargs):
+                set_fields = update_doc.get("$set", {})
+                captured_sets.append(dict(set_fields))
+
+            def find_one(self, *args, **kwargs):
+                return None
+
+            def find(self, *args, **kwargs):
+                return []
+
+        class FakeDB:
+            appointments = FakeCollection()
+            proposals = FakeCollection()
+            participants = FakeCollection()
+            sent_emails = FakeCollection()
+            users = FakeCollection()
+
+        with patch("services.modification_service.db", FakeDB()), \
+             patch("services.meeting_provider_service.create_meeting_for_appointment",
+                   side_effect=Exception("Teams API down")):
+            fake_proposal = {
+                "proposal_id": "prop-pc-002",
+                "appointment_id": "apt-pc-002",
+                "proposer_id": "user-001",
+                "changes": {"meeting_provider": "teams"},
+                "original_values": {"appointment_type": "video", "meeting_provider": "zoom"},
+                "status": "approved",
+            }
+            try:
+                _apply_proposal(fake_proposal)
+            except Exception:
+                pass
+
+        # The first $set (from update_one) must have nullified meeting fields
+        assert len(captured_sets) > 0, "No DB update captured"
+        first_set = captured_sets[0]
+        assert first_set.get("meeting_join_url") is None, "meeting_join_url should be null after provider change"
+        assert first_set.get("meeting_host_url") is None, "meeting_host_url should be null"
+        assert first_set.get("meeting_created_via_api") == False, "meeting_created_via_api should be False"
+
+    def test_no_cleanup_when_provider_unchanged(self):
+        """If meeting_provider doesn't change, don't touch meeting fields."""
+        from services.modification_service import _apply_proposal
+
+        captured_update = {}
+
+        class FakeCollection:
+            def update_one(self, filter_doc, update_doc, **kwargs):
+                captured_update.update(update_doc.get("$set", {}))
+
+            def find_one(self, *args, **kwargs):
+                return None
+
+        class FakeDB:
+            appointments = FakeCollection()
+            proposals = FakeCollection()
+            participants = FakeCollection()
+            sent_emails = FakeCollection()
+
+        with patch("services.modification_service.db", FakeDB()):
+            fake_proposal = {
+                "proposal_id": "prop-pc-003",
+                "appointment_id": "apt-pc-003",
+                "proposer_id": "user-001",
+                "changes": {"title": "Nouveau titre"},
+                "original_values": {"title": "Ancien titre", "appointment_type": "video", "meeting_provider": "zoom"},
+                "status": "approved",
+            }
+            try:
+                _apply_proposal(fake_proposal)
+            except Exception:
+                pass
+
+        # meeting fields should NOT be in the $set
+        assert "meeting_join_url" not in captured_update, "meeting_join_url should not be touched"
+        assert "meeting_host_url" not in captured_update, "meeting_host_url should not be touched"
