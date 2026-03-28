@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, AlertTriangle, CheckCircle, Clock, Upload, FileText, Loader2, Scale, MessageSquare } from 'lucide-react';
+import { ArrowLeft, AlertTriangle, CheckCircle, Clock, Upload, FileText, Loader2, Scale, MessageSquare, ShieldCheck, ShieldAlert } from 'lucide-react';
 import api from '../../services/api';
 import AppNavbar from '../../components/AppNavbar';
 import AppBreadcrumb from '../../components/AppBreadcrumb';
@@ -29,6 +29,8 @@ export default function DisputeDetailPage() {
   const [showEvidenceForm, setShowEvidenceForm] = useState(false);
   const [evidenceText, setEvidenceText] = useState('');
   const [submittingEvidence, setSubmittingEvidence] = useState(false);
+  const [decidingAction, setDecidingAction] = useState(null); // 'concede' | 'maintain' | null
+  const [showConfirmDecision, setShowConfirmDecision] = useState(null); // 'concede' | 'maintain' | null
 
   const fetchDispute = useCallback(async () => {
     try {
@@ -58,6 +60,20 @@ export default function DisputeDetailPage() {
       console.error('Error submitting evidence:', err);
     } finally {
       setSubmittingEvidence(false);
+    }
+  };
+
+  const handleDecision = async (action) => {
+    if (decidingAction) return;
+    setDecidingAction(action);
+    try {
+      await api.post(`/api/disputes/${disputeId}/${action}`);
+      setShowConfirmDecision(null);
+      fetchDispute();
+    } catch (err) {
+      console.error(`Error ${action} dispute:`, err);
+    } finally {
+      setDecidingAction(null);
     }
   };
 
@@ -219,6 +235,99 @@ export default function DisputeDetailPage() {
             )}
           </div>
 
+          {/* Organizer Decision Block — Phase 2 */}
+          {dispute.can_decide && (
+            <div className="p-5 border-b border-slate-100" data-testid="dispute-decision-block">
+              <h2 className="text-sm font-medium text-slate-700 mb-2">Votre décision</h2>
+              <p className="text-xs text-slate-500 mb-4">
+                En tant qu'organisateur, vous pouvez libérer la garantie du participant (aucune pénalité)
+                ou maintenir votre position (escalade à la plateforme pour arbitrage).
+              </p>
+
+              {showConfirmDecision === null ? (
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <button
+                    onClick={() => setShowConfirmDecision('concede')}
+                    className="flex items-center justify-center gap-2 px-4 py-2.5 border-2 border-emerald-200 bg-emerald-50 text-emerald-700 text-sm font-medium rounded-lg hover:bg-emerald-100 transition-colors"
+                    data-testid="concede-btn"
+                  >
+                    <ShieldCheck className="w-4 h-4" />
+                    Je libère la garantie
+                  </button>
+                  <button
+                    onClick={() => setShowConfirmDecision('maintain')}
+                    className="flex items-center justify-center gap-2 px-4 py-2.5 border-2 border-red-200 bg-red-50 text-red-700 text-sm font-medium rounded-lg hover:bg-red-100 transition-colors"
+                    data-testid="maintain-btn"
+                  >
+                    <ShieldAlert className="w-4 h-4" />
+                    Je maintiens ma position
+                  </button>
+                </div>
+              ) : (
+                <div className="bg-slate-50 rounded-lg p-4 space-y-3" data-testid="confirm-decision-block">
+                  <p className="text-sm text-slate-700 font-medium">
+                    {showConfirmDecision === 'concede'
+                      ? 'Confirmer la libération de la garantie ?'
+                      : 'Confirmer l\'escalade à la plateforme ?'}
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    {showConfirmDecision === 'concede'
+                      ? 'Le participant ne subira aucune pénalité financière. Cette action est irréversible.'
+                      : 'Un arbitre de la plateforme examinera le dossier et prendra une décision finale. Cette action est irréversible.'}
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleDecision(showConfirmDecision)}
+                      disabled={!!decidingAction}
+                      className={`flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-lg transition-colors disabled:opacity-40 ${
+                        showConfirmDecision === 'concede'
+                          ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                          : 'bg-red-600 text-white hover:bg-red-700'
+                      }`}
+                      data-testid="confirm-decision-btn"
+                    >
+                      {decidingAction ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+                      Confirmer
+                    </button>
+                    <button
+                      onClick={() => setShowConfirmDecision(null)}
+                      disabled={!!decidingAction}
+                      className="px-4 py-2 text-xs text-slate-500 hover:text-slate-700"
+                      data-testid="cancel-decision-btn"
+                    >
+                      Annuler
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Decision taken (non-resolved) */}
+          {dispute.decision && dispute.status !== 'resolved' && (
+            <div className="p-5 border-b border-slate-100" data-testid="dispute-decision-taken">
+              <h2 className="text-sm font-medium text-slate-700 mb-3">Décision prise</h2>
+              <div className={`rounded-lg p-4 ${
+                dispute.decision === 'conceded'
+                  ? 'bg-emerald-50 border border-emerald-200'
+                  : 'bg-amber-50 border border-amber-200'
+              }`}>
+                <p className="text-sm font-medium">
+                  {dispute.decision === 'conceded'
+                    ? 'Garantie libérée — aucune pénalité'
+                    : 'Position maintenue — en attente d\'arbitrage plateforme'}
+                </p>
+                {dispute.decision_at && (
+                  <p className="text-xs mt-1 opacity-70">
+                    {new Date(dispute.decision_at).toLocaleDateString('fr-FR', {
+                      day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                    })}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Resolution (if resolved) */}
           {dispute.status === 'resolved' && resolution.resolved_at && (
             <div className="p-5" data-testid="dispute-resolution">
@@ -228,7 +337,7 @@ export default function DisputeDetailPage() {
                   Résultat : <span className="font-medium">{resolution.final_outcome}</span>
                 </p>
                 <p className="text-xs text-emerald-600">
-                  Décidé par : {resolution.resolved_by === 'platform' ? 'Plateforme' : 'Système'}
+                  Décidé par : {resolution.resolved_by === 'platform' ? 'Plateforme' : resolution.resolved_by === 'organizer_concession' ? 'Décision organisateur' : 'Système'}
                 </p>
                 {resolution.resolution_note && (
                   <p className="text-xs text-emerald-600 italic">"{resolution.resolution_note}"</p>

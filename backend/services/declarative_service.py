@@ -445,7 +445,9 @@ def _apply_declarative_outcome(appointment_id: str, result: dict):
 
 
 def open_dispute(appointment_id: str, target_participant_id: str, reason: str):
-    """Create a dispute for a participant whose status cannot be auto-resolved."""
+    """Create a dispute for a participant whose status cannot be auto-resolved.
+    The organizer is ALWAYS assigned as the sole accuser_user_id.
+    """
     existing = db.declarative_disputes.find_one({
         "appointment_id": appointment_id,
         "target_participant_id": target_participant_id,
@@ -456,11 +458,27 @@ def open_dispute(appointment_id: str, target_participant_id: str, reason: str):
     target_user_id = _get_user_id(target_participant_id)
     deadline = now_utc() + timedelta(days=DISPUTE_DEADLINE_DAYS)
 
+    # The organizer is the sole accuser — if organizer doesn't support the
+    # absence claim, there is no financial dispute to arbitrate.
+    appointment = db.appointments.find_one(
+        {"appointment_id": appointment_id},
+        {"_id": 0, "organizer_id": 1}
+    )
+    accuser_user_id = appointment.get("organizer_id") if appointment else None
+
     dispute = {
         "dispute_id": str(uuid.uuid4()),
         "appointment_id": appointment_id,
         "target_participant_id": target_participant_id,
         "target_user_id": target_user_id,
+        # Phase 2: accuser/accused explicit fields
+        "accuser_user_id": accuser_user_id,
+        "accused_participant_id": target_participant_id,
+        "accused_user_id": target_user_id,
+        # Organizer decision (concede / maintain / null)
+        "decision": None,
+        "decision_at": None,
+        "decision_by": None,
         "status": "awaiting_evidence",
         "opened_at": now_utc().isoformat(),
         "opened_reason": reason,
@@ -476,7 +494,7 @@ def open_dispute(appointment_id: str, target_participant_id: str, reason: str):
         "created_at": now_utc().isoformat(),
     }
     db.declarative_disputes.insert_one(dispute)
-    logger.info(f"[DISPUTE] Opened for {target_participant_id} in {appointment_id}: {reason}")
+    logger.info(f"[DISPUTE] Opened for {target_participant_id} in {appointment_id}: {reason}. Accuser (organizer): {accuser_user_id}")
     return dispute['dispute_id']
 
 
@@ -559,6 +577,65 @@ def resolve_dispute(dispute_id: str, final_outcome: str, resolution_note: str, r
         logger.warning(f"[DISPUTE] Email notification error (non-blocking): {e}")
 
     return {"success": True}
+
+
+def concede_dispute(dispute_id: str, user_id: str) -> dict:
+    """Organizer concedes the dispute — releases the participant's guarantee.
+    This resolves the dispute with outcome 'waived' (no penalty).
+    """
+    dispute = db.declarative_disputes.find_one({"dispute_id": dispute_id}, {"_id": 0})
+    if not dispute:
+        return {"error": "Litige introuvable"}
+    if dispute.get("accuser_user_id") != user_id:
+        return {"error": "Seul l'organisateur (accusateur) peut prendre cette décision"}
+    if dispute.get("decision") is not None:
+        return {"error": "Une décision a déjà été prise pour ce litige"}
+    if dispute.get("status") == "resolved":
+        return {"error": "Ce litige est déjà résolu"}
+
+    db.declarative_disputes.update_one(
+        {"dispute_id": dispute_id},
+        {"$set": {
+            "decision": "conceded",
+            "decision_at": now_utc().isoformat(),
+            "decision_by": user_id,
+        }}
+    )
+    logger.info(f"[DISPUTE] Organizer {user_id} conceded dispute {dispute_id}")
+
+    # Auto-resolve: release guarantee → outcome = waived
+    return resolve_dispute(
+        dispute_id,
+        final_outcome="waived",
+        resolution_note="L'organisateur a libéré la garantie du participant.",
+        resolved_by="organizer_concession",
+    )
+
+
+def maintain_dispute(dispute_id: str, user_id: str) -> dict:
+    """Organizer maintains position — escalates to platform arbitration."""
+    dispute = db.declarative_disputes.find_one({"dispute_id": dispute_id}, {"_id": 0})
+    if not dispute:
+        return {"error": "Litige introuvable"}
+    if dispute.get("accuser_user_id") != user_id:
+        return {"error": "Seul l'organisateur (accusateur) peut prendre cette décision"}
+    if dispute.get("decision") is not None:
+        return {"error": "Une décision a déjà été prise pour ce litige"}
+    if dispute.get("status") == "resolved":
+        return {"error": "Ce litige est déjà résolu"}
+
+    db.declarative_disputes.update_one(
+        {"dispute_id": dispute_id},
+        {"$set": {
+            "decision": "maintained",
+            "decision_at": now_utc().isoformat(),
+            "decision_by": user_id,
+            "status": "escalated",
+            "escalated_at": now_utc().isoformat(),
+        }}
+    )
+    logger.info(f"[DISPUTE] Organizer {user_id} maintained dispute {dispute_id} — escalated to platform")
+    return {"success": True, "message": "Litige escaladé à la plateforme pour arbitrage."}
 
 
 def submit_dispute_evidence(dispute_id: str, user_id: str, evidence_type: str, content_url: str = None, text_content: str = None):

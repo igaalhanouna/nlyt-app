@@ -69,6 +69,14 @@ async def list_my_disputes(request: Request):
         d['evidence_submissions_count'] = len(d.get('evidence_submissions', []))
         d.pop('evidence_submissions', None)
 
+        # Phase 2: accuser info
+        d['is_accuser'] = (d.get('accuser_user_id') == user_id)
+        d['can_decide'] = (
+            d['is_accuser']
+            and d.get('decision') is None
+            and d.get('status') not in ('resolved',)
+        )
+
     return {"disputes": disputes, "count": len(disputes)}
 
 
@@ -107,6 +115,14 @@ async def get_dispute_detail(dispute_id: str, request: Request):
 
     dispute['declaration_summary'] = _get_anonymized_summary(dispute['appointment_id'], dispute['target_participant_id'])
 
+    # Phase 2: accuser decision info
+    dispute['is_accuser'] = (dispute.get('accuser_user_id') == user['user_id'])
+    dispute['can_decide'] = (
+        dispute['is_accuser']
+        and dispute.get('decision') is None
+        and dispute.get('status') not in ('resolved',)
+    )
+
     # Check if user can submit evidence
     dispute['can_submit_evidence'] = dispute['status'] in ('awaiting_evidence', 'opened')
     dispute['evidence_submissions_count'] = len(dispute.get('evidence_submissions', []))
@@ -123,6 +139,34 @@ async def get_dispute_detail(dispute_id: str, request: Request):
     dispute['evidence_submissions'] = sanitized_submissions
 
     return dispute
+
+
+@router.post("/{dispute_id}/concede")
+async def concede_dispute_endpoint(dispute_id: str, request: Request):
+    """Organizer concedes — releases participant's guarantee."""
+    user = await get_current_user(request)
+
+    from services.declarative_service import concede_dispute
+    result = concede_dispute(dispute_id, user['user_id'])
+
+    if result.get('error'):
+        raise HTTPException(status_code=400, detail=result['error'])
+
+    return result
+
+
+@router.post("/{dispute_id}/maintain")
+async def maintain_dispute_endpoint(dispute_id: str, request: Request):
+    """Organizer maintains position — escalates to platform."""
+    user = await get_current_user(request)
+
+    from services.declarative_service import maintain_dispute
+    result = maintain_dispute(dispute_id, user['user_id'])
+
+    if result.get('error'):
+        raise HTTPException(status_code=400, detail=result['error'])
+
+    return result
 
 
 @router.post("/{dispute_id}/evidence")
