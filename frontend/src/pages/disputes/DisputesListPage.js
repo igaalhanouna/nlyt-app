@@ -1,19 +1,23 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, AlertTriangle, CheckCircle, Clock, ChevronRight, Loader2, Scale } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { CheckCircle, Clock, ChevronRight, Loader2, Scale, UserX, UserCheck, Timer, AlertTriangle } from 'lucide-react';
 import api from '../../services/api';
 import AppNavbar from '../../components/AppNavbar';
 import AppBreadcrumb from '../../components/AppBreadcrumb';
 
-const STATUS_LABELS = {
-  opened: { label: 'Ouvert', color: 'bg-blue-100 text-blue-700' },
-  awaiting_evidence: { label: 'En attente de preuves', color: 'bg-amber-100 text-amber-700' },
-  escalated: { label: 'Escaladé', color: 'bg-red-100 text-red-700' },
+const STATUS_CONFIG = {
+  awaiting_positions: { label: 'En attente de réponse', color: 'bg-amber-100 text-amber-700' },
+  awaiting_evidence: { label: 'En attente de réponse', color: 'bg-amber-100 text-amber-700' },
+  escalated: { label: 'En cours d\'arbitrage', color: 'bg-blue-100 text-blue-700' },
+  agreed_present: { label: 'Présence confirmée', color: 'bg-emerald-100 text-emerald-700' },
+  agreed_absent: { label: 'Absence confirmée', color: 'bg-red-100 text-red-700' },
+  agreed_late_penalized: { label: 'Retard confirmé', color: 'bg-orange-100 text-orange-700' },
   resolved: { label: 'Résolu', color: 'bg-emerald-100 text-emerald-700' },
 };
 
+const RESOLVED_STATUSES = ['resolved', 'agreed_present', 'agreed_absent', 'agreed_late_penalized'];
+
 export default function DisputesListPage() {
-  const navigate = useNavigate();
   const [disputes, setDisputes] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -38,8 +42,8 @@ export default function DisputesListPage() {
     );
   }
 
-  const open = disputes.filter(d => d.status !== 'resolved');
-  const resolved = disputes.filter(d => d.status === 'resolved');
+  const open = disputes.filter(d => !RESOLVED_STATUSES.includes(d.status));
+  const resolved = disputes.filter(d => RESOLVED_STATUSES.includes(d.status));
 
   return (
     <div className="min-h-screen bg-slate-50" data-testid="disputes-list-page">
@@ -52,10 +56,10 @@ export default function DisputesListPage() {
 
         <div className="flex items-center gap-2 mb-6">
           <Scale className="w-5 h-5 text-slate-600" />
-          <h1 className="text-xl font-semibold text-slate-800">Litiges en cours</h1>
+          <h1 className="text-xl font-semibold text-slate-800">Litiges</h1>
           {open.length > 0 && (
             <span className="ml-2 px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-xs font-medium">
-              {open.length}
+              {open.length} en cours
             </span>
           )}
         </div>
@@ -82,8 +86,21 @@ export default function DisputesListPage() {
 }
 
 function DisputeCard({ dispute }) {
-  const s = STATUS_LABELS[dispute.status] || STATUS_LABELS.opened;
+  const s = STATUS_CONFIG[dispute.status] || STATUS_CONFIG.awaiting_positions;
   const deadline = dispute.deadline ? new Date(dispute.deadline) : null;
+  const isResolved = RESOLVED_STATUSES.includes(dispute.status);
+
+  // Determine the action hint for the user
+  let actionHint = null;
+  if (!isResolved) {
+    if (dispute.can_submit_position) {
+      actionHint = { text: 'Votre réponse est attendue', color: 'text-amber-600', icon: AlertTriangle };
+    } else if (dispute.my_position && !dispute.other_party_responded) {
+      actionHint = { text: 'En attente de l\'autre partie', color: 'text-slate-400', icon: Clock };
+    } else if (dispute.status === 'escalated') {
+      actionHint = { text: 'En cours d\'arbitrage', color: 'text-blue-500', icon: Scale };
+    }
+  }
 
   return (
     <Link
@@ -102,19 +119,20 @@ function DisputeCard({ dispute }) {
             </p>
           )}
           <p className="text-xs text-slate-500 mt-1.5">
-            Concerne : <span className="font-medium">{dispute.target_name || 'Participant'}</span>
+            Présence contestée : <span className="font-medium">{dispute.target_name || 'Participant'}</span>
           </p>
-          {dispute.declaration_summary && (
-            <p className="text-xs text-slate-400 mt-1">
-              {dispute.declaration_summary.declared_absent_count} absent &middot; {dispute.declaration_summary.declared_present_count} présent
-            </p>
+          {actionHint && (
+            <div className="flex items-center gap-1.5 mt-2">
+              <actionHint.icon className={`w-3 h-3 ${actionHint.color}`} />
+              <p className={`text-xs font-medium ${actionHint.color}`}>{actionHint.text}</p>
+            </div>
           )}
         </div>
         <div className="flex flex-col items-end gap-2 flex-shrink-0">
-          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${s.color}`}>
+          <span className={`px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ${s.color}`}>
             {s.label}
           </span>
-          {deadline && dispute.status !== 'resolved' && (
+          {deadline && !isResolved && dispute.status !== 'escalated' && (
             <span className="flex items-center gap-1 text-xs text-slate-400">
               <Clock className="w-3 h-3" />
               {deadline.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}

@@ -445,8 +445,10 @@ def _apply_declarative_outcome(appointment_id: str, result: dict):
 
 
 def open_dispute(appointment_id: str, target_participant_id: str, reason: str):
-    """Create a dispute for a participant whose status cannot be auto-resolved.
-    The organizer is ALWAYS assigned as the sole accuser_user_id.
+    """Create a symmetric dispute for a participant whose status cannot be auto-resolved.
+
+    Trustless V4: both organizer and participant have equal power.
+    Neither party can unilaterally impose a financial penalty.
     """
     existing = db.declarative_disputes.find_one({
         "appointment_id": appointment_id,
@@ -458,28 +460,25 @@ def open_dispute(appointment_id: str, target_participant_id: str, reason: str):
     target_user_id = _get_user_id(target_participant_id)
     deadline = now_utc() + timedelta(days=DISPUTE_DEADLINE_DAYS)
 
-    # The organizer is the sole accuser — if organizer doesn't support the
-    # absence claim, there is no financial dispute to arbitrate.
     appointment = db.appointments.find_one(
         {"appointment_id": appointment_id},
         {"_id": 0, "organizer_id": 1}
     )
-    accuser_user_id = appointment.get("organizer_id") if appointment else None
+    organizer_user_id = appointment.get("organizer_id") if appointment else None
 
     dispute = {
         "dispute_id": str(uuid.uuid4()),
         "appointment_id": appointment_id,
         "target_participant_id": target_participant_id,
         "target_user_id": target_user_id,
-        # Phase 2: accuser/accused explicit fields
-        "accuser_user_id": accuser_user_id,
-        "accused_participant_id": target_participant_id,
-        "accused_user_id": target_user_id,
-        # Organizer decision (concede / maintain / null)
-        "decision": None,
-        "decision_at": None,
-        "decision_by": None,
-        "status": "awaiting_evidence",
+        "organizer_user_id": organizer_user_id,
+        # Symmetric positions: null = not yet responded
+        # Values: "confirmed_present" | "confirmed_absent" | "confirmed_late_penalized"
+        "organizer_position": None,
+        "organizer_position_at": None,
+        "participant_position": None,
+        "participant_position_at": None,
+        "status": "awaiting_positions",
         "opened_at": now_utc().isoformat(),
         "opened_reason": reason,
         "resolution": {
@@ -494,7 +493,7 @@ def open_dispute(appointment_id: str, target_participant_id: str, reason: str):
         "created_at": now_utc().isoformat(),
     }
     db.declarative_disputes.insert_one(dispute)
-    logger.info(f"[DISPUTE] Opened for {target_participant_id} in {appointment_id}: {reason}. Accuser (organizer): {accuser_user_id}")
+    logger.info(f"[DISPUTE] Opened for {target_participant_id} in {appointment_id}: {reason}. Organizer: {organizer_user_id}")
     return dispute['dispute_id']
 
 
@@ -579,63 +578,123 @@ def resolve_dispute(dispute_id: str, final_outcome: str, resolution_note: str, r
     return {"success": True}
 
 
-def concede_dispute(dispute_id: str, user_id: str) -> dict:
-    """Organizer concedes the dispute — releases the participant's guarantee.
-    This resolves the dispute with outcome 'waived' (no penalty).
+def submit_dispute_position(dispute_id: str, user_id: str, position: str) -> dict:
+    """Submit a party's position on a dispute. Both organizer and participant use this.
+
+    Trustless V4: No penalty without double explicit confirmation.
+    Positions: confirmed_present | confirmed_absent | confirmed_late_penalized
+    """
+    valid_positions = ("confirmed_present", "confirmed_absent", "confirmed_late_penalized")
+    if position not in valid_positions:
+        return {"error": f"Position invalide. Valeurs: {', '.join(valid_positions)}"}
+
+    dispute = db.declarative_disputes.find_one({"dispute_id": dispute_id}, {"_id": 0})
+    if not dispute:
+        return {"error": "Litige introuvable"}
+
+    if dispute.get("status") not in ("awaiting_positions",):
+        return {"error": "Ce litige n'accepte plus de positions"}
+
+    # Determine role
+    is_organizer = (dispute.get("organizer_user_id") == user_id)
+    is_participant = (dispute.get("target_user_id") == user_id)
+
+    if not is_organizer and not is_participant:
+        return {"error": "Vous n'êtes pas partie prenante de ce litige"}
+
+    if is_organizer:
+        if dispute.get("organizer_position") is not None:
+            return {"error": "Vous avez déjà soumis votre position"}
+        db.declarative_disputes.update_one(
+            {"dispute_id": dispute_id},
+            {"$set": {
+                "organizer_position": position,
+                "organizer_position_at": now_utc().isoformat(),
+            }}
+        )
+        logger.info(f"[DISPUTE] Organizer {user_id} submitted position '{position}' on {dispute_id}")
+    else:
+        if dispute.get("participant_position") is not None:
+            return {"error": "Vous avez déjà soumis votre position"}
+        db.declarative_disputes.update_one(
+            {"dispute_id": dispute_id},
+            {"$set": {
+                "participant_position": position,
+                "participant_position_at": now_utc().isoformat(),
+            }}
+        )
+        logger.info(f"[DISPUTE] Participant {user_id} submitted position '{position}' on {dispute_id}")
+
+    # Re-fetch and check if both positions are in → auto-resolve
+    return _check_positions_and_resolve(dispute_id)
+
+
+def _check_positions_and_resolve(dispute_id: str) -> dict:
+    """Check if both positions are submitted and resolve accordingly.
+
+    Decision matrix (Trustless V4):
+    - Both confirm_present → resolved as on_time (guarantee released)
+    - Both confirm_absent → resolved as no_show (penalty applied)
+    - Both confirm_late_penalized → resolved as late_penalized (penalty applied)
+    - Any disagreement → escalated to platform arbitration
+    - Any silence (position = null) → wait (deadline job will escalate)
+
+    CRITICAL: No penalty is EVER applied without double explicit confirmation.
     """
     dispute = db.declarative_disputes.find_one({"dispute_id": dispute_id}, {"_id": 0})
     if not dispute:
         return {"error": "Litige introuvable"}
-    if dispute.get("accuser_user_id") != user_id:
-        return {"error": "Seul l'organisateur (accusateur) peut prendre cette décision"}
-    if dispute.get("decision") is not None:
-        return {"error": "Une décision a déjà été prise pour ce litige"}
-    if dispute.get("status") == "resolved":
-        return {"error": "Ce litige est déjà résolu"}
 
-    db.declarative_disputes.update_one(
-        {"dispute_id": dispute_id},
-        {"$set": {
-            "decision": "conceded",
-            "decision_at": now_utc().isoformat(),
-            "decision_by": user_id,
-        }}
-    )
-    logger.info(f"[DISPUTE] Organizer {user_id} conceded dispute {dispute_id}")
+    org_pos = dispute.get("organizer_position")
+    par_pos = dispute.get("participant_position")
 
-    # Auto-resolve: release guarantee → outcome = waived
-    return resolve_dispute(
-        dispute_id,
-        final_outcome="waived",
-        resolution_note="L'organisateur a libéré la garantie du participant.",
-        resolved_by="organizer_concession",
-    )
+    # If one party hasn't responded yet, just acknowledge
+    if org_pos is None or par_pos is None:
+        return {"success": True, "message": "Position enregistrée. En attente de l'autre partie."}
+
+    # Both have responded — apply decision matrix
+    if org_pos == par_pos:
+        # AGREEMENT
+        outcome_map = {
+            "confirmed_present": ("on_time", "agreed_present", "Accord mutuel : présence confirmée."),
+            "confirmed_absent": ("no_show", "agreed_absent", "Accord mutuel : absence confirmée."),
+            "confirmed_late_penalized": ("late_penalized", "agreed_late_penalized", "Accord mutuel : retard pénalisable confirmé."),
+        }
+        final_outcome, new_status, note = outcome_map[org_pos]
+
+        db.declarative_disputes.update_one(
+            {"dispute_id": dispute_id},
+            {"$set": {"status": new_status}}
+        )
+        resolve_dispute(dispute_id, final_outcome, note, resolved_by="mutual_agreement")
+        logger.info(f"[DISPUTE] {dispute_id} resolved by mutual agreement: {final_outcome}")
+        return {"success": True, "message": note, "resolved": True, "outcome": final_outcome}
+    else:
+        # DISAGREEMENT → escalade automatique
+        db.declarative_disputes.update_one(
+            {"dispute_id": dispute_id},
+            {"$set": {
+                "status": "escalated",
+                "escalated_at": now_utc().isoformat(),
+            }}
+        )
+        logger.info(f"[DISPUTE] {dispute_id} escalated: organizer={org_pos}, participant={par_pos}")
+        return {"success": True, "message": "Les positions divergent. Le dossier est transmis à un arbitre neutre.", "escalated": True}
 
 
-def maintain_dispute(dispute_id: str, user_id: str) -> dict:
-    """Organizer maintains position — escalates to platform arbitration."""
-    dispute = db.declarative_disputes.find_one({"dispute_id": dispute_id}, {"_id": 0})
-    if not dispute:
-        return {"error": "Litige introuvable"}
-    if dispute.get("accuser_user_id") != user_id:
-        return {"error": "Seul l'organisateur (accusateur) peut prendre cette décision"}
-    if dispute.get("decision") is not None:
-        return {"error": "Une décision a déjà été prise pour ce litige"}
-    if dispute.get("status") == "resolved":
-        return {"error": "Ce litige est déjà résolu"}
-
-    db.declarative_disputes.update_one(
-        {"dispute_id": dispute_id},
-        {"$set": {
-            "decision": "maintained",
-            "decision_at": now_utc().isoformat(),
-            "decision_by": user_id,
-            "status": "escalated",
-            "escalated_at": now_utc().isoformat(),
-        }}
-    )
-    logger.info(f"[DISPUTE] Organizer {user_id} maintained dispute {dispute_id} — escalated to platform")
-    return {"success": True, "message": "Litige escaladé à la plateforme pour arbitrage."}
+def _get_user_declaration_for_target(appointment_id: str, user_id: str, target_pid: str) -> str:
+    """Get what a user declared about a target in their attendance sheet."""
+    sheet = db.attendance_sheets.find_one({
+        "appointment_id": appointment_id,
+        "submitted_by_user_id": user_id,
+        "status": "submitted"
+    }, {"_id": 0})
+    if not sheet:
+        return None
+    for d in sheet.get('declarations', []):
+        if d.get('target_participant_id') == target_pid:
+            return d.get('declared_status')
+    return None
 
 
 def submit_dispute_evidence(dispute_id: str, user_id: str, evidence_type: str, content_url: str = None, text_content: str = None):
@@ -643,7 +702,7 @@ def submit_dispute_evidence(dispute_id: str, user_id: str, evidence_type: str, c
     dispute = db.declarative_disputes.find_one({"dispute_id": dispute_id}, {"_id": 0})
     if not dispute:
         return {"error": "Litige introuvable"}
-    if dispute['status'] not in ('awaiting_evidence', 'opened'):
+    if dispute['status'] not in ('awaiting_positions', 'awaiting_evidence', 'escalated'):
         return {"error": "Ce litige n'accepte plus de preuves complémentaires"}
 
     # Verify user is participant of this appointment
@@ -726,11 +785,13 @@ def run_declarative_deadline_job():
 
 
 def run_dispute_deadline_job():
-    """Escalate disputes that passed the 7-day deadline."""
+    """Escalate disputes that passed the 7-day deadline.
+    Trustless V4: silence = uncertainty = arbitrage. Never a penalty.
+    """
     from datetime import datetime
 
     disputes = list(db.declarative_disputes.find(
-        {"status": "awaiting_evidence"},
+        {"status": {"$in": ["awaiting_positions", "awaiting_evidence"]}},
         {"_id": 0}
     ))
 
