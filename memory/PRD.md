@@ -133,6 +133,14 @@ SaaS d'engagement ponctuel avec garantie financiere. Optimisation du "Viral Loop
 - `api.js`: fonctions mortes supprimées (evaluate, reevaluate, reclassify)
 - Backend endpoints reclassify/evaluate/reevaluate: toujours routés mais 0 appel UI
 
+### Phase 18c — Legacy Dispute Purge & V4.2 Re-init (Feb 2026) - DONE
+- 14 disputes legacy `small_group_escalation` supprimées (code obsolète qui bypassait les Présences)
+- 10 appointments reset + ré-initialisés via flow V4.2 correct
+- 21 feuilles de présence créées (avec self-declarations pour les petits groupes)
+- 1 analyse déclarative orpheline purgée
+- 0 litige, 0 incohérence, 0 dette legacy restante
+- Tout sauvegardé dans `cleanup_backups` (42 entrées)
+
 ## Upcoming Tasks
 - P1: Dashboard admin plateforme (arbitrage final des litiges escalades "maintained")
 - P1: Configurer webhook Stripe en production
