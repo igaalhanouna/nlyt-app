@@ -84,7 +84,7 @@ SaaS d'engagement ponctuel avec garantie financiere. Optimisation du "Viral Loop
 - Backend visio (proof_routes.py): time gate ajoute via _enforce_time_gate() sur /checkin et /info
 - Frontend physique (InvitationCheckinSection.js): windowClose corrige de durationMin+toleratedDelay vers durationMin+60
 - Frontend visio (CheckinPage.js): etats before/during/after ajoutes avec messages FR
-- P1 restant: AppointmentHeader.js + OrganizerCheckinBlock.js (CTA organiser sans time gate frontend)
+- P1 restant: RÉSOLU — AppointmentHeader.js + OrganizerCheckinBlock.js alignés avec time gate
 
 ## Modification Emails (Mar 2026)
 - Email "Engagement modifie" envoye apres toute modification acceptee
