@@ -97,17 +97,14 @@ function HeaderStats({ user, counts }) {
 function ImpactCard({ totalCharityCents }) {
   const amount = fmtEuro((totalCharityCents || 0) / 100);
   return (
-    <div className="mb-6 bg-emerald-50 border border-emerald-200 rounded-lg p-5" data-testid="impact-card">
-      <div className="flex items-center gap-2 mb-2">
-        <Heart className="w-4.5 h-4.5 text-red-500 fill-red-500" />
-        <span className="text-sm font-semibold text-emerald-700">Vos gestes solidaires</span>
+    <Link to="/contributions" className="block mb-6 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-3 hover:bg-emerald-100/60 transition-colors" data-testid="impact-card">
+      <div className="flex items-center gap-2.5">
+        <Heart className="w-4 h-4 text-red-500 fill-red-500 flex-shrink-0" />
+        <span className="text-sm font-medium text-emerald-700">Vos gestes solidaires reversés à des associations</span>
+        <span className="ml-auto text-sm font-bold text-emerald-800 flex-shrink-0" data-testid="impact-amount">{amount}</span>
+        <ChevronRight className="w-4 h-4 text-emerald-400 flex-shrink-0" />
       </div>
-      <p className="text-3xl font-bold text-emerald-800 mb-1" data-testid="impact-amount">{amount}</p>
-      <p className="text-sm text-emerald-600">reversés à des associations</p>
-      <Link to="/settings/wallet" className="inline-block mt-3 text-xs text-emerald-600 hover:text-emerald-800 underline underline-offset-2 transition-colors" data-testid="impact-detail-link">
-        Voir le détail →
-      </Link>
-    </div>
+    </Link>
   );
 }
 
