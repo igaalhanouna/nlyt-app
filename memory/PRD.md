@@ -81,17 +81,20 @@ SaaS d'engagement ponctuel avec garantie financiere. Optimisation du "Viral Loop
 ### Phase 12c — Toggle Harmonisation Dashboard/Agenda (iteration_113, 100%) - DONE
 ### Phase 13 — Auto-creation meeting on type switch (11/11 unit tests) - DONE
 ### Phase 14 — Presences page realignment: declarative only (iteration_114, 100%) - DONE
-### Phase 15 — Dispute Decision Logic Phase 2 (iteration_115, 100%) - DONE
+### Phase 15 — Dispute Decision Logic Phase 2 (iteration_115, 100%) - SUPERSEDED BY V4
+### Phase 16 — V4 Trustless Symmetric Disputes (iteration_116, 100%) - DONE
 
-## Dispute Decision Logic Phase 2 (Mar 2026)
-- Organizer is the SOLE accuser_user_id on all disputes
-- Rule: "Si l'organisateur ne soutient pas l'absence, il n'y a pas de litige financier"
-- New fields on disputes: accuser_user_id, accused_participant_id, accused_user_id, decision, decision_at, decision_by
-- Concede: POST /api/disputes/{id}/concede — resolves dispute with outcome=waived (no penalty)
-- Maintain: POST /api/disputes/{id}/maintain — escalates to platform for arbitration
-- Frontend: Decision buttons visible ONLY to accuser_user_id when decision is null
-- Guards: non-accuser rejected, double-decision rejected, already-resolved rejected
-- Backfill script: /app/backend/scripts/backfill_disputes.py (ran for 28 existing disputes)
+## V4 Trustless Symmetric Disputes (Mar 2026)
+- COMPLETE REWORK: Replaced asymmetric accuser/accused model with symmetric positions
+- Rule: No penalty without DOUBLE EXPLICIT confirmation (organizer + participant)
+- Rule: Silence = uncertainty = automatic escalation (NEVER a penalty)
+- Covers BOTH no_show AND late_penalized statuses identically
+- Both parties use POST /api/disputes/{id}/position with values: confirmed_present | confirmed_absent | confirmed_late_penalized
+- Mutual agreement auto-resolves; disagreement auto-escalates to platform
+- Old endpoints /concede and /maintain REMOVED
+- Frontend: Symmetric DisputeDetailPage with 3 position buttons, confirmation modal, clear blocks (Ce qui s'est passe, Votre declaration, Votre position)
+- Frontend: DisputesListPage with action hints (Votre reponse est attendue / En attente de l'autre partie)
+- Migration: /app/backend/scripts/migrate_disputes_v4.py ran for 28 existing disputes
 
 ## Agenda Calendar View (Mar 2026)
 - Route: /agenda, navbar position: juste apres "Tableau de bord"
