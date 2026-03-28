@@ -41,28 +41,44 @@ def _has_admissible_proof(participant_id: str, appointment_id: str) -> bool:
     Niveau 1: GPS in radius, NLYT Proof >= 55
     Niveau 2: QR code, medium GPS, API video (Zoom/Teams)
     Niveau 3 (excluded): manual_checkin alone, Google Meet alone, 0 evidence
+
+    DB schema: `source` is the primary type field, `derived_facts` holds nested data.
     """
     evidence = list(db.evidence_items.find(
         {"appointment_id": appointment_id, "participant_id": participant_id},
-        {"_id": 0, "evidence_type": 1, "source": 1, "gps_within_radius": 1}
+        {"_id": 0, "source": 1, "derived_facts": 1}
     ))
     if not evidence:
         return False
     for e in evidence:
-        etype = e.get("evidence_type", "")
         source = e.get("source", "")
-        # GPS evidence (strong or medium) = Niveau 1-2
-        if etype == "gps" and e.get("gps_within_radius"):
+        df = e.get("derived_facts") or {}
+
+        # GPS evidence: source="gps", gps_within_radius inside derived_facts
+        if source == "gps":
+            if df.get("gps_within_radius"):
+                return True
+            continue
+
+        # QR code: source="qr" = Niveau 2
+        if source == "qr":
             return True
-        # QR code = Niveau 2
-        if etype == "qr_scan":
+
+        # Video API (Zoom/Teams): source="video_conference" with strong provider
+        if source == "video_conference":
+            provider = df.get("provider", "")
+            ceiling = df.get("provider_evidence_ceiling", "")
+            outcome = df.get("video_attendance_outcome", "")
+            # Only Zoom/Teams with strong ceiling AND confirmed join = Niveau 2
+            if provider in ("zoom", "teams") and ceiling in ("strong", "autonomous"):
+                if outcome in ("joined_on_time", "joined_late"):
+                    return True
+            continue
+
+        # NLYT Proof session: source="nlyt_proof" = Niveau 1-2
+        if source == "nlyt_proof":
             return True
-        # Video API (Zoom/Teams) = Niveau 2
-        if etype in ("video_api", "video_evidence") and source in ("zoom", "teams", "zoom_api", "teams_api"):
-            return True
-        # NLYT Proof session with decent score = Niveau 1-2
-        if etype == "proof_session":
-            return True
+
     return False
 
 

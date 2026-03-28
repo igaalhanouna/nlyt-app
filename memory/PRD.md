@@ -93,8 +93,20 @@ SaaS d'engagement ponctuel avec garantie financiere. Optimisation du "Viral Loop
 - Small group analysis: direct comparison, agreement → resolve, disagreement → dispute
 - Old _escalate_all_manual_reviews() REMOVED (dead code)
 - Wording: "Votre declaration sur les presences" / "Votre position sur le litige"
-- Lock-down tests: /app/backend/tests/test_strong_proof_lockdown.py (6 tests)
+- Lock-down tests: /app/backend/tests/test_strong_proof_lockdown.py (9 tests, 100%)
 - Flow tests: /app/backend/tests/test_presences_flow.py (5 tests)
+
+### Phase 17 — Schema Alignment & Data Cleanup (Feb 2026) - DONE
+- **Bug fix**: `_has_admissible_proof()` was checking `evidence_type` (nearly unused in DB) and root-level `gps_within_radius` (doesn't exist). Fixed to check `source` field and `derived_facts` nested dict.
+- **DB schema reality**: `source` = "gps"|"qr"|"video_conference"|"manual_checkin", `gps_within_radius` inside `derived_facts`, `provider` inside `derived_facts`
+- **Video conference validation**: Zoom/Teams require `provider_evidence_ceiling=strong` AND `video_attendance_outcome` in (joined_on_time, joined_late). Google Meet (assisted) correctly excluded.
+- **Tests expanded**: 6 → 9 tests (added Teams, Meet exclusion, GPS-outside-radius)
+- **Data cleanup script**: `/app/backend/scripts/clean_ghost_disputes.py`
+  - 6 misclassified manual_review records deleted (had strong proof)
+  - 11 ghost disputes purged (4 test, 4 strong-proof, 2 cancelled-apt, 1 resolved-strong)
+  - 1 orphan sheet removed
+  - 17 backups saved in `cleanup_backups` collection
+  - 5 appointments reset for re-evaluation
 
 
 - /litiges page shows ONLY active disputes (awaiting_positions, escalated)
