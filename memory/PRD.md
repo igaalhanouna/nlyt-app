@@ -87,98 +87,32 @@ SaaS d'engagement ponctuel avec garantie financiere. Optimisation du "Viral Loop
 ## V4.2 Strong Proof Lockdown & Small Group Declarative (Mar 2026)
 - RULE: Strong technological proof NEVER creates manual_review, attendance_sheet, or dispute
 - Strong proof = GPS valid, QR code, NLYT Proof >= 55, Video API (Zoom/Teams)
-- Weak/no proof = manual_checkin only, NLYT < 30, no evidence → manual_review → Presences
+- Weak/no proof = manual_checkin only, NLYT < 30, no evidence -> manual_review -> Presences
 - Small groups (< 3 participants): no longer bypass Presences. Sheets always created.
 - Self-declaration: targeted participants declare on themselves (is_self_declaration=true)
-- Small group analysis: direct comparison, agreement → resolve, disagreement → dispute
+- Small group analysis: direct comparison, agreement -> resolve, disagreement -> dispute
 - Old _escalate_all_manual_reviews() REMOVED (dead code)
 - Wording: "Votre declaration sur les presences" / "Votre position sur le litige"
 - Lock-down tests: /app/backend/tests/test_strong_proof_lockdown.py (9 tests, 100%)
 - Flow tests: /app/backend/tests/test_presences_flow.py (5 tests)
 
 ### Phase 17 — Schema Alignment & Data Cleanup (Feb 2026) - DONE
-- **Bug fix**: `_has_admissible_proof()` was checking `evidence_type` (nearly unused in DB) and root-level `gps_within_radius` (doesn't exist). Fixed to check `source` field and `derived_facts` nested dict.
-- **DB schema reality**: `source` = "gps"|"qr"|"video_conference"|"manual_checkin", `gps_within_radius` inside `derived_facts`, `provider` inside `derived_facts`
-- **Video conference validation**: Zoom/Teams require `provider_evidence_ceiling=strong` AND `video_attendance_outcome` in (joined_on_time, joined_late). Google Meet (assisted) correctly excluded.
-- **Tests expanded**: 6 → 9 tests (added Teams, Meet exclusion, GPS-outside-radius)
-- **Data cleanup script**: `/app/backend/scripts/clean_ghost_disputes.py`
-  - 6 misclassified manual_review records deleted (had strong proof)
-  - 11 ghost disputes purged (4 test, 4 strong-proof, 2 cancelled-apt, 1 resolved-strong)
-  - 1 orphan sheet removed
-  - 17 backups saved in `cleanup_backups` collection
-  - 5 appointments reset for re-evaluation
+- Bug fix: `_has_admissible_proof()` fixed to check `source` field and `derived_facts` nested dict
+- DB schema reality: `source` = "gps"|"qr"|"video_conference"|"manual_checkin", `gps_within_radius` inside `derived_facts`
+- Video conference validation: Zoom/Teams require `provider_evidence_ceiling=strong` AND `video_attendance_outcome` in (joined_on_time, joined_late)
+- Tests expanded: 6 -> 9 tests
+- Data cleanup script: `/app/backend/scripts/clean_ghost_disputes.py`
 
-
-- /litiges page shows ONLY active disputes (awaiting_positions, escalated)
-- Resolved disputes (agreed_present, agreed_absent, agreed_late_penalized, resolved) hidden from list
-- Resolved disputes remain accessible via direct URL /litiges/{id}
-- Empty state: "Aucun litige en cours" when all resolved
-- No "Litiges résolus" section — page is purely an action list
-- COMPLETE REWORK: Replaced asymmetric accuser/accused model with symmetric positions
-- Rule: No penalty without DOUBLE EXPLICIT confirmation (organizer + participant)
-- Rule: Silence = uncertainty = automatic escalation (NEVER a penalty)
-- Covers BOTH no_show AND late_penalized statuses identically
-- Both parties use POST /api/disputes/{id}/position with values: confirmed_present | confirmed_absent | confirmed_late_penalized
-- Mutual agreement auto-resolves; disagreement auto-escalates to platform
-- Old endpoints /concede and /maintain REMOVED
-- Frontend: Symmetric DisputeDetailPage with 3 position buttons, confirmation modal, clear blocks (Ce qui s'est passe, Votre declaration, Votre position)
-- Frontend: DisputesListPage with action hints (Votre reponse est attendue / En attente de l'autre partie)
-- Migration: /app/backend/scripts/migrate_disputes_v4.py ran for 28 existing disputes
-
-## Agenda Calendar View (Mar 2026)
-- Route: /agenda, navbar position: juste apres "Tableau de bord"
-- 3 vues: Mois, Semaine, Jour (toggle Mois/Semaine/Jour)
-- Donnees: appointmentAPI.myTimeline() + externalEventsAPI.list(), merge client-side
-- Tri: heure croissante, NLYT prioritaire a meme heure
-- Differentiation: dots solides (NLYT) vs dots creux (Google/Microsoft)
-- Vue Mois: grille calendrier, clic jour ouvre panneau detail
-- Vue Semaine: grille temporelle 7j (Lun-Dim), blocs positionnes, clic colonne -> vue Jour
-- Vue Jour: grille temporelle + sidebar liste detaillee (compteur evenements)
-- Navigation: fleches prev/next adaptees par vue, bouton Aujourd'hui
-- Clic NLYT: navigate vers /appointments/{id}
-- Clic externe: non-cliquable
-- CalendarSyncPanel integre pour toggle Google/Microsoft
-- Aucun endpoint backend ajoute, zero logique metier nouvelle
-- Tests: iteration_112, 100% (4 backend + 16 frontend)
-
-## Toggle Harmonisation Dashboard/Agenda (Mar 2026)
-- Refetch cible: toggle ON dans Agenda ne refetch que external-events, pas my-timeline
-- Guard anti double-clic: useRef settingChangeRef sur Dashboard ET Agenda
-- Auto-refresh 2min: Agenda aligne sur Dashboard (syncIntervalRef, 120s, sync+refetch events)
-- lastAutoCheckAt passe au CalendarSyncPanel dans les deux pages
-- Condition refetch ON: verifie res.data?.sync?.synced (identique Dashboard)
-- Tests: iteration_113, 100%
-
-## Check-in Time Window (Mar 2026)
-- Regle unique: ouverture start-30min, fermeture end+60min
-- Source de verite: CHECKIN_WINDOW_BEFORE_MINUTES=30, CHECKIN_WINDOW_AFTER_HOURS=1 (evidence_service.py)
-- Backend physique (checkin_routes.py): deja aligne
-- Backend visio (proof_routes.py): time gate ajoute via _enforce_time_gate() sur /checkin et /info
-- Frontend physique (InvitationCheckinSection.js): windowClose corrige de durationMin+toleratedDelay vers durationMin+60
-- Frontend visio (CheckinPage.js): etats before/during/after ajoutes avec messages FR
-- P1 restant: RÉSOLU — AppointmentHeader.js + OrganizerCheckinBlock.js alignés avec time gate
-
-## Modification Emails (Mar 2026)
-- Email "Engagement modifie" envoye apres toute modification acceptee
-- Destinataires: participants engages (accepted_*) + organisateur (si non-proposeur)
-- Tableau avant/apres avec labels FR (Format, Duree, Lieu, Plateforme visio)
-- Bloc acces conditionnel: proof_link pour visio, check-in GPS pour physique
-- Pas de reset du flag confirmation_email_sent — email unique suffit
-- 3 callers invitation corrigés (participants.py, invitations.py, appointments.py) pour passer meeting_provider/meeting_join_url
-- Nettoyage complet visio->physique: meeting_provider + meeting_join_url + external_meeting_id
-
-## Dispute Resolution Emails (Mar 2026)
-- Trigger: appel non-bloquant dans `resolve_dispute()` apres toute resolution
-- 3 variantes: participant cible, organisateur, beneficiaire impacte
-- Source de decision: jamais "organisateur" expose (toujours "Resolution validee")
-- Bloc financier: 4 cas (capture, liberation, aucun impact, dedommagement annule)
-- CTA contextuel: wallet si impact financier, page RDV sinon
-- Idempotence via collection `sent_emails` (email_type + dispute_id + user_id)
-- Organizer = target → 1 seul email (variante target)
+### Phase 17b — Limbo Appointments Recovery (Feb 2026) - DONE
+- 4 appointments stuck in limbo state after Phase 17 cleanup (stale `declarative_phase: 'disputed'`, no sheets/disputes)
+- Root cause: cleanup script reset `attendance_evaluated` but not `declarative_phase`, `attendance_summary`, or orphaned sheets/disputes
+- Fix: full state reset + re-evaluation with corrected logic for all 4 affected appointments
+- Script `clean_ghost_disputes.py` updated: Phase 1 now does full state reset + sheet/dispute cleanup + auto re-evaluation; Phase 2 resets `declarative_phase` when all disputes purged
 
 ## Upcoming Tasks
+- P1: Dashboard admin plateforme (arbitrage final des litiges escalades "maintained")
 - P1: Configurer webhook Stripe en production
-- P2: Dashboard admin plateforme (arbitrage final des litiges escalades "maintained")
+- P1: Test reel Zoom/Teams avec vrais tokens
 
 ## Backlog
 - P2: Charity Payouts V2 (Stripe Transfers)
@@ -191,3 +125,4 @@ SaaS d'engagement ponctuel avec garantie financiere. Optimisation du "Viral Loop
 ## Test Credentials
 - User 1: testuser_audit@nlyt.app / TestAudit123!
 - User 2: igaal.hanouna@gmail.com / OrgTest123!
+- User 3: igaal@hotmail.com / Test123!

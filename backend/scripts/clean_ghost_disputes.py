@@ -101,14 +101,52 @@ if misclassified and not DRY_RUN:
         db.attendance_records.delete_one({"record_id": r["record_id"]})
         log(f"  DELETED record {r['record_id'][:12]}...")
 
-    # Mark affected appointments for re-evaluation
+    # Full reset of affected appointments for clean re-evaluation
     affected_apts = list({r["appointment_id"] for r in misclassified})
     for apt_id in affected_apts:
+        # 1. Reset all evaluation & declarative state fields
         db.appointments.update_one(
             {"appointment_id": apt_id},
-            {"$set": {"attendance_evaluated": False}}
+            {"$set": {
+                "attendance_evaluated": False,
+                "declarative_phase": None,
+                "attendance_summary": None,
+                "declarative_deadline": None,
+            },
+            "$unset": {
+                "attendance_evaluated_at": "",
+            }}
         )
-        log(f"  RESET evaluation flag for apt {apt_id[:12]}...")
+        log(f"  RESET evaluation + declarative state for apt {apt_id[:12]}...")
+
+        # 2. Backup & delete orphaned attendance_sheets for this apt
+        orphan_sheets = list(db.attendance_sheets.find({"appointment_id": apt_id}, {"_id": 0}))
+        for s in orphan_sheets:
+            db.cleanup_backups.insert_one({
+                "type": "reset_orphan_sheet",
+                "original_doc": s,
+                "appointment_id": apt_id,
+                "cleaned_at": datetime.now(timezone.utc).isoformat(),
+            })
+            db.attendance_sheets.delete_one({"sheet_id": s["sheet_id"]})
+            log(f"    DELETED orphan sheet {s['sheet_id'][:12]}...")
+
+        # 3. Backup & delete orphaned declarative_disputes for this apt
+        orphan_disputes = list(db.declarative_disputes.find({"appointment_id": apt_id}, {"_id": 0}))
+        for d in orphan_disputes:
+            db.cleanup_backups.insert_one({
+                "type": "reset_orphan_dispute",
+                "original_doc": d,
+                "appointment_id": apt_id,
+                "cleaned_at": datetime.now(timezone.utc).isoformat(),
+            })
+            db.declarative_disputes.delete_one({"dispute_id": d["dispute_id"]})
+            log(f"    DELETED orphan dispute {d['dispute_id'][:12]}...")
+
+        # 4. Re-evaluate the appointment with corrected logic
+        from services.attendance_service import evaluate_appointment
+        result = evaluate_appointment(apt_id)
+        log(f"    RE-EVALUATED apt {apt_id[:12]}... -> {result}")
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -155,6 +193,8 @@ for d in all_disputes:
 log(f"Ghost disputes to purge: {len(ghost_disputes)}")
 
 if ghost_disputes and not DRY_RUN:
+    # Also track which appointments need declarative_phase reset
+    ghost_apt_ids = set()
     for gd in ghost_disputes:
         d = gd["dispute"]
         db.cleanup_backups.insert_one({
@@ -164,7 +204,18 @@ if ghost_disputes and not DRY_RUN:
             "cleaned_at": datetime.now(timezone.utc).isoformat(),
         })
         db.declarative_disputes.delete_one({"dispute_id": d["dispute_id"]})
+        ghost_apt_ids.add(d.get("appointment_id", ""))
         log(f"  DELETED dispute {d['dispute_id'][:12]}...")
+
+    # Reset declarative_phase for appointments whose disputes were all purged
+    for apt_id in ghost_apt_ids:
+        remaining = db.declarative_disputes.count_documents({"appointment_id": apt_id})
+        if remaining == 0:
+            db.appointments.update_one(
+                {"appointment_id": apt_id, "declarative_phase": "disputed"},
+                {"$set": {"declarative_phase": None}}
+            )
+            log(f"  RESET declarative_phase for apt {apt_id[:12]}... (no disputes left)")
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -225,6 +276,8 @@ print(f"  Misclassified manual_review (strong proof exists): {len(misclassified)
 print(f"  Ghost disputes to purge: {len(ghost_disputes)}")
 print(f"  Orphaned sheets: {len(orphan_sheets)}")
 print(f"  Orphaned analyses: {len(orphan_analyses)}")
+if misclassified:
+    print(f"  Affected apts (full reset + re-eval): {len(set(r['appointment_id'] for r in misclassified))}")
 if DRY_RUN:
     print()
     print("  >>> DRY RUN MODE — No changes made <<<")
