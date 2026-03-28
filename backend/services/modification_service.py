@@ -233,6 +233,74 @@ def respond_to_proposal(proposal_id: str, responder_id: str, action: str, respon
     return updated_proposal
 
 
+
+def _auto_create_meeting_on_switch(appointment_id: str, changes: dict, original_values: dict):
+    """Auto-create a video meeting when switching to video or changing provider.
+
+    Handles:
+    - physical → video (Zoom/Teams/Meet)
+    - video → video (provider change, e.g. Zoom → Teams)
+
+    Non-blocking: logs warnings on failure, never raises.
+    """
+    from services.meeting_provider_service import create_meeting_for_appointment
+
+    appointment = db.appointments.find_one({"appointment_id": appointment_id}, {"_id": 0})
+    if not appointment:
+        return
+
+    new_type = appointment.get('appointment_type')
+    provider = appointment.get('meeting_provider')
+
+    # Only proceed if the result is a video appointment with a managed provider
+    if new_type != 'video' or not provider or provider == 'external':
+        if changes.get('appointment_type') == 'physical':
+            old_type = original_values.get('appointment_type')
+            if old_type == 'video' and original_values.get('meeting_provider'):
+                logger.info(f"[MEETING_SWITCH] video→physical for {appointment_id[:8]}: "
+                            f"old provider '{original_values.get('meeting_provider')}' meeting becomes obsolete (no API delete in V1)")
+        return
+
+    # Determine if we actually need to create a meeting
+    type_changed = 'appointment_type' in changes and original_values.get('appointment_type') != 'video'
+    provider_changed = 'meeting_provider' in changes and changes['meeting_provider'] != original_values.get('meeting_provider')
+
+    if not type_changed and not provider_changed:
+        return  # No relevant change
+
+    # Anti-double-creation: skip if a meeting already exists for the same provider
+    if appointment.get('meeting_created_via_api') and appointment.get('meeting_join_url'):
+        old_provider = original_values.get('meeting_provider')
+        if not old_provider or old_provider == provider:
+            # No previous provider (was physical) or same provider — meeting still valid
+            logger.info(f"[MEETING_SWITCH] Meeting already exists for {appointment_id[:8]} (provider={provider}), skipping creation")
+            return
+        # Different provider → old meeting becomes obsolete, create new one
+        logger.info(f"[MEETING_SWITCH] Provider changed {old_provider}→{provider} for {appointment_id[:8]}: "
+                     f"old meeting becomes obsolete (no API delete in V1)")
+
+    logger.info(f"[MEETING_SWITCH] Auto-creating {provider} meeting for {appointment_id[:8]} "
+                f"(type_changed={type_changed}, provider_changed={provider_changed})")
+
+    result = create_meeting_for_appointment(
+        appointment_id=appointment_id,
+        provider=provider,
+        title=appointment.get('title', ''),
+        start_datetime=appointment.get('start_datetime', ''),
+        duration_minutes=appointment.get('duration_minutes', 60),
+        timezone_str=appointment.get('appointment_timezone', 'UTC'),
+        organizer_user_id=appointment.get('organizer_id'),
+    )
+
+    if result and result.get('success'):
+        logger.info(f"[MEETING_SWITCH] Success: {provider} meeting created for {appointment_id[:8]}: {result.get('join_url', '')[:60]}")
+    elif result and result.get('error'):
+        logger.warning(f"[MEETING_SWITCH] Failed for {appointment_id[:8]}: {result.get('error')} "
+                       f"(organizer can use manual creation via UI)")
+    else:
+        logger.warning(f"[MEETING_SWITCH] Unexpected result for {appointment_id[:8]}: {result}")
+
+
 def _apply_proposal(proposal: dict):
     """Apply accepted proposal changes to the appointment."""
     appointment_id = proposal['appointment_id']
@@ -281,6 +349,12 @@ def _apply_proposal(proposal: dict):
                 logger.info(f"[MODIFICATION] Calendar auto-update triggered for {appointment_id}")
     except Exception as e:
         logger.warning(f"[MODIFICATION] Calendar auto-update failed: {e}")
+
+    # Auto-create meeting when switching to video (or changing provider)
+    try:
+        _auto_create_meeting_on_switch(appointment_id, changes, proposal.get('original_values', {}))
+    except Exception as e:
+        logger.warning(f"[MODIFICATION] Auto-create meeting failed (non-blocking): {e}")
 
     # Handle guarantee impact (capture window + major flag)
     try:
