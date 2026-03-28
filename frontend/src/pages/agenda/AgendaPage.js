@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, CalendarDays, Clock, MapPin, Video, Users, U
 import { Button } from '../../components/ui/button';
 import { appointmentAPI, externalEventsAPI } from '../../services/api';
 import AppNavbar from '../../components/AppNavbar';
+import CalendarSyncPanel from '../dashboard/CalendarSyncPanel';
 
 const DAYS_FR = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 const MONTHS_FR = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
@@ -48,8 +49,46 @@ export default function AgendaPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState(null);
 
+  // Calendar sync toggles (same logic as Dashboard)
+  const [importSettings, setImportSettings] = useState(null);
+  const [syncing, setSyncing] = useState(false);
+
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
+
+  const loadImportSettings = useCallback(async () => {
+    try {
+      const res = await externalEventsAPI.getImportSettings();
+      setImportSettings(res.data);
+    } catch { /* silent */ }
+  }, []);
+
+  const handleImportSettingChange = async (provider, enabled) => {
+    await externalEventsAPI.updateImportSetting(provider, enabled);
+    await loadImportSettings();
+    if (enabled) await fetchEvents();
+    if (!enabled) setEvents(prev => prev.filter(e => e.source === 'nlyt' || e.source !== provider));
+  };
+
+  const handleSync = async (force = false) => {
+    setSyncing(true);
+    try {
+      await externalEventsAPI.sync(force);
+      await loadImportSettings();
+      await fetchEvents();
+    } catch { /* silent */ }
+    finally { setSyncing(false); }
+  };
+
+  // Enabled providers for filtering
+  const enabledProviders = useMemo(() => {
+    const providers = importSettings?.providers || {};
+    return new Set(
+      Object.entries(providers)
+        .filter(([, cfg]) => cfg?.import_enabled)
+        .map(([key]) => key)
+    );
+  }, [importSettings]);
 
   const fetchEvents = useCallback(async () => {
     setLoading(true);
@@ -100,13 +139,17 @@ export default function AgendaPage() {
     }
   }, []);
 
-  useEffect(() => { fetchEvents(); }, [fetchEvents]);
+  useEffect(() => {
+    loadImportSettings().then(() => fetchEvents());
+  }, [loadImportSettings, fetchEvents]);
 
-  // Group events by day key
+  // Group events by day key — filtered by enabled providers
   const eventsByDay = useMemo(() => {
     const map = {};
     for (const ev of events) {
       if (!ev.start) continue;
+      // Filter: NLYT always visible, externals only if provider toggle is ON
+      if (ev.source !== 'nlyt' && !enabledProviders.has(ev.source)) continue;
       const dk = dateKey(new Date(ev.start));
       if (!map[dk]) map[dk] = [];
       map[dk].push(ev);
@@ -123,7 +166,7 @@ export default function AgendaPage() {
       });
     }
     return map;
-  }, [events]);
+  }, [events, enabledProviders]);
 
   const today = dateKey(new Date());
 
@@ -202,6 +245,18 @@ export default function AgendaPage() {
             <ChevronRight className="w-5 h-5 text-slate-600" />
           </button>
         </div>
+
+        {/* Calendar sync toggles — same component as Dashboard */}
+        {importSettings && (
+          <div className="mb-4">
+            <CalendarSyncPanel
+              importSettings={importSettings}
+              onSettingChange={handleImportSettingChange}
+              onSync={handleSync}
+              syncing={syncing}
+            />
+          </div>
+        )}
 
         {loading ? (
           <div className="flex items-center justify-center py-20">
