@@ -642,11 +642,17 @@ export default function OrganizerDashboard() {
     } catch { /* silent */ }
   };
 
+  const settingChangeRef = useRef(false);
+
   const handleImportSettingChange = async (provider, enabled) => {
-    const res = await externalEventsAPI.updateImportSetting(provider, enabled);
-    await loadImportSettings();
-    if (enabled && res.data?.sync?.synced) await loadExternalEvents();
-    if (!enabled) setExternalEvents(prev => prev.filter(e => e.source !== provider));
+    if (settingChangeRef.current) return;
+    settingChangeRef.current = true;
+    try {
+      const res = await externalEventsAPI.updateImportSetting(provider, enabled);
+      await loadImportSettings();
+      if (enabled && res.data?.sync?.synced) await loadExternalEvents();
+      if (!enabled) setExternalEvents(prev => prev.filter(e => e.source !== provider));
+    } finally { settingChangeRef.current = false; }
   };
 
   const handleSync = async (force = false) => {

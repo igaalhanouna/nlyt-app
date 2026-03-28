@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, CalendarDays, Clock, MapPin, Video, Users, User, Loader2 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
@@ -118,6 +118,8 @@ export default function AgendaPage() {
 
   const [importSettings, setImportSettings] = useState(null);
   const [syncing, setSyncing] = useState(false);
+  const [lastAutoCheckAt, setLastAutoCheckAt] = useState(null);
+  const settingChangeRef = useRef(false);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -125,15 +127,34 @@ export default function AgendaPage() {
   const loadImportSettings = useCallback(async () => {
     try { const res = await externalEventsAPI.getImportSettings(); setImportSettings(res.data); } catch { /* silent */ }
   }, []);
+
+  const loadExternalEvents = useCallback(async () => {
+    try {
+      const res = await externalEventsAPI.list();
+      const extItems = ((res.data || {}).events || []).map(ev => ({
+        id: ev.event_id || ev.external_event_id || Math.random().toString(36),
+        title: ev.title || '(Sans titre)', start: ev.start_datetime || ev.start,
+        duration: ev.duration_minutes || (ev.end_datetime && ev.start_datetime ? Math.max(1, Math.round((new Date(ev.end_datetime) - new Date(ev.start_datetime)) / 60000)) : 60),
+        source: ev.provider || 'google', type: null, role: null, status: null, appointmentId: null,
+      }));
+      setEvents(prev => [...prev.filter(e => e.source === 'nlyt'), ...extItems]);
+    } catch { /* silent */ }
+  }, []);
+
   const handleImportSettingChange = async (provider, enabled) => {
-    await externalEventsAPI.updateImportSetting(provider, enabled);
-    await loadImportSettings();
-    if (enabled) await fetchEvents();
-    if (!enabled) setEvents(prev => prev.filter(e => e.source === 'nlyt' || e.source !== provider));
+    if (settingChangeRef.current) return;
+    settingChangeRef.current = true;
+    try {
+      const res = await externalEventsAPI.updateImportSetting(provider, enabled);
+      await loadImportSettings();
+      if (enabled && res.data?.sync?.synced) await loadExternalEvents();
+      if (!enabled) setEvents(prev => prev.filter(e => e.source === 'nlyt' || e.source !== provider));
+    } finally { settingChangeRef.current = false; }
   };
+
   const handleSync = async (force = false) => {
     setSyncing(true);
-    try { await externalEventsAPI.sync(force); await loadImportSettings(); await fetchEvents(); } catch { /* silent */ }
+    try { await externalEventsAPI.sync(force); await loadImportSettings(); await loadExternalEvents(); } catch { /* silent */ }
     finally { setSyncing(false); }
   };
 
@@ -142,7 +163,12 @@ export default function AgendaPage() {
     return new Set(Object.entries(providers).filter(([, cfg]) => cfg?.import_enabled).map(([key]) => key));
   }, [importSettings]);
 
-  const fetchEvents = useCallback(async () => {
+  const hasAnyProviderEnabled = useMemo(() => {
+    const providers = importSettings?.providers || {};
+    return Object.values(providers).some(p => p.import_enabled);
+  }, [importSettings]);
+
+  const fetchAllEvents = useCallback(async () => {
     setLoading(true);
     try {
       const [timelineRes, externalRes] = await Promise.all([
@@ -172,7 +198,40 @@ export default function AgendaPage() {
     finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { loadImportSettings().then(() => fetchEvents()); }, [loadImportSettings, fetchEvents]);
+  useEffect(() => { loadImportSettings().then(() => fetchAllEvents()); }, [loadImportSettings, fetchAllEvents]);
+
+  // ── Auto-refresh: 2-minute interval for enabled providers (aligned with Dashboard) ──
+  const syncIntervalRef = useRef(null);
+  const syncInProgressRef = useRef(false);
+  const syncingRef = useRef(false);
+  useEffect(() => { syncingRef.current = syncing; }, [syncing]);
+
+  useEffect(() => {
+    if (syncIntervalRef.current) { clearInterval(syncIntervalRef.current); syncIntervalRef.current = null; }
+    if (!hasAnyProviderEnabled) return;
+    syncIntervalRef.current = setInterval(async () => {
+      if (syncInProgressRef.current || syncingRef.current) return;
+      syncInProgressRef.current = true;
+      try {
+        await externalEventsAPI.sync(true);
+        const [settingsRes, eventsRes] = await Promise.all([
+          externalEventsAPI.getImportSettings(),
+          externalEventsAPI.list(),
+        ]);
+        setImportSettings(settingsRes.data);
+        const extItems = ((eventsRes.data || {}).events || []).map(ev => ({
+          id: ev.event_id || ev.external_event_id || Math.random().toString(36),
+          title: ev.title || '(Sans titre)', start: ev.start_datetime || ev.start,
+          duration: ev.duration_minutes || (ev.end_datetime && ev.start_datetime ? Math.max(1, Math.round((new Date(ev.end_datetime) - new Date(ev.start_datetime)) / 60000)) : 60),
+          source: ev.provider || 'google', type: null, role: null, status: null, appointmentId: null,
+        }));
+        setEvents(prev => [...prev.filter(e => e.source === 'nlyt'), ...extItems]);
+        setLastAutoCheckAt(new Date().toISOString());
+      } catch { /* silent */ }
+      finally { syncInProgressRef.current = false; }
+    }, 120_000);
+    return () => { if (syncIntervalRef.current) { clearInterval(syncIntervalRef.current); syncIntervalRef.current = null; } };
+  }, [hasAnyProviderEnabled]);
 
   const eventsByDay = useMemo(() => {
     const map = {};
@@ -279,7 +338,7 @@ export default function AgendaPage() {
         {/* Calendar sync toggles */}
         {importSettings && (
           <div className="mb-4">
-            <CalendarSyncPanel importSettings={importSettings} onSettingChange={handleImportSettingChange} onSync={handleSync} syncing={syncing} />
+            <CalendarSyncPanel importSettings={importSettings} onSettingChange={handleImportSettingChange} onSync={handleSync} syncing={syncing} lastAutoCheckAt={lastAutoCheckAt} />
           </div>
         )}
 

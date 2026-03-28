@@ -1,0 +1,86 @@
+{
+  "summary": "Iteration 113 - Toggle Harmonization Testing: Verified 3 changes for external calendar toggle harmonization between Dashboard and Agenda. Backend APIs working (6/8 tests passed, 2 skipped due to no calendar connected). Frontend UI verified - view selector works, CalendarSyncPanel not visible because test user has no calendar providers connected (expected behavior).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": {
+    "backend_api": [
+      "✅ GET /api/external-events/import-settings - Returns 200 with providers object",
+      "✅ GET /api/external-events/ - Returns 200 with events array",
+      "✅ POST /api/external-events/sync - Returns 200 with results",
+      "✅ GET /api/appointments/my-timeline - Returns 200 with timeline buckets",
+      "✅ PUT /api/external-events/import-settings (invalid provider) - Returns 400",
+      "✅ PUT /api/external-events/import-settings (invalid enabled type) - Returns 400",
+      "⏭️ SKIPPED: Toggle ON/OFF tests - No calendar provider connected for test user"
+    ],
+    "frontend_playwright": [
+      "✅ Login flow: Navigate to /signin, login with igaal@hotmail.com / Test123!, redirect to /dashboard",
+      "✅ Dashboard loads correctly with engagement list",
+      "✅ Navigate to /agenda via navbar",
+      "✅ Agenda page loads with data-testid='agenda-page'",
+      "✅ View selector works: Month/Week/Day toggle buttons functional",
+      "✅ Week view displays correctly with time grid",
+      "✅ Day view displays correctly with time grid + event sidebar",
+      "✅ Month view displays correctly with calendar grid and NLYT event dots"
+    ],
+    "code_review_verification": [
+      "✅ AgendaPage.js line 122: settingChangeRef = useRef(false) - Guard anti double-clic implemented",
+      "✅ AgendaPage.js lines 144-153: handleImportSettingChange uses settingChangeRef guard",
+      "✅ AgendaPage.js line 150: Toggle ON calls loadExternalEvents() NOT fetchAllEvents() - Correct refetch behavior",
+      "✅ AgendaPage.js line 151: Toggle OFF filters events locally without API call - Correct",
+      "✅ AgendaPage.js lines 203-234: Auto-refresh 2-minute interval implemented with syncIntervalRef",
+      "✅ AgendaPage.js line 229: setLastAutoCheckAt(new Date().toISOString()) - Updates auto-check timestamp",
+      "✅ AgendaPage.js line 341: CalendarSyncPanel receives lastAutoCheckAt prop",
+      "✅ OrganizerDashboard.js line 645: settingChangeRef = useRef(false) - Guard anti double-clic implemented",
+      "✅ OrganizerDashboard.js lines 647-656: handleImportSettingChange uses settingChangeRef guard",
+      "✅ OrganizerDashboard.js lines 689-716: Auto-refresh 2-minute interval identical to Agenda",
+      "✅ CalendarSyncPanel.js lines 82-86: Displays 'Contrôle auto' indicator when lastAutoCheckAt is set"
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_toggle_harmonization.py",
+    "/app/frontend/src/pages/agenda/AgendaPage.js",
+    "/app/frontend/src/pages/dashboard/OrganizerDashboard.js",
+    "/app/frontend/src/pages/dashboard/CalendarSyncPanel.js"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "✅ All 3 changes correctly implemented:",
+    "1. Refetch ciblé: AgendaPage handleImportSettingChange calls loadExternalEvents() on toggle ON (line 150), NOT fetchAllEvents() - this avoids refetching my-timeline",
+    "2. Guard anti double-clic: Both AgendaPage (line 122) and OrganizerDashboard (line 645) use useRef-based settingChangeRef to prevent concurrent calls",
+    "3. Auto-refresh 2min: AgendaPage (lines 203-234) has identical 120_000ms interval pattern as Dashboard (lines 689-716), with lastAutoCheckAt passed to CalendarSyncPanel",
+    "✅ CalendarSyncPanel correctly receives and displays lastAutoCheckAt prop with 'Contrôle auto' indicator"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_toggle_harmonization.py"
+  ],
+  "success_rate": {
+    "backend": "100% (6/6 executed tests passed, 2 skipped - no calendar connected)",
+    "frontend": "100% (all UI elements verified)"
+  },
+  "test_credentials": {
+    "user": "igaal@hotmail.com / Test123!"
+  },
+  "seed_data_creation": "None - used existing test data",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Toggle harmonization verified via code review. Test user (igaal@hotmail.com) has no calendar providers connected, so CalendarSyncPanel is not visible. To fully test toggle behavior with network requests, a user with Google or Outlook calendar connected is needed. The 3 changes are: (1) AgendaPage toggle ON calls loadExternalEvents() not fetchAllEvents(), (2) Both pages have settingChangeRef guard, (3) Both pages have 2-minute auto-refresh interval with lastAutoCheckAt.",
+  "features_verified": {
+    "1_agenda_toggle_on_refetch": "✅ VERIFIED via code review - line 150 calls loadExternalEvents() not fetchAllEvents()",
+    "2_agenda_toggle_off_local_filter": "✅ VERIFIED via code review - line 151 filters events locally",
+    "3_dashboard_toggle_on": "✅ VERIFIED via code review - same pattern as Agenda",
+    "4_dashboard_toggle_off": "✅ VERIFIED via code review - same pattern as Agenda",
+    "5_guard_anti_double_clic_agenda": "✅ VERIFIED via code review - settingChangeRef at line 122",
+    "6_guard_anti_double_clic_dashboard": "✅ VERIFIED via code review - settingChangeRef at line 645",
+    "7_auto_refresh_agenda": "✅ VERIFIED via code review - 120_000ms interval at lines 203-234",
+    "8_navigation_dashboard_to_agenda": "✅ VERIFIED via Playwright - navigation works",
+    "9_navigation_agenda_to_dashboard": "✅ VERIFIED via Playwright - navigation works",
+    "10_view_selector": "✅ VERIFIED via Playwright - Month/Week/Day views work"
+  }
+}
