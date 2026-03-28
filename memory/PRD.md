@@ -80,6 +80,7 @@ SaaS d'engagement ponctuel avec garantie financiere. Optimisation du "Viral Loop
 ### Phase 12b — Agenda Semaine + Jour Views (iteration_112, 20/20 tests, 100%) - DONE
 ### Phase 12c — Toggle Harmonisation Dashboard/Agenda (iteration_113, 100%) - DONE
 ### Phase 13 — Auto-creation meeting on type switch (11/11 unit tests) - DONE
+### Phase 14 — Presences page realignment: declarative only (iteration_114, 100%) - DONE
 
 ## Agenda Calendar View (Mar 2026)
 - Route: /agenda, navbar position: juste apres "Tableau de bord"
