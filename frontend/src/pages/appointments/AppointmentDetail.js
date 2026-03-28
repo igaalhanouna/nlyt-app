@@ -371,6 +371,7 @@ export default function AppointmentDetail() {
   const cameFromDisputes = location.state?.from === 'litiges';
   const cameFromPresences = location.state?.from === 'presences';
   const cameFromContributions = location.state?.from === 'contributions';
+  const cameFromAgenda = location.state?.from === 'agenda';
   const fromTab = location.state?.fromTab;
   const { user } = useAuth();
 
@@ -809,9 +810,11 @@ export default function AppointmentDetail() {
             ? [{ label: 'Tableau de bord', href: '/dashboard' }, { label: 'Litiges', href: '/litiges' }, { label: appointment.title }]
             : cameFromContributions
               ? [{ label: 'Tableau de bord', href: '/dashboard' }, { label: 'Contributions', href: '/mes-resultats' }, { label: appointment.title }]
-              : fromTab
-                ? [{ label: 'Tableau de bord', href: backHref }, { label: backLabel, href: backHref }, { label: appointment.title }]
-                : [{ label: 'Tableau de bord', href: '/dashboard' }, { label: appointment.title }]
+              : cameFromAgenda
+                ? [{ label: 'Agenda', href: '/agenda' }, { label: appointment.title }]
+                : fromTab
+                  ? [{ label: 'Tableau de bord', href: backHref }, { label: backLabel, href: backHref }, { label: appointment.title }]
+                  : [{ label: 'Tableau de bord', href: '/dashboard' }, { label: appointment.title }]
       } />
 
       <div className="max-w-6xl mx-auto px-4 md:px-6 pb-12">

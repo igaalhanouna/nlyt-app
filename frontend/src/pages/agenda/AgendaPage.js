@@ -255,7 +255,7 @@ export default function AgendaPage() {
   }, [events, enabledProviders]);
 
   const today = dateKey(new Date());
-  const handleEventClick = (ev) => { if (ev.source === 'nlyt' && ev.appointmentId) navigate(`/appointments/${ev.appointmentId}`); };
+  const handleEventClick = (ev) => { if (ev.source === 'nlyt' && ev.appointmentId) navigate(`/appointments/${ev.appointmentId}`, { state: { from: 'agenda' } }); };
 
   // ── Navigation (view-aware) ──
   const goPrev = () => {
