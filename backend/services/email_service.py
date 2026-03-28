@@ -692,6 +692,131 @@ class EmailService:
         html_content = _base_template(body, accent="neutral")
         return await EmailService.send_email(participant_email, subject, html_content, email_type="appointment_deleted")
 
+
+    # ─────────────────────────────────────────────────────────
+    # 9. MODIFICATION APPLIED
+    # ─────────────────────────────────────────────────────────
+
+    # Labels for modification email display
+    _FIELD_LABELS = {
+        'start_datetime': 'Date et heure',
+        'duration_minutes': 'Durée',
+        'location': 'Lieu',
+        'appointment_type': 'Format',
+        'meeting_provider': 'Plateforme visio',
+    }
+    _TYPE_LABELS = {'physical': 'En personne', 'video': 'Visioconférence'}
+    _PROVIDER_LABELS = {
+        'zoom': 'Zoom', 'teams': 'Microsoft Teams',
+        'meet': 'Google Meet', 'external': 'Lien externe',
+    }
+
+    @staticmethod
+    async def send_modification_applied_email(
+        to_email: str,
+        to_name: str,
+        appointment_title: str,
+        appointment_datetime: str,
+        appointment_timezone: str = 'Europe/Paris',
+        changes: dict = None,
+        original_values: dict = None,
+        new_appointment_type: str = 'physical',
+        type_changed: bool = False,
+        access_link: str = '',
+        invitation_link: str = '',
+        meeting_provider: str = None,
+        location: str = None,
+    ):
+        changes = changes or {}
+        original_values = original_values or {}
+
+        subject = f"Engagement modifié — {appointment_title}"
+
+        # ── Build before/after rows ──
+        change_rows = ''
+        for field, new_val in changes.items():
+            label = EmailService._FIELD_LABELS.get(field)
+            if not label:
+                continue
+            old_val = original_values.get(field, '—')
+
+            # Human-readable formatting
+            if field == 'appointment_type':
+                old_display = EmailService._TYPE_LABELS.get(old_val, old_val or '—')
+                new_display = EmailService._TYPE_LABELS.get(new_val, new_val or '—')
+            elif field == 'meeting_provider':
+                old_display = EmailService._PROVIDER_LABELS.get((old_val or '').lower(), old_val or '—')
+                new_display = EmailService._PROVIDER_LABELS.get((new_val or '').lower(), new_val or '—')
+            elif field == 'start_datetime':
+                old_display = format_email_datetime(old_val, appointment_timezone) if old_val else '—'
+                new_display = format_email_datetime(new_val, appointment_timezone) if new_val else '—'
+            elif field == 'duration_minutes':
+                old_display = f"{old_val} min" if old_val else '—'
+                new_display = f"{new_val} min" if new_val else '—'
+            else:
+                old_display = old_val or '—'
+                new_display = new_val or '—'
+
+            change_rows += (
+                f'<tr>'
+                f'<td style="padding:10px 12px;border-bottom:1px solid #E2E8F0;font-size:13px;font-weight:600;color:#1E293B;white-space:nowrap;">{label}</td>'
+                f'<td style="padding:10px 12px;border-bottom:1px solid #E2E8F0;font-size:13px;color:#94A3B8;text-decoration:line-through;">{old_display}</td>'
+                f'<td style="padding:10px 12px;border-bottom:1px solid #E2E8F0;font-size:13px;color:#0F172A;font-weight:500;">{new_display}</td>'
+                f'</tr>'
+            )
+
+        changes_table = (
+            '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
+            'style="margin:20px 0;border:1px solid #E2E8F0;border-radius:8px;overflow:hidden;">'
+            '<tr style="background-color:#F8FAFC;">'
+            '<th style="padding:10px 12px;text-align:left;font-size:12px;font-weight:600;color:#475569;border-bottom:1px solid #E2E8F0;">Élément</th>'
+            '<th style="padding:10px 12px;text-align:left;font-size:12px;font-weight:600;color:#475569;border-bottom:1px solid #E2E8F0;">Avant</th>'
+            '<th style="padding:10px 12px;text-align:left;font-size:12px;font-weight:600;color:#475569;border-bottom:1px solid #E2E8F0;">Après</th>'
+            '</tr>'
+            f'{change_rows}'
+            '</table>'
+        )
+
+        # ── Access block (only if type changed) ──
+        access_section = ''
+        if type_changed:
+            provider_label = EmailService._PROVIDER_LABELS.get(
+                (meeting_provider or '').lower(), meeting_provider or 'Visioconférence'
+            )
+            if new_appointment_type == 'video':
+                access_section = (
+                    '<div style="background:#F0F9FF;border:2px solid #BAE6FD;border-radius:10px;padding:24px;margin:24px 0;text-align:center;">'
+                    f'<p style="margin:0 0 6px 0;color:#0369A1;font-weight:700;font-size:15px;">Nouvelles instructions de présence</p>'
+                    f'<p style="margin:0 0 4px 0;color:#0284C7;font-size:14px;font-weight:600;">Plateforme : {provider_label}</p>'
+                    f'<p style="margin:0 0 16px 0;color:#0284C7;font-size:13px;line-height:1.5;">Le jour de l\'engagement, confirmez votre présence et rejoignez la visio via le bouton ci-dessous.</p>'
+                    + _btn(access_link, "Confirmer ma présence et rejoindre", bg="#0369A1")
+                    + '<p style="margin:12px 0 0 0;color:#64748B;font-size:11px;">Ce lien sera actif 30 minutes avant le début. Conservez cet email.</p>'
+                    + '</div>'
+                )
+            else:
+                loc_text = f'<p style="margin:0 0 4px 0;color:#15803D;font-size:14px;font-weight:600;">Lieu : {location}</p>' if location else ''
+                access_section = (
+                    '<div style="background:#F0FDF4;border:2px solid #BBF7D0;border-radius:10px;padding:24px;margin:24px 0;">'
+                    f'<p style="margin:0 0 6px 0;color:#166534;font-weight:700;font-size:15px;">Nouvelles instructions de présence</p>'
+                    + loc_text
+                    + '<p style="margin:0 0 12px 0;color:#15803D;font-size:13px;line-height:1.5;">Le jour de l\'engagement, confirmez votre arrivée sur place via le bouton ci-dessous ou le scan du QR code.</p>'
+                    + _btn(access_link, "Je suis arrivé — confirmer ma présence", bg="#059669")
+                    + '<p style="margin:12px 0 0 0;color:#64748B;font-size:11px;">Le check-in est disponible 30 min avant le début. Conservez cet email.</p>'
+                    + '</div>'
+                )
+
+        body = (
+            _greeting(to_name)
+            + _paragraph(
+                f'Les conditions de l\'engagement <strong>{appointment_title}</strong> ont été modifiées.'
+            )
+            + changes_table
+            + access_section
+            + _btn(invitation_link, "Voir le rendez-vous")
+        )
+        html_content = _base_template(body, accent="info")
+        return await EmailService.send_email(to_email, subject, html_content, email_type="modification_applied")
+
     # ─────────────────────────────────────────────────────────
     # 9. GUARANTEE REVALIDATION
     # ─────────────────────────────────────────────────────────

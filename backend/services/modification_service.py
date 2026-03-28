@@ -256,9 +256,11 @@ def _apply_proposal(proposal: dict):
         update_fields['location_geocoded'] = False
         update_fields['location_display_name'] = None
 
-    # When switching to physical, clear meeting provider
+    # When switching to physical, clear all video fields
     if changes.get('appointment_type') == 'physical':
         update_fields.setdefault('meeting_provider', None)
+        update_fields['meeting_join_url'] = None
+        update_fields['external_meeting_id'] = None
 
     db.appointments.update_one(
         {"appointment_id": appointment_id},
@@ -285,6 +287,118 @@ def _apply_proposal(proposal: dict):
         _handle_guarantees_after_modification(appointment_id, proposal)
     except Exception as e:
         logger.warning(f"[MODIFICATION] Guarantee impact assessment failed: {e}")
+
+    # Send "Engagement modifié" email to engaged participants + organizer (non-blocking)
+    try:
+        _send_modification_emails(appointment_id, proposal)
+    except Exception as e:
+        logger.warning(f"[MODIFICATION] Modification email failed (non-blocking): {e}")
+
+
+
+def _send_modification_emails(appointment_id: str, proposal: dict):
+    """
+    Send 'Engagement modifié' email to all engaged participants + organizer.
+    Called from _apply_proposal after changes are persisted.
+    """
+    import asyncio
+
+    appointment = db.appointments.find_one({"appointment_id": appointment_id}, {"_id": 0})
+    if not appointment:
+        return
+
+    changes = proposal.get('changes', {})
+    original_values = proposal.get('original_values', {})
+    proposer = proposal.get('proposed_by', {})
+    proposer_role = proposer.get('role', '')
+    proposer_user_id = proposer.get('user_id', '')
+
+    frontend_url = os.environ.get('FRONTEND_URL', '').rstrip('/')
+
+    # Determine if type changed for access block
+    type_changed = 'appointment_type' in changes
+    new_type = appointment.get('appointment_type', 'physical')
+
+    # Build proof_link for video access block
+    # (will be personalized per participant below)
+
+    # Collect engaged participants (accepted statuses)
+    accepted_statuses = ["accepted", "guaranteed", "accepted_pending_guarantee", "accepted_guaranteed"]
+    participants = list(db.participants.find(
+        {"appointment_id": appointment_id, "status": {"$in": accepted_statuses}},
+        {"_id": 0}
+    ))
+
+    from services.email_service import EmailService
+
+    for p in participants:
+        token = p.get('invitation_token', '')
+        name = f"{p.get('first_name', '')} {p.get('last_name', '')}".strip()
+        if not name:
+            name = p.get('email', '').split('@')[0]
+        email = p.get('email', '')
+        if not email:
+            continue
+
+        # Access link: proof for video, invitation for physical
+        if type_changed and new_type == 'video':
+            access_link = f"{frontend_url}/proof/{appointment_id}?token={token}"
+        else:
+            access_link = f"{frontend_url}/invitation/{token}"
+
+        invitation_link = f"{frontend_url}/invitation/{token}"
+
+        try:
+            loop = asyncio.new_event_loop()
+            loop.run_until_complete(EmailService.send_modification_applied_email(
+                to_email=email,
+                to_name=name,
+                appointment_title=appointment.get('title', 'Rendez-vous'),
+                appointment_datetime=appointment.get('start_datetime', ''),
+                appointment_timezone=appointment.get('appointment_timezone', 'Europe/Paris'),
+                changes=changes,
+                original_values=original_values,
+                new_appointment_type=new_type,
+                type_changed=type_changed,
+                access_link=access_link,
+                invitation_link=invitation_link,
+                meeting_provider=appointment.get('meeting_provider'),
+                location=appointment.get('location'),
+            ))
+            loop.close()
+            logger.info(f"[MODIFICATION_EMAIL] Sent to participant {email}")
+        except Exception as e:
+            logger.warning(f"[MODIFICATION_EMAIL] Failed for {email}: {e}")
+
+    # Send to organizer (unless they proposed the change)
+    organizer_id = appointment.get('organizer_id', '')
+    if organizer_id and (proposer_role != 'organizer' or proposer_user_id != organizer_id):
+        org_user = db.users.find_one({"user_id": organizer_id}, {"_id": 0})
+        if org_user and org_user.get('email'):
+            org_name = f"{org_user.get('first_name', '')} {org_user.get('last_name', '')}".strip() or "Organisateur"
+            org_link = f"{frontend_url}/appointments/{appointment_id}"
+            try:
+                loop = asyncio.new_event_loop()
+                loop.run_until_complete(EmailService.send_modification_applied_email(
+                    to_email=org_user['email'],
+                    to_name=org_name,
+                    appointment_title=appointment.get('title', 'Rendez-vous'),
+                    appointment_datetime=appointment.get('start_datetime', ''),
+                    appointment_timezone=appointment.get('appointment_timezone', 'Europe/Paris'),
+                    changes=changes,
+                    original_values=original_values,
+                    new_appointment_type=new_type,
+                    type_changed=type_changed,
+                    access_link=org_link,
+                    invitation_link=org_link,
+                    meeting_provider=appointment.get('meeting_provider'),
+                    location=appointment.get('location'),
+                ))
+                loop.close()
+                logger.info(f"[MODIFICATION_EMAIL] Sent to organizer {org_user['email']}")
+            except Exception as e:
+                logger.warning(f"[MODIFICATION_EMAIL] Failed for organizer {org_user.get('email')}: {e}")
+
 
 
 def cancel_proposal(proposal_id: str, canceller_id: str, canceller_role: str) -> dict:

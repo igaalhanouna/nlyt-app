@@ -74,6 +74,16 @@ SaaS d'engagement ponctuel avec garantie financiere. Optimisation du "Viral Loop
 ### Phase 7 — Wallet UX (iteration_110, 100%)
 ### Phase 8 — Buffer Zone 2 min (10 tests, 100%) - DONE
 ### Phase 9 — Dispute Resolution Emails (10 tests, 100%) - DONE
+### Phase 10 — Modification Emails & Video Param Fix (10 tests, 100%) - DONE
+
+## Modification Emails (Mar 2026)
+- Email "Engagement modifie" envoye apres toute modification acceptee
+- Destinataires: participants engages (accepted_*) + organisateur (si non-proposeur)
+- Tableau avant/apres avec labels FR (Format, Duree, Lieu, Plateforme visio)
+- Bloc acces conditionnel: proof_link pour visio, check-in GPS pour physique
+- Pas de reset du flag confirmation_email_sent — email unique suffit
+- 3 callers invitation corrigés (participants.py, invitations.py, appointments.py) pour passer meeting_provider/meeting_join_url
+- Nettoyage complet visio->physique: meeting_provider + meeting_join_url + external_meeting_id
 
 ## Dispute Resolution Emails (Mar 2026)
 - Trigger: appel non-bloquant dans `resolve_dispute()` apres toute resolution

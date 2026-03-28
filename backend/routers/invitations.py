@@ -1068,7 +1068,13 @@ async def resend_invitation(token: str, request: Request):
         appointment_title=appointment['title'],
         appointment_datetime=appointment.get('start_datetime', ''),
         invitation_link=invitation_link,
+        location=appointment.get('location'),
+        penalty_amount=appointment.get('penalty_amount'),
+        penalty_currency=appointment.get('penalty_currency', 'EUR'),
+        appointment_id=appointment.get('appointment_id'),
         appointment_timezone=appointment.get('appointment_timezone', 'Europe/Paris'),
+        meeting_provider=appointment.get('meeting_provider'),
+        meeting_join_url=appointment.get('meeting_join_url'),
         has_existing_account=has_account,
     )
 

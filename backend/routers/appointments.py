@@ -2026,6 +2026,9 @@ async def remind_participants(appointment_id: str, request: Request):
                 penalty_currency=appointment.get("penalty_currency", "EUR"),
                 cancellation_deadline_hours=appointment.get("cancellation_deadline_hours"),
                 appointment_id=appointment_id,
+                appointment_timezone=appointment.get("appointment_timezone", "Europe/Paris"),
+                meeting_provider=appointment.get("meeting_provider"),
+                meeting_join_url=appointment.get("meeting_join_url"),
                 has_existing_account=has_account,
             )
             sent += 1
