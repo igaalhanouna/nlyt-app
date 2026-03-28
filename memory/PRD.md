@@ -109,6 +109,19 @@ SaaS d'engagement ponctuel avec garantie financiere. Optimisation du "Viral Loop
 - Fix: full state reset + re-evaluation with corrected logic for all 4 affected appointments
 - Script `clean_ghost_disputes.py` updated: Phase 1 now does full state reset + sheet/dispute cleanup + auto re-evaluation; Phase 2 resets `declarative_phase` when all disputes purged
 
+### Phase 18 — UX Cleanup: Single Entry Point for Declarations (Feb 2026) - DONE
+- Product rule: attendance declarations ONLY via `/presences` page
+- Deleted: `PendingReviewSection.js` (unilateral reclassification from appointment detail)
+- Deleted: `DisputeCenter.js` (dead code — imported but never mounted on a route)
+- `AttendancePanel.js`: rewritten as read-only (status badges only, no action buttons)
+- Declarative CTA banner: now navigates to `/presences` (was `/appointments/:id/attendance-sheet`)
+- Check-in wording: "Confirmer ma présence" → "Effectuer mon check-in" / "Check-in avec GPS"
+- Confirmed state: "Présence confirmée" → "Check-in effectué"
+- Pending state: "Présence non confirmée" → "Check-in non effectué"
+- Removed handlers: `handleEvaluateAttendance`, `handleReevaluateAttendance`, `handleReclassify`
+- Removed states: `evaluating`, `reclassifying`, `reclassifyDropdown`
+- Tests: 10/10 frontend tests passed (iteration_117)
+
 ## Upcoming Tasks
 - P1: Dashboard admin plateforme (arbitrage final des litiges escalades "maintained")
 - P1: Configurer webhook Stripe en production
