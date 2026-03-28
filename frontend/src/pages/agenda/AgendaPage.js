@@ -5,6 +5,7 @@ import { Button } from '../../components/ui/button';
 import { appointmentAPI, externalEventsAPI } from '../../services/api';
 import AppNavbar from '../../components/AppNavbar';
 import CalendarSyncPanel from '../dashboard/CalendarSyncPanel';
+import { useScrollRestore } from '../../hooks/useScrollRestore';
 
 const DAYS_FR = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 const DAYS_FR_FULL = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
@@ -112,9 +113,20 @@ export default function AgendaPage() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [events, setEvents] = useState([]);
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [selectedDay, setSelectedDay] = useState(null);
-  const [viewMode, setViewMode] = useState('month');
+
+  // Restore UI state from sessionStorage if returning from detail
+  const savedState = useRef(() => {
+    const raw = sessionStorage.getItem('agenda_ui_state');
+    if (raw) { sessionStorage.removeItem('agenda_ui_state'); try { return JSON.parse(raw); } catch { return null; } }
+    return null;
+  });
+  const restored = savedState.current();
+
+  const [currentDate, setCurrentDate] = useState(restored?.currentDate ? new Date(restored.currentDate) : new Date());
+  const [selectedDay, setSelectedDay] = useState(restored?.selectedDay ?? null);
+  const [viewMode, setViewMode] = useState(restored?.viewMode || 'month');
+
+  const { saveScroll } = useScrollRestore('agenda', !loading);
 
   const [importSettings, setImportSettings] = useState(null);
   const [syncing, setSyncing] = useState(false);
@@ -255,7 +267,13 @@ export default function AgendaPage() {
   }, [events, enabledProviders]);
 
   const today = dateKey(new Date());
-  const handleEventClick = (ev) => { if (ev.source === 'nlyt' && ev.appointmentId) navigate(`/appointments/${ev.appointmentId}`, { state: { from: 'agenda' } }); };
+  const handleEventClick = (ev) => {
+    if (ev.source === 'nlyt' && ev.appointmentId) {
+      saveScroll();
+      sessionStorage.setItem('agenda_ui_state', JSON.stringify({ currentDate: currentDate.toISOString(), selectedDay, viewMode }));
+      navigate(`/appointments/${ev.appointmentId}`, { state: { from: 'agenda' } });
+    }
+  };
 
   // ── Navigation (view-aware) ──
   const goPrev = () => {
