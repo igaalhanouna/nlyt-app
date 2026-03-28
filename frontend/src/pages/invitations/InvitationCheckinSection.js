@@ -23,9 +23,10 @@ export default function InvitationCheckinSection({
   const durationMin = appointment.duration_minutes || 60;
   const toleratedDelay = appointment.tolerated_delay_minutes || engagementRules?.tolerated_delay_minutes || 0;
   const WINDOW_BEFORE_MIN = 30;
+  const WINDOW_AFTER_MIN = 60;
 
   const windowOpen = new Date(startDate.getTime() - WINDOW_BEFORE_MIN * 60000);
-  const windowClose = new Date(startDate.getTime() + (durationMin + toleratedDelay) * 60000);
+  const windowClose = new Date(startDate.getTime() + (durationMin + WINDOW_AFTER_MIN) * 60000);
   const now = new Date();
 
   const isBefore = now < windowOpen;

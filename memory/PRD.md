@@ -75,6 +75,16 @@ SaaS d'engagement ponctuel avec garantie financiere. Optimisation du "Viral Loop
 ### Phase 8 — Buffer Zone 2 min (10 tests, 100%) - DONE
 ### Phase 9 — Dispute Resolution Emails (10 tests, 100%) - DONE
 ### Phase 10 — Modification Emails & Video Param Fix (10 tests, 100%) - DONE
+### Phase 11 — Check-in Time Window Alignment P0 (15 tests, 100%) - DONE
+
+## Check-in Time Window (Mar 2026)
+- Regle unique: ouverture start-30min, fermeture end+60min
+- Source de verite: CHECKIN_WINDOW_BEFORE_MINUTES=30, CHECKIN_WINDOW_AFTER_HOURS=1 (evidence_service.py)
+- Backend physique (checkin_routes.py): deja aligne
+- Backend visio (proof_routes.py): time gate ajoute via _enforce_time_gate() sur /checkin et /info
+- Frontend physique (InvitationCheckinSection.js): windowClose corrige de durationMin+toleratedDelay vers durationMin+60
+- Frontend visio (CheckinPage.js): etats before/during/after ajoutes avec messages FR
+- P1 restant: AppointmentHeader.js + OrganizerCheckinBlock.js (CTA organiser sans time gate frontend)
 
 ## Modification Emails (Mar 2026)
 - Email "Engagement modifie" envoye apres toute modification acceptee

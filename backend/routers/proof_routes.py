@@ -23,6 +23,10 @@ from pydantic import BaseModel
 from middleware.auth_middleware import get_current_user
 
 from database import db
+from services.evidence_service import (
+    _parse_appointment_start, now_utc,
+    CHECKIN_WINDOW_BEFORE_MINUTES, CHECKIN_WINDOW_AFTER_HOURS,
+)
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
@@ -53,6 +57,35 @@ class ValidateRequest(BaseModel):
 
 def _now():
     return datetime.now(timezone.utc)
+
+
+def _enforce_time_gate(appointment: dict):
+    """
+    Enforce check-in time window for NLYT Proof.
+    Same rule as physical check-in: [start - 30min, end + 1h].
+    Uses shared constants from evidence_service (single source of truth).
+    """
+    try:
+        start_utc = _parse_appointment_start(appointment)
+        current = now_utc()
+        duration = appointment.get("duration_minutes", 60)
+        opens_at = start_utc - timedelta(minutes=CHECKIN_WINDOW_BEFORE_MINUTES)
+        closes_at = start_utc + timedelta(minutes=duration) + timedelta(hours=CHECKIN_WINDOW_AFTER_HOURS)
+        if current < opens_at:
+            minutes_left = int((opens_at - current).total_seconds() / 60)
+            raise HTTPException(
+                status_code=400,
+                detail=f"Le check-in ouvre 30 minutes avant le rendez-vous. Revenez dans {minutes_left} min."
+            )
+        if current > closes_at:
+            raise HTTPException(
+                status_code=400,
+                detail="Le check-in est terminé. La fenêtre de check-in a expiré (1h après la fin du rendez-vous)."
+            )
+    except HTTPException:
+        raise
+    except (ValueError, TypeError):
+        pass  # If date parsing fails, let evidence assessment handle it
 
 
 def _compute_active_duration(heartbeats: list) -> int:
@@ -174,6 +207,9 @@ async def get_proof_info(appointment_id: str, token: str = Query(...)):
     if appointment.get("appointment_type") != "video":
         raise HTTPException(status_code=400, detail="Le système de preuve NLYT Proof est réservé aux rendez-vous en visioconférence")
 
+    # Time gate: same rule as physical check-in [start - 30min, end + 1h]
+    _enforce_time_gate(appointment)
+
     # Check if session already exists
     existing = db.proof_sessions.find_one(
         {"appointment_id": appointment_id, "participant_id": participant["participant_id"], "checked_out_at": None},
@@ -224,6 +260,9 @@ async def checkin(appointment_id: str, req: CheckinRequest):
     # NLYT Proof is only for video appointments
     if appointment.get("appointment_type") != "video":
         raise HTTPException(status_code=400, detail="Le système de preuve NLYT Proof est réservé aux rendez-vous en visioconférence")
+
+    # Time gate: same rule as physical check-in [start - 30min, end + 1h]
+    _enforce_time_gate(appointment)
 
     if appointment.get("status") == "cancelled":
         raise HTTPException(status_code=400, detail="Ce rendez-vous a été annulé")

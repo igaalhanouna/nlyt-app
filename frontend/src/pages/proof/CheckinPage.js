@@ -157,6 +157,36 @@ export default function CheckinPage() {
   const apt = info?.appointment;
   const participant = info?.participant;
 
+  // ── Time gate (same rule as physical: -30min / +60min) ──
+  const WINDOW_BEFORE_MIN = 30;
+  const WINDOW_AFTER_MIN = 60;
+  let timeState = 'during'; // default: allow
+  let minutesUntilOpen = 0;
+
+  if (apt?.start_datetime) {
+    const startMs = new Date(apt.start_datetime).getTime();
+    const durationMin = apt.duration_minutes || 60;
+    const openMs = startMs - WINDOW_BEFORE_MIN * 60000;
+    const closeMs = startMs + (durationMin + WINDOW_AFTER_MIN) * 60000;
+    const nowMs = Date.now();
+
+    if (nowMs < openMs) {
+      timeState = 'before';
+      minutesUntilOpen = Math.ceil((openMs - nowMs) / 60000);
+    } else if (nowMs > closeMs) {
+      timeState = 'after';
+    }
+  }
+
+  const formatCountdown = (mins) => {
+    const d = Math.floor(mins / 1440);
+    const h = Math.floor((mins % 1440) / 60);
+    const m = mins % 60;
+    if (d > 0) return `${d}j ${h}h`;
+    if (h > 0) return `${h}h ${m}min`;
+    return `${m} min`;
+  };
+
   // ── Result (post checkout) ─────────────────────────
   if (result) {
     const levelColors = { strong: 'text-emerald-700 bg-emerald-50 border-emerald-200', medium: 'text-amber-700 bg-amber-50 border-amber-200', weak: 'text-red-700 bg-red-50 border-red-200' };
@@ -256,6 +286,67 @@ export default function CheckinPage() {
   }
 
   // ── Check-in (initial state) ───────────────────────
+  // Before window — too early
+  if (timeState === 'before') {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="bg-slate-900 px-6 py-5 text-white text-center">
+            <a href="https://app.nlyt.io" target="_blank" rel="noopener noreferrer" className="inline-block mb-2">
+              <span className="block text-lg font-bold tracking-[0.35em] text-white">N<span className="text-white/40">·</span>L<span className="text-white/40">·</span>Y<span className="text-white/40">·</span>T</span>
+              <span className="block text-[10px] font-medium tracking-[0.25em] text-slate-400 uppercase">Never Lose Your Time</span>
+            </a>
+            <Shield className="w-8 h-8 mx-auto mb-2 text-blue-400" />
+            <h1 className="text-lg font-bold">Preuve de présence</h1>
+          </div>
+          <div className="p-6 space-y-4">
+            <div className="bg-slate-50 rounded-lg p-4 space-y-2">
+              <p className="text-sm font-semibold text-slate-900" data-testid="checkin-appointment-title">{apt?.title}</p>
+              <div className="flex items-center gap-2 text-xs text-slate-500">
+                <Clock className="w-3.5 h-3.5" />
+                <span>{formatDate(apt?.start_datetime)}</span>
+              </div>
+            </div>
+            <div className="text-center py-6" data-testid="proof-before-window">
+              <Clock className="w-14 h-14 text-slate-300 mx-auto mb-4" />
+              <p className="font-medium text-slate-700 text-sm">
+                La session de preuve ouvrira dans <span className="font-bold text-slate-900">{formatCountdown(minutesUntilOpen)}</span>
+              </p>
+              <p className="text-xs text-slate-500 mt-2">
+                Disponible 30 minutes avant le début de l'engagement.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // After window — expired
+  if (timeState === 'after') {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="bg-slate-900 px-6 py-5 text-white text-center">
+            <a href="https://app.nlyt.io" target="_blank" rel="noopener noreferrer" className="inline-block mb-2">
+              <span className="block text-lg font-bold tracking-[0.35em] text-white">N<span className="text-white/40">·</span>L<span className="text-white/40">·</span>Y<span className="text-white/40">·</span>T</span>
+              <span className="block text-[10px] font-medium tracking-[0.25em] text-slate-400 uppercase">Never Lose Your Time</span>
+            </a>
+            <Shield className="w-8 h-8 mx-auto mb-2 text-red-400" />
+            <h1 className="text-lg font-bold">Session expirée</h1>
+          </div>
+          <div className="p-6 text-center" data-testid="proof-after-window">
+            <p className="font-medium text-slate-700 text-sm">La fenêtre de check-in est fermée</p>
+            <p className="text-xs text-slate-500 mt-2">
+              Elle était disponible jusqu'à 1 heure après la fin du rendez-vous.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // During window — normal check-in flow
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
       <div className="max-w-md w-full bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
