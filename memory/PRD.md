@@ -84,7 +84,12 @@ SaaS d'engagement ponctuel avec garantie financiere. Optimisation du "Viral Loop
 ### Phase 15 — Dispute Decision Logic Phase 2 (iteration_115, 100%) - SUPERSEDED BY V4
 ### Phase 16 — V4 Trustless Symmetric Disputes (iteration_116, 100%) - DONE
 
-## V4 Trustless Symmetric Disputes (Mar 2026)
+## V4.1 Dispute Lifecycle — Active-Only List (Mar 2026)
+- /litiges page shows ONLY active disputes (awaiting_positions, escalated)
+- Resolved disputes (agreed_present, agreed_absent, agreed_late_penalized, resolved) hidden from list
+- Resolved disputes remain accessible via direct URL /litiges/{id}
+- Empty state: "Aucun litige en cours" when all resolved
+- No "Litiges résolus" section — page is purely an action list
 - COMPLETE REWORK: Replaced asymmetric accuser/accused model with symmetric positions
 - Rule: No penalty without DOUBLE EXPLICIT confirmation (organizer + participant)
 - Rule: Silence = uncertainty = automatic escalation (NEVER a penalty)

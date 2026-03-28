@@ -42,8 +42,7 @@ export default function DisputesListPage() {
     );
   }
 
-  const open = disputes.filter(d => !RESOLVED_STATUSES.includes(d.status));
-  const resolved = disputes.filter(d => RESOLVED_STATUSES.includes(d.status));
+  const active = disputes.filter(d => !RESOLVED_STATUSES.includes(d.status));
 
   return (
     <div className="min-h-screen bg-slate-50" data-testid="disputes-list-page">
@@ -57,27 +56,21 @@ export default function DisputesListPage() {
         <div className="flex items-center gap-2 mb-6">
           <Scale className="w-5 h-5 text-slate-600" />
           <h1 className="text-xl font-semibold text-slate-800">Litiges</h1>
-          {open.length > 0 && (
+          {active.length > 0 && (
             <span className="ml-2 px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-xs font-medium">
-              {open.length} en cours
+              {active.length} en cours
             </span>
           )}
         </div>
 
-        {disputes.length === 0 ? (
+        {active.length === 0 ? (
           <div className="bg-white rounded-xl border p-8 text-center">
             <CheckCircle className="w-8 h-8 text-emerald-400 mx-auto mb-3" />
             <p className="text-sm text-slate-500">Aucun litige en cours</p>
           </div>
         ) : (
           <div className="space-y-3">
-            {open.map(d => <DisputeCard key={d.dispute_id} dispute={d} />)}
-            {resolved.length > 0 && (
-              <>
-                <h2 className="text-sm font-medium text-slate-400 mt-6 mb-2">Résolus</h2>
-                {resolved.map(d => <DisputeCard key={d.dispute_id} dispute={d} />)}
-              </>
-            )}
+            {active.map(d => <DisputeCard key={d.dispute_id} dispute={d} />)}
           </div>
         )}
       </div>
