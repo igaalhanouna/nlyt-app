@@ -78,6 +78,7 @@ SaaS d'engagement ponctuel avec garantie financiere. Optimisation du "Viral Loop
 ### Phase 11 — Check-in Time Window Alignment P0 (15 tests, 100%) - DONE
 ### Phase 12 — Agenda Calendar View V1 (14 tests frontend, 100%) - DONE
 ### Phase 12b — Agenda Semaine + Jour Views (iteration_112, 20/20 tests, 100%) - DONE
+### Phase 12c — Toggle Harmonisation Dashboard/Agenda (iteration_113, 100%) - DONE
 
 ## Agenda Calendar View (Mar 2026)
 - Route: /agenda, navbar position: juste apres "Tableau de bord"
@@ -94,6 +95,14 @@ SaaS d'engagement ponctuel avec garantie financiere. Optimisation du "Viral Loop
 - CalendarSyncPanel integre pour toggle Google/Microsoft
 - Aucun endpoint backend ajoute, zero logique metier nouvelle
 - Tests: iteration_112, 100% (4 backend + 16 frontend)
+
+## Toggle Harmonisation Dashboard/Agenda (Mar 2026)
+- Refetch cible: toggle ON dans Agenda ne refetch que external-events, pas my-timeline
+- Guard anti double-clic: useRef settingChangeRef sur Dashboard ET Agenda
+- Auto-refresh 2min: Agenda aligne sur Dashboard (syncIntervalRef, 120s, sync+refetch events)
+- lastAutoCheckAt passe au CalendarSyncPanel dans les deux pages
+- Condition refetch ON: verifie res.data?.sync?.synced (identique Dashboard)
+- Tests: iteration_113, 100%
 
 ## Check-in Time Window (Mar 2026)
 - Regle unique: ouverture start-30min, fermeture end+60min
