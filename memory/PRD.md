@@ -77,17 +77,23 @@ SaaS d'engagement ponctuel avec garantie financiere. Optimisation du "Viral Loop
 ### Phase 10 — Modification Emails & Video Param Fix (10 tests, 100%) - DONE
 ### Phase 11 — Check-in Time Window Alignment P0 (15 tests, 100%) - DONE
 ### Phase 12 — Agenda Calendar View V1 (14 tests frontend, 100%) - DONE
+### Phase 12b — Agenda Semaine + Jour Views (iteration_112, 20/20 tests, 100%) - DONE
 
 ## Agenda Calendar View (Mar 2026)
 - Route: /agenda, navbar position: juste apres "Tableau de bord"
-- Vue mois uniquement (V1), toggle semaine differe
+- 3 vues: Mois, Semaine, Jour (toggle Mois/Semaine/Jour)
 - Donnees: appointmentAPI.myTimeline() + externalEventsAPI.list(), merge client-side
 - Tri: heure croissante, NLYT prioritaire a meme heure
 - Differentiation: dots solides (NLYT) vs dots creux (Google/Microsoft)
-- Clic jour: panneau detail avec evenements
+- Vue Mois: grille calendrier, clic jour ouvre panneau detail
+- Vue Semaine: grille temporelle 7j (Lun-Dim), blocs positionnes, clic colonne -> vue Jour
+- Vue Jour: grille temporelle + sidebar liste detaillee (compteur evenements)
+- Navigation: fleches prev/next adaptees par vue, bouton Aujourd'hui
 - Clic NLYT: navigate vers /appointments/{id}
-- Clic externe: non-cliquable (V1)
+- Clic externe: non-cliquable
+- CalendarSyncPanel integre pour toggle Google/Microsoft
 - Aucun endpoint backend ajoute, zero logique metier nouvelle
+- Tests: iteration_112, 100% (4 backend + 16 frontend)
 
 ## Check-in Time Window (Mar 2026)
 - Regle unique: ouverture start-30min, fermeture end+60min
