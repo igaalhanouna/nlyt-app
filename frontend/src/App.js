@@ -27,7 +27,6 @@ import InvitationPage from './pages/invitations/InvitationPage';
 import CheckinPage from './pages/proof/CheckinPage';
 import ResultCardPublicPage from './pages/ResultCardPublicPage';
 
-import DisputeCenter from './pages/disputes/DisputeCenter';
 import DisputesListPage from './pages/disputes/DisputesListPage';
 import DisputeDetailPage from './pages/disputes/DisputeDetailPage';
 import AttendanceSheetPage from './pages/declarations/AttendanceSheetPage';

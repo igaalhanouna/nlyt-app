@@ -47,7 +47,7 @@ export default function OrganizerCheckinBlock({
       <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 rounded-xl" data-testid="checkin-block-confirmed">
         <div className="flex items-center gap-2 mb-1">
           <Check className="w-4 h-4 text-emerald-600" />
-          <span className="text-sm font-medium text-emerald-700">Présence confirmée</span>
+          <span className="text-sm font-medium text-emerald-700">Check-in effectué</span>
         </div>
         {organizerCheckinData?.derived_facts && (
           <div className="pl-6 space-y-0.5">
@@ -100,7 +100,7 @@ export default function OrganizerCheckinBlock({
     <div className="mb-4 p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between gap-3" data-testid="checkin-block-pending">
       <div className="flex items-center gap-2 min-w-0">
         <Shield className="w-4 h-4 text-slate-400 flex-shrink-0" />
-        <p className="text-sm text-slate-600">Présence non confirmée</p>
+        <p className="text-sm text-slate-600">Check-in non effectué</p>
       </div>
       {isVideo && proofLink ? (
         <a href={proofLink} data-testid="checkin-block-confirm-btn">

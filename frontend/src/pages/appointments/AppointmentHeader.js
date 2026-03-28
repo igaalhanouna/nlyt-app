@@ -128,7 +128,7 @@ export default function AppointmentHeader({
               <a href={proofLink} className="block" data-testid="organizer-proof-link">
                 <Button className="w-full h-12 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-base gap-2">
                   <Shield className="w-4 h-4" />
-                  Confirmer ma présence
+                  Effectuer mon check-in
                 </Button>
               </a>
             ) : (
@@ -141,7 +141,7 @@ export default function AppointmentHeader({
             <>
               <div className="flex items-center gap-2 px-3 py-2 bg-emerald-50 border border-emerald-200 rounded-lg" data-testid="checkin-confirmed-badge">
                 <Check className="w-4 h-4 text-emerald-600" />
-                <span className="text-sm font-medium text-emerald-700">Présence confirmée</span>
+                <span className="text-sm font-medium text-emerald-700">Check-in effectué</span>
               </div>
               {isVideo && appointment.meeting_join_url && (
                 <a href={proofLink || appointment.meeting_join_url} target={proofLink ? '_self' : '_blank'} rel="noopener noreferrer" className="block">

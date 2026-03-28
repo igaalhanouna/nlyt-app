@@ -25,7 +25,6 @@ import VideoEvidencePanel from './VideoEvidencePanel';
 import AttendancePanel from './AttendancePanel';
 import EvidenceDashboard from './EvidenceDashboard';
 import ResultCardSection from './ResultCardSection';
-import PendingReviewSection from './PendingReviewSection';
 
 // ── Participant-specific inline components ──
 
@@ -203,7 +202,7 @@ function ParticipantCheckinBlock({ appointmentId, viewerParticipantId, viewerInv
       ) : (
         <Button size="sm" className="h-10" onClick={handleCheckin} disabled={checkingIn} data-testid="participant-checkin-btn">
           {checkingIn ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Check className="w-4 h-4 mr-1.5" />}
-          Confirmer ma présence
+          Effectuer mon check-in
         </Button>
       )}
     </div>
@@ -393,11 +392,8 @@ export default function AppointmentDetail() {
   const [syncStatus, setSyncStatus] = useState({ google: { synced: false, has_connection: false }, outlook: { synced: false, has_connection: false } });
   const [syncingProvider, setSyncingProvider] = useState(null);
 
-  // Attendance & Evidence
+  // Attendance (read-only)
   const [attendance, setAttendance] = useState(null);
-  const [evaluating, setEvaluating] = useState(false);
-  const [reclassifying, setReclassifying] = useState(null);
-  const [reclassifyDropdown, setReclassifyDropdown] = useState(null);
   const [evidenceData, setEvidenceData] = useState(null);
 
   // Modification proposals
@@ -575,43 +571,6 @@ export default function AppointmentDetail() {
     try { await invitationAPI.resend(token); toast.success('Invitation renvoyée'); }
     catch (error) { toast.error(error.response?.data?.detail || "Erreur lors du renvoi"); }
     finally { setResendingToken(null); }
-  };
-
-  const handleEvaluateAttendance = async () => {
-    setEvaluating(true);
-    try {
-      const res = await attendanceAPI.evaluate(id);
-      if (res.data.skipped) toast.info(res.data.reason);
-      else toast.success(`Évaluation : ${res.data.records_created} participant(s) évalué(s)`);
-      const [attRes, evRes] = await Promise.all([attendanceAPI.get(id), checkinAPI.getEvidence(id)]);
-      setAttendance(attRes.data); setEvidenceData(evRes.data);
-    } catch (error) { toast.error(error.response?.data?.detail || "Erreur lors de l'évaluation"); }
-    finally { setEvaluating(false); }
-  };
-
-  const handleReevaluateAttendance = async () => {
-    setEvaluating(true);
-    try {
-      const res = await attendanceAPI.reevaluate(id);
-      if (res.data.error) toast.error(res.data.error);
-      else toast.success('Re-évaluation terminée');
-      const [attRes, evRes] = await Promise.all([attendanceAPI.get(id), checkinAPI.getEvidence(id)]);
-      setAttendance(attRes.data); setEvidenceData(evRes.data);
-    } catch (error) { toast.error(error.response?.data?.detail || "Erreur lors de la re-évaluation"); }
-    finally { setEvaluating(false); }
-  };
-
-  const handleReclassify = async (recordId, newOutcome) => {
-    setReclassifying(recordId);
-    try {
-      await attendanceAPI.reclassify(recordId, { new_outcome: newOutcome });
-      toast.success('Statut mis a jour');
-      setReclassifyDropdown(null);
-      const [attRes, aptRes] = await Promise.all([attendanceAPI.get(id), appointmentAPI.get(id)]);
-      setAttendance(attRes.data);
-      setAppointment(aptRes.data);
-    } catch (error) { toast.error(error.response?.data?.detail || 'Erreur lors de la reclassification'); }
-    finally { setReclassifying(null); }
   };
 
   const handleValidateSession = async (sessionId, status) => {
@@ -863,11 +822,11 @@ export default function AppointmentDetail() {
               </p>
             </div>
             <button
-              onClick={() => navigate(`/appointments/${id}/attendance-sheet`)}
+              onClick={() => navigate('/presences')}
               className="flex-shrink-0 px-3 py-1.5 bg-amber-600 text-white text-xs font-medium rounded-lg hover:bg-amber-700 transition-colors"
               data-testid="go-to-sheet-btn"
             >
-              Confirmer les présences
+              Aller aux déclarations
             </button>
           </div>
         )}
@@ -934,16 +893,7 @@ export default function AppointmentDetail() {
           <ParticipantCheckinBlock appointmentId={id} viewerParticipantId={appointment.viewer_participant_id} viewerInvitationToken={viewerInvitationToken} appointmentType={appointment.appointment_type} />
         )}
 
-        {/* #6b — Pending Review Section (organizer only, visible without expanding) */}
-        {isOrganizer && isEnded && attendance?.evaluated && (
-          <PendingReviewSection
-            attendance={attendance}
-            participants={participants}
-            evidenceData={evidenceData}
-            onReclassify={handleReclassify}
-            reclassifying={reclassifying}
-          />
-        )}
+        {/* Check-in / Confirmation section handles are above, no more PendingReviewSection */}
 
         {/* #7 — Preuves & Tracking — visible for both roles (read-only for participant) */}
         {!isCancelled && (
@@ -986,16 +936,9 @@ export default function AppointmentDetail() {
               )}
               {isOrganizer && isEnded && (
                 <AttendancePanel
-                  attendance={attendance} evaluating={evaluating}
-                  onEvaluate={handleEvaluateAttendance} onReevaluate={handleReevaluateAttendance}
-                  onReclassify={handleReclassify} reclassifying={reclassifying}
-                  reclassifyDropdown={reclassifyDropdown} setReclassifyDropdown={setReclassifyDropdown}
+                  attendance={attendance}
                   participants={participants}
                   declarativePhase={appointment.declarative_phase}
-                  getParticipantEvidence={(pid) => {
-                    const pe = evidenceData?.participants?.find(p => p.participant_id === pid);
-                    return pe?.evidence || [];
-                  }}
                 />
               )}
             </div>
