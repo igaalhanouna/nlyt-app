@@ -223,3 +223,57 @@ class TestNoOpCases:
         _auto_create_meeting_on_switch("apt-test-001", changes, original)
 
         mock_create.assert_not_called()
+
+
+class TestVideoToPhysicalCleanup:
+    """video → physical must nullify ALL meeting fields."""
+
+    def test_all_meeting_fields_cleared_on_switch_to_physical(self):
+        """Verify _apply_proposal sets all 8 meeting fields when switching to physical."""
+        from services.modification_service import _apply_proposal
+
+        captured_update = {}
+
+        class FakeCollection:
+            def update_one(self, filter_doc, update_doc, **kwargs):
+                captured_update.update(update_doc.get("$set", {}))
+
+            def find_one(self, *args, **kwargs):
+                return None
+
+        class FakeDB:
+            appointments = FakeCollection()
+            proposals = FakeCollection()
+            participants = FakeCollection()
+            sent_emails = FakeCollection()
+
+        with patch("services.modification_service.db", FakeDB()):
+            fake_proposal = {
+                "proposal_id": "prop-001",
+                "appointment_id": "apt-001",
+                "proposer_id": "user-001",
+                "changes": {"appointment_type": "physical"},
+                "original_values": {"appointment_type": "video", "meeting_provider": "zoom"},
+                "status": "approved",
+            }
+            try:
+                _apply_proposal(fake_proposal)
+            except Exception:
+                pass  # Will fail on downstream calls, we only care about the $set
+
+        # All 8 meeting fields must be present in the update
+        expected_cleared = {
+            "meeting_provider": None,
+            "meeting_join_url": None,
+            "external_meeting_id": None,
+            "meeting_host_url": None,
+            "meeting_password": None,
+            "meeting_provider_metadata": None,
+            "meeting_created_via_api": False,
+            "meet_calendar_event_id": None,
+        }
+        for field, expected_val in expected_cleared.items():
+            assert field in captured_update, f"Field '{field}' missing from $set"
+            assert captured_update[field] == expected_val, (
+                f"Field '{field}': expected {expected_val!r}, got {captured_update[field]!r}"
+            )
