@@ -141,6 +141,16 @@ SaaS d'engagement ponctuel avec garantie financiere. Optimisation du "Viral Loop
 - 0 litige, 0 incohérence, 0 dette legacy restante
 - Tout sauvegardé dans `cleanup_backups` (42 entrées)
 
+### Phase 19 — Dispute Card Declarant Names UX (Feb 2026) - DONE
+- Backend: `_get_anonymized_summary()` enrichi avec `declarants[]` (first_name + declared_status)
+- Frontend: nouveau composant `DeclarationSummaryBlock` avec 3 cas:
+  - 1 personne: "Jean a déclaré que vous étiez absent(e)"
+  - 2 personnes: "Jean et Marie ont déclaré..."
+  - >2: "Jean, Marie et X autres ont déclaré..."
+- Bonus: liste détaillée individuelle (Jean → absent, Marie → présent)
+- Raison `small_group_escalation` remplacée par `no_declarations_received` et `small_group_disagreement`
+- Tests: 16/16 (7 backend + 9 frontend, iteration_118)
+
 ## Upcoming Tasks
 - P1: Dashboard admin plateforme (arbitrage final des litiges escalades "maintained")
 - P1: Configurer webhook Stripe en production
