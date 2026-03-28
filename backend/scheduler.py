@@ -155,10 +155,10 @@ def start_scheduler():
         replace_existing=True
     )
     
-    # Job 3: Attendance evaluation (every 10 minutes)
+    # Job 3: Attendance evaluation (every 2 minutes)
     scheduler.add_job(
         attendance_evaluation_job,
-        trigger=IntervalTrigger(minutes=10),
+        trigger=IntervalTrigger(minutes=2),
         id='attendance_evaluation_job',
         name='Evaluate attendance for ended appointments',
         replace_existing=True

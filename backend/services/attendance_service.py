@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 
 # Grace window after appointment end before evaluation (minutes)
-GRACE_WINDOW_MINUTES = 30
+GRACE_WINDOW_MINUTES = 10
 
 # Buffer zone: absorbs micro-delays (GPS latency, app load time, etc.)
 # Applied AFTER admissible proof is confirmed, BEFORE the 3-way delay split.
