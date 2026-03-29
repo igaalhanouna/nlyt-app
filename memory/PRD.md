@@ -259,6 +259,14 @@ SaaS d'engagement ponctuel avec garantie financiere. Optimisation du "Viral Loop
 - **Frontend AttendanceSheetPage reecrite**: Mode lecture seule pour declarations soumises (affiche exactement les valeurs soumises). Contexte RDV. Lien "Voir le rendez-vous". Breadcrumb dynamique.
 - **Tests**: 11/11 backend + UI frontend (iteration_130)
 
+### Phase 32 — Fix Orphan Participants (Mar 2026) - DONE - CRITICAL BUG FIX
+- **Cause racine**: `respond_to_invitation` ne persistait pas le `user_id` du participant lors de l'acceptation. Consequence: `participant.user_id=None` → `dispute.target_user_id=None` → litige invisible pour la partie ciblée → litige irrésoluble.
+- **Fix 1**: `invitations.py` — résolution et persistance du `user_id` via email dans `respond_to_invitation` avant le `$set`.
+- **Fix 2**: `declarative_service.py` — fallback dans `_get_user_id` : résolution via email si `user_id` absent, avec persistance automatique.
+- **Fix 3**: Migration données — 144 participants orphelins corrigés, 1 dispute `target_user_id` corrigé. 150 restants sans compte (attendu).
+- **Vérification**: igaal@hotmail.com voit maintenant 5 litiges (dont le bloqué "test email wordin").
+- **Tests**: 10/10 backend + 6/6 frontend (iteration_131)
+
 ## Backlog
 - P1: Dashboard admin plateforme pour arbitrer les litiges escaladés
 - P1: Configurer le webhook Stripe en production pour validation end-to-end
