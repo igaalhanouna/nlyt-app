@@ -200,10 +200,4 @@ export const financialAPI = {
   getMyResults: () => api.get('/api/financial/my-results'),
 };
 
-export const resultCardsAPI = {
-  create: (data) => api.post('/api/result-cards', data),
-  getMyCards: () => api.get('/api/result-cards/my-cards'),
-  getPublic: (cardId) => api.get(`/api/result-cards/${cardId}`),
-};
-
 export default api;

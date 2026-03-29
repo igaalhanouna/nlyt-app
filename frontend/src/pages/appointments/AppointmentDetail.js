@@ -24,7 +24,6 @@ import ProofSessionsPanel from './ProofSessionsPanel';
 import VideoEvidencePanel from './VideoEvidencePanel';
 import AttendancePanel from './AttendancePanel';
 import EvidenceDashboard from './EvidenceDashboard';
-import ResultCardSection from './ResultCardSection';
 
 // ── Participant-specific inline components ──
 
@@ -872,16 +871,7 @@ export default function AppointmentDetail() {
           </details>
         )}
 
-        {/* #7b — Result Card (viral share) — visible for both roles */}
-        {isEnded && attendance && (
-          <ResultCardSection
-            attendance={attendance}
-            appointment={appointment}
-            userId={user?.user_id}
-          />
-        )}
-
-        {/* #7c — Résultat financier — visible for both roles */}
+        {/* #7b — Résultat financier — visible for both roles */}
         {appointment.attendance_evaluated && appointment.financial_summary && (
           <FinancialResultSection appointment={appointment} participants={participants} isOrganizer={isOrganizer} />
         )}

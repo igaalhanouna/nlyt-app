@@ -171,19 +171,5 @@ class TestInvitationBannerBackend:
         print("✅ Invitation endpoint returns proper error for invalid token")
 
 
-class TestResultCardsRegression:
-    """Regression test for /card/:cardId endpoint"""
-    
-    def test_existing_card_loads(self):
-        """Existing card 44bda97c-47d5-4645-a28a-6ccee99f3432 still works"""
-        card_id = "44bda97c-47d5-4645-a28a-6ccee99f3432"
-        response = requests.get(f"{BASE_URL}/api/result-cards/{card_id}")
-        
-        assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
-        data = response.json()
-        assert "card_id" in data or "card_type" in data, "Card response missing expected fields"
-        print(f"✅ GET /api/result-cards/{card_id} works (regression check)")
-
-
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "--tb=short"])
