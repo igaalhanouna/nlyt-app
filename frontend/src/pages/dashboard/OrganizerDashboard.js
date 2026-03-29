@@ -240,13 +240,37 @@ function formatChangeSummary(mod) {
   const parts = [];
   const c = mod.changes;
   const o = mod.original_values || {};
+
   if (c.start_datetime) {
-    const newH = new Date(c.start_datetime).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-    const oldH = o.start_datetime ? new Date(o.start_datetime).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '—';
-    parts.push(`Horaire : ${oldH} → ${newH}`);
+    const newDt = new Date(c.start_datetime);
+    const oldDt = o.start_datetime ? new Date(o.start_datetime) : null;
+    const dateFmt = { day: 'numeric', month: 'short' };
+    const timeFmt = { hour: '2-digit', minute: '2-digit' };
+
+    const newDate = newDt.toLocaleDateString('fr-FR', dateFmt);
+    const oldDate = oldDt ? oldDt.toLocaleDateString('fr-FR', dateFmt) : '—';
+    const newTime = newDt.toLocaleTimeString('fr-FR', timeFmt);
+    const oldTime = oldDt ? oldDt.toLocaleTimeString('fr-FR', timeFmt) : '—';
+
+    const dateChanged = oldDate !== newDate;
+    const timeChanged = oldTime !== newTime;
+
+    if (dateChanged) parts.push(`Date : ${oldDate} → ${newDate}`);
+    if (timeChanged) parts.push(`Horaire : ${oldTime} → ${newTime}`);
+    if (!dateChanged && !timeChanged) parts.push(`Date/Heure modifiée`);
   }
   if (c.duration_minutes) parts.push(`Durée : ${o.duration_minutes || '—'} → ${c.duration_minutes} min`);
-  if (c.location) parts.push('Lieu modifié');
+  if (c.location) {
+    const oldLoc = o.location || '—';
+    const newLoc = c.location;
+    parts.push(`Lieu : ${oldLoc} → ${newLoc}`);
+  }
+  if (c.meeting_provider) {
+    const providerLabels = { zoom: 'Zoom', teams: 'Teams', meet: 'Google Meet', external: 'Externe' };
+    const oldP = providerLabels[o.meeting_provider] || o.meeting_provider || '—';
+    const newP = providerLabels[c.meeting_provider] || c.meeting_provider;
+    parts.push(`Visio : ${oldP} → ${newP}`);
+  }
   if (c.appointment_type) parts.push(c.appointment_type === 'video' ? 'Passage en visio' : 'Passage en présentiel');
   return parts.join(' · ') || 'Modification demandée';
 }
