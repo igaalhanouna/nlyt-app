@@ -956,10 +956,13 @@ export default function WalletPage() {
     if (cents <= 0 || cents > (wallet?.available_balance || 0)) return;
     setPayoutLoading(true);
     setShowPayoutConfirm(false);
+    const idempotencyKey = `payout_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
     try {
-      const res = await walletAPI.requestPayout(cents);
+      const res = await walletAPI.requestPayout(cents, idempotencyKey);
       const msg = res.data.dev_mode
         ? `[DEV] Retrait simule : ${fmt(res.data.amount_cents)}`
+        : res.data.idempotent_replay
+        ? `Retrait deja traite : ${fmt(res.data.amount_cents)}`
         : `Retrait de ${fmt(res.data.amount_cents)} en cours`;
       toast.success(msg);
       setPayoutAmount('');

@@ -76,65 +76,106 @@ def check_stripe_platform_balance(amount_cents: int, currency: str = "eur") -> d
 # ─── Payout Request ──────────────────────────────────────────
 
 
-def request_payout(user_id: str, amount_cents: int | None = None) -> dict:
+def request_payout(user_id: str, amount_cents: int | None = None, idempotency_key: str | None = None) -> dict:
     """
     Request a payout from NLYT wallet to user's Stripe Connect account.
 
-    If amount_cents is None, withdraws the full available_balance.
-
-    CONCURRENCY SAFETY:
-    - Cooldown: rejects if a payout was completed < 10s ago (anti double-clic)
-    - Atomic $gte guard on wallet balance (prevents overdraft)
-    - Existing pending/processing check (prevents parallel payouts)
+    SECURITY LAYERS:
+    1. Idempotency key — prevents duplicate processing (network retry, double submit)
+    2. Cooldown — rejects if last payout < 10s ago (anti double-click)
+    3. Atomic $gte guard — prevents overdraft at DB level
+    4. Rollback — re-credits wallet if payout record creation fails
+    5. Audit logging — every step logged with request context
     """
-    # 1. Get wallet
+    request_id = str(uuid.uuid4())[:8]
+
+    def _log(level, msg):
+        getattr(logger, level)(f"[PAYOUT:{request_id}] user={user_id} | {msg}")
+
+    _log("info", f"START amount_requested={amount_cents}c idem_key={idempotency_key or 'none'}")
+
+    # ── 1. Idempotency check ──────────────────────────────
+    if idempotency_key:
+        existing = db.payout_idempotency.find_one(
+            {"idempotency_key": idempotency_key},
+            {"_id": 0},
+        )
+        if existing:
+            # Return cached result
+            _log("info", f"IDEMPOTENT HIT — returning cached payout {existing.get('payout_id')}")
+            cached_payout = db.payouts.find_one(
+                {"payout_id": existing["payout_id"]},
+                {"_id": 0},
+            )
+            if cached_payout:
+                return {
+                    "success": True,
+                    "payout_id": cached_payout["payout_id"],
+                    "amount_cents": cached_payout["amount_cents"],
+                    "status": cached_payout["status"],
+                    "idempotent_replay": True,
+                    "dev_mode": cached_payout.get("dev_mode", False),
+                    "message": "Retrait déjà traité (idempotent)",
+                }
+            # Idempotency record exists but no payout — treat as in-progress
+            return {"success": False, "error": "Ce retrait est déjà en cours de traitement"}
+
+    # ── 2. Get wallet ─────────────────────────────────────
     wallet = db.wallets.find_one(
         {"user_id": user_id, "wallet_type": "user"},
         {"_id": 0},
     )
     if not wallet:
+        _log("warning", "REJECT — wallet not found")
         return {"success": False, "error": "Wallet introuvable"}
 
-    # Default to full withdrawal
     if amount_cents is None:
         amount_cents = wallet["available_balance"]
 
-    # 2. Validate conditions
+    _log("info", f"amount={amount_cents}c wallet_balance={wallet['available_balance']}c")
+
+    # ── 3. Validations ────────────────────────────────────
     if amount_cents <= 0:
+        _log("warning", "REJECT — amount <= 0")
         return {"success": False, "error": "Le montant doit être positif"}
 
     if wallet["available_balance"] < amount_cents:
+        _log("warning", f"REJECT — insufficient balance ({wallet['available_balance']}c < {amount_cents}c)")
         return {"success": False, "error": "Solde disponible insuffisant"}
 
     if amount_cents < MINIMUM_PAYOUT_CENTS:
-        return {"success": False, "error": f"Montant minimum de retrait : {MINIMUM_PAYOUT_CENTS / 100:.2f} €"}
+        _log("warning", f"REJECT — below minimum ({amount_cents}c < {MINIMUM_PAYOUT_CENTS}c)")
+        return {"success": False, "error": f"Montant minimum de retrait : {MINIMUM_PAYOUT_CENTS / 100:.2f} EUR"}
 
     if wallet.get("stripe_connect_status") != "active":
+        _log("warning", "REJECT — connect not active")
         return {"success": False, "error": "Votre compte Stripe Connect doit être actif pour retirer"}
 
     connect_account_id = wallet.get("stripe_connect_account_id")
     if not connect_account_id:
+        _log("warning", "REJECT — no connect account")
         return {"success": False, "error": "Aucun compte Stripe Connect associé"}
 
-    # 3. Anti double-clic: reject if last payout was < 10 seconds ago
+    # ── 4. Cooldown (anti double-clic) ────────────────────
     cooldown_cutoff = (datetime.now(timezone.utc) - timedelta(seconds=10)).isoformat()
     recent_payout = db.payouts.find_one(
         {"user_id": user_id, "created_at": {"$gte": cooldown_cutoff}},
         {"_id": 0, "payout_id": 1},
     )
     if recent_payout:
-        logger.info(f"[PAYOUT] Cooldown rejection for user {user_id} (recent payout {recent_payout['payout_id']})")
+        _log("info", f"REJECT — cooldown (recent payout {recent_payout['payout_id']})")
         return {"success": False, "error": "Veuillez patienter quelques secondes avant un nouveau retrait"}
 
-    # Also check for existing pending/processing payouts
+    # Check for existing pending/processing payouts
     existing = db.payouts.find_one(
         {"user_id": user_id, "status": {"$in": ["pending", "processing"]}},
         {"_id": 0, "payout_id": 1},
     )
     if existing:
+        _log("info", f"REJECT — pending payout exists ({existing['payout_id']})")
         return {"success": False, "error": "Un retrait est déjà en cours"}
 
-    # 4. Check Stripe platform balance (skip for dev and test accounts)
+    # ── 5. Stripe platform balance (skip dev/test) ────────
     now_iso = datetime.now(timezone.utc).isoformat()
     payout_id = str(uuid.uuid4())
     currency = wallet.get("currency", "eur")
@@ -143,13 +184,25 @@ def request_payout(user_id: str, amount_cents: int | None = None) -> dict:
     if not is_dev and not is_test:
         balance_check = check_stripe_platform_balance(amount_cents, currency)
         if not balance_check.get("sufficient"):
-            logger.warning(
-                f"[PAYOUT] Stripe balance insufficient for {amount_cents}c "
-                f"(available: {balance_check.get('available_cents')}c)"
-            )
+            _log("warning", f"REJECT — platform balance insufficient ({balance_check.get('available_cents')}c)")
             return {"success": False, "error": "Fonds plateforme temporairement insuffisants. Réessayez plus tard."}
 
-    # 5. ATOMIC DEBIT — $gte guard ensures balance is sufficient
+    # ── 6. Reserve idempotency key (before any mutation) ──
+    if idempotency_key:
+        from pymongo.errors import DuplicateKeyError
+        try:
+            db.payout_idempotency.insert_one({
+                "idempotency_key": idempotency_key,
+                "payout_id": payout_id,
+                "user_id": user_id,
+                "created_at": now_iso,
+            })
+            _log("info", f"Idempotency key reserved: {idempotency_key}")
+        except DuplicateKeyError:
+            _log("info", f"REJECT — idempotency key already used: {idempotency_key}")
+            return {"success": False, "error": "Ce retrait est déjà en cours de traitement"}
+
+    # ── 7. ATOMIC DEBIT — $gte guard ─────────────────────
     debit_result = db.wallets.update_one(
         {
             "wallet_id": wallet["wallet_id"],
@@ -165,11 +218,16 @@ def request_payout(user_id: str, amount_cents: int | None = None) -> dict:
     )
 
     if debit_result.matched_count == 0:
+        _log("warning", "REJECT — atomic $gte guard failed (concurrent depletion)")
+        if idempotency_key:
+            db.payout_idempotency.delete_one({"idempotency_key": idempotency_key})
         return {"success": False, "error": "Solde insuffisant (vérification atomique)"}
 
-    # 6. Create ledger transaction for the debit
+    _log("info", f"DEBIT OK — {amount_cents}c debited from wallet {wallet['wallet_id']}")
+
+    # ── 8. Ledger transaction ─────────────────────────────
     tx_id = str(uuid.uuid4())
-    tx = {
+    db.wallet_transactions.insert_one({
         "transaction_id": tx_id,
         "wallet_id": wallet["wallet_id"],
         "type": "debit_payout",
@@ -179,10 +237,9 @@ def request_payout(user_id: str, amount_cents: int | None = None) -> dict:
         "reference_id": payout_id,
         "description": "Retrait vers Stripe Connect",
         "created_at": now_iso,
-    }
-    db.wallet_transactions.insert_one(tx)
+    })
 
-    # 7. Create payout record
+    # ── 9. Create payout record ───────────────────────────
     payout = {
         "payout_id": payout_id,
         "user_id": user_id,
@@ -198,19 +255,39 @@ def request_payout(user_id: str, amount_cents: int | None = None) -> dict:
         "failed_at": None,
         "failure_reason": None,
         "ledger_transaction_id": tx_id,
+        "idempotency_key": idempotency_key,
         "dev_mode": False,
+        "request_id": request_id,
         "created_at": now_iso,
         "updated_at": now_iso,
     }
-    db.payouts.insert_one(payout)
-    payout.pop("_id", None)
 
-    # 8. Dev mode or Test mode: simulate
+    try:
+        db.payouts.insert_one(payout)
+        payout.pop("_id", None)
+    except Exception as e:
+        # ROLLBACK: re-credit the wallet
+        _log("error", f"Payout record creation FAILED — rolling back wallet debit: {e}")
+        db.wallets.update_one(
+            {"wallet_id": wallet["wallet_id"]},
+            {
+                "$inc": {"available_balance": amount_cents, "total_withdrawn": -amount_cents},
+                "$set": {"updated_at": datetime.now(timezone.utc).isoformat()},
+            },
+        )
+        if idempotency_key:
+            db.payout_idempotency.delete_one({"idempotency_key": idempotency_key})
+        return {"success": False, "error": "Erreur interne lors de la création du retrait"}
+
+    # ── 10. Execute (dev/test: simulate, prod: Stripe) ────
+    _log("info", f"EXECUTING payout {payout_id} (dev={is_dev}, test={is_test})")
     if is_dev or is_test:
-        return _execute_dev_payout_after_debit(payout)
+        result = _execute_dev_payout_after_debit(payout)
+    else:
+        result = _execute_stripe_transfer_after_debit(payout)
 
-    # 9. Call Stripe Transfer
-    return _execute_stripe_transfer_after_debit(payout)
+    _log("info", f"COMPLETE payout={payout_id} success={result.get('success')} status={result.get('status')}")
+    return result
 
 
 def _execute_dev_payout_after_debit(payout: dict) -> dict:

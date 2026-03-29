@@ -78,6 +78,13 @@ def ensure_indexes():
     db.charity_payouts.create_index("association_id")
     db.charity_payouts.create_index("created_at")
 
+    # payout idempotency
+    db.payout_idempotency.create_index("idempotency_key", unique=True)
+    db.payout_idempotency.create_index(
+        "created_at",
+        expireAfterSeconds=86400,  # auto-cleanup after 24h
+    )
+
     # email idempotency
     db.sent_emails.create_index(
         [("email_type", ASCENDING), ("reference_id", ASCENDING), ("user_id", ASCENDING)],

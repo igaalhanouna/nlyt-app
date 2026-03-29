@@ -229,13 +229,16 @@ async def resolve_contest(distribution_id: str, body: ResolveContestationRequest
 
 class PayoutRequest(BaseModel):
     amount_cents: Optional[int] = None
+    idempotency_key: Optional[str] = None
 
 
 @router.post("/payout")
 async def create_payout(body: PayoutRequest, request: Request):
     """Request a payout from NLYT wallet to Stripe Connect account."""
     user = await get_current_user(request)
-    result = request_payout(user["user_id"], body.amount_cents)
+    # Idempotency key: prefer body, fallback to header
+    idem_key = body.idempotency_key or request.headers.get("x-idempotency-key")
+    result = request_payout(user["user_id"], body.amount_cents, idempotency_key=idem_key)
     if not result.get("success"):
         raise HTTPException(status_code=400, detail=result.get("error", "Erreur retrait"))
     return result
