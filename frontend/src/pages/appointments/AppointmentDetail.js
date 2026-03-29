@@ -16,7 +16,7 @@ import EngagementSummary from './EngagementSummary';
 import FinancialBreakdown from './FinancialBreakdown';
 import ParticipantsSection from './ParticipantsSection';
 import SecondaryActions from './SecondaryActions';
-import OrganizerCheckinBlock from './OrganizerCheckinBlock';
+import CheckinBlock from './CheckinBlock';
 import CancelModal from './CancelModal';
 import ModificationProposals from './ModificationProposals';
 import EditProposalModal from './EditProposalModal';
@@ -140,71 +140,6 @@ function ParticipantGuaranteeBanner({ token, onActionComplete }) {
           <X className="w-4 h-4 mr-1.5" /> Refuser
         </Button>
       </div>
-    </div>
-  );
-}
-
-function ParticipantCheckinBlock({ appointmentId, viewerParticipantId, viewerInvitationToken, appointmentType }) {
-  const [checkinDone, setCheckinDone] = useState(false);
-  const [checkingIn, setCheckingIn] = useState(false);
-
-  useEffect(() => {
-    if (!viewerInvitationToken) return;
-    checkinAPI.getStatus(appointmentId, viewerInvitationToken).then(res => {
-      if (res.data?.checked_in) setCheckinDone(true);
-    }).catch(() => {});
-  }, [appointmentId, viewerParticipantId, viewerInvitationToken]);
-
-  const handleCheckin = async () => {
-    setCheckingIn(true);
-    try {
-      const payload = {
-        invitation_token: viewerInvitationToken,
-        device_info: navigator.userAgent,
-      };
-      // Request GPS for physical appointments
-      if (appointmentType === 'physical' && navigator.geolocation) {
-        try {
-          const pos = await new Promise((resolve, reject) =>
-            navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 8000, enableHighAccuracy: true })
-          );
-          payload.latitude = pos.coords.latitude;
-          payload.longitude = pos.coords.longitude;
-          payload.gps_consent = true;
-        } catch (geoErr) {
-          // GPS optional — continue without it
-        }
-      }
-      await checkinAPI.manual(payload);
-      setCheckinDone(true);
-      toast.success('Check-in confirmé');
-    } catch (err) {
-      const status = err.response?.status;
-      const detail = err.response?.data?.detail;
-      if (status === 409) {
-        setCheckinDone(true);
-        toast.info('Check-in déjà effectué');
-      } else {
-        toast.error(detail || 'Erreur lors du check-in');
-      }
-    } finally {
-      setCheckingIn(false);
-    }
-  };
-
-  return (
-    <div className="mb-4 bg-white border border-slate-200 rounded-xl p-4" data-testid="participant-checkin-block">
-      <h3 className="text-sm font-semibold text-slate-900 mb-2">Votre check-in</h3>
-      {checkinDone ? (
-        <div className="flex items-center gap-2 text-emerald-600 text-sm">
-          <Check className="w-4 h-4" /> Check-in confirmé
-        </div>
-      ) : (
-        <Button size="sm" className="h-10" onClick={handleCheckin} disabled={checkingIn} data-testid="participant-checkin-btn">
-          {checkingIn ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Check className="w-4 h-4 mr-1.5" />}
-          Effectuer mon check-in
-        </Button>
-      )}
     </div>
   );
 }
@@ -856,15 +791,18 @@ export default function AppointmentDetail() {
           guaranteedCount={guaranteedCount} canEdit={isOrganizer && canEdit} onEdit={isOrganizer ? handleOpenProposalForm : undefined}
         />
 
-        {/* #3 — Actions organisateur (calendrier + annuler) */}
-        {isOrganizer && (
-          <SecondaryActions
-            appointment={appointment} isCancelled={isCancelled}
-            syncStatus={syncStatus} syncingProvider={syncingProvider}
-            onSyncCalendar={handleSyncCalendar} onDownloadICS={handleDownloadICS}
-            onShowCancelModal={() => setShowCancelModal(true)}
-          />
-        )}
+        {/* #3 — Actions (calendrier, annuler, quitter) — available for both roles */}
+        <SecondaryActions
+          appointment={appointment} isCancelled={isCancelled}
+          syncStatus={syncStatus} syncingProvider={syncingProvider}
+          onSyncCalendar={isOrganizer ? handleSyncCalendar : undefined}
+          onDownloadICS={handleDownloadICS}
+          onShowCancelModal={isOrganizer ? () => setShowCancelModal(true) : undefined}
+          isOrganizer={isOrganizer}
+          viewerInvitationToken={viewerInvitationToken}
+          viewerParticipantStatus={viewerParticipantStatus}
+          onParticipantCancelComplete={loadData}
+        />
 
         {/* #4 — Engagement financier */}
         <EngagementSummary appointment={appointment} isCancelled={isCancelled} />
@@ -878,20 +816,17 @@ export default function AppointmentDetail() {
           isOrganizer={isOrganizer}
         />
 
-        {/* #6 — Check-in / Confirmation */}
-        {isOrganizer && (
-          <OrganizerCheckinBlock
-            appointment={appointment} organizerParticipant={organizerParticipant}
-            organizerCheckinDone={organizerCheckinDone} organizerCheckinData={organizerCheckinData}
-            checkingIn={checkingIn} handleOrganizerCheckin={handleOrganizerCheckin}
-            isCancelled={isCancelled} isPendingGuarantee={isPendingGuarantee}
-          />
-        )}
-
-        {/* Participant check-in section */}
-        {!isOrganizer && ['accepted', 'accepted_guaranteed', 'accepted_pending_guarantee'].includes(viewerParticipantStatus) && !isCancelled && (
-          <ParticipantCheckinBlock appointmentId={id} viewerParticipantId={appointment.viewer_participant_id} viewerInvitationToken={viewerInvitationToken} appointmentType={appointment.appointment_type} />
-        )}
+        {/* #6 — Check-in / Confirmation — unified for both roles */}
+        <CheckinBlock
+          appointment={appointment}
+          participantRecord={isOrganizer ? organizerParticipant : { invitation_token: viewerInvitationToken, status: viewerParticipantStatus }}
+          isOrganizer={isOrganizer}
+          onCheckinComplete={loadData}
+          isCancelled={isCancelled}
+          isPendingGuarantee={isPendingGuarantee}
+          initialCheckinDone={isOrganizer ? organizerCheckinDone : false}
+          initialCheckinData={isOrganizer ? organizerCheckinData : null}
+        />
 
         {/* #7 — Preuves & Tracking — visible for both roles (read-only for participant) */}
         {!isCancelled && (

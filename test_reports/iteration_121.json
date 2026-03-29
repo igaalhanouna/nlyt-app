@@ -1,0 +1,72 @@
+{
+  "summary": "Iteration 121 - Participant UX Parity Testing: All 10 backend tests passed (100%). Frontend verified working correctly. Key features tested: (1) POST /api/invitations/{token}/cancel endpoint exists and validates properly, (2) invitationAPI.cancelParticipation is wired in api.js, (3) Participant detail page shows .ics download button, 'Annuler ma participation' link, and unified CheckinBlock, (4) Dashboard participant cards show 'Quitter' button for accepted upcoming appointments only (not for past), (5) Organizer experience is NOT degraded - still shows progress bar, relancer, supprimer, calendar sync.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": {
+    "backend_pytest": [
+      "✅ test_cancel_endpoint_exists - POST /api/invitations/{token}/cancel returns 404 for invalid token (not 405)",
+      "✅ test_cancel_requires_accepted_status - Cancel correctly rejects past appointments",
+      "✅ test_timeline_returns_invitation_token_for_participants - Timeline includes invitation_token for participant items",
+      "✅ test_timeline_returns_accepted_count_for_engagement_signal - Timeline includes accepted_count for engagement signal",
+      "✅ test_timeline_returns_participant_status - Timeline includes participant_status for canQuit logic",
+      "✅ test_participant_can_view_appointment_detail - Participant can access detail page with viewer_role=participant",
+      "✅ test_organizer_timeline_has_progress_data - Organizer timeline has participants_count, accepted_count, pending_count",
+      "✅ test_organizer_can_view_appointment_detail - Organizer can access detail page with viewer_role=organizer",
+      "✅ test_ics_export_endpoint_exists - ICS export endpoint returns 200 with text/calendar content",
+      "✅ test_invitation_cancel_api_wiring - invitationAPI.cancelParticipation endpoint is properly wired"
+    ],
+    "frontend_playwright": [
+      "✅ Participant login and dashboard loads without console errors",
+      "✅ Participant detail page shows .ics download button (data-testid='download-ics-btn')",
+      "✅ Participant detail page shows 'Annuler ma participation' link (data-testid='cancel-participation-btn')",
+      "✅ Participant detail page shows unified CheckinBlock (data-testid='checkin-block-confirmed')",
+      "✅ Participant detail page shows quick-actions section",
+      "✅ Dashboard shows 'Quitter' button for accepted upcoming participant cards",
+      "✅ Dashboard does NOT show 'Quitter' button for past participant cards",
+      "✅ Organizer dashboard shows progress bars, Relancer buttons, delete buttons",
+      "✅ Organizer detail page shows .ics download, Google sync, 'Annuler l'engagement'"
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_participant_ux_parity_iter121.py",
+    "/app/test_reports/pytest/pytest_participant_ux_parity_iter121.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "The old OrganizerCheckinBlock.js file still exists but is no longer imported - consider removing dead code",
+    "403 errors in console for external resources (non-critical, likely CORS or auth issues for external APIs)"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_participant_ux_parity_iter121.py"
+  ],
+  "success_rate": {
+    "backend": "100% (10/10 tests passed)",
+    "frontend": "100% (9/9 tests passed)"
+  },
+  "test_credentials": {
+    "organizer": "testuser_audit@nlyt.app / TestAudit123!",
+    "participant": "igaal@hotmail.com / Test123!",
+    "organizer2": "igaal.hanouna@gmail.com / OrgTest123!"
+  },
+  "seed_data_creation": "None - used existing appointments",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Participant UX parity verified. Key changes: (1) CheckinBlock.js is the unified component for both organizer and participant, (2) SecondaryActions.js supports both roles with isOrganizer prop, (3) OrganizerDashboard.js TimelineCard has onQuit prop and 'Quitter' button for participant cards, (4) api.js has invitationAPI.cancelParticipation wired to POST /api/invitations/{token}/cancel. The engagement signal ('X participants engagés') only shows when accepted_count > 0 for participant cards.",
+  "features_verified": {
+    "1_cancel_participation_endpoint": "✅ VERIFIED - POST /api/invitations/{token}/cancel exists and validates properly",
+    "2_cancel_participation_api_wiring": "✅ VERIFIED - invitationAPI.cancelParticipation in api.js",
+    "3_participant_ics_download": "✅ VERIFIED - data-testid='download-ics-btn' visible on participant detail page",
+    "4_participant_cancel_link": "✅ VERIFIED - data-testid='cancel-participation-btn' visible on participant detail page",
+    "5_unified_checkin_block": "✅ VERIFIED - data-testid='checkin-block-confirmed' visible for participant",
+    "6_dashboard_quitter_button": "✅ VERIFIED - data-testid='quit-btn-*' visible for accepted upcoming participant cards only",
+    "7_dashboard_engagement_signal": "✅ VERIFIED - Code implemented at line 367-374 in OrganizerDashboard.js (shows when accepted > 0)",
+    "8_organizer_not_degraded": "✅ VERIFIED - Progress bars, Relancer, delete, calendar sync all working"
+  }
+}

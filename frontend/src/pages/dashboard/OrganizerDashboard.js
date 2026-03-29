@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useWorkspace } from '../../contexts/WorkspaceContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { appointmentAPI, walletAPI, externalEventsAPI } from '../../services/api';
+import { appointmentAPI, walletAPI, externalEventsAPI, invitationAPI } from '../../services/api';
 import { Button } from '../../components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/tabs';
 import {
@@ -10,7 +10,7 @@ import {
   Trash2, Check, X, Clock, Building2, ChevronDown, Plus, Ban,
   ShieldCheck, CreditCard, History, Play, AlertTriangle, Bell,
   ArrowRight, Flame, Shield, Euro, Eye, Heart, Loader2,
-  UserCheck, Mail, ChevronRight, CheckCircle
+  UserCheck, Mail, ChevronRight, CheckCircle, LogOut
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDateTimeCompactFr, parseUTC } from '../../utils/dateFormat';
@@ -224,7 +224,7 @@ function ActionCard({ item, onRemind, onAccept, onDecline, onCancel, now, onNavi
 }
 
 // ── Timeline Card (unified for organizer + participant) ──
-function TimelineCard({ item, isPast, onDelete, onRemind, now, fromTab, onNavigate }) {
+function TimelineCard({ item, isPast, onDelete, onRemind, onQuit, now, fromTab, onNavigate }) {
   const isParticipant = item.role === 'participant';
   const badge = getTemporalBadge(item, now);
   const isOngoing = badge.key === 'ongoing';
@@ -242,6 +242,11 @@ function TimelineCard({ item, isPast, onDelete, onRemind, now, fromTab, onNaviga
   const accepted = item.accepted_count || 0;
   const pending = item.pending_count || 0;
   const progressPct = total > 0 ? Math.round((accepted / total) * 100) : 100;
+
+  // Participant can quit if accepted and not past
+  const canQuit = isParticipant && !isPast
+    && ['accepted', 'accepted_guaranteed'].includes(item.participant_status)
+    && item.invitation_token;
 
   const detailLink = `/appointments/${item.appointment_id}`;
   const navState = { fromTab: fromTab || (isPast ? 'past' : 'upcoming') };
@@ -338,7 +343,7 @@ function TimelineCard({ item, isPast, onDelete, onRemind, now, fromTab, onNaviga
           </div>
         )}
 
-        {/* Row 4: Participants + Progress (organizer only) */}
+        {/* Row 4: Participants + Progress (organizer) or Engagement signal (participant) */}
         {!isParticipant && total > 0 && (
           <div className="space-y-2 mb-1">
             <div className="flex items-center justify-between text-xs">
@@ -357,6 +362,14 @@ function TimelineCard({ item, isPast, onDelete, onRemind, now, fromTab, onNaviga
                 style={{ width: `${progressPct}%` }}
               />
             </div>
+          </div>
+        )}
+        {isParticipant && total > 0 && accepted > 0 && (
+          <div className="mb-1">
+            <span className="text-xs text-slate-500 flex items-center gap-1.5">
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+              <span className="font-medium text-emerald-600">{accepted}</span> participant{accepted > 1 ? 's' : ''} engagé{accepted > 1 ? 's' : ''}
+            </span>
           </div>
         )}
 
@@ -400,6 +413,17 @@ function TimelineCard({ item, isPast, onDelete, onRemind, now, fromTab, onNaviga
             data-testid={`remind-btn-${item.appointment_id}`}
           >
             <Bell className="w-3.5 h-3.5 mr-1.5" /> Relancer
+          </Button>
+        )}
+        {canQuit && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-11 md:h-7 text-xs flex-1 md:flex-none border-red-200 text-red-600 hover:bg-red-50"
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onQuit(item); }}
+            data-testid={`quit-btn-${item.appointment_id}`}
+          >
+            <LogOut className="w-3.5 h-3.5 mr-1.5" /> Quitter
           </Button>
         )}
         {!isParticipant && (
@@ -568,6 +592,18 @@ export default function OrganizerDashboard() {
       toast.success('Relance envoyée aux participants en attente');
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Erreur lors de la relance');
+    }
+  };
+
+  const handleQuitParticipation = async (item) => {
+    if (!item.invitation_token) return;
+    if (!window.confirm(`Quitter l'engagement "${item.title}" ? Cette action est irréversible si le délai est respecté.`)) return;
+    try {
+      await invitationAPI.cancelParticipation(item.invitation_token);
+      toast.success('Participation annulée');
+      await loadTimeline();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Impossible d\'annuler la participation');
     }
   };
 
@@ -884,7 +920,7 @@ export default function OrganizerDashboard() {
                   <div className="space-y-3">
                     {upcomingMerged.map(merged =>
                       merged.type === 'timeline' ? (
-                        <TimelineCard key={`tl-${merged.data.appointment_id}`} item={merged.data} isPast={false} onDelete={handleDeleteClick} onRemind={handleRemind} now={now} fromTab="upcoming" onNavigate={saveScroll} />
+                        <TimelineCard key={`tl-${merged.data.appointment_id}`} item={merged.data} isPast={false} onDelete={handleDeleteClick} onRemind={handleRemind} onQuit={handleQuitParticipation} now={now} fromTab="upcoming" onNavigate={saveScroll} />
                       ) : (
                         <ExternalEventCard key={`ext-${merged.data.external_event_id}`} event={merged.data} />
                       )
@@ -902,7 +938,7 @@ export default function OrganizerDashboard() {
                 ) : (
                   <div className="space-y-3">
                     {timeline.past.slice(0, pastVisible).map(item => (
-                      <TimelineCard key={`past-${item.role}-${item.appointment_id}`} item={item} isPast={true} onDelete={handleDeleteClick} onRemind={handleRemind} now={now} fromTab="past" onNavigate={saveScroll} />
+                      <TimelineCard key={`past-${item.role}-${item.appointment_id}`} item={item} isPast={true} onDelete={handleDeleteClick} onRemind={handleRemind} onQuit={handleQuitParticipation} now={now} fromTab="past" onNavigate={saveScroll} />
                     ))}
                     {timeline.past.length > pastVisible && (
                       <div className="pt-4 text-center">
