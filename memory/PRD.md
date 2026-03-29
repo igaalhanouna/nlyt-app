@@ -103,3 +103,10 @@ Application SaaS (React/FastAPI/MongoDB) de gestion des presences avec garanties
 - FIX: Si carte invalide/expiree/SCA → fallback vers Stripe Checkout redirect + nettoyage donnees obsoletes
 - FIX: Rejet des pm_dev_ avec une vraie cle Stripe (pas de bypass dev en production)
 - Corrige dans 2 endroits : create_appointment() et retry-organizer-guarantee()
+
+## Test Results - Iteration 155 (2026-03-30)
+- FLUX1 (suppression carte sans auto-recovery): PASS
+- FLUX2 (creation RDV sans carte → Stripe redirect): PASS
+- W3-W8 (webhook protocol): 6/6 PASS
+- Frontend (payment settings, login, dashboard): 4/4 PASS
+- Total: 16/16 PASS
