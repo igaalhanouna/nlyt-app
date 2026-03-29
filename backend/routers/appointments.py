@@ -1760,6 +1760,14 @@ async def cancel_appointment(appointment_id: str, request: Request):
     if appointment.get('status') == 'cancelled':
         raise HTTPException(status_code=400, detail="Ce rendez-vous est déjà annulé")
     
+    # Block cancellation after appointment has started
+    start_dt = _parse_dt(appointment.get('start_datetime', ''))
+    if start_dt and datetime.now(timezone.utc) >= start_dt:
+        raise HTTPException(
+            status_code=400,
+            detail="Ce rendez-vous a déjà commencé. L'annulation n'est plus possible."
+        )
+    
     # Allow cancellation from both active and pending_organizer_guarantee statuses
     is_pending = appointment.get('status') == 'pending_organizer_guarantee'
     

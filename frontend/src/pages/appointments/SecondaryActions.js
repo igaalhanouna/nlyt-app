@@ -3,6 +3,7 @@ import { Button } from '../../components/ui/button';
 import { Ban, Download, Calendar, Check, Zap, Loader2, AlertTriangle, LogOut } from 'lucide-react';
 import { invitationAPI } from '../../services/api';
 import { toast } from 'sonner';
+import { parseUTC } from '../../utils/dateFormat';
 
 export default function QuickActions({
   appointment, isCancelled, syncStatus, syncingProvider,
@@ -14,9 +15,27 @@ export default function QuickActions({
 }) {
   const [cancellingParticipation, setCancellingParticipation] = useState(false);
 
+  // Temporal checks
+  const startDt = appointment?.start_datetime ? parseUTC(appointment.start_datetime) : null;
+  const now = new Date();
+  const isStarted = startDt && now >= startDt;
+  const deadlineHours = appointment?.cancellation_deadline_hours || 0;
+  const cancellationDeadline = deadlineHours > 0 && startDt
+    ? new Date(startDt.getTime() - deadlineHours * 3600000)
+    : null;
+  const isPastCancelDeadline = cancellationDeadline ? now >= cancellationDeadline : false;
+
   const canCancelParticipation = !isOrganizer
     && ['accepted', 'accepted_guaranteed'].includes(viewerParticipantStatus)
-    && !isCancelled;
+    && !isCancelled
+    && !isStarted
+    && !isPastCancelDeadline;
+
+  const cancelParticipationDisabled = !isOrganizer
+    && ['accepted', 'accepted_guaranteed'].includes(viewerParticipantStatus)
+    && !isCancelled
+    && !isStarted
+    && isPastCancelDeadline;
 
   const handleCancelParticipation = async () => {
     if (!viewerInvitationToken) return;
@@ -78,8 +97,8 @@ export default function QuickActions({
         ) : null}
       </div>
 
-      {/* Cancel — organizer cancels the whole appointment */}
-      {isOrganizer && !isCancelled && (
+      {/* Cancel — organizer cancels the whole appointment (hidden after start) */}
+      {isOrganizer && !isCancelled && !isStarted && (
         <button
           onClick={onShowCancelModal}
           className="flex items-center gap-1.5 text-xs text-red-500 hover:text-red-700 font-medium py-1.5 transition-colors min-h-[44px]"
@@ -104,6 +123,18 @@ export default function QuickActions({
           }
           Annuler ma participation
         </button>
+      )}
+      {cancelParticipationDisabled && (
+        <span title="Le délai d'annulation est dépassé">
+          <button
+            disabled
+            className="flex items-center gap-1.5 text-xs text-slate-400 font-medium py-1.5 min-h-[44px] cursor-not-allowed"
+            data-testid="cancel-participation-btn-disabled"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            Annuler ma participation
+          </button>
+        </span>
       )}
     </div>
   );

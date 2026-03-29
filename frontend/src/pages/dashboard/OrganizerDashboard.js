@@ -131,6 +131,10 @@ function ActionCard({ item, onRemind, onAccept, onDecline, onCancel, now, onNavi
   const isParticipant = item.role === 'participant';
   const isOrgAlert = !isParticipant && item.action_required;
 
+  // Block organizer cancel if appointment has started
+  const actionStartDt = parseUTC(item.starts_at);
+  const isActionStarted = actionStartDt && now >= actionStartDt;
+
   return (
     <div className="bg-white border border-red-100 rounded-lg p-4" data-testid={`action-card-${item.appointment_id}`}>
       {/* Role label */}
@@ -209,9 +213,11 @@ function ActionCard({ item, onRemind, onAccept, onDecline, onCancel, now, onNavi
             <Button size="sm" className="h-11 md:h-8 text-xs flex-1 md:flex-none bg-amber-600 hover:bg-amber-700 text-white" onClick={() => onRemind(item)} data-testid={`remind-action-${item.appointment_id}`}>
               <Bell className="w-3.5 h-3.5 mr-1.5" /> Relancer
             </Button>
-            <Button size="sm" variant="outline" className="h-11 md:h-8 text-xs flex-1 md:flex-none border-red-200 text-red-600 hover:bg-red-50" onClick={() => onCancel(item)} data-testid={`cancel-action-${item.appointment_id}`}>
-              <Ban className="w-3.5 h-3.5 mr-1.5" /> Annuler
-            </Button>
+            {!isActionStarted && (
+              <Button size="sm" variant="outline" className="h-11 md:h-8 text-xs flex-1 md:flex-none border-red-200 text-red-600 hover:bg-red-50" onClick={() => onCancel(item)} data-testid={`cancel-action-${item.appointment_id}`}>
+                <Ban className="w-3.5 h-3.5 mr-1.5" /> Annuler
+              </Button>
+            )}
           </>
         ) : (
           <Button size="sm" variant="outline" className="h-11 md:h-8 text-xs flex-1 md:flex-none border-red-200 text-red-600 hover:bg-red-50" onClick={() => onRemind(item)} data-testid={`remind-action-${item.appointment_id}`}>
@@ -249,11 +255,23 @@ function TimelineCard({ item, isPast, onDelete, onRemind, onQuit, onDecline, now
   const progressPct = total > 0 ? Math.round((accepted / total) * 100) : 100;
 
   // Participant actions based on exact backend API constraints:
-  // - "Annuler" (cancel participation): only for accepted / accepted_guaranteed + future
+  // - "Annuler" (cancel participation): only for accepted / accepted_guaranteed + future + deadline not passed
   // - "Refuser" (decline): only for invited / accepted_pending_guarantee + future
   const pStatus = item.participant_status;
   const hasToken = !!item.invitation_token;
-  const canQuit = isParticipant && !isPast && hasToken
+
+  // Temporal checks for cancellation
+  const startDt = parseUTC(item.starts_at);
+  const isStarted = startDt && now >= startDt;
+  const deadlineHours = item.cancellation_deadline_hours || 0;
+  const cancellationDeadline = deadlineHours > 0 && startDt
+    ? new Date(startDt.getTime() - deadlineHours * 3600000)
+    : null;
+  const isPastCancelDeadline = cancellationDeadline ? now >= cancellationDeadline : false;
+
+  const canQuit = isParticipant && !isPast && !isStarted && !isPastCancelDeadline && hasToken
+    && ['accepted', 'accepted_guaranteed'].includes(pStatus);
+  const canQuitDisabled = isParticipant && !isPast && !isStarted && isPastCancelDeadline && hasToken
     && ['accepted', 'accepted_guaranteed'].includes(pStatus);
   const canDecline = isParticipant && !isPast && hasToken
     && ['invited', 'accepted_pending_guarantee'].includes(pStatus);
@@ -435,6 +453,19 @@ function TimelineCard({ item, isPast, onDelete, onRemind, onQuit, onDecline, now
           >
             <LogOut className="w-3.5 h-3.5 mr-1.5" /> Annuler
           </Button>
+        )}
+        {canQuitDisabled && (
+          <span title="Le délai d'annulation est dépassé" className="flex-1 md:flex-none">
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-11 md:h-7 text-xs w-full border-slate-200 text-slate-400 cursor-not-allowed"
+              disabled
+              data-testid={`quit-btn-disabled-${item.appointment_id}`}
+            >
+              <LogOut className="w-3.5 h-3.5 mr-1.5" /> Annuler
+            </Button>
+          </span>
         )}
         {canDecline && (
           <Button

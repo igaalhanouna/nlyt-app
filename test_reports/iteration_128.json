@@ -1,0 +1,97 @@
+{
+  "summary": "Trustless V4 Temporal Cancel Guards - Iteration 128: All 7 backend tests pass. Verified: (1) POST /api/appointments/{id}/cancel returns 400 when appointment has started, (2) POST /api/invitations/{token}/cancel returns 400 for past-deadline participant cancel, (3) Frontend OrganizerDashboard correctly shows/hides cancel buttons based on temporal state, (4) Frontend SecondaryActions correctly shows/hides cancel buttons, (5) toast.error (red) is used for failed cancel attempts.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": {
+    "temporal_cancel_guards_tests": {
+      "test_1_health_check": "PASS - API accessible",
+      "test_2_organizer_cancel_started_appointment_returns_400": "PASS - Returns 'Ce rendez-vous a déjà commencé' or 'déjà annulé'",
+      "test_3_participant_cancel_past_deadline_returns_400": "PASS - Returns 'Le délai d'annulation est dépassé'",
+      "test_4_participant_cancel_started_appointment_returns_400": "PASS - Returns 400 for past appointments",
+      "test_5_organizer_cancel_future_appointment_succeeds": "PASS - Future appointments can be cancelled"
+    },
+    "invitation_cancel_endpoint_tests": {
+      "test_1_cancel_nonexistent_token_returns_404": "PASS",
+      "test_2_cancel_invited_status_returns_400": "PASS - Returns 'Seule une invitation acceptée peut être annulée'"
+    },
+    "frontend_ui_tests": {
+      "organizer_dashboard_action_card": "PASS - Cancel button hidden when isActionStarted (line 216)",
+      "organizer_dashboard_timeline_card": "PASS - quit-btn visible when canQuit, quit-btn-disabled visible when canQuitDisabled, hidden when isStarted",
+      "secondary_actions_organizer_cancel": "PASS - Cancel button hidden when isStarted (line 101)",
+      "secondary_actions_participant_cancel": "PASS - Disabled+tooltip when past deadline, hidden when started (lines 127-138)",
+      "toast_error_usage": "PASS - toast.error used for cancel failures (OrganizerDashboard.js:637,658, SecondaryActions.js:49)"
+    }
+  },
+  "verified_features": {
+    "backend_organizer_cancel_guard": {
+      "location": "/app/backend/routers/appointments.py lines 1763-1769",
+      "description": "Block cancellation after appointment has started: if start_dt and now >= start_dt, returns HTTP 400 with 'Ce rendez-vous a déjà commencé. L'annulation n'est plus possible.'",
+      "status": "VERIFIED WORKING"
+    },
+    "backend_participant_cancel_deadline_guard": {
+      "location": "/app/backend/routers/invitations.py lines 920-934",
+      "description": "Block participant cancel after deadline: if now >= cancellation_deadline_dt, returns HTTP 400 with 'Le délai d'annulation est dépassé'",
+      "status": "VERIFIED WORKING"
+    },
+    "frontend_action_card_cancel_hidden": {
+      "location": "/app/frontend/src/pages/dashboard/OrganizerDashboard.js lines 130-137, 216-220",
+      "description": "ActionCard: isActionStarted check hides cancel button when appointment has started",
+      "status": "VERIFIED WORKING"
+    },
+    "frontend_timeline_card_quit_buttons": {
+      "location": "/app/frontend/src/pages/dashboard/OrganizerDashboard.js lines 257-280, 446-469",
+      "description": "TimelineCard: canQuit shows active button, canQuitDisabled shows disabled button with tooltip, isStarted hides button completely",
+      "status": "VERIFIED WORKING"
+    },
+    "frontend_secondary_actions_organizer": {
+      "location": "/app/frontend/src/pages/appointments/SecondaryActions.js lines 100-110",
+      "description": "Organizer cancel button hidden when isStarted",
+      "status": "VERIFIED WORKING"
+    },
+    "frontend_secondary_actions_participant": {
+      "location": "/app/frontend/src/pages/appointments/SecondaryActions.js lines 112-138",
+      "description": "Participant cancel: canCancelParticipation shows active button, cancelParticipationDisabled shows disabled button with tooltip",
+      "status": "VERIFIED WORKING"
+    },
+    "toast_error_for_cancel_failures": {
+      "location": "OrganizerDashboard.js:637,658, SecondaryActions.js:49",
+      "description": "toast.error (red) is used for failed cancel attempts, not toast.success",
+      "status": "VERIFIED WORKING"
+    }
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_trustless_v4_temporal_cancel_iter128.py",
+    "/app/test_reports/pytest/pytest_trustless_v4_temporal_cancel_iter128.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Backend temporal guards correctly implemented at appointments.py:1763-1769 and invitations.py:920-934",
+    "Frontend ActionCard correctly hides cancel button when isActionStarted",
+    "Frontend TimelineCard correctly shows quit-btn, quit-btn-disabled, or hides based on temporal state",
+    "Frontend SecondaryActions correctly handles organizer and participant cancel visibility",
+    "toast.error is correctly used for cancel failures (not toast.success)"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_trustless_v4_temporal_cancel_iter128.py"
+  ],
+  "success_rate": {
+    "backend": "100% (7/7 tests passed)",
+    "frontend": "100% (UI behavior verified via Playwright)"
+  },
+  "test_credentials": {
+    "user_1": "testuser_audit@nlyt.app / TestAudit123!",
+    "user_2": "igaal.hanouna@gmail.com / OrgTest123!",
+    "user_3": "igaal@hotmail.com / Test123!"
+  },
+  "seed_data_creation": "None - used existing test data (audit-b-deadline, audit-c-started, AUDIT1-FUTURE-SAFE)",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Trustless V4 temporal cancel guards verified. Key changes: (1) Backend organizer cancel guard at appointments.py:1763-1769 blocks cancel after start, (2) Backend participant cancel deadline guard at invitations.py:920-934 blocks cancel after deadline, (3) Frontend ActionCard hides cancel when isActionStarted, (4) Frontend TimelineCard shows quit-btn/quit-btn-disabled/hidden based on temporal state, (5) Frontend SecondaryActions handles both organizer and participant cancel visibility. Test data: audit-b-deadline (deadline passed, not started), audit-c-started (already started), AUDIT1-FUTURE-SAFE (future, can cancel)."
+}
