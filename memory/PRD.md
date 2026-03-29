@@ -202,6 +202,22 @@ Application SaaS (React/FastAPI/MongoDB) de gestion des presences avec garanties
 **Garde-fou:** notification in-app créée AVANT l'email. Si email échoue, in-app reste visible
 - Validé via testing_agent iteration 144 (100%: 19/19 backend, 14/14 frontend)
 
+### Session 26 - Notifications email Modifications (2026-03-29)
+**Emails ajoutés:**
+- send_modification_proposed_email: accent info, tableau avant/après, CTA "Voter sur la modification"
+- send_modification_reminder_email: accent warning, alerte expiration imminente, CTA "Voter avant expiration"
+**Triggers dans modification_service.py:**
+- _notify_modification_proposed(): après create_proposal() → email + in-app aux votants
+- _notify_modification_applied(): après _apply_proposal() → in-app toujours, email seulement si structurant
+- Filtre structurant: start_datetime, location, appointment_type, meeting_provider
+**Rappel J-1:**
+- send_modification_vote_reminders(): scheduler toutes les 15min
+- Ne s'active que si la proposition expire dans < 1h ET entre 9h-20h Paris
+- Ciblé: uniquement les votants n'ayant pas répondu
+- Idempotent via clé {proposal_id}_reminder
+**Compteurs:** GET /api/notifications/counts inclut désormais modifications
+- Validé via testing_agent iteration 145 (100%: 21/21 backend, 7/7 frontend)
+
 ## Upcoming Tasks (P1)
 - Configurer le webhook Stripe en production pour validation end-to-end
 - Test reel Zoom/Teams avec vrais tokens
