@@ -127,7 +127,7 @@ class EventRemindersConfig(BaseModel):
 
 class AppointmentCreate(BaseModel):
     workspace_id: str
-    title: str
+    title: str = Field(min_length=1, max_length=200)
     appointment_type: AppointmentType
     location: Optional[str] = None
     location_latitude: Optional[float] = None

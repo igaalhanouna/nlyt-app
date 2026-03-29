@@ -402,6 +402,10 @@ def get_frontend_url(request: Request) -> str:
 @router.post("/")
 async def create_appointment(appointment: AppointmentCreate, request: Request):
     user = await get_current_user(request)
+
+    # Validate title is not blank
+    if not appointment.title.strip():
+        raise HTTPException(status_code=400, detail="Le titre est requis")
     
     membership = db.workspace_memberships.find_one({
         "workspace_id": appointment.workspace_id,
