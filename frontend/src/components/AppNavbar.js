@@ -7,7 +7,7 @@ import { attendanceAPI } from '../services/api';
 import api from '../services/api';
 
 export default function AppNavbar() {
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const { pathname } = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [pendingReviewCount, setPendingReviewCount] = useState(0);
@@ -61,8 +61,11 @@ export default function AppNavbar() {
     if (path === '/litiges') return pathname.startsWith('/litiges');
     if (path === '/wallet') return pathname === '/wallet';
     if (path === '/mes-resultats') return pathname === '/mes-resultats';
+    if (path === '/admin/arbitration') return pathname.startsWith('/admin/arbitration');
     return false;
   };
+
+  const isAdmin = user?.role === 'admin';
 
   const linkClass = (path) =>
     `text-sm font-medium transition-colors ${
@@ -120,6 +123,12 @@ export default function AppNavbar() {
             <Link to="/wallet" className={linkClass('/wallet')} data-testid="navbar-wallet-link">
               Wallet
             </Link>
+            {isAdmin && (
+              <Link to="/admin/arbitration" className={`${linkClass('/admin/arbitration')} flex items-center gap-1`} data-testid="navbar-admin-link">
+                <Scale className="w-3.5 h-3.5" />
+                Arbitrage
+              </Link>
+            )}
             <Link to="/settings" className={linkClass('/settings')} data-testid="navbar-settings-link">
               <span className="flex items-center gap-1.5">
                 <Settings className="w-3.5 h-3.5" />
@@ -211,6 +220,12 @@ export default function AppNavbar() {
                 <Wallet className="w-4.5 h-4.5" />
                 Wallet
               </Link>
+              {isAdmin && (
+                <Link to="/admin/arbitration" className={mobileLinkClass('/admin/arbitration')} data-testid="mobile-nav-admin">
+                  <Scale className="w-4.5 h-4.5" />
+                  Arbitrage admin
+                </Link>
+              )}
               <Link to="/settings" className={mobileLinkClass('/settings')} data-testid="mobile-nav-settings">
                 <Settings className="w-4.5 h-4.5" />
                 Parametres

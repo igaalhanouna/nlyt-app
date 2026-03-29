@@ -140,6 +140,11 @@ export const adminAPI = {
   getCasesForReview: () => api.get('/api/admin/cases/review'),
   getPendingDisputes: () => api.get('/api/admin/disputes/pending'),
   getStripeEvents: (limit) => api.get(`/api/admin/stripe-events?limit=${limit || 50}`),
+  // Arbitration V1
+  getEscalatedDisputes: () => api.get('/api/admin/arbitration'),
+  getArbitrationStats: () => api.get('/api/admin/arbitration/stats'),
+  getDisputeForArbitration: (id) => api.get(`/api/admin/arbitration/${id}`),
+  resolveDispute: (id, data) => api.post(`/api/admin/arbitration/${id}/resolve`, data),
 };
 
 export const modificationAPI = {

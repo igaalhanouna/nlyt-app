@@ -32,6 +32,8 @@ import AttendanceSheetPage from './pages/declarations/AttendanceSheetPage';
 import PresencesPage from './pages/declarations/PresencesPage';
 
 import ReviewerDashboard from './pages/admin/ReviewerDashboard';
+import AdminArbitrationList from './pages/admin/AdminArbitrationList';
+import AdminArbitrationDetail from './pages/admin/AdminArbitrationDetail';
 
 import Settings from './pages/settings/Settings';
 import Profile from './pages/settings/Profile';
@@ -90,6 +92,8 @@ function App() {
               <Route path="/appointments/:id/attendance-sheet" element={<PrivateRoute><AttendanceSheetPage /></PrivateRoute>} />
               
               <Route path="/admin/review" element={<PrivateRoute><ReviewerDashboard /></PrivateRoute>} />
+              <Route path="/admin/arbitration" element={<PrivateRoute><AdminArbitrationList /></PrivateRoute>} />
+              <Route path="/admin/arbitration/:disputeId" element={<PrivateRoute><AdminArbitrationDetail /></PrivateRoute>} />
               
               <Route path="/settings" element={<PrivateRoute><Settings /></PrivateRoute>} />
               <Route path="/settings/profile" element={<PrivateRoute><Profile /></PrivateRoute>} />

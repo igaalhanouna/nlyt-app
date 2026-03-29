@@ -196,14 +196,16 @@ class AuthService:
             user['last_name']
         )
         
+        user_role = user.get('role', 'user')
         token_data = {
             "user_id": user['user_id'],
             "email": user['email'],
             "first_name": user['first_name'],
-            "last_name": user['last_name']
+            "last_name": user['last_name'],
+            "role": user_role,
         }
         access_token = create_access_token(token_data)
-        logger.info(f"User logged in: {email}")
+        logger.info(f"User logged in: {email} (role={user_role})")
         
         user_response = {
             "user_id": user['user_id'],
@@ -212,7 +214,8 @@ class AuthService:
             "last_name": user['last_name'],
             "phone": user.get('phone'),
             "is_verified": user['is_verified'],
-            "created_at": user['created_at']
+            "created_at": user['created_at'],
+            "role": user_role,
         }
         
         return {"success": True, "access_token": access_token, "user": user_response}
