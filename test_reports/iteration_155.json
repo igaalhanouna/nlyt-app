@@ -1,0 +1,81 @@
+{
+  "summary": "Iteration 155: NLYT Stripe Flows & Webhook Protocol Testing. Backend: 12/12 tests passed. All requested flows verified: FLUX1 (card deletion), FLUX2 (appointment without card → Stripe redirect), W3-W8 (webhook handlers). Frontend: Payment settings page working correctly with proper card state display.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": {
+    "FLUX1_delete_card_no_recovery": "PASS - DELETE /api/user-settings/me/payment-method removes card, GET returns has_payment_method: false (no auto-recovery)",
+    "FLUX2_create_appointment_without_card": "PASS - POST /api/appointments/ with penalty_amount > 0 and no card returns status=pending_organizer_guarantee with organizer_checkout_url",
+    "W3_transfer_created_handler": "PASS - webhooks.py listens for transfer.created (not transfer.paid)",
+    "W4_transfer_reversed_handler": "PASS - webhooks.py listens for transfer.reversed",
+    "W5_transfer_updated_handler": "PASS - webhooks.py listens for transfer.updated",
+    "W6_webhook_idempotence": "PASS - Idempotence guard exists: duplicate event_id returns {status: duplicate}",
+    "W7_invalid_signature_rejected": "PASS - POST /api/webhooks/stripe with fake Stripe-Signature returns 400 'Invalid signature'",
+    "W8_account_updated_handler": "PASS - webhooks.py listens for account.updated",
+    "PM_GET_endpoint": "PASS - GET /api/user-settings/me/payment-method returns correct structure",
+    "PM_SETUP_endpoint": "PASS - POST /api/user-settings/me/setup-payment-method returns checkout_url",
+    "PAYOUT_SERVICE_handlers": "PASS - payout_service.py has handle_transfer_paid and handle_transfer_failed",
+    "WEBHOOKS_imports": "PASS - webhooks.py imports payout handlers correctly"
+  },
+  "frontend_tests": {
+    "login_page": "PASS - Login form works correctly with email/password",
+    "dashboard": "PASS - Dashboard loads with 48 engagements, calendar connections visible",
+    "payment_settings_no_card": "PASS - Page shows 'Aucune carte enregistrée' with 'Enregistrer une carte' button and warning",
+    "add_card_redirect": "PASS - 'Enregistrer une carte' button redirects to real Stripe Checkout (test mode)"
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_nlyt_stripe_flows_iter155.py",
+    "/app/test_reports/pytest/pytest_nlyt_stripe_flows_iter155.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "webhooks.py: Correctly uses transfer.created/reversed/updated instead of non-existent transfer.paid/failed",
+    "webhooks.py: Idempotence guard properly checks stripe_events collection before processing",
+    "webhooks.py: Signature verification active with STRIPE_WEBHOOK_SECRET",
+    "user_settings.py: DELETE /me/payment-method clears both user-level and participant-level card data to prevent auto-recovery",
+    "appointments.py: create_guarantee_with_saved_card() called for Stripe verification when user has saved card",
+    "stripe_guarantee_service.py: pm_dev_ payment methods rejected when real Stripe key is configured",
+    "PaymentSettings.js: Proper data-testid attributes for testing (saved-card-display, no-card-display, add-card-btn, remove-card-btn)"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_nlyt_stripe_flows_iter155.py"
+  ],
+  "success_rate": {
+    "backend": "100% (12/12 tests passed)",
+    "frontend": "100% (all pages and flows working correctly)"
+  },
+  "test_credentials": {
+    "admin": "testuser_audit@nlyt.app / TestAudit123!",
+    "user1": "igaal@hotmail.com / Test123!",
+    "user2": "igaal.hanouna@gmail.com / OrgTest123!",
+    "workspace_id": "7e219321-18fd-4643-9be6-e4f1de88a2a8"
+  },
+  "seed_data_creation": "TEST_FLUX2_NoCard_* appointment created during testing",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All Stripe flows and webhook handlers verified. FLUX1 (card deletion) and FLUX2 (appointment without card → Stripe redirect) working correctly. Webhook handlers W3-W8 all exist and are properly configured. Signature verification active. Idempotence guard in place. Frontend payment settings page displays correct state (no card / saved card) with proper buttons.",
+  "mocked_apis": {
+    "stripe": "Real Stripe test mode (sk_test_*) - NOT mocked",
+    "webhooks": "Signature verification active with STRIPE_WEBHOOK_SECRET"
+  },
+  "stripe_configuration": {
+    "api_key": "sk_test_* (real Stripe test key)",
+    "webhook_secret": "whsec_h9PGOXmKGzmUhTmmgdC4YlkyAekVD4KO",
+    "signature_verification": "ACTIVE - unsigned requests rejected with 400"
+  },
+  "webhook_handlers_verified": {
+    "checkout.session.completed": "Line 68 - handles guarantee setup and default payment method",
+    "payment_intent.succeeded": "Line 130 - handles penalty capture confirmation",
+    "account.updated": "Line 146 - handles Stripe Connect account updates",
+    "account.application.deauthorized": "Line 154 - handles Connect deauthorization",
+    "transfer.created": "Line 163 - handles payout confirmation (calls handle_transfer_paid)",
+    "transfer.reversed": "Line 172 - handles payout reversal (calls handle_transfer_failed)",
+    "transfer.updated": "Line 181 - handles transfer status changes"
+  }
+}
