@@ -1,0 +1,69 @@
+{
+  "summary": "Iteration 140: Bug Fix - Edit button (pencil) for participants on appointment detail page. The original fix at line 903 was correct (changing condition from isOrganizer to isOrganizer || viewerCanPropose), but viewerCanPropose was always false because viewerParticipant lookup used user_id which was null for participants. Fixed by using viewerParticipantStatus from appointment response directly instead of looking up participant by user_id.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "POST /api/modifications/",
+        "issue": "Returns 403 'Vous n'êtes pas participant de ce rendez-vous' when participant's user_id is null in DB. Backend checks user_id match but participant record may not have user_id linked when invitation was accepted.",
+        "priority": "MEDIUM",
+        "note": "This is a data linkage issue - participant records should have user_id set when user accepts invitation while logged in"
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": {
+    "frontend_tests": {
+      "test_1_organizer_edit_button_visible": "PASS - Edit button (pencil) visible for organizer",
+      "test_1_organizer_modal_opens": "PASS - EditProposalModal opens when organizer clicks edit button",
+      "test_1_organizer_modal_title": "PASS - Modal title is 'Proposer une modification' (because there are accepted participants)",
+      "test_2_accepted_participant_edit_button_visible": "PASS - Edit button (pencil) visible for accepted participant (BUG FIXED)",
+      "test_2_accepted_participant_modal_opens": "PASS - EditProposalModal opens when accepted participant clicks edit button",
+      "test_2_accepted_participant_modal_title": "PASS - Modal title is 'Proposer une modification' for participant",
+      "test_3_invited_participant_no_edit_button": "PASS - Edit button NOT visible for invited (non-accepted) participant",
+      "test_4_regression_organizer_unchanged": "PASS - Organizer behavior unchanged after fix"
+    }
+  },
+  "test_report_links": [
+    "/app/frontend/src/pages/appointments/AppointmentDetail.js"
+  ],
+  "action_items": [
+    "Backend: Consider linking participant user_id when user accepts invitation while logged in (POST /api/invitations/{token}/respond should set user_id if user is authenticated)"
+  ],
+  "critical_code_review_comments": [
+    "Original fix at line 903 was correct: changed {isOrganizer && ...} to {(isOrganizer || viewerCanPropose) && ...}",
+    "Root cause: viewerCanPropose was always false because line 698 looked up viewerParticipant by user_id, but participant record had user_id=null",
+    "Fix applied: Changed viewerCanPropose to use viewerParticipantStatus from appointment response directly (line 704-705)",
+    "Also improved viewerParticipant lookup to use invitation_token as fallback (line 699-701)"
+  ],
+  "updated_files": [
+    "/app/frontend/src/pages/appointments/AppointmentDetail.js"
+  ],
+  "success_rate": {
+    "backend": "N/A (frontend-only fix)",
+    "frontend": "100% (8/8 tests passed)"
+  },
+  "test_credentials": {
+    "admin_organizer": "testuser_audit@nlyt.app / TestAudit123!",
+    "participant": "igaal.hanouna@gmail.com / OrgTest123!"
+  },
+  "seed_data_creation": "Created appointment TEST_EditButton_Participant (baa9d4bd-c92d-4a8b-9490-37394451daf6) with igaal.hanouna@gmail.com as accepted participant",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Bug fix verified: Edit button now works for accepted participants. The fix was in AppointmentDetail.js lines 697-705 - changed viewerCanPropose to use viewerParticipantStatus from appointment response instead of looking up participant by user_id. Test appointment: baa9d4bd-c92d-4a8b-9490-37394451daf6. Note: Backend POST /api/modifications/ may still fail for participants whose user_id is not linked in DB.",
+  "rca_of_the_issue": {
+    "root_cause": "The original fix at line 903 was correct (adding viewerCanPropose to the condition), but viewerCanPropose was always false because the viewerParticipant lookup at line 698 used user_id matching, and the participant record had user_id=null (not linked to user account)",
+    "reproduction_steps": [
+      "1. Login as participant (igaal.hanouna@gmail.com)",
+      "2. Navigate to appointment where user is accepted participant",
+      "3. Edit button (pencil) was not visible because viewerCanPropose was false",
+      "4. viewerCanPropose was false because viewerParticipant was undefined",
+      "5. viewerParticipant was undefined because participants.find(p => p.user_id === user?.user_id) returned nothing (user_id was null in participant record)"
+    ],
+    "mitigation": "Changed viewerCanPropose to use viewerParticipantStatus from appointment response directly, which is always accurate regardless of user_id linkage"
+  }
+}

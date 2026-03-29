@@ -695,9 +695,14 @@ export default function AppointmentDetail() {
   const isDirectModification = !hasAcceptedNonOrgParticipants;
 
   // Viewer's participant record (for participants responding to proposals)
-  const viewerParticipant = participants.find(p => p.user_id === user?.user_id && !p.is_organizer);
-  const viewerCanPropose = !isOrganizer && canEdit && viewerParticipant
-    && ACCEPTED_STATUSES.includes(viewerParticipant.status);
+  // Use invitation_token as fallback when user_id is not linked
+  const viewerParticipant = participants.find(p => 
+    (p.user_id === user?.user_id || p.invitation_token === viewerInvitationToken) && !p.is_organizer
+  );
+  // viewerCanPropose: participant can propose if they are accepted and appointment is editable
+  // Use viewerParticipantStatus from appointment response as it's always accurate
+  const viewerCanPropose = !isOrganizer && canEdit 
+    && ACCEPTED_STATUSES.includes(viewerParticipantStatus);
 
   // Proof summary for <details>
   const proofSessionCount = proofSessions.length;
@@ -899,8 +904,8 @@ export default function AppointmentDetail() {
           <FinancialResultSection appointment={appointment} participants={participants} isOrganizer={isOrganizer} />
         )}
 
-        {/* #8 — Modal de modification (organisateur only) */}
-        {isOrganizer && (
+        {/* #8 — Modal de modification (organisateur + participant accepté) */}
+        {(isOrganizer || viewerCanPropose) && (
           <EditProposalModal
             open={showProposalForm} onClose={() => setShowProposalForm(false)}
             proposalForm={proposalForm} setProposalForm={setProposalForm}
