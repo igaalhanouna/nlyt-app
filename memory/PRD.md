@@ -138,6 +138,14 @@ Application SaaS (React/FastAPI/MongoDB) de gestion des presences avec garanties
 - Wording harmonise: "Check-in GPS" (physique) / "Effectuer mon check-in" (video) / "Check-in effectue" (apres)
 - Valide via testing_agent iteration 141 (100%: 7/7 frontend)
 
+### Session 22 - Historique modifications sur cartes dashboard (2026-03-31)
+- Chargement des modifications appliquees (auto_applied/approved) en plus des pending
+- Calcul modHistoryByAptId: map des 2 dernieres modifications appliquees par RDV
+- Bloc d'historique sur TimelineCard: icone crayon + formatChangeSummary (ex: Date : 3 avr -> 1 avr)
+- Style discret coherent (text-[11px] text-slate-400, border-b border-slate-100)
+- Harmonise: meme placement, style, wording pour organisateur et participant
+- Teste visuellement: 3 blocs affichés organisateur, 0 participant (correct), zero erreur console
+
 ## Data Integrity Rules
 - Participant documents MUST have valid user_id when user exists
 - Every appointment MUST have an is_organizer=True participant record
