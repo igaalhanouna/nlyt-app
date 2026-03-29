@@ -104,6 +104,14 @@ Application SaaS (React/FastAPI/MongoDB) de gestion des presences avec garanties
 - FIX: Rejet des pm_dev_ avec une vraie cle Stripe (pas de bypass dev en production)
 - Corrige dans 2 endroits : create_appointment() et retry-organizer-guarantee()
 
+## Stripe Redirect UX Fix (2026-03-30)
+- BUG UX: Apres enregistrement carte via Stripe Checkout, un user connecte etait redirige vers /invitation/ au lieu de /appointments/{id}
+- CAUSE: create_guarantee_session() codait en dur success_url vers /invitation/{token} pour tous les contextes
+- FIX: Ajout parametre return_url optionnel a create_guarantee_session()
+  - Depuis appointments.py (user connecte): return_url=/appointments/{id} → retour dans l'app
+  - Depuis invitations.py (flow invitation): pas de return_url → /invitation/{token} preserve
+- Frontend: AppointmentDetail.js detecte ?guarantee_status=success, nettoie l'URL, attend 2s, verifie activation, affiche toast
+
 ## Test Results - Iteration 155 (2026-03-30)
 - FLUX1 (suppression carte sans auto-recovery): PASS
 - FLUX2 (creation RDV sans carte → Stripe redirect): PASS
