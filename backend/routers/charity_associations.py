@@ -103,6 +103,9 @@ class AssociationCreate(BaseModel):
     description: str = Field(default="", max_length=500)
     website: Optional[str] = None
     contact_email: Optional[str] = None
+    contact_first_name: Optional[str] = None
+    contact_last_name: Optional[str] = None
+    contact_phone: Optional[str] = None
 
 
 class AssociationUpdate(BaseModel):
@@ -110,6 +113,9 @@ class AssociationUpdate(BaseModel):
     description: Optional[str] = Field(default=None, max_length=500)
     website: Optional[str] = None
     contact_email: Optional[str] = None
+    contact_first_name: Optional[str] = None
+    contact_last_name: Optional[str] = None
+    contact_phone: Optional[str] = None
 
 
 @router.get("/admin/list")
@@ -160,6 +166,9 @@ async def admin_create_association(request: Request, body: AssociationCreate):
         "website": body.website.strip() if body.website else None,
         "logo_url": None,
         "contact_email": body.contact_email.strip() if body.contact_email else None,
+        "contact_first_name": body.contact_first_name.strip() if body.contact_first_name else None,
+        "contact_last_name": body.contact_last_name.strip() if body.contact_last_name else None,
+        "contact_phone": body.contact_phone.strip() if body.contact_phone else None,
         "is_active": True,
         "created_at": now,
         "updated_at": now,
@@ -190,6 +199,12 @@ async def admin_update_association(request: Request, association_id: str, body: 
         update_fields["website"] = body.website.strip() if body.website else None
     if body.contact_email is not None:
         update_fields["contact_email"] = body.contact_email.strip() if body.contact_email else None
+    if body.contact_first_name is not None:
+        update_fields["contact_first_name"] = body.contact_first_name.strip() if body.contact_first_name else None
+    if body.contact_last_name is not None:
+        update_fields["contact_last_name"] = body.contact_last_name.strip() if body.contact_last_name else None
+    if body.contact_phone is not None:
+        update_fields["contact_phone"] = body.contact_phone.strip() if body.contact_phone else None
 
     db.charity_associations.update_one(
         {"association_id": association_id},

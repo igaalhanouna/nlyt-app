@@ -15,6 +15,9 @@ function AssociationForm({ initial, onSave, onCancel, saving }) {
     description: initial?.description || '',
     website: initial?.website || '',
     contact_email: initial?.contact_email || '',
+    contact_first_name: initial?.contact_first_name || '',
+    contact_last_name: initial?.contact_last_name || '',
+    contact_phone: initial?.contact_phone || '',
   });
 
   const handleSubmit = (e) => {
@@ -25,13 +28,16 @@ function AssociationForm({ initial, onSave, onCancel, saving }) {
       description: form.description.trim(),
       website: form.website.trim() || null,
       contact_email: form.contact_email.trim() || null,
+      contact_first_name: form.contact_first_name.trim() || null,
+      contact_last_name: form.contact_last_name.trim() || null,
+      contact_phone: form.contact_phone.trim() || null,
     });
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <Label htmlFor="assoc-name">Nom *</Label>
+        <Label htmlFor="assoc-name">Nom de l'association *</Label>
         <Input id="assoc-name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required className="mt-1" data-testid="assoc-form-name" />
       </div>
       <div>
@@ -42,9 +48,26 @@ function AssociationForm({ initial, onSave, onCancel, saving }) {
         <Label htmlFor="assoc-web">Site web</Label>
         <Input id="assoc-web" type="url" value={form.website} onChange={(e) => setForm({ ...form, website: e.target.value })} placeholder="https://..." className="mt-1" data-testid="assoc-form-website" />
       </div>
-      <div>
-        <Label htmlFor="assoc-email">Email de contact</Label>
-        <Input id="assoc-email" type="email" value={form.contact_email} onChange={(e) => setForm({ ...form, contact_email: e.target.value })} className="mt-1" data-testid="assoc-form-email" />
+      <p className="text-sm font-medium text-slate-700 pt-2">Contact</p>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="assoc-cfn">Prénom du contact</Label>
+          <Input id="assoc-cfn" value={form.contact_first_name} onChange={(e) => setForm({ ...form, contact_first_name: e.target.value })} className="mt-1" data-testid="assoc-form-contact-firstname" />
+        </div>
+        <div>
+          <Label htmlFor="assoc-cln">Nom du contact</Label>
+          <Input id="assoc-cln" value={form.contact_last_name} onChange={(e) => setForm({ ...form, contact_last_name: e.target.value })} className="mt-1" data-testid="assoc-form-contact-lastname" />
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="assoc-email">Email du contact</Label>
+          <Input id="assoc-email" type="email" value={form.contact_email} onChange={(e) => setForm({ ...form, contact_email: e.target.value })} className="mt-1" data-testid="assoc-form-email" />
+        </div>
+        <div>
+          <Label htmlFor="assoc-phone">Téléphone du contact</Label>
+          <Input id="assoc-phone" type="tel" value={form.contact_phone} onChange={(e) => setForm({ ...form, contact_phone: e.target.value })} className="mt-1" data-testid="assoc-form-contact-phone" />
+        </div>
       </div>
       <div className="flex justify-end gap-3 pt-2">
         <Button type="button" variant="outline" onClick={onCancel} data-testid="assoc-form-cancel">Annuler</Button>
@@ -186,15 +209,25 @@ export default function AdminAssociations() {
                     )}
                   </div>
                   {assoc.description && <p className="text-sm text-slate-500 mt-0.5 truncate">{assoc.description}</p>}
-                  <div className="flex items-center gap-4 mt-1">
+                  <div className="flex items-center gap-4 mt-1 flex-wrap">
                     {assoc.website && (
                       <a href={assoc.website} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline inline-flex items-center gap-1">
                         <Globe className="w-3 h-3" /> Site web <ExternalLink className="w-3 h-3" />
                       </a>
                     )}
+                    {(assoc.contact_first_name || assoc.contact_last_name) && (
+                      <span className="text-xs text-slate-500 inline-flex items-center gap-1">
+                        Contact : {[assoc.contact_first_name, assoc.contact_last_name].filter(Boolean).join(' ')}
+                      </span>
+                    )}
                     {assoc.contact_email && (
                       <span className="text-xs text-slate-400 inline-flex items-center gap-1">
                         <Mail className="w-3 h-3" /> {assoc.contact_email}
+                      </span>
+                    )}
+                    {assoc.contact_phone && (
+                      <span className="text-xs text-slate-400 inline-flex items-center gap-1">
+                        {assoc.contact_phone}
                       </span>
                     )}
                   </div>
