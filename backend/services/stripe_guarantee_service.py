@@ -153,7 +153,8 @@ class StripeGuaranteeService:
         penalty_amount: float,
         penalty_currency: str,
         frontend_url: str,
-        invitation_token: str
+        invitation_token: str,
+        return_url: str = None
     ) -> dict:
         """
         Create a Stripe Checkout Session in "setup" mode to collect payment method.
@@ -191,7 +192,10 @@ class StripeGuaranteeService:
                 db.payment_guarantees.insert_one(guarantee_record)
                 
                 # In dev mode, return a URL that will auto-confirm
-                dev_success_url = f"{frontend_url}/invitation/{invitation_token}?guarantee_status=success&session_id=cs_dev_{guarantee_id[:8]}&dev_mode=true"
+                if return_url:
+                    dev_success_url = f"{frontend_url}{return_url}?guarantee_status=success&session_id=cs_dev_{guarantee_id[:8]}&dev_mode=true"
+                else:
+                    dev_success_url = f"{frontend_url}/invitation/{invitation_token}?guarantee_status=success&session_id=cs_dev_{guarantee_id[:8]}&dev_mode=true"
                 
                 return {
                     "success": True,
@@ -207,9 +211,16 @@ class StripeGuaranteeService:
                 participant_email, participant_name
             )
             
-            # Build success/cancel URLs
-            success_url = f"{frontend_url}/invitation/{invitation_token}?guarantee_status=success&session_id={{CHECKOUT_SESSION_ID}}"
-            cancel_url = f"{frontend_url}/invitation/{invitation_token}?guarantee_status=cancelled"
+            # Build success/cancel URLs based on context
+            if return_url:
+                # Context B: User already in the app (e.g., organizer creating appointment)
+                separator = "&" if "?" in return_url else "?"
+                success_url = f"{frontend_url}{return_url}{separator}guarantee_status=success&session_id={{CHECKOUT_SESSION_ID}}"
+                cancel_url = f"{frontend_url}{return_url}{separator}guarantee_status=cancelled"
+            else:
+                # Context A: Invitation flow (non-user or external invitee)
+                success_url = f"{frontend_url}/invitation/{invitation_token}?guarantee_status=success&session_id={{CHECKOUT_SESSION_ID}}"
+                cancel_url = f"{frontend_url}/invitation/{invitation_token}?guarantee_status=cancelled"
             
             # Create Checkout Session in setup mode
             # This collects payment method without charging

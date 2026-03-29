@@ -376,6 +376,37 @@ export default function AppointmentDetail() {
   // ─── Data Loading ───
   useEffect(() => { loadData(); }, [id]);
 
+  // ─── Handle Stripe return: auto-check guarantee after redirect ───
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const guaranteeStatus = params.get('guarantee_status');
+    if (guaranteeStatus === 'success') {
+      // Clean URL params without reloading
+      const cleanUrl = `/appointments/${id}`;
+      window.history.replaceState({}, '', cleanUrl);
+      // Auto-trigger activation check after short delay (let webhook process)
+      const timer = setTimeout(async () => {
+        try {
+          const res = await appointmentAPI.checkActivation(id);
+          if (res.data.status === 'active') {
+            toast.success('Garantie validée ! Votre engagement est actif.');
+          } else {
+            toast.info('Garantie enregistrée. Vérification en cours...');
+          }
+          loadData();
+        } catch {
+          toast.info('Garantie enregistrée. Rechargement...');
+          loadData();
+        }
+      }, 2000);
+      return () => clearTimeout(timer);
+    } else if (guaranteeStatus === 'cancelled') {
+      const cleanUrl = `/appointments/${id}`;
+      window.history.replaceState({}, '', cleanUrl);
+      toast.warning('Configuration de la garantie annulée.');
+    }
+  }, [id, location.search]);
+
   const loadData = async () => {
     try {
       const [appointmentRes, participantsRes] = await Promise.all([

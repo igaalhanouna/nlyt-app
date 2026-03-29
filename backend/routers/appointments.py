@@ -678,7 +678,8 @@ async def create_appointment(appointment: AppointmentCreate, request: Request):
                     penalty_amount=float(appointment.penalty_amount),
                     penalty_currency=appointment.penalty_currency.lower(),
                     frontend_url=frontend_url,
-                    invitation_token=organizer_invitation_token
+                    invitation_token=organizer_invitation_token,
+                    return_url=f"/appointments/{appointment_id}"
                 )
                 if result.get('success'):
                     organizer_checkout_url = result['checkout_url']
@@ -925,7 +926,8 @@ async def retry_organizer_guarantee(appointment_id: str, request: Request):
             penalty_amount=float(appointment.get('penalty_amount', 0)),
             penalty_currency=appointment.get('penalty_currency', 'eur').lower(),
             frontend_url=frontend_url,
-            invitation_token=org_p.get('invitation_token', '')
+            invitation_token=org_p.get('invitation_token', ''),
+            return_url=f"/appointments/{appointment_id}"
         )
 
         if result.get('success'):

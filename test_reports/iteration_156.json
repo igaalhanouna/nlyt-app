@@ -1,0 +1,74 @@
+{
+  "summary": "Iteration 156: Stripe Redirect Fix Testing. Backend: 12/12 tests passed. All requested features verified: (1) Appointment creation without card returns checkout_url pointing to /appointments/{id}, (2) Retry guarantee returns checkout_url pointing to /appointments/{id}, (3) Invitation flow preserves /invitation/{token} URL, (4) Card deletion works correctly, (5) Frontend AppointmentDetail.js handles guarantee_status=success and cancelled. Frontend: Login, dashboard, payment settings, and appointment detail pages all working correctly.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": {
+    "test_01_delete_card_before_test": "PASS - DELETE /api/user-settings/me/payment-method removes card, GET returns has_payment_method: false",
+    "test_02_create_appointment_without_card_returns_appointments_url": "PASS - POST /api/appointments/ with penalty_amount > 0 and no card returns status=pending_organizer_guarantee with organizer_checkout_url pointing to /appointments/{id}?guarantee_status=success (NOT /invitation/)",
+    "test_03_retry_guarantee_returns_appointments_url": "PASS - POST /api/appointments/{id}/retry-organizer-guarantee returns checkout_url pointing to /appointments/{id}",
+    "test_04_verify_invitation_flow_preserves_invitation_url": "PASS - invitations.py has 0 return_url parameters - invitation flow preserved with /invitation/{token}",
+    "test_05_verify_appointments_passes_return_url": "PASS - appointments.py has 2 return_url parameters at lines 682 and 930",
+    "test_06_verify_stripe_guarantee_service_handles_return_url": "PASS - stripe_guarantee_service.py correctly handles return_url parameter (lines 157, 195-196, 215-219)",
+    "test_07_frontend_handles_guarantee_status_success": "PASS - AppointmentDetail.js detects guarantee_status=success, cleans URL, waits 2s, calls checkActivation(), shows toast",
+    "test_08_frontend_handles_guarantee_status_cancelled": "PASS - AppointmentDetail.js shows warning toast for cancelled guarantee",
+    "test_09_cleanup_test_appointment": "PASS - Test appointment cancelled",
+    "test_get_payment_method_structure": "PASS - GET /api/user-settings/me/payment-method returns correct structure",
+    "test_delete_payment_method_success": "PASS - DELETE /api/user-settings/me/payment-method returns success",
+    "test_verify_no_payment_method_after_delete": "PASS - After DELETE, has_payment_method is false"
+  },
+  "frontend_tests": {
+    "login_page": "PASS - Login form works correctly with email/password",
+    "dashboard": "PASS - Dashboard loads with 50 engagements, 4 actions required, calendar connections visible",
+    "payment_settings_no_card": "PASS - Page shows 'Aucune carte enregistrée' with 'Enregistrer une carte' button and warning",
+    "appointment_detail": "PASS - Appointment detail page loads correctly with all sections (header, essentials, participants, proof)"
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_stripe_redirect_fix_iter156.py",
+    "/app/test_reports/pytest/pytest_stripe_redirect_fix_iter156.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "stripe_guarantee_service.py: Line 157 - return_url parameter added with default None",
+    "stripe_guarantee_service.py: Lines 195-196 - Dev mode uses return_url for success_url when provided",
+    "stripe_guarantee_service.py: Lines 215-222 - Production mode builds success_url with return_url when provided, else uses /invitation/{token}",
+    "appointments.py: Line 682 - create_guarantee_session called with return_url=f'/appointments/{appointment_id}'",
+    "appointments.py: Line 930 - retry-organizer-guarantee also passes return_url=f'/appointments/{appointment_id}'",
+    "invitations.py: Lines 384, 698, 826, 955 - All 4 calls to create_guarantee_session do NOT pass return_url, preserving /invitation/{token} flow",
+    "AppointmentDetail.js: Lines 379-408 - useEffect detects guarantee_status=success, cleans URL, waits 2s for webhook, calls checkActivation(), shows toast",
+    "AppointmentDetail.js: Lines 403-406 - Handles guarantee_status=cancelled with warning toast",
+    "user_settings.py: Lines 317-346 - DELETE /me/payment-method clears both user-level and participant-level card data"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_stripe_redirect_fix_iter156.py"
+  ],
+  "success_rate": {
+    "backend": "100% (12/12 tests passed)",
+    "frontend": "100% (all pages and flows working correctly)"
+  },
+  "test_credentials": {
+    "admin": "testuser_audit@nlyt.app / TestAudit123!",
+    "user1": "igaal@hotmail.com / Test123!",
+    "user2": "igaal.hanouna@gmail.com / OrgTest123!",
+    "workspace_id": "7e219321-18fd-4643-9be6-e4f1de88a2a8"
+  },
+  "seed_data_creation": "TEST_REDIRECT_FIX_* appointment created and cancelled during testing",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Stripe redirect fix verified. Key change: create_guarantee_session() now accepts optional return_url parameter. When called from appointments.py (2 call sites at lines 682 and 930), return_url='/appointments/{appointment_id}' is passed. When called from invitations.py (4 call sites), no return_url is passed → defaults to /invitation/{token}. Frontend AppointmentDetail.js has useEffect that detects guarantee_status=success from URL, cleans URL, waits 2s for webhook, calls checkActivation(), shows toast. Also handles guarantee_status=cancelled with warning toast.",
+  "mocked_apis": {
+    "stripe": "Real Stripe test mode (sk_test_*) - NOT mocked",
+    "webhooks": "Signature verification active with STRIPE_WEBHOOK_SECRET"
+  },
+  "stripe_redirect_fix_verification": {
+    "appointments_flow": "success_url points to /appointments/{id}?guarantee_status=success",
+    "invitations_flow": "success_url points to /invitation/{token}?guarantee_status=success",
+    "frontend_handling": "AppointmentDetail.js detects guarantee_status, cleans URL, triggers checkActivation()"
+  }
+}
