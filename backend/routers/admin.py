@@ -142,3 +142,65 @@ async def get_stripe_events(limit: int = 50, request: Request = None):
         {}, {"_id": 0}
     ).sort("received_at", -1).limit(limit))
     return {"events": events}
+
+
+# ── User Management ──────────────────────────────────────────
+
+VALID_ROLES = ["user", "admin"]
+
+
+class UpdateRoleBody(BaseModel):
+    role: str
+
+
+@router.get("/users")
+async def admin_list_users(request: Request):
+    """List all users with key info for admin management."""
+    await require_admin(request)
+    users = list(db.users.find(
+        {},
+        {"_id": 0, "user_id": 1, "email": 1, "first_name": 1, "last_name": 1,
+         "role": 1, "is_verified": 1, "auth_provider": 1, "google_id": 1,
+         "microsoft_id": 1, "created_at": 1}
+    ).sort("created_at", -1))
+
+    for u in users:
+        u.setdefault("role", "user")
+        u.setdefault("auth_provider", "email")
+        providers = []
+        if u.get("google_id"):
+            providers.append("google")
+        if u.get("microsoft_id"):
+            providers.append("microsoft")
+        if u.get("password_hash") is not None or not providers:
+            providers.insert(0, "email")
+        u["providers"] = providers
+        u.pop("google_id", None)
+        u.pop("microsoft_id", None)
+
+    return {"users": users, "count": len(users)}
+
+
+@router.patch("/users/{user_id}/role")
+async def admin_update_user_role(request: Request, user_id: str, body: UpdateRoleBody):
+    """Change a user's role (admin/user)."""
+    admin = await require_admin(request)
+
+    if body.role not in VALID_ROLES:
+        raise HTTPException(status_code=400, detail=f"Role invalide. Valeurs acceptees: {VALID_ROLES}")
+
+    target = db.users.find_one({"user_id": user_id}, {"_id": 0, "user_id": 1, "email": 1})
+    if not target:
+        raise HTTPException(status_code=404, detail="Utilisateur introuvable")
+
+    if target["user_id"] == admin["user_id"]:
+        raise HTTPException(status_code=400, detail="Vous ne pouvez pas modifier votre propre role")
+
+    from utils.date_utils import now_utc_iso
+    db.users.update_one(
+        {"user_id": user_id},
+        {"$set": {"role": body.role, "updated_at": now_utc_iso()}}
+    )
+
+    logger.info(f"[ADMIN] User {target['email']} role changed to {body.role} by {admin['email']}")
+    return {"user_id": user_id, "email": target["email"], "role": body.role}

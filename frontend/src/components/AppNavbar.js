@@ -79,7 +79,7 @@ export default function AppNavbar() {
     if (path === '/litiges') return pathname.startsWith('/litiges');
     if (path === '/decisions') return pathname.startsWith('/decisions');
     if (path === '/mes-resultats') return pathname === '/mes-resultats';
-    if (path === '/admin/arbitration') return pathname.startsWith('/admin/arbitration');
+    if (path === '/admin') return pathname.startsWith('/admin');
     return false;
   };
 
@@ -144,8 +144,8 @@ export default function AppNavbar() {
               )}
             </Link>
             {isAdmin && (
-              <Link to="/admin/arbitration" className={linkClass('/admin/arbitration')} data-testid="navbar-admin-link">
-                Arbitrage
+              <Link to="/admin" className={linkClass('/admin')} data-testid="navbar-admin-link">
+                Admin
               </Link>
             )}
             <Link to="/mes-resultats" className={linkClass('/mes-resultats')} data-testid="navbar-results-link">
@@ -242,8 +242,8 @@ export default function AppNavbar() {
                 )}
               </Link>
               {isAdmin && (
-                <Link to="/admin/arbitration" className={mobileLinkClass('/admin/arbitration')} data-testid="mobile-nav-admin">
-                  Arbitrage
+                <Link to="/admin" className={mobileLinkClass('/admin')} data-testid="mobile-nav-admin">
+                  Admin
                 </Link>
               )}
               <Link to="/mes-resultats" className={mobileLinkClass('/mes-resultats')} data-testid="mobile-nav-results">

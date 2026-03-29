@@ -34,10 +34,11 @@ import DecisionsListPage from './pages/decisions/DecisionsListPage';
 import AttendanceSheetPage from './pages/declarations/AttendanceSheetPage';
 import PresencesPage from './pages/declarations/PresencesPage';
 
-import ReviewerDashboard from './pages/admin/ReviewerDashboard';
+import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminArbitrationList from './pages/admin/AdminArbitrationList';
 import AdminArbitrationDetail from './pages/admin/AdminArbitrationDetail';
 import AdminAssociations from './pages/admin/AdminAssociations';
+import AdminUsers from './pages/admin/AdminUsers';
 
 import Settings from './pages/settings/Settings';
 import Profile from './pages/settings/Profile';
@@ -99,10 +100,12 @@ function App() {
               <Route path="/decisions/:disputeId" element={<PrivateRoute><DecisionDetailPage /></PrivateRoute>} />
               <Route path="/appointments/:id/attendance-sheet" element={<PrivateRoute><AttendanceSheetPage /></PrivateRoute>} />
               
-              <Route path="/admin/review" element={<PrivateRoute><ReviewerDashboard /></PrivateRoute>} />
+              <Route path="/admin" element={<PrivateRoute><AdminDashboard /></PrivateRoute>} />
+              <Route path="/admin/review" element={<Navigate to="/admin" replace />} />
               <Route path="/admin/arbitration" element={<PrivateRoute><AdminArbitrationList /></PrivateRoute>} />
               <Route path="/admin/arbitration/:disputeId" element={<PrivateRoute><AdminArbitrationDetail /></PrivateRoute>} />
               <Route path="/admin/associations" element={<PrivateRoute><AdminAssociations /></PrivateRoute>} />
+              <Route path="/admin/users" element={<PrivateRoute><AdminUsers /></PrivateRoute>} />
               
               <Route path="/settings" element={<PrivateRoute><Settings /></PrivateRoute>} />
               <Route path="/settings/profile" element={<PrivateRoute><Profile /></PrivateRoute>} />
