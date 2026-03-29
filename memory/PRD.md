@@ -211,6 +211,18 @@ Application SaaS (React/FastAPI/MongoDB) de gestion des presences avec garanties
 - Seuls email_types actifs: 'modification_proposed' et 'modification_applied'
 - Prouvé: 1 proposition = 1 email (avant: 2 emails)
 - Validé via testing_agent iteration 146 (100%: 21/21 backend, 6/6 frontend)
+
+### Session 28 - Refonte UX Décisions : regroupement par RDV (2026-03-29)
+**Avant:** 1 carte par décision (7 cartes) → duplication visuelle
+**Après:** 1 carte par RDV avec sous-cartes par participant (5 groupes, 7 sous-cartes)
+- Header: titre RDV + date/heure + lieu + impact financier global
+- Badge "N décisions" sur les groupes multi-décisions
+- Sous-cartes: nom participant + outcome + impact individuel
+- Indicateurs lu/non-lu préservés (point bleu + fond bleu par groupe)
+- Impact global: credit/debit/neutral/mixte calculé dynamiquement
+- Même pattern que DisputesListPage.js
+- Regroupement frontend pur (API inchangée)
+- Validé via testing_agent iteration 147 (100%: 13/13 backend, 100% frontend)
 **Emails ajoutés:**
 - send_modification_proposed_email: accent info, tableau avant/après, CTA "Voter sur la modification"
 - send_modification_reminder_email: accent warning, alerte expiration imminente, CTA "Voter avant expiration"
