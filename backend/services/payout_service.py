@@ -32,6 +32,11 @@ def _is_dev_mode() -> bool:
     return not STRIPE_API_KEY or STRIPE_API_KEY == 'sk_test_emergent'
 
 
+def _is_test_mode() -> bool:
+    """True if using a Stripe test key (sk_test_*)."""
+    return STRIPE_API_KEY.startswith('sk_test_')
+
+
 def _is_connect_unavailable() -> bool:
     """Check if Connect is unavailable (dev account without Connect enabled)."""
     if _is_dev_mode():
@@ -114,10 +119,11 @@ def request_payout(user_id: str, amount_cents: int | None = None) -> dict:
     if existing:
         return {"success": False, "error": "Un retrait est déjà en cours"}
 
-    # 4. Check Stripe platform balance (skip for dev accounts)
+    # 4. Check Stripe platform balance (skip for dev and test accounts)
     currency = wallet.get("currency", "eur")
     is_dev = _is_dev_mode() or connect_account_id.startswith("acct_dev_")
-    if not is_dev:
+    is_test = _is_test_mode()
+    if not is_dev and not is_test:
         balance_check = check_stripe_platform_balance(amount_cents, currency)
         if not balance_check.get("sufficient"):
             logger.warning(
@@ -151,8 +157,8 @@ def request_payout(user_id: str, amount_cents: int | None = None) -> dict:
     db.payouts.insert_one(payout)
     payout.pop("_id", None)
 
-    # 6. Dev mode: simulate
-    if is_dev:
+    # 6. Dev mode or Test mode: simulate
+    if is_dev or is_test:
         return _execute_dev_payout(payout)
 
     # 7. Call Stripe Transfer
