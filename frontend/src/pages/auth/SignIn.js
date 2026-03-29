@@ -6,6 +6,7 @@ import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { AlertCircle, Mail } from 'lucide-react';
 import { toast } from 'sonner';
+import OAuthButtons from './OAuthButtons';
 
 export default function SignIn() {
   const navigate = useNavigate();
@@ -22,23 +23,18 @@ export default function SignIn() {
     e.preventDefault();
     setLoading(true);
     setErrorMessage(null);
-    // Don't reset notVerifiedEmail here - only reset on successful login
 
     try {
       await login(formData.email, formData.password);
-      setNotVerifiedEmail(null); // Reset only on success
+      setNotVerifiedEmail(null);
       toast.success('Connexion réussie');
       navigate('/dashboard');
     } catch (error) {
       const errorData = error.response?.data;
-      
-      // Check if error is due to unverified email
-      // Backend can return either {detail: "not_verified"} or {detail: {error: "not_verified", message: "..."}}
       const errorType = typeof errorData?.detail === 'object' ? errorData.detail.error : errorData?.detail;
       
       if (errorType === 'not_verified' || errorData?.error === 'not_verified') {
         setNotVerifiedEmail(formData.email);
-        // Don't show toast for not_verified - the yellow banner is enough
       } else {
         setNotVerifiedEmail(null);
         const msg = (typeof errorData?.detail === 'string' ? errorData.detail : null) || errorData?.message || 'Erreur de connexion';
@@ -93,6 +89,17 @@ export default function SignIn() {
               </Button>
             </div>
           )}
+
+          <OAuthButtons loading={loading} />
+
+          <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t border-slate-200" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-white px-3 text-slate-400 font-medium">ou continuer avec email</span>
+            </div>
+          </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
             {errorMessage && (

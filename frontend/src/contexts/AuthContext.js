@@ -16,6 +16,13 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // CRITICAL: If returning from OAuth callback, skip loading from localStorage.
+    // AuthCallback will exchange the session_id / code and establish the session.
+    if (window.location.hash?.includes('session_id=')) {
+      setLoading(false);
+      return;
+    }
+
     const token = localStorage.getItem('nlyt_token');
     const storedUser = localStorage.getItem('nlyt_user');
     

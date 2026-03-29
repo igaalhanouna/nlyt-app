@@ -1,0 +1,91 @@
+{
+  "summary": "Iteration 149: OAuth Feature (Google + Microsoft) - All tests PASSED. Backend: 14/14 tests passed. Frontend: All UI elements verified. OAuth buttons, separator, AuthCallback route, and OAuth-only user error messages all working correctly.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": {
+    "backend_api_tests": {
+      "test_microsoft_login_returns_authorization_url": "PASS - Returns valid authorization_url with client_id, redirect_uri, scopes",
+      "test_microsoft_login_url_contains_correct_scopes": "PASS - URL contains openid, email, profile scopes",
+      "test_microsoft_login_url_contains_correct_redirect_uri": "PASS - URL contains /auth/callback redirect",
+      "test_google_callback_invalid_session_returns_401": "PASS - Invalid session_id returns 401",
+      "test_google_callback_missing_session_id_returns_422": "PASS - Missing session_id returns 422",
+      "test_microsoft_callback_invalid_code_returns_401": "PASS - Invalid code returns 401",
+      "test_microsoft_callback_missing_code_returns_422": "PASS - Missing code returns 422",
+      "test_oauth_only_user_password_login_returns_clear_error": "PASS - Error mentions Google provider",
+      "test_existing_user_login_works": "PASS - Email/password login still works",
+      "test_admin_login_works": "PASS - Admin login works",
+      "test_invalid_password_returns_error": "PASS - Wrong password returns error",
+      "test_user_without_oauth_has_no_provider_ids": "PASS - No google_id/microsoft_id on email users",
+      "test_oauth_helper_function_exists": "PASS - OAuth routes registered",
+      "test_health_endpoint": "PASS - API healthy"
+    },
+    "frontend_tests": {
+      "signin_page_google_button": "PASS - data-testid='oauth-google-btn' present, text='Continuer avec Google'",
+      "signin_page_microsoft_button": "PASS - data-testid='oauth-microsoft-btn' present, text='Continuer avec Microsoft'",
+      "signin_page_separator": "PASS - 'OU CONTINUER AVEC EMAIL' separator visible",
+      "signin_page_form_elements": "PASS - Email, password inputs and submit button present",
+      "signup_page_google_button": "PASS - data-testid='oauth-google-btn' present",
+      "signup_page_microsoft_button": "PASS - data-testid='oauth-microsoft-btn' present",
+      "signup_page_separator": "PASS - 'OU CONTINUER AVEC EMAIL' separator visible",
+      "signup_page_form_elements": "PASS - All form elements present",
+      "auth_callback_route": "PASS - /auth/callback route exists, redirects to /signin when no session_id/code",
+      "oauth_buttons_clickable": "PASS - Both OAuth buttons are clickable (not disabled)",
+      "email_password_login_flow": "PASS - Login with igaal@hotmail.com works, redirects to dashboard",
+      "oauth_only_user_error_display": "PASS - Error message 'Ce compte utilise Google pour se connecter. Utilisez le bouton « Continuer avec Google ».' displayed correctly"
+    }
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_oauth_iter149.py",
+    "/app/test_reports/pytest/pytest_oauth_iter149.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "oauth_routes.py: _find_or_create_oauth_user correctly handles account linking (same email = link provider, new email = create user)",
+    "oauth_routes.py: _build_jwt_response returns is_new_account flag for frontend to show appropriate toast",
+    "auth_service.py: login_user correctly detects OAuth-only accounts (password_hash=None) and returns clear error with provider name",
+    "OAuthButtons.js: Uses correct Emergent Auth URL for Google, fetches Microsoft authorization_url from backend",
+    "AuthCallback.js: Handles both Google (session_id in hash) and Microsoft (code in query params) callbacks",
+    "AuthContext.js: loginWithToken function properly stores token and user in localStorage",
+    "SignIn.js and SignUp.js: Both include OAuthButtons component with separator",
+    "App.js: /auth/callback route properly registered"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_oauth_iter149.py"
+  ],
+  "success_rate": {
+    "backend": "100% (14/14 tests passed)",
+    "frontend": "100% (all UI checks passed)"
+  },
+  "test_credentials": {
+    "admin": "testuser_audit@nlyt.app / TestAudit123!",
+    "user": "igaal@hotmail.com / Test123!"
+  },
+  "seed_data_creation": "Created temporary OAuth-only test user (oauth_only_test_user@test.com) for testing, cleaned up after tests",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "OAuth feature (Google Emergent Auth + Microsoft Azure AD) fully implemented and tested. Full OAuth flow cannot be tested end-to-end in automated tests since it requires real browser interaction with external providers. Backend endpoints return correct responses, frontend pages show OAuth buttons with correct testids, AuthCallback handles both providers, account linking logic works, and OAuth-only user error messages are clear. Microsoft redirect URI is https://litigation-mgmt.preview.emergentagent.com/auth/callback - user needs to add this in Azure Portal.",
+  "feature_verification": {
+    "google_oauth": {
+      "endpoint": "POST /api/auth/google/callback",
+      "behavior": "Exchanges Emergent Auth session_id for user data, creates/links account, returns JWT"
+    },
+    "microsoft_oauth": {
+      "login_endpoint": "GET /api/auth/microsoft/login",
+      "callback_endpoint": "POST /api/auth/microsoft/callback",
+      "behavior": "Returns authorization_url, then exchanges code for user data, creates/links account, returns JWT"
+    },
+    "account_linking": {
+      "behavior": "If email exists, provider_id is added to existing user without creating duplicate"
+    },
+    "oauth_only_login_error": {
+      "behavior": "OAuth-only user attempting password login gets clear error mentioning the provider (Google/Microsoft)"
+    }
+  }
+}

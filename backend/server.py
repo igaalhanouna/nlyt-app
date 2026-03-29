@@ -13,7 +13,7 @@ if os.environ.get('STRIPE_API_KEY') == 'sk_test_emergent':
 
 load_dotenv()
 
-from routers import auth, workspaces, appointments, participants, contracts, calendar_routes, admin, webhooks, debug, invitations, user_settings, charity_associations, attendance_routes, checkin_routes, modification_routes, video_evidence_routes, proof_routes, wallet_routes, connect_routes, impact_routes, external_events_routes, financial_routes, declarative_routes, dispute_routes, notification_routes
+from routers import auth, workspaces, appointments, participants, contracts, calendar_routes, admin, webhooks, debug, invitations, user_settings, charity_associations, attendance_routes, checkin_routes, modification_routes, video_evidence_routes, proof_routes, wallet_routes, connect_routes, impact_routes, external_events_routes, financial_routes, declarative_routes, dispute_routes, notification_routes, oauth_routes
 from scheduler import start_scheduler, stop_scheduler
 from rate_limiter import limiter
 
@@ -80,6 +80,7 @@ app.include_router(impact_routes.router, prefix="/api/impact", tags=["Impact"])
 app.include_router(external_events_routes.router, prefix="/api/external-events", tags=["External Events"])
 app.include_router(financial_routes.router, prefix="/api/financial", tags=["Financial"])
 app.include_router(notification_routes.router)
+app.include_router(oauth_routes.router, prefix="/api/auth", tags=["OAuth"])
 
 @app.get("/api/health")
 async def health_check():

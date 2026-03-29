@@ -177,6 +177,18 @@ class AuthService:
             logger.warning(f"Login failed: User {email} not found")
             return {"success": False, "error": "Email ou mot de passe incorrect"}
         
+        # Handle OAuth-only accounts (no password set)
+        if not user.get('password_hash'):
+            provider = user.get('auth_provider', '')
+            if user.get('google_id'):
+                provider = 'Google'
+            elif user.get('microsoft_id'):
+                provider = 'Microsoft'
+            if provider:
+                logger.warning(f"Login failed: {email} is an OAuth-only account ({provider})")
+                return {"success": False, "error": f"Ce compte utilise {provider} pour se connecter. Utilisez le bouton « Continuer avec {provider} »."}
+            return {"success": False, "error": "Email ou mot de passe incorrect"}
+        
         if not verify_password(password, user['password_hash']):
             logger.warning(f"Login failed: Invalid password for {email}")
             return {"success": False, "error": "Email ou mot de passe incorrect"}
