@@ -269,6 +269,29 @@ def create_dashboard_link(user_id: str) -> dict:
         return {"success": False, "error": str(e)}
 
 
+def refresh_connect_status(user_id: str) -> dict:
+    """Fetch account status directly from Stripe API and sync to wallet."""
+    wallet = db.wallets.find_one({"user_id": user_id, "wallet_type": "user"}, {"_id": 0})
+    if not wallet:
+        return {"success": False, "error": "Wallet introuvable"}
+
+    account_id = wallet.get("stripe_connect_account_id")
+    if not account_id:
+        return {"success": False, "error": "Aucun compte Stripe Connect associe"}
+
+    if not STRIPE_API_KEY or STRIPE_API_KEY == 'sk_test_emergent':
+        return {"success": False, "error": "Cle Stripe non configuree"}
+
+    try:
+        account = stripe.Account.retrieve(account_id)
+        result = handle_account_updated(account)
+        result["refreshed"] = True
+        return result
+    except stripe.error.StripeError as e:
+        logger.error(f"[CONNECT] Refresh status error for {user_id}: {e}")
+        return {"success": False, "error": str(e)}
+
+
 def handle_account_updated(account_data: dict) -> dict:
     """Process account.updated webhook event."""
     account_id = account_data.get("id")

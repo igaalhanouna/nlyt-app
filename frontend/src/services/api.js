@@ -195,6 +195,7 @@ export const connectAPI = {
   getStatus: () => api.get('/api/connect/status'),
   getDashboard: () => api.post('/api/connect/dashboard'),
   reset: (newProfileType) => api.post('/api/connect/reset', { new_profile_type: newProfileType }),
+  refreshStatus: () => api.post('/api/connect/refresh-status'),
 };
 
 export const externalEventsAPI = {

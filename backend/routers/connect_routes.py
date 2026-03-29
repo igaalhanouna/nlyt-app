@@ -18,6 +18,7 @@ from services.connect_service import (
     get_connect_status,
     create_dashboard_link,
     reset_connect_account,
+    refresh_connect_status,
 )
 
 router = APIRouter()
@@ -62,6 +63,16 @@ async def connect_dashboard(request: Request):
 
 class ResetRequest(BaseModel):
     new_profile_type: str
+
+
+@router.post("/refresh-status")
+async def refresh_status(request: Request):
+    """Sync Connect status from Stripe API (bypasses webhook dependency)."""
+    user = await get_current_user(request)
+    result = refresh_connect_status(user["user_id"])
+    if not result.get("success"):
+        raise HTTPException(status_code=400, detail=result.get("error", "Erreur synchronisation"))
+    return result
 
 
 @router.post("/reset")

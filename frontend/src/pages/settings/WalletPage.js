@@ -540,7 +540,7 @@ function ProfileTypeSelector({ onSelect, loading }) {
 
 /* ─── Connect Status Card ───────────────────────────────────── */
 
-function ConnectStatusCard({ connectStatus, onOnboard, onDashboard, onRefresh, onboarding, onPayout, canPayout, onChangeType }) {
+function ConnectStatusCard({ connectStatus, onOnboard, onDashboard, onRefresh, refreshing, onboarding, onPayout, canPayout, onChangeType }) {
   const status = connectStatus?.connect_status || 'not_started';
   const profileType = connectStatus?.profile_type;
   const cfg = CONNECT_STATUS_CONFIG[status] || CONNECT_STATUS_CONFIG.not_started;
@@ -590,7 +590,9 @@ function ConnectStatusCard({ connectStatus, onOnboard, onDashboard, onRefresh, o
                 {cfg.actionLabel}
               </Button>
             )}
-            <Button size="sm" variant="ghost" onClick={onRefresh} data-testid="refresh-wallet-btn"><RefreshCw className="w-3.5 h-3.5" /></Button>
+            <Button size="sm" variant="ghost" onClick={onRefresh} disabled={refreshing} data-testid="refresh-wallet-btn">
+              <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
+            </Button>
           </div>
           {profileType && (
             <button
@@ -832,6 +834,7 @@ export default function WalletPage() {
   const [showPayoutConfirm, setShowPayoutConfirm] = useState(false);
   const [showChangeType, setShowChangeType] = useState(false);
   const [changeTypeLoading, setChangeTypeLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
@@ -885,6 +888,22 @@ export default function WalletPage() {
     } catch (err) {
       toast.error(err.response?.data?.detail || "Erreur lors de l'onboarding");
     } finally { setOnboarding(false); }
+  };
+
+  const handleRefreshStatus = async () => {
+    setRefreshing(true);
+    try {
+      const res = await connectAPI.refreshStatus();
+      if (res.data.old_status !== res.data.new_status) {
+        toast.success(`Statut mis a jour : ${res.data.new_status}`);
+      } else {
+        toast.info("Statut inchange");
+      }
+      await fetchData();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || "Erreur de synchronisation");
+      await fetchData();
+    } finally { setRefreshing(false); }
   };
 
   const handleProfileSelect = (profileType) => {
@@ -996,7 +1015,8 @@ export default function WalletPage() {
               connectStatus={connectStatus}
               onOnboard={() => handleOnboard()}
               onDashboard={handleDashboard}
-              onRefresh={fetchData}
+              onRefresh={handleRefreshStatus}
+              refreshing={refreshing}
               onboarding={onboarding}
               onPayout={() => setShowPayoutConfirm(true)}
               canPayout={wallet?.can_payout}
