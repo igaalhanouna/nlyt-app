@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { User, Building2, Plug, CreditCard, BarChart3, Wallet } from 'lucide-react';
+import { User, Building2, Plug, CreditCard, BarChart3, Wallet, Heart } from 'lucide-react';
 import AppNavbar from '../../components/AppNavbar';
 import AppBreadcrumb from '../../components/AppBreadcrumb';
 
@@ -11,6 +11,7 @@ const SECTIONS = [
   { to: '/settings/payment', icon: CreditCard, title: 'Paiement', desc: 'Moyen de paiement pour vos garanties', testId: 'settings-payment-link' },
   { to: '/wallet', icon: Wallet, title: 'Wallet', desc: 'Solde et historique des transactions', testId: 'settings-wallet-link' },
   { to: '/settings/statistics', icon: BarChart3, title: 'Statistiques', desc: 'Analyse de vos engagements et performances', testId: 'settings-statistics-link' },
+  { to: '/admin/associations', icon: Heart, title: 'Associations', desc: 'Gestion des associations caritatives', testId: 'settings-associations-link' },
 ];
 
 export default function Settings() {
