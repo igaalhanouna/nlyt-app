@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, Video, MapPin, Shield, ExternalLink, Pencil } from 'lucide-react';
+import { Calendar, Video, MapPin, Shield, Pencil } from 'lucide-react';
 import { formatDateTimeFr } from '../../utils/dateFormat';
 
 const PROVIDER_LABELS = {
@@ -56,7 +56,7 @@ export default function AppointmentEssentials({
                   className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-800 font-medium mt-0.5"
                   data-testid="meeting-link"
                 >
-                  {providerLabel} — Ouvrir <ExternalLink className="w-3 h-3" />
+                  <Video className="w-3.5 h-3.5" /> Check-in et rejoindre la réunion
                 </a>
               )}
             </div>
