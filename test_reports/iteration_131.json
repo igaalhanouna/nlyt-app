@@ -1,0 +1,110 @@
+{
+  "summary": "Orphan Participant Fix - Iteration 131: All backend (10/10) and frontend tests pass. Bug fix verified: dispute 23f75310 ('test email wordin') is now visible to igaal@hotmail.com. Root cause was participant.user_id=None and dispute.target_user_id=None. Fixes: (1) respond_to_invitation now persists user_id when accepting, (2) _get_user_id has email fallback, (3) Migration fixed 144 orphan participants and 1 dispute. igaal now sees 5 disputes including the previously blocked one.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": {
+    "backend_api_tests": {
+      "test_01_health_check": "PASS - API accessible",
+      "test_02_login_igaal_hotmail": "PASS - Login with igaal@hotmail.com",
+      "test_03_disputes_mine_returns_5_disputes_for_igaal": "PASS - igaal sees 5 disputes (was 4 before fix)",
+      "test_04_dispute_23f75310_visible_to_igaal": "PASS - Specific dispute now visible",
+      "test_05_dispute_23f75310_has_correct_flags_for_igaal": "PASS - is_target=True for igaal",
+      "test_06_dispute_detail_accessible_by_igaal": "PASS - GET /api/disputes/23f75310... returns 200",
+      "test_07_regression_testuser_audit_still_sees_dispute": "PASS - Organizer still sees dispute",
+      "test_08_appointment_title_is_test_email_wordin": "PASS - Title matches 'test email wordin'"
+    },
+    "code_review_tests": {
+      "test_09_respond_to_invitation_code_includes_user_id_resolution": "PASS - Lines 441-447 verified",
+      "test_10_get_user_id_has_email_fallback": "PASS - Lines 145-161 verified"
+    },
+    "frontend_tests": {
+      "login_igaal_hotmail": "PASS - Login successful, redirected to dashboard",
+      "litiges_page_shows_3_en_cours": "PASS - Badge shows '3 en cours'",
+      "test_email_wordin_dispute_visible": "PASS - Dispute card visible on /litiges page",
+      "dispute_status_votre_reponse_attendue": "PASS - Shows 'Votre réponse attendue' status",
+      "dispute_detail_page_accessible": "PASS - /litiges/23f75310-... loads correctly",
+      "dispute_detail_shows_position_options": "PASS - Shows 3 position buttons (présence, absence, retard)"
+    }
+  },
+  "verified_features": {
+    "respond_to_invitation_user_id_fix": {
+      "location": "/app/backend/routers/invitations.py lines 441-447",
+      "description": "When accepting invitation, resolves user_id from email if not already set",
+      "status": "VERIFIED WORKING"
+    },
+    "get_user_id_email_fallback": {
+      "location": "/app/backend/services/declarative_service.py lines 145-161",
+      "description": "_get_user_id fallback resolves user_id from email when participant.user_id is null, and persists the link",
+      "status": "VERIFIED WORKING"
+    },
+    "dispute_visibility_for_igaal": {
+      "location": "GET /api/disputes/mine",
+      "description": "igaal@hotmail.com now sees 5 disputes including the previously invisible 23f75310",
+      "status": "VERIFIED WORKING"
+    },
+    "dispute_detail_access": {
+      "location": "GET /api/disputes/23f75310-958e-4597-baf8-cc3ea0c1470b",
+      "description": "igaal can access the dispute detail page",
+      "status": "VERIFIED WORKING"
+    },
+    "frontend_litiges_page": {
+      "location": "/litiges",
+      "description": "Shows 'test email wordin' dispute card with 'Votre réponse attendue' status",
+      "status": "VERIFIED WORKING"
+    },
+    "frontend_dispute_detail": {
+      "location": "/litiges/23f75310-958e-4597-baf8-cc3ea0c1470b",
+      "description": "Shows dispute detail with position submission options",
+      "status": "VERIFIED WORKING"
+    }
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_orphan_participant_fix_iter131.py",
+    "/app/test_reports/pytest/pytest_orphan_participant_fix_iter131.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "respond_to_invitation correctly resolves user_id from email when accepting (lines 441-447)",
+    "_get_user_id correctly falls back to email lookup and persists the user_id link (lines 145-161)",
+    "Migration script successfully fixed 144 orphan participants and 1 dispute target_user_id",
+    "No remaining disputes with target_user_id=None that have matching user accounts"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_orphan_participant_fix_iter131.py"
+  ],
+  "success_rate": {
+    "backend": "100% (10/10 tests passed)",
+    "frontend": "100% (6/6 UI tests passed)"
+  },
+  "test_credentials": {
+    "user_1": "igaal@hotmail.com / Test123! (affected user - now sees 5 disputes)",
+    "user_2": "testuser_audit@nlyt.app / TestAudit123! (organizer - regression check)"
+  },
+  "seed_data_creation": "None - used existing test data",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Orphan participant fix verified. Key changes: (1) respond_to_invitation now persists user_id when accepting (lines 441-447), (2) _get_user_id has email fallback (lines 145-161), (3) Migration fixed 144 orphan participants and 1 dispute. Test data: igaal@hotmail.com now sees 5 disputes including 'test email wordin' (dispute_id=23f75310-958e-4597-baf8-cc3ea0c1470b). The dispute shows 'Votre réponse attendue' status and igaal can submit position.",
+  "rca_of_the_issue": {
+    "root_cause": "participant.user_id was not being persisted when accepting invitation via respond_to_invitation endpoint. This caused disputes to have target_user_id=None, making them invisible to the target user.",
+    "reproduction_steps": [
+      "1. User receives invitation email",
+      "2. User accepts invitation via respond_to_invitation endpoint",
+      "3. participant.user_id remains None because email→user_id resolution was missing",
+      "4. When dispute is created, target_user_id is resolved from participant.user_id (which is None)",
+      "5. GET /api/disputes/mine filters by user_id, so dispute is invisible to target user"
+    ],
+    "mitigation": [
+      "1. Added user_id resolution in respond_to_invitation (lines 441-447)",
+      "2. Added email fallback in _get_user_id (lines 145-161)",
+      "3. Ran migration script to fix 144 existing orphan participants",
+      "4. Fixed 1 dispute with target_user_id=None"
+    ]
+  }
+}

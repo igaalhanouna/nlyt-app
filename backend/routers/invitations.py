@@ -438,6 +438,12 @@ async def respond_to_invitation(request: Request, token: str, response: Invitati
         }
         message = "Invitation déclinée"
     
+    # Resolve user_id from email if not already set (fix orphan participants)
+    if not participant.get('user_id') and response.action == "accept":
+        user_doc = db.users.find_one({"email": participant.get("email")}, {"_id": 0, "user_id": 1})
+        if user_doc:
+            update_data["user_id"] = user_doc["user_id"]
+
     # Update participant status
     db.participants.update_one(
         {"invitation_token": token},

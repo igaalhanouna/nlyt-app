@@ -143,8 +143,22 @@ def initialize_declarative_phase(appointment_id: str):
 
 
 def _get_user_id(participant_id: str) -> str:
-    p = db.participants.find_one({"participant_id": participant_id}, {"_id": 0, "user_id": 1})
-    return p.get('user_id', '') if p else ''
+    p = db.participants.find_one({"participant_id": participant_id}, {"_id": 0, "user_id": 1, "email": 1})
+    if not p:
+        return ''
+    if p.get('user_id'):
+        return p['user_id']
+    # Fallback: resolve from email → user account
+    if p.get('email'):
+        user = db.users.find_one({"email": p['email']}, {"_id": 0, "user_id": 1})
+        if user and user.get('user_id'):
+            # Persist the link for future lookups
+            db.participants.update_one(
+                {"participant_id": participant_id},
+                {"$set": {"user_id": user['user_id']}}
+            )
+            return user['user_id']
+    return ''
 
 
 # ═══════════════════════════════════════════════════════════════════
