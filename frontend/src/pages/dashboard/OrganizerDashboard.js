@@ -10,7 +10,7 @@ import {
   Trash2, Check, X, Clock, Building2, ChevronDown, Plus, Ban,
   ShieldCheck, CreditCard, History, Play, AlertTriangle, Bell,
   Flame, Shield, Euro, Eye, Heart,
-  UserCheck, Mail, ChevronRight, CheckCircle, LogOut, FileEdit, Pencil
+  UserCheck, Mail, ChevronRight, CheckCircle, LogOut, FileEdit
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDateTimeCompactFr, parseUTC } from '../../utils/dateFormat';
@@ -276,7 +276,7 @@ function formatChangeSummary(mod) {
 }
 
 // ── Timeline Card (unified for organizer + participant) ──
-function TimelineCard({ item, isPast, onDelete, onRemind, onQuit, onDecline, now, fromTab, onNavigate, hasModification, modActionRequired, modificationData, modHistory }) {
+function TimelineCard({ item, isPast, onDelete, onRemind, onQuit, onDecline, now, fromTab, onNavigate, hasModification, modActionRequired, modificationData }) {
   const isParticipant = item.role === 'participant';
   const badge = getTemporalBadge(item, now);
   const isOngoing = badge.key === 'ongoing';
@@ -454,18 +454,6 @@ function TimelineCard({ item, isPast, onDelete, onRemind, onQuit, onDecline, now
             {item.cancellation_deadline_hours > 0 && (
               <span>Annulation possible jusqu'à {item.cancellation_deadline_hours}h avant</span>
             )}
-          </div>
-        )}
-
-        {/* Row 3b: Applied modification history (last 1-2) */}
-        {modHistory && modHistory.length > 0 && (
-          <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-slate-400 mb-3 pb-2 border-b border-slate-100" data-testid={`mod-history-${item.appointment_id}`}>
-            {modHistory.map((mod, idx) => (
-              <span key={mod.proposal_id || idx} className="flex items-center gap-1">
-                <Pencil className="w-3 h-3" />
-                {formatChangeSummary(mod)}
-              </span>
-            ))}
           </div>
         )}
 
@@ -674,20 +662,12 @@ export default function OrganizerDashboard() {
   };
 
   const pendingModifications = allModifications.filter(p => p.status === 'pending');
-  const appliedModifications = allModifications.filter(p => p.status === 'auto_applied' || p.status === 'accepted');
 
   // Sets + data for badges and context on timeline cards
   const modActionAptIds = new Set(pendingModifications.filter(p => p.is_action_required).map(p => p.appointment_id));
   const modPendingAptIds = new Set(pendingModifications.map(p => p.appointment_id));
   const modDataByAptId = {};
   pendingModifications.forEach(p => { modDataByAptId[p.appointment_id] = p; });
-
-  // Applied modification history: last 2 per appointment
-  const modHistoryByAptId = {};
-  appliedModifications.forEach(p => {
-    if (!modHistoryByAptId[p.appointment_id]) modHistoryByAptId[p.appointment_id] = [];
-    if (modHistoryByAptId[p.appointment_id].length < 2) modHistoryByAptId[p.appointment_id].push(p);
-  });
 
   const loadImpact = async () => {
     try {
@@ -1121,7 +1101,7 @@ export default function OrganizerDashboard() {
                   <div className="space-y-3">
                     {upcomingMerged.map(merged =>
                       merged.type === 'timeline' ? (
-                        <TimelineCard key={`tl-${merged.data.appointment_id}`} item={merged.data} isPast={false} onDelete={handleDeleteClick} onRemind={handleRemind} onQuit={handleQuitParticipation} onDecline={handleDeclineInvitation} now={now} fromTab="upcoming" onNavigate={saveScroll} hasModification={modPendingAptIds.has(merged.data.appointment_id)} modActionRequired={modActionAptIds.has(merged.data.appointment_id)} modificationData={modDataByAptId[merged.data.appointment_id]} modHistory={modHistoryByAptId[merged.data.appointment_id]} />
+                        <TimelineCard key={`tl-${merged.data.appointment_id}`} item={merged.data} isPast={false} onDelete={handleDeleteClick} onRemind={handleRemind} onQuit={handleQuitParticipation} onDecline={handleDeclineInvitation} now={now} fromTab="upcoming" onNavigate={saveScroll} hasModification={modPendingAptIds.has(merged.data.appointment_id)} modActionRequired={modActionAptIds.has(merged.data.appointment_id)} modificationData={modDataByAptId[merged.data.appointment_id]} />
                       ) : (
                         <ExternalEventCard key={`ext-${merged.data.external_event_id}`} event={merged.data} />
                       )
@@ -1139,7 +1119,7 @@ export default function OrganizerDashboard() {
                 ) : (
                   <div className="space-y-3">
                     {timeline.past.slice(0, pastVisible).map(item => (
-                      <TimelineCard key={`past-${item.role}-${item.appointment_id}`} item={item} isPast={true} onDelete={handleDeleteClick} onRemind={handleRemind} onQuit={handleQuitParticipation} onDecline={handleDeclineInvitation} now={now} fromTab="past" onNavigate={saveScroll} hasModification={modPendingAptIds.has(item.appointment_id)} modActionRequired={modActionAptIds.has(item.appointment_id)} modificationData={modDataByAptId[item.appointment_id]} modHistory={modHistoryByAptId[item.appointment_id]} />
+                      <TimelineCard key={`past-${item.role}-${item.appointment_id}`} item={item} isPast={true} onDelete={handleDeleteClick} onRemind={handleRemind} onQuit={handleQuitParticipation} onDecline={handleDeclineInvitation} now={now} fromTab="past" onNavigate={saveScroll} hasModification={modPendingAptIds.has(item.appointment_id)} modActionRequired={modActionAptIds.has(item.appointment_id)} modificationData={modDataByAptId[item.appointment_id]} />
                     ))}
                     {timeline.past.length > pastVisible && (
                       <div className="pt-4 text-center">
