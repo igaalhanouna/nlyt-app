@@ -238,7 +238,18 @@ SaaS d'engagement ponctuel avec garantie financiere. Optimisation du "Viral Loop
 - **Auto-recovery**: monitoring renamed `[MONITORING][STUCK_COLLECTING]` → `[AUTO-RECOVERY][TRIGGERED]` with delay since last submit
 - **Edge cases confirmed**: 2p agreement→resolve, 2p disagreement→dispute, 3+p unanimity with triple guard (coherence+contradiction+MIN_TIERS=2), 3+p split→dispute, cross-accusations→dispute, contestant_contradiction→dispute
 
+### Phase 29 — Temporal Cancel Guards (UX + Backend) (Mar 2026) - DONE
+- **Participant Cancel UX**: Button "Annuler" is now DISABLED+tooltip ("Le délai d'annulation est dépassé") when deadline has passed but appointment not started. Button HIDDEN when appointment has started/ended.
+- **Organizer Cancel Backend**: `POST /api/appointments/{id}/cancel` now returns HTTP 400 ("Ce rendez-vous a déjà commencé") when `start_datetime` has passed.
+- **Organizer Cancel UX**: Cancel button hidden on dashboard (ActionCard) and detail page (SecondaryActions) when appointment has started.
+- **Toast error**: `toast.error` (red) confirmed for all cancel failures.
+- **Files modified**: `OrganizerDashboard.js` (TimelineCard + ActionCard), `SecondaryActions.js`, `appointments.py`
+- **Tests**: 7/7 backend + frontend UI verified (iteration_128)
+
 ## Backlog
+- P1: Dashboard admin plateforme pour arbitrer les litiges escaladés
+- P1: Configurer le webhook Stripe en production pour validation end-to-end
+- P1: Test réel Zoom/Teams connecté avec de vrais tokens
 - P2: Charity Payouts V2 (Stripe Transfers)
 - P2: Webhooks temps reel Zoom/Teams
 - P2: Detection causalite organisateur
