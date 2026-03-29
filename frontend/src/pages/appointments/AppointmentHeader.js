@@ -1,5 +1,4 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
 import { Button } from '../../components/ui/button';
 import { Ban, Check, MapPin, ArrowRight, Loader2, CreditCard, AlertTriangle, Settings2, Shield } from 'lucide-react';
 
@@ -18,8 +17,11 @@ const STATUS_LABELS = {
 
 export default function AppointmentHeader({
   appointment, isCancelled, isPendingGuarantee,
-  organizerParticipant, organizerCheckinDone, checkingIn,
-  handleOrganizerCheckin, handleResumeGuarantee, resumingGuarantee,
+  // Unified check-in props (works for both organizer and participant)
+  participantRecord, checkinDone, checkinData,
+  checkingIn, handleCheckin,
+  // Organizer-only props
+  handleResumeGuarantee, resumingGuarantee,
   handleCheckActivation, checkingActivation, navigate,
   isOrganizer = true,
 }) {
@@ -40,10 +42,15 @@ export default function AppointmentHeader({
     }
   }
 
-  const canCheckin = isOrganizer && organizerParticipant?.status === 'accepted_guaranteed' && !isCancelled && !isPendingGuarantee && checkinTimeState === 'during';
+  // Eligibility: any role with accepted_guaranteed status, during window
+  const canCheckin = participantRecord?.status === 'accepted_guaranteed'
+    && !isCancelled && !isPendingGuarantee
+    && checkinTimeState === 'during'
+    && handleCheckin;
+
   const isVideo = appointment.appointment_type === 'video';
-  const proofLink = organizerParticipant?.invitation_token
-    ? `/proof/${appointment.appointment_id}?token=${organizerParticipant.invitation_token}`
+  const proofLink = participantRecord?.invitation_token
+    ? `/proof/${appointment.appointment_id}?token=${participantRecord.invitation_token}`
     : null;
 
   return (
@@ -92,21 +99,21 @@ export default function AppointmentHeader({
         </div>
       )}
 
-      {/* Dynamic CTA */}
+      {/* Check-in CTA — unified for both roles */}
       {canCheckin && (
         <div className="space-y-2">
-          {!organizerCheckinDone ? (
+          {!checkinDone ? (
             isVideo && proofLink ? (
-              <a href={proofLink} className="block" data-testid="organizer-proof-link">
+              <a href={proofLink} className="block" data-testid="header-checkin-link">
                 <Button className="w-full h-12 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-base gap-2">
                   <Shield className="w-4 h-4" />
                   Effectuer mon check-in
                 </Button>
               </a>
             ) : (
-              <Button onClick={handleOrganizerCheckin} disabled={checkingIn} className="w-full h-12 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-base gap-2" data-testid="organizer-manual-checkin-btn">
+              <Button onClick={handleCheckin} disabled={checkingIn} className="w-full h-12 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-base gap-2" data-testid="header-checkin-btn">
                 {checkingIn ? <Loader2 className="w-4 h-4 animate-spin" /> : <><MapPin className="w-4 h-4" /><Check className="w-4 h-4" /></>}
-                Check-in avec GPS
+                Check-in GPS
               </Button>
             )
           ) : (

@@ -345,6 +345,10 @@ export default function AppointmentDetail() {
   const [organizerCheckinData, setOrganizerCheckinData] = useState(null);
   const [checkingIn, setCheckingIn] = useState(false);
 
+  // Viewer (participant) check-in
+  const [viewerCheckinDone, setViewerCheckinDone] = useState(false);
+  const [viewerCheckinData, setViewerCheckinData] = useState(null);
+
   // Video evidence
   const [videoEvidence, setVideoEvidence] = useState(null);
   const [showVideoIngest, setShowVideoIngest] = useState(false);
@@ -393,6 +397,17 @@ export default function AppointmentDetail() {
             setOrganizerCheckinDone(true);
             const gpsEv = res.data.evidence?.find(e => e.source === 'gps' || e.derived_facts?.latitude);
             if (gpsEv) setOrganizerCheckinData(gpsEv);
+          }
+        }).catch(() => {});
+      }
+
+      // Participant check-in status — fetch for participant viewers
+      if (!viewerIsOrganizer && apt.viewer_invitation_token) {
+        checkinAPI.getStatus(id, apt.viewer_invitation_token).then(res => {
+          if (res.data?.evidence_count > 0 || res.data?.checked_in) {
+            setViewerCheckinDone(true);
+            const gpsEv = res.data.evidence?.find(e => e.source === 'gps' || e.derived_facts?.latitude);
+            if (gpsEv) setViewerCheckinData(gpsEv);
           }
         }).catch(() => {});
       }
@@ -464,12 +479,40 @@ export default function AppointmentDetail() {
       }
       await checkinAPI.manual(payload);
       setOrganizerCheckinDone(true);
-      toast.success('Check-in organisateur enregistré');
+      toast.success('Check-in enregistré');
       loadData();
     } catch (error) {
       const status = error.response?.status;
       const detail = error.response?.data?.detail;
       if (status === 409) { toast.info('Check-in déjà effectué.'); setOrganizerCheckinDone(true); }
+      else if (status === 400) toast.error(detail || "Impossible d'effectuer le check-in.");
+      else if (!error.response) toast.error('Impossible de contacter le serveur.');
+      else toast.error(detail || 'Erreur lors du check-in.');
+    } finally { setCheckingIn(false); }
+  };
+
+  const handleViewerCheckin = async () => {
+    if (!viewerInvitationToken) return;
+    setCheckingIn(true);
+    try {
+      const payload = { appointment_id: id, invitation_token: viewerInvitationToken, device_info: navigator.userAgent };
+      if (appointment.appointment_type === 'physical' && navigator.geolocation) {
+        try {
+          const pos = await new Promise((resolve, reject) => navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 8000, enableHighAccuracy: true }));
+          payload.latitude = pos.coords.latitude; payload.longitude = pos.coords.longitude; payload.gps_consent = true;
+        } catch (geoErr) {
+          if (geoErr.code === 1) toast.warning('Localisation refusée. Check-in enregistré sans GPS.');
+          else toast.warning('GPS indisponible. Check-in enregistré sans coordonnées.');
+        }
+      }
+      await checkinAPI.manual(payload);
+      setViewerCheckinDone(true);
+      toast.success('Check-in enregistré');
+      loadData();
+    } catch (error) {
+      const status = error.response?.status;
+      const detail = error.response?.data?.detail;
+      if (status === 409) { toast.info('Check-in déjà effectué.'); setViewerCheckinDone(true); }
       else if (status === 400) toast.error(detail || "Impossible d'effectuer le check-in.");
       else if (!error.response) toast.error('Impossible de contacter le serveur.');
       else toast.error(detail || 'Erreur lors du check-in.');
@@ -716,6 +759,14 @@ export default function AppointmentDetail() {
 
   // Proof summary for <details>
   const proofSessionCount = proofSessions.length;
+
+  // ─── Unified check-in props for Header ───
+  const activeCheckinRecord = isOrganizer
+    ? organizerParticipant
+    : { invitation_token: viewerInvitationToken, status: viewerParticipantStatus };
+  const activeCheckinDone = isOrganizer ? organizerCheckinDone : viewerCheckinDone;
+  const activeCheckinData = isOrganizer ? organizerCheckinData : viewerCheckinData;
+  const activeCheckinHandler = isOrganizer ? handleOrganizerCheckin : handleViewerCheckin;
   const validatedCount = proofSessions.filter(s => s.validated_status).length;
   const proofSummary = proofSessionCount > 0
     ? `${proofSessionCount} session${proofSessionCount > 1 ? 's' : ''} · ${validatedCount} validée${validatedCount > 1 ? 's' : ''}`
@@ -741,11 +792,11 @@ export default function AppointmentDetail() {
 
       <div className="max-w-6xl mx-auto px-4 md:px-6 pb-12">
 
-        {/* #1 — Header + CTA */}
+        {/* #1 — Header + CTA (unified for both roles) */}
         <AppointmentHeader
           appointment={appointment} isCancelled={isCancelled} isPendingGuarantee={isPendingGuarantee}
-          organizerParticipant={organizerParticipant} organizerCheckinDone={organizerCheckinDone} checkingIn={checkingIn}
-          handleOrganizerCheckin={isOrganizer ? handleOrganizerCheckin : undefined}
+          participantRecord={activeCheckinRecord} checkinDone={activeCheckinDone} checkinData={activeCheckinData}
+          checkingIn={checkingIn} handleCheckin={activeCheckinHandler}
           handleResumeGuarantee={isOrganizer ? handleResumeGuarantee : undefined} resumingGuarantee={resumingGuarantee}
           handleCheckActivation={isOrganizer ? handleCheckActivation : undefined} checkingActivation={checkingActivation} navigate={navigate}
           isOrganizer={isOrganizer}
@@ -847,16 +898,14 @@ export default function AppointmentDetail() {
           isOrganizer={isOrganizer}
         />
 
-        {/* #6 — Check-in / Confirmation — unified for both roles */}
+        {/* #6 — Check-in details (post-checkin GPS info only — CTA is in Header) */}
         <CheckinBlock
           appointment={appointment}
-          participantRecord={isOrganizer ? organizerParticipant : { invitation_token: viewerInvitationToken, status: viewerParticipantStatus }}
-          isOrganizer={isOrganizer}
-          onCheckinComplete={loadData}
+          checkinDone={activeCheckinDone}
+          checkinData={activeCheckinData}
           isCancelled={isCancelled}
           isPendingGuarantee={isPendingGuarantee}
-          initialCheckinDone={isOrganizer ? organizerCheckinDone : false}
-          initialCheckinData={isOrganizer ? organizerCheckinData : null}
+          participantStatus={isOrganizer ? organizerParticipant?.status : viewerParticipantStatus}
         />
 
         {/* #7 — Preuves & Tracking — visible for both roles (read-only for participant) */}
