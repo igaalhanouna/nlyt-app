@@ -39,7 +39,7 @@ async def mark_read(body: MarkReadBody, request: Request):
 async def get_unread_ids(event_type: str, request: Request):
     """Get list of unread reference_ids for a given event_type."""
     user = await get_current_user(request)
-    valid_types = ("decision", "dispute_update")
+    valid_types = ("decision", "dispute_update", "modification")
     if event_type not in valid_types:
         raise HTTPException(status_code=400, detail=f"Type invalide. Valeurs: {', '.join(valid_types)}")
     ids = get_unread_reference_ids(user["user_id"], event_type)

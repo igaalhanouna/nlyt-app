@@ -85,6 +85,7 @@ def get_unread_counts(user_id: str) -> dict:
     return {
         "decisions": counts.get("decision", 0),
         "disputes": counts.get("dispute_update", 0),
+        "modifications": counts.get("modification", 0),
     }
 
 

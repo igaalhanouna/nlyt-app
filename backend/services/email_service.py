@@ -694,7 +694,160 @@ class EmailService:
 
 
     # ─────────────────────────────────────────────────────────
-    # 9. MODIFICATION APPLIED
+    # 9a. MODIFICATION PROPOSED — vote required
+    # ─────────────────────────────────────────────────────────
+    @staticmethod
+    async def send_modification_proposed_email(
+        to_email: str,
+        to_name: str,
+        proposer_name: str,
+        appointment_title: str,
+        appointment_datetime: str,
+        appointment_timezone: str = 'Europe/Paris',
+        changes: dict = None,
+        original_values: dict = None,
+        appointment_id: str = '',
+        expires_at: str = '',
+    ):
+        changes = changes or {}
+        original_values = original_values or {}
+        formatted_date = format_email_datetime(appointment_datetime, appointment_timezone)
+
+        subject = f"Modification proposee — vote requis — {appointment_title}"
+
+        change_rows = ''
+        for field, new_val in changes.items():
+            label = EmailService._FIELD_LABELS.get(field)
+            if not label:
+                continue
+            old_val = original_values.get(field, '—')
+            if field == 'appointment_type':
+                old_display = EmailService._TYPE_LABELS.get(old_val, old_val or '—')
+                new_display = EmailService._TYPE_LABELS.get(new_val, new_val or '—')
+            elif field == 'meeting_provider':
+                old_display = EmailService._PROVIDER_LABELS.get((old_val or '').lower(), old_val or '—')
+                new_display = EmailService._PROVIDER_LABELS.get((new_val or '').lower(), new_val or '—')
+            elif field == 'start_datetime':
+                old_display = format_email_datetime(old_val, appointment_timezone) if old_val else '—'
+                new_display = format_email_datetime(new_val, appointment_timezone) if new_val else '—'
+            elif field == 'duration_minutes':
+                old_display = f"{old_val} min" if old_val else '—'
+                new_display = f"{new_val} min" if new_val else '—'
+            else:
+                old_display = old_val or '—'
+                new_display = new_val or '—'
+
+            change_rows += (
+                f'<tr>'
+                f'<td style="padding:10px 12px;border-bottom:1px solid #E2E8F0;font-size:13px;font-weight:600;color:#1E293B;white-space:nowrap;">{label}</td>'
+                f'<td style="padding:10px 12px;border-bottom:1px solid #E2E8F0;font-size:13px;color:#94A3B8;text-decoration:line-through;">{old_display}</td>'
+                f'<td style="padding:10px 12px;border-bottom:1px solid #E2E8F0;font-size:13px;color:#0F172A;font-weight:500;">{new_display}</td>'
+                f'</tr>'
+            )
+
+        changes_table = (
+            '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
+            'style="margin:20px 0;border:1px solid #E2E8F0;border-radius:8px;overflow:hidden;">'
+            '<tr style="background-color:#F8FAFC;">'
+            '<th style="padding:10px 12px;text-align:left;font-size:12px;font-weight:600;color:#475569;border-bottom:1px solid #E2E8F0;">Element</th>'
+            '<th style="padding:10px 12px;text-align:left;font-size:12px;font-weight:600;color:#475569;border-bottom:1px solid #E2E8F0;">Avant</th>'
+            '<th style="padding:10px 12px;text-align:left;font-size:12px;font-weight:600;color:#475569;border-bottom:1px solid #E2E8F0;">Apres</th>'
+            '</tr>'
+            f'{change_rows}'
+            '</table>'
+        )
+
+        formatted_expiry = format_email_datetime(expires_at, appointment_timezone) if expires_at else '24h'
+
+        vote_url = f"{SITE_URL}/appointments/{appointment_id}"
+
+        body = (
+            _greeting(to_name)
+            + _paragraph(
+                f"<strong>{proposer_name}</strong> propose de modifier l'engagement "
+                f"<strong>{appointment_title}</strong>."
+            )
+            + _info_box(
+                _detail_row("Engagement :", f"<strong>{appointment_title}</strong>")
+                + _detail_row("Date actuelle :", formatted_date)
+            )
+            + changes_table
+            + _alert_box(
+                '<p style="margin:0;font-size:14px;color:#92400E;">'
+                f'Votre accord est necessaire. Sans reponse avant le <strong>{formatted_expiry}</strong>, '
+                'la proposition expire automatiquement.</p>'
+            )
+            + _btn(vote_url, "Voter sur la modification")
+            + _brand_note("Toute modification requiert l'unanimite des parties.")
+        )
+
+        html_content = _base_template(body, accent="info")
+        return await EmailService.send_email(to_email, subject, html_content, email_type="modification_proposed")
+
+    # ─────────────────────────────────────────────────────────
+    # 9b. MODIFICATION VOTE REMINDER (J-1)
+    # ─────────────────────────────────────────────────────────
+    @staticmethod
+    async def send_modification_reminder_email(
+        to_email: str,
+        to_name: str,
+        proposer_name: str,
+        appointment_title: str,
+        appointment_timezone: str = 'Europe/Paris',
+        changes: dict = None,
+        original_values: dict = None,
+        appointment_id: str = '',
+        expires_at: str = '',
+    ):
+        changes = changes or {}
+        original_values = original_values or {}
+
+        subject = f"Rappel : vote en attente — {appointment_title}"
+
+        # Compact change summary
+        change_lines = ''
+        for field, new_val in changes.items():
+            label = EmailService._FIELD_LABELS.get(field)
+            if not label:
+                continue
+            if field == 'start_datetime':
+                new_display = format_email_datetime(new_val, appointment_timezone) if new_val else str(new_val)
+            elif field == 'duration_minutes':
+                new_display = f"{new_val} min" if new_val else str(new_val)
+            elif field == 'appointment_type':
+                new_display = EmailService._TYPE_LABELS.get(new_val, str(new_val))
+            elif field == 'meeting_provider':
+                new_display = EmailService._PROVIDER_LABELS.get((new_val or '').lower(), str(new_val))
+            else:
+                new_display = str(new_val or '—')
+            change_lines += _detail_row(f"{label} :", new_display)
+
+        formatted_expiry = format_email_datetime(expires_at, appointment_timezone) if expires_at else 'demain'
+
+        vote_url = f"{SITE_URL}/appointments/{appointment_id}"
+
+        body = (
+            _greeting(to_name)
+            + _paragraph(
+                f"La proposition de modification de <strong>{appointment_title}</strong> "
+                f"par {proposer_name} expire bientot."
+            )
+            + _alert_box(
+                '<p style="margin:0 0 8px 0;font-size:14px;font-weight:600;color:#92400E;">Expiration imminente</p>'
+                f'<p style="margin:0;font-size:14px;color:#92400E;">Vous n\'avez pas encore vote. '
+                f'Sans reponse avant le <strong>{formatted_expiry}</strong>, la proposition sera annulee.</p>',
+                border_color="#F59E0B", bg="#FFFBEB"
+            )
+            + _info_box(change_lines)
+            + _btn(vote_url, "Voter avant expiration")
+            + _small("Ce rappel est envoye une seule fois, 1 heure avant l'expiration.")
+        )
+
+        html_content = _base_template(body, accent="warning")
+        return await EmailService.send_email(to_email, subject, html_content, email_type="modification_reminder")
+
+    # ─────────────────────────────────────────────────────────
+    # 9c. MODIFICATION APPLIED (existing)
     # ─────────────────────────────────────────────────────────
 
     # Labels for modification email display

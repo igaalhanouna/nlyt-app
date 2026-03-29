@@ -155,6 +155,12 @@ def create_proposal(appointment_id: str, changes: dict, proposed_by: dict) -> di
 
     logger.info(f"[MODIFICATION] Proposal {proposal_id} created for appointment {appointment_id} by {proposed_by['role']}")
 
+    # ── Notification trigger: modification proposée ──
+    try:
+        _notify_modification_proposed(proposal, appointment)
+    except Exception as e:
+        logger.warning(f"[NOTIF] Failed to notify modification proposed: {e}")
+
     return proposal
 
 
@@ -502,10 +508,21 @@ def _apply_proposal(proposal: dict):
         logger.warning(f"[MODIFICATION] Guarantee impact assessment failed: {e}")
 
     # Send "Engagement modifié" email to engaged participants + organizer (non-blocking)
+    # STRATEGY: Email only for structural changes (start_datetime, location, appointment_type, meeting_provider)
+    structural_fields = {'start_datetime', 'location', 'appointment_type', 'meeting_provider'}
+    is_structural = bool(set(changes.keys()) & structural_fields)
+
+    if is_structural:
+        try:
+            _send_modification_emails(appointment_id, proposal)
+        except Exception as e:
+            logger.warning(f"[MODIFICATION] Modification email failed (non-blocking): {e}")
+
+    # In-app notification for ALL modifications (structural or not)
     try:
-        _send_modification_emails(appointment_id, proposal)
+        _notify_modification_applied(proposal, is_structural)
     except Exception as e:
-        logger.warning(f"[MODIFICATION] Modification email failed (non-blocking): {e}")
+        logger.warning(f"[NOTIF] Failed to notify modification applied: {e}")
 
 
 
@@ -908,3 +925,238 @@ def _handle_guarantees_after_modification(appointment_id: str, proposal: dict):
         logger.info(f"[MODIFICATION] MAJOR modification detected for {appointment_id}: {impact['reasons']}")
     else:
         logger.info(f"[MODIFICATION] Minor modification for {appointment_id} — guarantees preserved")
+
+
+# ═══════════════════════════════════════════════════════════════
+# Notification triggers for modifications
+# ═══════════════════════════════════════════════════════════════
+
+def _notify_modification_proposed(proposal: dict, appointment: dict):
+    """
+    Trigger: after create_proposal() DB insert.
+    In-app notification + email to all voters.
+    """
+    import asyncio
+    from services.notification_service import create_notification, was_email_sent, mark_email_sent
+    from services.email_service import EmailService
+
+    proposal_id = proposal['proposal_id']
+    apt_id = proposal['appointment_id']
+    apt_title = appointment.get('title', 'Rendez-vous')
+    apt_datetime = appointment.get('start_datetime', '')
+    apt_tz = appointment.get('appointment_timezone', 'Europe/Paris')
+    proposer = proposal.get('proposed_by', {})
+    proposer_name = proposer.get('name', 'Un participant')
+    changes = proposal.get('changes', {})
+    original_values = proposal.get('original_values', {})
+    expires_at = proposal.get('expires_at', '')
+
+    # Build summary of changes for notification message
+    field_labels = {'start_datetime': 'date', 'duration_minutes': 'duree', 'location': 'lieu',
+                    'appointment_type': 'format', 'meeting_provider': 'plateforme'}
+    changed_labels = [field_labels.get(f, f) for f in changes.keys() if f in field_labels]
+    summary = ', '.join(changed_labels) if changed_labels else 'details'
+
+    # Collect voters: participants with pending responses + organizer if pending
+    voter_emails = []
+    for resp in proposal.get('responses', []):
+        if resp.get('status') == 'pending':
+            # Resolve user_id from participant_id
+            pid = resp.get('participant_id')
+            p = db.participants.find_one({'participant_id': pid}, {'_id': 0, 'user_id': 1, 'email': 1, 'first_name': 1, 'last_name': 1})
+            if p:
+                uid = p.get('user_id')
+                name = f"{p.get('first_name', '')} {p.get('last_name', '')}".strip() or p.get('email', '').split('@')[0]
+                email = p.get('email', '')
+                if uid:
+                    voter_emails.append({'user_id': uid, 'email': email, 'name': name})
+
+    org_resp = proposal.get('organizer_response', {})
+    if org_resp.get('status') == 'pending':
+        org_id = appointment.get('organizer_id')
+        if org_id:
+            org = db.users.find_one({'user_id': org_id}, {'_id': 0, 'email': 1, 'first_name': 1, 'last_name': 1})
+            if org:
+                org_name = f"{org.get('first_name', '')} {org.get('last_name', '')}".strip() or 'Organisateur'
+                voter_emails.append({'user_id': org_id, 'email': org.get('email', ''), 'name': org_name})
+
+    message = f"Modification proposee ({summary}) — votre vote est requis."
+
+    for voter in voter_emails:
+        uid = voter['user_id']
+        # 1. In-app notification
+        create_notification(
+            user_id=uid,
+            event_type="modification",
+            reference_id=proposal_id,
+            appointment_id=apt_id,
+            title=apt_title,
+            message=message,
+        )
+        # 2. Email
+        if voter['email'] and not was_email_sent(uid, "modification", proposal_id):
+            try:
+                from services.notification_service import _fire_email
+                _fire_email(EmailService.send_modification_proposed_email(
+                    to_email=voter['email'],
+                    to_name=voter['name'],
+                    proposer_name=proposer_name,
+                    appointment_title=apt_title,
+                    appointment_datetime=apt_datetime,
+                    appointment_timezone=apt_tz,
+                    changes=changes,
+                    original_values=original_values,
+                    appointment_id=apt_id,
+                    expires_at=expires_at,
+                ))
+                mark_email_sent(uid, "modification", proposal_id)
+                logger.info(f"[NOTIF-EMAIL] Sent modification proposed email to {voter['email']}")
+            except Exception as e:
+                logger.warning(f"[NOTIF-EMAIL] Failed to send modification proposed email to {voter['email']}: {e}")
+
+
+def _notify_modification_applied(proposal: dict, is_structural: bool):
+    """
+    Trigger: after _apply_proposal() changes are persisted.
+    In-app notification for ALL modifications.
+    Email already handled by _send_modification_emails if structural.
+    """
+    from services.notification_service import create_notification
+
+    apt_id = proposal['appointment_id']
+    proposal_id = proposal['proposal_id']
+    changes = proposal.get('changes', {})
+
+    apt = db.appointments.find_one({'appointment_id': apt_id}, {'_id': 0, 'title': 1, 'organizer_id': 1})
+    apt_title = apt.get('title', 'Rendez-vous') if apt else 'Rendez-vous'
+
+    field_labels = {'start_datetime': 'date', 'duration_minutes': 'duree', 'location': 'lieu',
+                    'appointment_type': 'format', 'meeting_provider': 'plateforme'}
+    changed_labels = [field_labels.get(f, f) for f in changes.keys() if f in field_labels]
+    summary = ', '.join(changed_labels) if changed_labels else 'details'
+    message = f"Modification confirmee ({summary})."
+
+    # Notify all engaged participants + organizer
+    accepted_statuses = ["accepted", "guaranteed", "accepted_pending_guarantee", "accepted_guaranteed"]
+    participants = list(db.participants.find(
+        {"appointment_id": apt_id, "status": {"$in": accepted_statuses}},
+        {"_id": 0, "user_id": 1}
+    ))
+    notified_uids = set()
+
+    for p in participants:
+        uid = p.get('user_id')
+        if uid and uid not in notified_uids:
+            create_notification(
+                user_id=uid,
+                event_type="modification",
+                reference_id=f"{proposal_id}_applied",
+                appointment_id=apt_id,
+                title=apt_title,
+                message=message,
+            )
+            notified_uids.add(uid)
+
+    # Also notify organizer
+    org_id = apt.get('organizer_id') if apt else None
+    if org_id and org_id not in notified_uids:
+        create_notification(
+            user_id=org_id,
+            event_type="modification",
+            reference_id=f"{proposal_id}_applied",
+            appointment_id=apt_id,
+            title=apt_title,
+            message=message,
+        )
+
+
+def send_modification_vote_reminders():
+    """
+    Scheduler job: send J-1 reminder emails to voters who haven't responded.
+    Called every 15 minutes. Sends reminder when < 1h remains before expiration.
+    Only sends between 9h-20h Europe/Paris. Each voter gets max 1 reminder per proposal.
+    """
+    import asyncio
+    from services.notification_service import was_email_sent, mark_email_sent
+    from services.email_service import EmailService
+
+    # Check if within sending hours (9h-20h Europe/Paris)
+    from utils.date_utils import parse_iso_datetime
+    import pytz
+    paris = pytz.timezone('Europe/Paris')
+    now_paris = now_utc().astimezone(paris)
+    if now_paris.hour < 9 or now_paris.hour >= 20:
+        return 0
+
+    # Find proposals pending with expiration in < 1h
+    threshold = (now_utc() + timedelta(hours=1)).strftime('%Y-%m-%dT%H:%M:%SZ')
+    proposals = list(db.modification_proposals.find(
+        {"status": "pending", "expires_at": {"$lte": threshold}},
+        {"_id": 0}
+    ))
+
+    reminders_sent = 0
+
+    for proposal in proposals:
+        proposal_id = proposal['proposal_id']
+        apt_id = proposal['appointment_id']
+        changes = proposal.get('changes', {})
+        original_values = proposal.get('original_values', {})
+        proposer = proposal.get('proposed_by', {})
+        proposer_name = proposer.get('name', 'Un participant')
+        expires_at = proposal.get('expires_at', '')
+
+        apt = db.appointments.find_one({'appointment_id': apt_id}, {'_id': 0, 'title': 1, 'appointment_timezone': 1, 'organizer_id': 1})
+        if not apt:
+            continue
+        apt_title = apt.get('title', 'Rendez-vous')
+        apt_tz = apt.get('appointment_timezone', 'Europe/Paris')
+
+        # Find voters who haven't responded
+        pending_voters = []
+        for resp in proposal.get('responses', []):
+            if resp.get('status') == 'pending':
+                pid = resp.get('participant_id')
+                p = db.participants.find_one({'participant_id': pid}, {'_id': 0, 'user_id': 1, 'email': 1, 'first_name': 1, 'last_name': 1})
+                if p and p.get('user_id') and p.get('email'):
+                    name = f"{p.get('first_name', '')} {p.get('last_name', '')}".strip() or p.get('email').split('@')[0]
+                    pending_voters.append({'user_id': p['user_id'], 'email': p['email'], 'name': name})
+
+        org_resp = proposal.get('organizer_response', {})
+        if org_resp.get('status') == 'pending':
+            org_id = apt.get('organizer_id')
+            if org_id:
+                org = db.users.find_one({'user_id': org_id}, {'_id': 0, 'email': 1, 'first_name': 1, 'last_name': 1})
+                if org and org.get('email'):
+                    org_name = f"{org.get('first_name', '')} {org.get('last_name', '')}".strip() or 'Organisateur'
+                    pending_voters.append({'user_id': org_id, 'email': org['email'], 'name': org_name})
+
+        # Send reminder to each pending voter (idempotent via 'modification_reminder' key)
+        reminder_key = f"{proposal_id}_reminder"
+        for voter in pending_voters:
+            uid = voter['user_id']
+            if was_email_sent(uid, "modification_reminder", reminder_key):
+                continue
+            try:
+                loop = asyncio.new_event_loop()
+                loop.run_until_complete(EmailService.send_modification_reminder_email(
+                    to_email=voter['email'],
+                    to_name=voter['name'],
+                    proposer_name=proposer_name,
+                    appointment_title=apt_title,
+                    appointment_timezone=apt_tz,
+                    changes=changes,
+                    original_values=original_values,
+                    appointment_id=apt_id,
+                    expires_at=expires_at,
+                ))
+                loop.close()
+                mark_email_sent(uid, "modification_reminder", reminder_key)
+                reminders_sent += 1
+                logger.info(f"[REMINDER] Vote reminder sent to {voter['email']} for proposal {proposal_id}")
+            except Exception as e:
+                logger.warning(f"[REMINDER] Failed to send reminder to {voter['email']}: {e}")
+
+    if reminders_sent > 0:
+        logger.info(f"[REMINDER] Sent {reminders_sent} vote reminders")
+    return reminders_sent

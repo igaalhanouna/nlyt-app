@@ -126,6 +126,15 @@ async def proposal_expiration_job():
         logger.error(f"[SCHEDULER] Proposal expiration job failed: {str(e)}")
 
 
+async def modification_vote_reminder_job():
+    """Job to send vote reminders for proposals expiring within 1 hour"""
+    try:
+        from services.modification_service import send_modification_vote_reminders
+        send_modification_vote_reminders()
+    except Exception as e:
+        logger.error(f"[SCHEDULER] Vote reminder job failed: {str(e)}")
+
+
 async def calendar_retry_job():
     """Job to retry failed/out_of_sync calendar sync operations with exponential backoff"""
     try:
@@ -170,6 +179,15 @@ def start_scheduler():
         trigger=IntervalTrigger(minutes=5),
         id='proposal_expiration_job',
         name='Expire stale modification proposals (24h timeout)',
+        replace_existing=True
+    )
+
+    # Job 4b: Vote reminder for proposals expiring within 1h (every 15 minutes)
+    scheduler.add_job(
+        modification_vote_reminder_job,
+        trigger=IntervalTrigger(minutes=15),
+        id='modification_vote_reminder_job',
+        name='Send vote reminders for expiring proposals',
         replace_existing=True
     )
 
@@ -266,6 +284,7 @@ def start_scheduler():
     logger.info("[SCHEDULER]    - Review timeout (15 days): every 6 hours")
     logger.info("[SCHEDULER]    - Contestation timeout (30 days): every 12 hours")
     logger.info("[SCHEDULER]    - Ledger reconciliation: every 6 hours")
+    logger.info("[SCHEDULER]    - Vote reminders (expiring proposals): every 15 minutes")
 
 
 def stop_scheduler():
