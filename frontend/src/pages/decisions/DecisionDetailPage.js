@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 
 const OUTCOME_CFG = {
-  on_time: { label: 'Presence validee', sub: 'Aucune penalite', Icon: CheckCircle, color: 'emerald' },
+  on_time: { label: (name) => `Presence validee de ${name}`, sub: 'Aucune penalite', Icon: CheckCircle, color: 'emerald' },
   no_show: { label: (name) => `Absence confirmee de ${name}`, sub: (name) => `Penalite appliquee a ${name}`, Icon: UserX, color: 'red' },
   late_penalized: { label: (name) => `Retard confirme de ${name}`, sub: (name) => `Penalite partielle appliquee a ${name}`, Icon: Timer, color: 'amber' },
 };
