@@ -162,6 +162,12 @@ SaaS d'engagement ponctuel avec garantie financiere. Optimisation du "Viral Loop
 - Frontend: `DisputesListPage` action hints with counterpart names
 - Tests: 20/20 (12 backend + 8 frontend, iteration_119)
 
+### Phase 24b — Cross-Validation Matrix (Feb 2026) - DONE
+- Verified unified appointment structure across 7 matrix cases: Physical/Video × Upcoming/Past/Declined × Organizer/Participant
+- All 6 verification points confirmed: no duplicate check-in, no redundant trust banner, calendar viewer-based, same block order, legitimate role-specific actions, result cards for both roles
+- Test appointments: e823473a, 1215686c, e33bf4d6, d839b4a8, 884a22e1
+- Tests: 7/7 matrix cases + all cross-checks passed (iteration_124)
+
 ### Phase 24 — UX Deduplication & Viewer-based Calendar (Feb 2026) - DONE
 - **Removed duplicate check-in banner** from `AppointmentHeader.js` (was duplicated with `CheckinBlock`)
 - **Removed redundant green trust banner** for participants (kept only `AppointmentEssentials` trust text for all roles)
