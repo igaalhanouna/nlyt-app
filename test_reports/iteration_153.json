@@ -1,0 +1,91 @@
+{
+  "summary": "Iteration 153: NLYT QA Recette Lot 2 - Blocs C (Creation/Modification RDV), E (Presences/Feuilles declaratives), J (Calendrier/Sync). Backend: 15/17 tests passed (1 xfail bug, 1 skipped). Frontend: All pages load correctly. One BUG detected: C2 empty title validation missing.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "POST /api/appointments",
+        "issue": "C2 BUG: Empty title is accepted (returns 200). Should reject with 400/422 for empty title validation.",
+        "priority": "MEDIUM"
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": {
+    "C1_create_appointment_complete": "PASS - RDV created with status=active, organizer_participant_id returned",
+    "C3_create_appointment_past_date": "PASS - Past date correctly rejected with 400 'Impossible de créer un rendez-vous dans le passé'",
+    "C6_cancel_future_active_appointment": "PASS - Future active appointment cancelled successfully, status updated to 'cancelled'",
+    "C7_cancel_started_appointment": "PASS - Started appointment cannot be cancelled, returns 400 'Ce rendez-vous a déjà commencé'",
+    "C8_delete_cancelled_appointment": "PASS - Cancelled appointment deleted successfully",
+    "C9_double_creation_no_crash": "PASS - Two identical POST requests create 2 separate appointments (no idempotence, no crash)",
+    "C_DETAIL_get_appointment_detail": "PASS - Detail endpoint returns all required fields (appointment_id, title, status, start_datetime, duration_minutes)",
+    "C_LIST_my_timeline": "PASS - Timeline returns upcoming, past, action_required buckets with counts",
+    "E_API1_pending_sheets_structure": "PASS - Pending sheets endpoint returns correct structure with context fields",
+    "E_API2_submit_sheet_nonexistent": "PASS - Nonexistent appointment correctly rejected with 400",
+    "E_API4_sheet_for_cancelled_appointment": "PASS - Submission for cancelled appointment correctly rejected",
+    "J_API1_list_calendar_connections": "PASS - Calendar connections listed correctly",
+    "J_API2_auto_sync_settings": "PASS - Auto-sync settings returned with correct structure",
+    "J_API3_disconnect_nonexistent": "PASS - Disconnect endpoints respond correctly (404 for non-existent)",
+    "J_ROBUSTESSE_expired_token_handling": "PASS - No crashes with expired/missing tokens"
+  },
+  "failed_tests": {
+    "C2_create_appointment_missing_title": "XFAIL (BUG) - Empty title is accepted instead of being rejected"
+  },
+  "skipped_tests": {
+    "E_API3_double_submission": "SKIPPED - No pending sheets available to test double submission"
+  },
+  "frontend_tests": {
+    "login_page": "PASS - Login form works correctly",
+    "dashboard": "PASS - Dashboard loads with 41 upcoming engagements, calendar connections visible",
+    "presences_page": "PASS - Presences page loads with attendance sheets grouped by RDV with context (date, location, type)",
+    "settings_page": "PASS - Settings page loads with all sections (Profil, Workspace, Integrations, Paiement, Wallet, Statistiques)",
+    "integrations_page": "PASS - Integrations page shows Google Calendar and Outlook connections with status"
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_nlyt_qa_lot2_iter153.py",
+    "/app/test_reports/pytest/pytest_nlyt_qa_lot2_iter153.xml"
+  ],
+  "action_items": [
+    "FIX C2: Add validation to reject empty title in POST /api/appointments (currently accepts empty string)"
+  ],
+  "critical_code_review_comments": [
+    "appointments.py: Missing title validation - empty string '' is accepted as valid title",
+    "appointments.py: penalty_amount validation requires >= 1, which is correct but should be documented",
+    "declarative_routes.py: Correctly rejects submissions for cancelled appointments",
+    "calendar_routes.py: Properly handles expired tokens without crashing"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_nlyt_qa_lot2_iter153.py"
+  ],
+  "success_rate": {
+    "backend": "88.2% (15/17 tests passed, 1 xfail bug, 1 skipped)",
+    "frontend": "100% (all pages load correctly)"
+  },
+  "test_credentials": {
+    "admin": "testuser_audit@nlyt.app / TestAudit123!",
+    "user1": "igaal@hotmail.com / Test123!",
+    "user2": "igaal.hanouna@gmail.com / OrgTest123!"
+  },
+  "seed_data_creation": "Multiple test appointments created during testing (TEST_C1, TEST_C6, TEST_C8, TEST_C9 prefixed)",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Lot 2 (Blocs C, E, J) tested. One minor bug found: empty title validation missing in appointment creation. All other tests pass. Calendar connections (Google/Outlook) are working. Presences page shows attendance sheets correctly. Previous Lot 1 (iteration 152) had H6 double payout bug which was marked as critical.",
+  "mocked_apis": {
+    "stripe": "Stripe in test mode",
+    "calendar_oauth": "Google/Outlook OAuth tokens are real but may be expired"
+  },
+  "rca_of_the_issue": {
+    "bug": "C2 Empty Title Validation Missing",
+    "root_cause": "The AppointmentCreate Pydantic model does not have a min_length validator on the title field, allowing empty strings to pass validation",
+    "reproduction_steps": [
+      "1. POST /api/appointments with title=''",
+      "2. Request returns 200 instead of 400/422",
+      "3. Appointment is created with empty title"
+    ],
+    "recommended_fix": "Add min_length=1 validator to title field in AppointmentCreate schema in /app/backend/models/schemas.py"
+  }
+}
