@@ -194,11 +194,16 @@ function ActionCard({ item, onRemind, onAccept, onDecline, onCancel, now, onNavi
             </Button>
           </>
         ) : isParticipant && item.participant_status === 'accepted_pending_guarantee' ? (
-          <Link to={`/appointments/${item.appointment_id}`} state={{ fromTab: 'action_required' }} className="flex-1 md:flex-none" onClick={onNavigate}>
-            <Button size="sm" className="h-11 md:h-8 text-xs w-full bg-amber-600 hover:bg-amber-700 text-white" data-testid={`finalize-guarantee-btn-${item.appointment_id}`}>
-              <CreditCard className="w-3.5 h-3.5 mr-1.5" /> Finaliser ma garantie
+          <>
+            <Link to={`/appointments/${item.appointment_id}`} state={{ fromTab: 'action_required' }} className="flex-1 md:flex-none" onClick={onNavigate}>
+              <Button size="sm" className="h-11 md:h-8 text-xs w-full bg-amber-600 hover:bg-amber-700 text-white" data-testid={`finalize-guarantee-btn-${item.appointment_id}`}>
+                <CreditCard className="w-3.5 h-3.5 mr-1.5" /> Finaliser ma garantie
+              </Button>
+            </Link>
+            <Button size="sm" variant="outline" className="h-11 md:h-8 text-xs flex-1 md:flex-none border-red-200 text-red-600 hover:bg-red-50" onClick={() => onDecline(item)} data-testid={`decline-guarantee-btn-${item.appointment_id}`}>
+              <X className="w-3.5 h-3.5 mr-1.5" /> Refuser
             </Button>
-          </Link>
+          </>
         ) : isOrgAlert ? (
           <>
             <Button size="sm" className="h-11 md:h-8 text-xs flex-1 md:flex-none bg-amber-600 hover:bg-amber-700 text-white" onClick={() => onRemind(item)} data-testid={`remind-action-${item.appointment_id}`}>
@@ -224,7 +229,7 @@ function ActionCard({ item, onRemind, onAccept, onDecline, onCancel, now, onNavi
 }
 
 // ── Timeline Card (unified for organizer + participant) ──
-function TimelineCard({ item, isPast, onDelete, onRemind, onQuit, now, fromTab, onNavigate }) {
+function TimelineCard({ item, isPast, onDelete, onRemind, onQuit, onDecline, now, fromTab, onNavigate }) {
   const isParticipant = item.role === 'participant';
   const badge = getTemporalBadge(item, now);
   const isOngoing = badge.key === 'ongoing';
@@ -243,10 +248,15 @@ function TimelineCard({ item, isPast, onDelete, onRemind, onQuit, now, fromTab, 
   const pending = item.pending_count || 0;
   const progressPct = total > 0 ? Math.round((accepted / total) * 100) : 100;
 
-  // Participant can quit if accepted and not past
-  const canQuit = isParticipant && !isPast
-    && ['accepted', 'accepted_guaranteed'].includes(item.participant_status)
-    && item.invitation_token;
+  // Participant actions based on exact backend API constraints:
+  // - "Quitter" (cancel): only for accepted / accepted_guaranteed + future
+  // - "Refuser" (decline): only for invited / accepted_pending_guarantee + future
+  const pStatus = item.participant_status;
+  const hasToken = !!item.invitation_token;
+  const canQuit = isParticipant && !isPast && hasToken
+    && ['accepted', 'accepted_guaranteed'].includes(pStatus);
+  const canDecline = isParticipant && !isPast && hasToken
+    && ['invited', 'accepted_pending_guarantee'].includes(pStatus);
 
   const detailLink = `/appointments/${item.appointment_id}`;
   const navState = { fromTab: fromTab || (isPast ? 'past' : 'upcoming') };
@@ -424,6 +434,17 @@ function TimelineCard({ item, isPast, onDelete, onRemind, onQuit, now, fromTab, 
             data-testid={`quit-btn-${item.appointment_id}`}
           >
             <LogOut className="w-3.5 h-3.5 mr-1.5" /> Quitter
+          </Button>
+        )}
+        {canDecline && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-11 md:h-7 text-xs flex-1 md:flex-none border-red-200 text-red-600 hover:bg-red-50"
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDecline(item); }}
+            data-testid={`decline-btn-${item.appointment_id}`}
+          >
+            <X className="w-3.5 h-3.5 mr-1.5" /> Refuser
           </Button>
         )}
         {!isParticipant && (
@@ -920,7 +941,7 @@ export default function OrganizerDashboard() {
                   <div className="space-y-3">
                     {upcomingMerged.map(merged =>
                       merged.type === 'timeline' ? (
-                        <TimelineCard key={`tl-${merged.data.appointment_id}`} item={merged.data} isPast={false} onDelete={handleDeleteClick} onRemind={handleRemind} onQuit={handleQuitParticipation} now={now} fromTab="upcoming" onNavigate={saveScroll} />
+                        <TimelineCard key={`tl-${merged.data.appointment_id}`} item={merged.data} isPast={false} onDelete={handleDeleteClick} onRemind={handleRemind} onQuit={handleQuitParticipation} onDecline={handleDeclineInvitation} now={now} fromTab="upcoming" onNavigate={saveScroll} />
                       ) : (
                         <ExternalEventCard key={`ext-${merged.data.external_event_id}`} event={merged.data} />
                       )
@@ -938,7 +959,7 @@ export default function OrganizerDashboard() {
                 ) : (
                   <div className="space-y-3">
                     {timeline.past.slice(0, pastVisible).map(item => (
-                      <TimelineCard key={`past-${item.role}-${item.appointment_id}`} item={item} isPast={true} onDelete={handleDeleteClick} onRemind={handleRemind} onQuit={handleQuitParticipation} now={now} fromTab="past" onNavigate={saveScroll} />
+                      <TimelineCard key={`past-${item.role}-${item.appointment_id}`} item={item} isPast={true} onDelete={handleDeleteClick} onRemind={handleRemind} onQuit={handleQuitParticipation} onDecline={handleDeclineInvitation} now={now} fromTab="past" onNavigate={saveScroll} />
                     ))}
                     {timeline.past.length > pastVisible && (
                       <div className="pt-4 text-center">
