@@ -162,6 +162,17 @@ SaaS d'engagement ponctuel avec garantie financiere. Optimisation du "Viral Loop
 - Frontend: `DisputesListPage` action hints with counterpart names
 - Tests: 20/20 (12 backend + 8 frontend, iteration_119)
 
+### Phase 23 — Participant Action Buttons on Dashboard Cards (Feb 2026) - DONE
+- Added status-aware participant actions on dashboard cards:
+  - `invited` → "Refuser" (calls POST /invitations/{token}/respond decline)
+  - `accepted_pending_guarantee` → "Finaliser ma garantie" + "Refuser" (respond decline)
+  - `accepted` / `accepted_guaranteed` + future → "Quitter" (calls POST /invitations/{token}/cancel)
+  - Past → No action (read-only, per user decision)
+- **accepted_pending_guarantee cannot use /cancel** (backend rejects it) → correctly routed to /respond decline
+- File modified: `OrganizerDashboard.js` (TimelineCard + ActionCard)
+- Zero backend changes, zero new routes
+- Tests: 24/24 (13 backend + 11 frontend, iteration_122)
+
 ### Phase 22 — Participant UX Parity (Feb 2026) - DONE
 - **AUDIT + FIX**: Aligned participant ("invité") experience on organizer ("créé par vous") reference across dashboard cards and detail pages
 - **CheckinBlock.js** (NEW unified component): Replaces both OrganizerCheckinBlock and inline ParticipantCheckinBlock. Same time-gating (before/during/after), countdown, GPS display, proof link for both roles
