@@ -222,16 +222,16 @@ SaaS d'engagement ponctuel avec garantie financiere. Optimisation du "Viral Loop
 - **Fix 1**: Idempotency guard at top of `initialize_declarative_phase()` — blocks re-entry if phase is already `collecting`/`analyzing`/`disputed`/`resolved`. Only `None` and `not_needed` are safe entry points.
 - **Fix 2**: `submit_sheet()` now preserves `is_self_declaration` field in updated declarations (was being stripped before)
 - **Remediation**: Stuck appointment `1aaf3fb5` manually resolved via controlled `_run_analysis` call — now phase="disputed", 1 dispute (awaiting_positions, reason=small_group_disagreement)
-- **Investigation**: 2nd call source most probable = server hot-reload between 17:53-17:55, causing scheduler to re-trigger `evaluate_appointment` which called `initialize_declarative_phase` again
-- **Files**: `declarative_service.py` (lines 40-48 guard, lines 179-196 is_self_declaration)
-- **Tests**: 42 total (9 idempotency guard + 5 presences flow + 9 strong proof lockdown + 19 API endpoint tests, iteration_126)
-- **Dead code audit**: `POST /api/attendance/evaluate/{id}`, `POST /api/attendance/reevaluate/{id}`, `PUT /api/attendance/reclassify/{id}` confirmed as dead HTTP endpoints (0 frontend calls, 0 scheduler calls). Pending user decision on removal.
 
-## Upcoming Tasks
-- P1: Dashboard admin plateforme (arbitrage final des litiges escalades "maintained")
-- P1: Configurer webhook Stripe en production
-- P1: Test reel Zoom/Teams avec vrais tokens
-- P1.5: Supprimer les endpoints dead code evaluate/reevaluate/reclassify (pending user approval)
+### Phase 27 — Atomic CAS + Monitoring + Dead Code Removal (Feb 2026) - DONE
+- **Atomic CAS on `evaluate_appointment()`**: Replaced non-atomic READ-CHECK-ACT with MongoDB conditional `update_one({attendance_evaluated: {$ne: True}})`. Only ONE caller can enter evaluation logic. Eliminates race conditions entirely.
+- **Atomic CAS on `_run_analysis()`**: Uses conditional `update_one({declarative_phase: "collecting"})` → only `collecting` → `analyzing` transition allowed. Prevents double-analysis from concurrent calls or deadline job.
+- **Monitoring/auto-recovery**: `run_declarative_deadline_job` now detects stuck `collecting` phases (all sheets submitted, > 10 min without analysis) and auto-triggers `_run_analysis`. Logs `[MONITORING][STUCK_COLLECTING]` with appointment_id and delay.
+- **Dead endpoint removal**: `POST /evaluate/{id}`, `POST /reevaluate/{id}`, `PUT /reclassify/{id}` HTTP routes removed from `attendance_routes.py`. Python functions preserved for scheduler/scripts. Security docstring added.
+- **Investigation**: 2nd call source confirmed as non-provable from DB alone. WatchFiles hot-reload mechanism confirmed active. Dead HTTP endpoints were the most probable external vector (now eliminated).
+- **Tests**: 33 total (iteration_127), all passing. Zero regressions.
+- **Files modified**: `attendance_service.py`, `declarative_service.py`, `attendance_routes.py`
+- **Files created**: `test_atomic_guards.py`, `test_idempotency_guard.py`
 
 ## Backlog
 - P2: Charity Payouts V2 (Stripe Transfers)
