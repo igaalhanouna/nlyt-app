@@ -188,6 +188,20 @@ Application SaaS (React/FastAPI/MongoDB) de gestion des presences avec garanties
 - Mobile: badges + dot notification sur hamburger
 - Validé via testing_agent iteration 143 (100%: 13/13 backend, 13/13 frontend)
 
+### Session 25 - Notifications email P0+P1 (2026-03-29)
+**Emails ajoutés (charte graphique NLYT respectée):**
+- send_decision_rendered_email: accent dynamique selon outcome (success/danger/warning)
+- send_dispute_opened_email: accent warning, CTA "Voir le litige et répondre"
+- send_dispute_escalated_email: accent warning, CTA secondaire "Suivre le dossier"
+**Triggers email dans notification_service.py:**
+- notify_decision_rendered → email aux 2 parties + in-app
+- notify_dispute_opened → email aux 2 parties + in-app
+- notify_dispute_escalated → email aux 2 parties + in-app
+- notify_dispute_position_submitted → in-app seul (pas d'email, stratégie validée)
+**Idempotence:** champ email_sent dans user_notifications, vérification was_email_sent() avant envoi
+**Garde-fou:** notification in-app créée AVANT l'email. Si email échoue, in-app reste visible
+- Validé via testing_agent iteration 144 (100%: 19/19 backend, 14/14 frontend)
+
 ## Upcoming Tasks (P1)
 - Configurer le webhook Stripe en production pour validation end-to-end
 - Test reel Zoom/Teams avec vrais tokens
