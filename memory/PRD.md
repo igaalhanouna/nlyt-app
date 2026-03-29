@@ -247,6 +247,37 @@ Application SaaS (React/FastAPI/MongoDB) de gestion des presences avec garanties
 - Charity Payouts V2 (Stripe Transfers)
 - Webhooks temps reel Zoom/Teams
 
+### Session 29 - Refonte Onboarding Invitation → Dashboard (2026-02-25)
+**Objectif:** Après création de compte depuis une invitation, rediriger vers /dashboard au lieu de rester sur /invitation/{token}. L'invitation doit apparaître dans "Actions requises" sans être auto-acceptée.
+
+**Backend:**
+- Nouveau endpoint `POST /api/invitations/{token}/link-account` (public, password requis):
+  - Crée un compte OU connecte un utilisateur existant
+  - Lie le user_id au participant
+  - Retourne JWT + user data + is_new_account flag
+  - NE modifie PAS le statut de l'invitation (reste 'invited')
+- Nouveau endpoint `POST /api/invitations/{token}/link-user` (authentifié):
+  - Lie le user_id de l'utilisateur connecté au participant
+  - Vérifie la correspondance email (403 si mismatch)
+  - Utilisé pour le scénario C (utilisateur déjà connecté)
+
+**Frontend:**
+- AuthContext.js: Nouvelle méthode `loginWithToken(accessToken, userData)` pour hydrater la session
+- InvitationAccountChoice.js: Appelle `linkAccount` au lieu de `acceptWithAccount`/`loginAndAccept`
+- InvitationPage.js: `handleAccountSuccess` → `loginWithToken` + `navigate('/dashboard')`
+- InvitationPage.js: Scénario C — useEffect auto-redirect si user connecté + email match
+- InvitationPage.js: Après confirmation garantie Stripe + user connecté → redirect dashboard
+- Fix token storage: `token` → `nlyt_token` (cohérent avec AuthContext)
+
+**3 Scénarios documentés:**
+| Scénario | Comportement |
+|---|---|
+| A. Nouvel utilisateur | Crée mot de passe → compte créé → login auto → redirect /dashboard → invitation visible "Actions requises" |
+| B. Utilisateur existant non connecté | Se connecte via le panel invitation → redirect /dashboard → invitation visible |
+| C. Utilisateur déjà connecté | Visite /invitation/{token} → auto-link user_id → toast → redirect /dashboard |
+
+**Validé via testing_agent iteration 148 (100%: 11/11 backend, 7/7 frontend)**
+
 ### P2 — Notifications email/push (cahier des charges)
 **Contrainte** : Respecter strictement la charte graphique email existante (email_service.py : _base_template, ACCENT_COLORS, _btn, _info_box, _alert_box, _detail_row, _greeting, _paragraph, _brand_note).
 
