@@ -1,6 +1,15 @@
 """
 Attendance Routes — Post-appointment presence detection API
-Endpoints for evaluating, viewing, and reclassifying attendance outcomes.
+Endpoints for viewing attendance records and pending reviews.
+
+SECURITY NOTE (Feb 2026): The following HTTP endpoints were intentionally
+removed to eliminate re-entry vectors that could trigger double evaluation
+or overwrite the declarative phase:
+- POST /evaluate/{appointment_id}    → use scheduler only
+- POST /reevaluate/{appointment_id}  → removed (no UI consumer)
+- PUT /reclassify/{record_id}        → removed (disputes handle reclassification)
+
+The underlying Python functions remain available for scheduler and scripts.
 """
 from fastapi import APIRouter, HTTPException, Request, Query
 from pydantic import BaseModel
@@ -12,62 +21,8 @@ from middleware.auth_middleware import get_current_user
 from database import db
 import logging
 logger = logging.getLogger(__name__)
-from services.attendance_service import (
-    evaluate_appointment,
-    reevaluate_appointment,
-    reclassify_participant,
-    run_attendance_evaluation_job
-)
 
 router = APIRouter()
-
-
-
-class ReclassifyRequest(BaseModel):
-    new_outcome: str
-    notes: Optional[str] = None
-
-
-@router.post("/evaluate/{appointment_id}")
-async def trigger_evaluate(appointment_id: str, request: Request):
-    """Manually trigger attendance evaluation for a specific appointment."""
-    user = await get_current_user(request)
-
-    appointment = db.appointments.find_one(
-        {"appointment_id": appointment_id}, {"_id": 0}
-    )
-    if not appointment:
-        raise HTTPException(status_code=404, detail="Rendez-vous introuvable")
-
-    if appointment.get('organizer_id') != user['user_id']:
-        raise HTTPException(
-            status_code=403,
-            detail="Seul l'organisateur peut déclencher l'évaluation"
-        )
-
-    result = evaluate_appointment(appointment_id)
-    return result
-
-
-@router.post("/reevaluate/{appointment_id}")
-async def trigger_reevaluate(appointment_id: str, request: Request):
-    """Re-evaluate attendance with fresh evidence. Preserves manual reclassifications."""
-    user = await get_current_user(request)
-
-    appointment = db.appointments.find_one(
-        {"appointment_id": appointment_id}, {"_id": 0}
-    )
-    if not appointment:
-        raise HTTPException(status_code=404, detail="Rendez-vous introuvable")
-
-    if appointment.get('organizer_id') != user['user_id']:
-        raise HTTPException(
-            status_code=403,
-            detail="Seul l'organisateur peut déclencher la re-évaluation"
-        )
-
-    result = reevaluate_appointment(appointment_id)
-    return result
 
 
 @router.get("/{appointment_id}")
@@ -100,56 +55,6 @@ async def get_attendance(appointment_id: str, request: Request):
         "summary": appointment.get('attendance_summary', {}),
         "records": records
     }
-
-
-@router.put("/reclassify/{record_id}")
-async def reclassify(record_id: str, body: ReclassifyRequest, request: Request):
-    """Manually reclassify a participant's attendance outcome."""
-    user = await get_current_user(request)
-
-    record = db.attendance_records.find_one(
-        {"record_id": record_id}, {"_id": 0}
-    )
-    if not record:
-        raise HTTPException(status_code=404, detail="Enregistrement introuvable")
-
-    appointment = db.appointments.find_one(
-        {"appointment_id": record['appointment_id']}, {"_id": 0}
-    )
-    if not appointment:
-        raise HTTPException(status_code=404, detail="Rendez-vous introuvable")
-
-    if appointment.get('organizer_id') != user['user_id']:
-        raise HTTPException(
-            status_code=403,
-            detail="Seul l'organisateur peut reclassifier"
-        )
-
-    # V3 Trustless: block reclassification if organizer has financial conflict of interest
-    if body.new_outcome in ('no_show', 'late_penalized'):
-        # Check: is the organizer a beneficiary of this reclassification?
-        reclassified_participant = db.participants.find_one(
-            {"participant_id": record['participant_id']},
-            {"_id": 0, "is_organizer": 1, "user_id": 1}
-        )
-        if reclassified_participant and not reclassified_participant.get('is_organizer', False):
-            logger.warning(f"[TRUSTLESS][CONFLIT] Reclassification bloquée: organizer {user['user_id']} tentait de reclassifier {record['participant_id']} → {body.new_outcome} (conflit d'intérêt)")
-            raise HTTPException(
-                status_code=403,
-                detail="Conflit d'interet : vous etes beneficiaire financier de cette decision. Ce litige sera arbitre par la plateforme."
-            )
-
-    result = reclassify_participant(
-        record_id=record_id,
-        new_outcome=body.new_outcome,
-        notes=body.notes,
-        reviewer_id=user['user_id']
-    )
-
-    if result.get('error'):
-        raise HTTPException(status_code=400, detail=result['error'])
-
-    return result
 
 
 @router.get("/pending-reviews/list")

@@ -449,6 +449,10 @@ def evaluate_appointment(appointment_id: str) -> dict:
     Evaluate all participants for a given appointment.
     Idempotent: skips if already evaluated (unless force=True via re-evaluate).
     Returns summary of outcomes.
+
+    Uses atomic CAS (Compare-And-Swap) on `attendance_evaluated` to guarantee
+    that only ONE caller can enter the evaluation logic, even under concurrent
+    requests (e.g., scheduler + stale HTTP endpoint).
     """
     appointment = db.appointments.find_one(
         {"appointment_id": appointment_id},
@@ -460,8 +464,22 @@ def evaluate_appointment(appointment_id: str) -> dict:
     if appointment.get('status') in ('cancelled', 'deleted'):
         return {"skipped": True, "reason": "Rendez-vous annulé ou supprimé"}
 
-    # Idempotency: skip if already evaluated
-    if appointment.get('attendance_evaluated'):
+    # ── Atomic CAS: claim exclusive evaluation lock ──────────────
+    # MongoDB update_one with a condition is atomic. Only ONE process
+    # can transition attendance_evaluated from non-True to True.
+    # This eliminates the READ-CHECK-ACT race condition entirely.
+    cas_result = db.appointments.update_one(
+        {
+            "appointment_id": appointment_id,
+            "attendance_evaluated": {"$ne": True},
+        },
+        {"$set": {
+            "attendance_evaluated": True,
+            "attendance_evaluated_at": now_utc().isoformat(),
+        }}
+    )
+    if cas_result.modified_count == 0:
+        logger.info(f"[ATTENDANCE][CAS] Evaluation skipped for {appointment_id}: already claimed by another caller")
         return {"skipped": True, "reason": "Déjà évalué"}
 
     participants = list(db.participants.find(
@@ -512,14 +530,10 @@ def evaluate_appointment(appointment_id: str) -> dict:
         records.append(record)
         summary[evaluation['outcome']] = summary.get(evaluation['outcome'], 0) + 1
 
-    # Mark appointment as evaluated
+    # Update attendance summary (attendance_evaluated already set by atomic CAS above)
     db.appointments.update_one(
         {"appointment_id": appointment_id},
-        {"$set": {
-            "attendance_evaluated": True,
-            "attendance_evaluated_at": now_utc().isoformat(),
-            "attendance_summary": summary
-        }}
+        {"$set": {"attendance_summary": summary}}
     )
 
     logger.info(f"[ATTENDANCE] Evaluated {appointment_id}: {summary}")

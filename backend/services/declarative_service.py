@@ -239,11 +239,28 @@ def _run_analysis(appointment_id: str):
     V4: Two analysis paths:
     - Large groups (>= 3 participants): cross-declaration unanimity check
     - Small groups (< 3 participants): direct comparison including self-declarations
+
+    Idempotent: uses atomic CAS to transition collecting → analyzing.
+    Any phase other than 'collecting' is blocked (already analyzed or in progress).
     """
-    db.appointments.update_one(
-        {"appointment_id": appointment_id},
+    # ── Atomic CAS: collecting → analyzing ──────────────────────
+    # Only ONE caller can transition. Prevents double-analysis from
+    # concurrent _check_and_trigger_analysis calls or deadline job.
+    cas_result = db.appointments.update_one(
+        {"appointment_id": appointment_id, "declarative_phase": "collecting"},
         {"$set": {"declarative_phase": "analyzing"}}
     )
+    if cas_result.modified_count == 0:
+        current = db.appointments.find_one(
+            {"appointment_id": appointment_id},
+            {"_id": 0, "declarative_phase": 1}
+        )
+        current_phase = current.get("declarative_phase") if current else "N/A"
+        logger.warning(
+            f"[DECLARATIVE][GUARD] _run_analysis blocked for {appointment_id}. "
+            f"Phase is '{current_phase}', expected 'collecting'. Skipping double-analysis."
+        )
+        return
 
     sheets = list(db.attendance_sheets.find({"appointment_id": appointment_id}, {"_id": 0}))
     submitted_sheets = [s for s in sheets if s['status'] == 'submitted']
@@ -852,7 +869,10 @@ def submit_dispute_evidence(dispute_id: str, user_id: str, evidence_type: str, c
 # ═══════════════════════════════════════════════════════════════════
 
 def run_declarative_deadline_job():
-    """Force-close sheets that passed the 48h deadline and trigger analysis."""
+    """Force-close sheets that passed the 48h deadline and trigger analysis.
+    Also monitors for stuck 'collecting' phases where all sheets are submitted
+    but no analysis was triggered (safety net).
+    """
     from datetime import datetime
 
     appointments = list(db.appointments.find(
@@ -863,6 +883,7 @@ def run_declarative_deadline_job():
     now = now_utc()
     processed = 0
     for apt in appointments:
+        apt_id = apt['appointment_id']
         deadline_str = apt.get('declarative_deadline')
         if not deadline_str:
             continue
@@ -873,6 +894,43 @@ def run_declarative_deadline_job():
                 deadline = deadline.replace(tzinfo=timezone.utc)
         except (ValueError, TypeError):
             continue
+
+        # ── Monitoring: detect stuck collecting phases ──────────────
+        # If ALL sheets are submitted but phase is still 'collecting',
+        # this means _run_analysis was never triggered or crashed.
+        # Log a warning with actionable details and auto-trigger analysis.
+        total_sheets = db.attendance_sheets.count_documents({"appointment_id": apt_id})
+        submitted_sheets = db.attendance_sheets.count_documents(
+            {"appointment_id": apt_id, "status": "submitted"}
+        )
+        if total_sheets > 0 and submitted_sheets >= total_sheets and now < deadline:
+            # All sheets submitted, deadline NOT yet reached, but still collecting
+            # → this is a stuck state. Find last submission time.
+            last_sheet = db.attendance_sheets.find_one(
+                {"appointment_id": apt_id, "status": "submitted"},
+                {"_id": 0, "submitted_at": 1},
+                sort=[("submitted_at", -1)]
+            )
+            last_submit = last_sheet.get("submitted_at", "") if last_sheet else ""
+            if last_submit:
+                try:
+                    submit_dt = datetime.fromisoformat(last_submit.replace('Z', '+00:00'))
+                    if hasattr(submit_dt, 'tzinfo') and submit_dt.tzinfo is None:
+                        from datetime import timezone as tz
+                        submit_dt = submit_dt.replace(tzinfo=tz.utc)
+                    delay_minutes = (now - submit_dt).total_seconds() / 60
+                    if delay_minutes > 10:
+                        logger.warning(
+                            f"[MONITORING][STUCK_COLLECTING] Appointment {apt_id}: "
+                            f"all {submitted_sheets}/{total_sheets} sheets submitted "
+                            f"but phase still 'collecting' after {delay_minutes:.0f} min. "
+                            f"Last submit: {last_submit}. Auto-triggering _run_analysis."
+                        )
+                        _run_analysis(apt_id)
+                        processed += 1
+                        continue
+                except (ValueError, TypeError):
+                    pass
 
         if now >= deadline:
             # Force all pending sheets to "submitted" with unknown declarations
