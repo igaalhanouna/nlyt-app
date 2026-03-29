@@ -1,5 +1,15 @@
-## Test Credentials
+# Test Credentials
 
-- User 1: testuser_audit@nlyt.app / TestAudit123!
-- User 2: igaal.hanouna@gmail.com / OrgTest123!
-- User 3: igaal@hotmail.com / Test123!
+## Admin
+- Email: testuser_audit@nlyt.app
+- Password: TestAudit123!
+- Role: admin
+
+## Regular Users
+- Email: igaal.hanouna@gmail.com
+- Password: OrgTest123!
+- Role: user
+
+- Email: igaal@hotmail.com
+- Password: Test123!
+- Role: user
