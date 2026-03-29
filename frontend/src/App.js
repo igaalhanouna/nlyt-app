@@ -37,6 +37,7 @@ import PresencesPage from './pages/declarations/PresencesPage';
 import ReviewerDashboard from './pages/admin/ReviewerDashboard';
 import AdminArbitrationList from './pages/admin/AdminArbitrationList';
 import AdminArbitrationDetail from './pages/admin/AdminArbitrationDetail';
+import AdminAssociations from './pages/admin/AdminAssociations';
 
 import Settings from './pages/settings/Settings';
 import Profile from './pages/settings/Profile';
@@ -101,6 +102,7 @@ function App() {
               <Route path="/admin/review" element={<PrivateRoute><ReviewerDashboard /></PrivateRoute>} />
               <Route path="/admin/arbitration" element={<PrivateRoute><AdminArbitrationList /></PrivateRoute>} />
               <Route path="/admin/arbitration/:disputeId" element={<PrivateRoute><AdminArbitrationDetail /></PrivateRoute>} />
+              <Route path="/admin/associations" element={<PrivateRoute><AdminAssociations /></PrivateRoute>} />
               
               <Route path="/settings" element={<PrivateRoute><Settings /></PrivateRoute>} />
               <Route path="/settings/profile" element={<PrivateRoute><Profile /></PrivateRoute>} />
