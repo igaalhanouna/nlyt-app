@@ -246,6 +246,13 @@ SaaS d'engagement ponctuel avec garantie financiere. Optimisation du "Viral Loop
 - **Files modified**: `OrganizerDashboard.js` (TimelineCard + ActionCard), `SecondaryActions.js`, `appointments.py`
 - **Tests**: 7/7 backend + frontend UI verified (iteration_128)
 
+### Phase 30 — Refonte UX Litiges (Mar 2026) - DONE
+- **Backend enrichi**: `/api/disputes/mine` et `/api/disputes/{id}` retournent `appointment_type`, `appointment_location`, `appointment_meeting_provider`, `appointment_duration_minutes`.
+- **Frontend DisputesListPage réécrite**: Groupement par `appointment_id` (1 carte = 1 RDV), sous-cartes par litige individuel. Date+heure, type, lieu, durée affichés. Badge compteur multi-litiges. Statut global par priorité (action requise > arbitrage > attente). Litiges résolus exclus de la liste.
+- **Frontend DisputeDetailPage enrichie**: Contexte RDV complet (heure, type, lieu, durée) + lien "Voir le rendez-vous".
+- **Navigation**: Lien direct vers `/appointments/{id}` depuis la liste et le détail.
+- **Tests**: 10/10 backend + 14/14 frontend (iteration_129)
+
 ## Backlog
 - P1: Dashboard admin plateforme pour arbitrer les litiges escaladés
 - P1: Configurer le webhook Stripe en production pour validation end-to-end
