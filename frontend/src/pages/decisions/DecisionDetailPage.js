@@ -10,8 +10,8 @@ import {
 
 const OUTCOME_CFG = {
   on_time: { label: 'Presence validee', sub: 'Aucune penalite', Icon: CheckCircle, color: 'emerald' },
-  no_show: { label: 'Absence confirmee', sub: 'Penalite appliquee', Icon: UserX, color: 'red' },
-  late_penalized: { label: 'Retard confirme', sub: 'Penalite partielle', Icon: Timer, color: 'amber' },
+  no_show: { label: (name) => `Absence confirmee de ${name}`, sub: (name) => `Penalite appliquee a ${name}`, Icon: UserX, color: 'red' },
+  late_penalized: { label: (name) => `Retard confirme de ${name}`, sub: (name) => `Penalite partielle appliquee a ${name}`, Icon: Timer, color: 'amber' },
 };
 
 const STATUS_LABELS = {
@@ -58,6 +58,9 @@ export default function DecisionDetailPage() {
   const outcome = resolution.final_outcome || '';
   const cfg = OUTCOME_CFG[outcome] || OUTCOME_CFG.no_show;
   const Icon = cfg.Icon;
+  const targetName = data.target_name || 'le participant';
+  const outcomeLabel = typeof cfg.label === 'function' ? cfg.label(targetName) : cfg.label;
+  const outcomeSub = typeof cfg.sub === 'function' ? cfg.sub(targetName) : cfg.sub;
   const fc = data.financial_context || {};
   const ds = data.declaration_summary || {};
 
@@ -98,8 +101,8 @@ export default function DecisionDetailPage() {
               <Icon className={`w-6 h-6 ${TEXT[cfg.color]}`} />
             </div>
             <div>
-              <p className={`text-lg font-bold ${TEXT[cfg.color]}`}>{cfg.label}</p>
-              <p className="text-sm text-slate-500">{cfg.sub}</p>
+              <p className={`text-lg font-bold ${TEXT[cfg.color]}`}>{outcomeLabel}</p>
+              <p className="text-sm text-slate-500">{outcomeSub}</p>
             </div>
           </div>
 
