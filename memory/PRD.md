@@ -95,10 +95,18 @@ Application SaaS (React/FastAPI/MongoDB) de gestion des presences avec garanties
 
 ### Session 16 - Onglet Decisions utilisateur (2026-03-31)
 - Backend: GET /api/disputes/decisions/mine (resolved disputes enriched with financial_impact per user role)
-- Frontend: Onglet "Decisions" sur OrganizerDashboard.js (lazy-loaded, decision cards avec outcome/financial badges)
+- Frontend: Page standalone DecisionsListPage.js accessible via /decisions
 - Frontend: DecisionDetailPage.js (5 sections: contexte RDV, decision finale, detail financier, declarations, statut)
-- Frontend: Route /decisions/:disputeId dans App.js
+- Frontend: Route /decisions et /decisions/:disputeId dans App.js
 - Validated via testing_agent iteration 139 (100%: 12/12 backend, 17/17 frontend)
+
+### Session 17 - Reorganisation navbar (2026-03-31)
+- Retrait de "Wallet" du menu principal (desktop + mobile), accessible uniquement via Parametres
+- Ajout de "Decisions" comme page standalone dans la navbar (juste apres Litiges)
+- Nouvel ordre: Agenda, Tableau de bord, Presences, Litiges, Decisions, Arbitrage (admin), Contributions, Parametres
+- Suppression des icones Scale sur Arbitrage et Decisions (texte pur)
+- Retrait de l'onglet Decisions du OrganizerDashboard (reste: A venir, Historique, Statistiques)
+- Nettoyage imports inutilises (Scale, Wallet, disputeAPI, ArrowRight dans le dashboard)
 
 ## Data Integrity Rules
 - Participant documents MUST have valid user_id when user exists

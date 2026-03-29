@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from './ui/button';
-import { Settings, LogOut, Menu, X, AlertTriangle, TrendingUp, Scale, ClipboardCheck, Wallet, CalendarDays } from 'lucide-react';
+import { Settings, LogOut, Menu, X, AlertTriangle, TrendingUp, ClipboardCheck, CalendarDays } from 'lucide-react';
 import { attendanceAPI } from '../services/api';
 import api from '../services/api';
 
@@ -59,7 +59,7 @@ export default function AppNavbar() {
     if (path === '/settings') return pathname.startsWith('/settings');
     if (path === '/presences') return pathname === '/presences';
     if (path === '/litiges') return pathname.startsWith('/litiges');
-    if (path === '/wallet') return pathname === '/wallet';
+    if (path === '/decisions') return pathname.startsWith('/decisions');
     if (path === '/mes-resultats') return pathname === '/mes-resultats';
     if (path === '/admin/arbitration') return pathname.startsWith('/admin/arbitration');
     return false;
@@ -95,11 +95,11 @@ export default function AppNavbar() {
 
           {/* Desktop nav */}
           <div className="hidden md:flex items-center gap-6">
-            <Link to="/dashboard" className={linkClass('/dashboard')} data-testid="navbar-dashboard-link">
-              Tableau de bord
-            </Link>
             <Link to="/agenda" className={linkClass('/agenda')} data-testid="navbar-agenda-link">
               Agenda
+            </Link>
+            <Link to="/dashboard" className={linkClass('/dashboard')} data-testid="navbar-dashboard-link">
+              Tableau de bord
             </Link>
             <Link to="/presences" className={`${linkClass('/presences')} relative flex items-center gap-1.5`} data-testid="navbar-presences-link">
               Presences
@@ -117,18 +117,17 @@ export default function AppNavbar() {
                 </span>
               )}
             </Link>
-            <Link to="/mes-resultats" className={linkClass('/mes-resultats')} data-testid="navbar-results-link">
-              Contributions
-            </Link>
-            <Link to="/wallet" className={linkClass('/wallet')} data-testid="navbar-wallet-link">
-              Wallet
+            <Link to="/decisions" className={linkClass('/decisions')} data-testid="navbar-decisions-link">
+              Decisions
             </Link>
             {isAdmin && (
-              <Link to="/admin/arbitration" className={`${linkClass('/admin/arbitration')} flex items-center gap-1`} data-testid="navbar-admin-link">
-                <Scale className="w-3.5 h-3.5" />
+              <Link to="/admin/arbitration" className={linkClass('/admin/arbitration')} data-testid="navbar-admin-link">
                 Arbitrage
               </Link>
             )}
+            <Link to="/mes-resultats" className={linkClass('/mes-resultats')} data-testid="navbar-results-link">
+              Contributions
+            </Link>
             <Link to="/settings" className={linkClass('/settings')} data-testid="navbar-settings-link">
               <span className="flex items-center gap-1.5">
                 <Settings className="w-3.5 h-3.5" />
@@ -187,12 +186,12 @@ export default function AppNavbar() {
 
             {/* Nav links */}
             <div className="flex-1 p-3 space-y-1 overflow-y-auto">
-              <Link to="/dashboard" className={mobileLinkClass('/dashboard')} data-testid="mobile-nav-dashboard">
-                Tableau de bord
-              </Link>
               <Link to="/agenda" className={mobileLinkClass('/agenda')} data-testid="mobile-nav-agenda">
                 <CalendarDays className="w-4.5 h-4.5" />
                 Agenda
+              </Link>
+              <Link to="/dashboard" className={mobileLinkClass('/dashboard')} data-testid="mobile-nav-dashboard">
+                Tableau de bord
               </Link>
               <Link to="/presences" className={mobileLinkClass('/presences')} data-testid="mobile-nav-presences">
                 <ClipboardCheck className="w-4.5 h-4.5" />
@@ -204,7 +203,6 @@ export default function AppNavbar() {
                 )}
               </Link>
               <Link to="/litiges" className={mobileLinkClass('/litiges')} data-testid="mobile-nav-litiges">
-                <Scale className="w-4.5 h-4.5" />
                 Litiges
                 {activeDisputeCount > 0 && (
                   <span className="ml-auto inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full bg-amber-500 text-white text-xs font-bold">
@@ -212,20 +210,18 @@ export default function AppNavbar() {
                   </span>
                 )}
               </Link>
+              <Link to="/decisions" className={mobileLinkClass('/decisions')} data-testid="mobile-nav-decisions">
+                Decisions
+              </Link>
+              {isAdmin && (
+                <Link to="/admin/arbitration" className={mobileLinkClass('/admin/arbitration')} data-testid="mobile-nav-admin">
+                  Arbitrage
+                </Link>
+              )}
               <Link to="/mes-resultats" className={mobileLinkClass('/mes-resultats')} data-testid="mobile-nav-results">
                 <TrendingUp className="w-4.5 h-4.5" />
                 Contributions
               </Link>
-              <Link to="/wallet" className={mobileLinkClass('/wallet')} data-testid="mobile-nav-wallet">
-                <Wallet className="w-4.5 h-4.5" />
-                Wallet
-              </Link>
-              {isAdmin && (
-                <Link to="/admin/arbitration" className={mobileLinkClass('/admin/arbitration')} data-testid="mobile-nav-admin">
-                  <Scale className="w-4.5 h-4.5" />
-                  Arbitrage admin
-                </Link>
-              )}
               <Link to="/settings" className={mobileLinkClass('/settings')} data-testid="mobile-nav-settings">
                 <Settings className="w-4.5 h-4.5" />
                 Parametres
