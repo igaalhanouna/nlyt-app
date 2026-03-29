@@ -498,6 +498,22 @@ def create_appointments(users):
         apt["policy_snapshot_id"] = make_snapshot(apt)
         appointments.append(apt)
 
+        # Organizer as participant
+        org_part = {
+            **DEMO_MARKER,
+            "participant_id": uid(), "appointment_id": apt_id,
+            "email": org["email"], "first_name": org["first_name"],
+            "last_name": org["last_name"],
+            "name": f"{org['first_name']} {org['last_name']}".strip(),
+            "role": "organizer", "is_organizer": True,
+            "status": "accepted_pending_guarantee",
+            "invitation_token": uid(),
+            "user_id": org.get("user_id"),
+            "accepted_at": iso(created), "invited_at": iso(created),
+            "created_at": iso(created), "updated_at": iso(created),
+        }
+        all_participants.append(org_part)
+
         # Participants
         p_users = part_users or pick_participants(org)
         for pu in p_users:
