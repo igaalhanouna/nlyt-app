@@ -140,6 +140,24 @@ def debit_payout(wallet_id: str, amount_cents: int, currency: str,
     if amount_cents < MINIMUM_PAYOUT_CENTS:
         return {"success": False, "error": f"Montant minimum de retrait : {MINIMUM_PAYOUT_CENTS / 100:.2f}€"}
 
+    return _debit_payout_internal(wallet_id, amount_cents, currency, payout_id, description)
+
+
+def debit_charity_payout(wallet_id: str, amount_cents: int, currency: str,
+                         payout_id: str, description: str) -> dict:
+    """
+    Debit available_balance for a manual charity payout. No minimum amount enforced.
+    """
+    if amount_cents <= 0:
+        return {"success": False, "error": "Le montant doit être positif"}
+
+    return _debit_payout_internal(wallet_id, amount_cents, currency, payout_id, description)
+
+
+def _debit_payout_internal(wallet_id: str, amount_cents: int, currency: str,
+                           payout_id: str, description: str) -> dict:
+    """Internal: atomic wallet debit + ledger entry."""
+
     now = datetime.now(timezone.utc).isoformat()
 
     result = db.wallets.update_one(

@@ -106,6 +106,9 @@ class AssociationCreate(BaseModel):
     contact_first_name: Optional[str] = None
     contact_last_name: Optional[str] = None
     contact_phone: Optional[str] = None
+    iban: Optional[str] = None
+    bic: Optional[str] = None
+    account_holder: Optional[str] = None
 
 
 class AssociationUpdate(BaseModel):
@@ -116,6 +119,23 @@ class AssociationUpdate(BaseModel):
     contact_first_name: Optional[str] = None
     contact_last_name: Optional[str] = None
     contact_phone: Optional[str] = None
+    iban: Optional[str] = None
+    bic: Optional[str] = None
+    account_holder: Optional[str] = None
+
+
+def _validate_iban(iban: str) -> str:
+    """Validate and normalize IBAN format. Returns cleaned IBAN or raises HTTPException."""
+    cleaned = iban.replace(" ", "").replace("-", "").upper()
+    if len(cleaned) < 15 or len(cleaned) > 34:
+        raise HTTPException(status_code=400, detail="IBAN invalide : longueur incorrecte (15-34 caractères)")
+    if not cleaned[:2].isalpha():
+        raise HTTPException(status_code=400, detail="IBAN invalide : doit commencer par un code pays (2 lettres)")
+    if not cleaned[2:4].isdigit():
+        raise HTTPException(status_code=400, detail="IBAN invalide : les positions 3-4 doivent être des chiffres de contrôle")
+    if not cleaned[4:].isalnum():
+        raise HTTPException(status_code=400, detail="IBAN invalide : caractères non autorisés")
+    return cleaned
 
 
 @router.get("/admin/list")
@@ -159,6 +179,10 @@ async def admin_create_association(request: Request, body: AssociationCreate):
     if db.charity_associations.find_one({"association_id": association_id}):
         raise HTTPException(status_code=409, detail=f"Une association avec cet ID existe déjà: {association_id}")
 
+    iban_clean = None
+    if body.iban and body.iban.strip():
+        iban_clean = _validate_iban(body.iban)
+
     doc = {
         "association_id": association_id,
         "name": body.name.strip(),
@@ -169,6 +193,9 @@ async def admin_create_association(request: Request, body: AssociationCreate):
         "contact_first_name": body.contact_first_name.strip() if body.contact_first_name else None,
         "contact_last_name": body.contact_last_name.strip() if body.contact_last_name else None,
         "contact_phone": body.contact_phone.strip() if body.contact_phone else None,
+        "iban": iban_clean,
+        "bic": body.bic.strip().upper() if body.bic and body.bic.strip() else None,
+        "account_holder": body.account_holder.strip() if body.account_holder and body.account_holder.strip() else None,
         "is_active": True,
         "created_at": now,
         "updated_at": now,
@@ -205,6 +232,15 @@ async def admin_update_association(request: Request, association_id: str, body: 
         update_fields["contact_last_name"] = body.contact_last_name.strip() if body.contact_last_name else None
     if body.contact_phone is not None:
         update_fields["contact_phone"] = body.contact_phone.strip() if body.contact_phone else None
+    if body.iban is not None:
+        if body.iban.strip():
+            update_fields["iban"] = _validate_iban(body.iban)
+        else:
+            update_fields["iban"] = None
+    if body.bic is not None:
+        update_fields["bic"] = body.bic.strip().upper() if body.bic.strip() else None
+    if body.account_holder is not None:
+        update_fields["account_holder"] = body.account_holder.strip() if body.account_holder.strip() else None
 
     db.charity_associations.update_one(
         {"association_id": association_id},

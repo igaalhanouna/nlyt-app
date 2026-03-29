@@ -1,0 +1,129 @@
+{
+  "summary": "Iteration 151: Charity Payouts V1 - All tests PASSED. Backend: 28/28 tests passed. Frontend: All UI flows working correctly including payout creation, IBAN masking, form validation, and history display.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": {
+    "backend_api_tests": {
+      "test_payouts_dashboard_requires_auth": "PASS - GET /api/admin/payouts/dashboard returns 401 without auth",
+      "test_payouts_list_requires_auth": "PASS - GET /api/admin/payouts returns 401 without auth",
+      "test_create_payout_requires_auth": "PASS - POST /api/admin/payouts returns 401 without auth",
+      "test_payouts_dashboard_requires_admin": "PASS - GET /api/admin/payouts/dashboard returns 403 for non-admin",
+      "test_payouts_list_requires_admin": "PASS - GET /api/admin/payouts returns 403 for non-admin",
+      "test_create_payout_requires_admin": "PASS - POST /api/admin/payouts returns 403 for non-admin",
+      "test_dashboard_returns_associations": "PASS - Dashboard returns list of active associations with wallet info",
+      "test_dashboard_association_fields": "PASS - Dashboard associations have all required fields",
+      "test_dashboard_croix_rouge_has_wallet": "PASS - Croix-Rouge has wallet with balance and IBAN",
+      "test_list_payouts_returns_array": "PASS - List payouts returns array with pagination info",
+      "test_list_payouts_with_limit": "PASS - List payouts respects limit parameter",
+      "test_list_payouts_filter_by_association": "PASS - List payouts can filter by association_id",
+      "test_payout_has_admin_name": "PASS - Payouts are enriched with admin_name",
+      "test_create_payout_rejects_no_iban": "PASS - POST /api/admin/payouts rejects if association has no IBAN",
+      "test_create_payout_rejects_amount_zero": "PASS - POST /api/admin/payouts rejects amount <= 0",
+      "test_create_payout_rejects_negative_amount": "PASS - POST /api/admin/payouts rejects negative amount",
+      "test_create_payout_rejects_exceeds_balance": "PASS - POST /api/admin/payouts rejects if amount > available_balance",
+      "test_create_payout_rejects_nonexistent_association": "PASS - POST /api/admin/payouts rejects non-existent association",
+      "test_create_payout_rejects_invalid_date": "PASS - POST /api/admin/payouts rejects invalid date format",
+      "test_create_payout_success_and_wallet_debit": "PASS - POST /api/admin/payouts creates payout and debits wallet atomically",
+      "test_payout_has_snapshots": "PASS - Payouts have iban_snapshot, bic_snapshot, account_holder_snapshot",
+      "test_iban_validation_rejects_too_short": "PASS - IBAN validation rejects IBAN < 15 characters",
+      "test_iban_validation_rejects_no_country_code": "PASS - IBAN validation rejects IBAN not starting with 2 letters",
+      "test_iban_validation_rejects_no_check_digits": "PASS - IBAN validation rejects IBAN without check digits",
+      "test_iban_validation_accepts_valid_iban": "PASS - IBAN validation accepts valid IBAN format",
+      "test_iban_validation_normalizes_spaces": "PASS - IBAN validation removes spaces and normalizes to uppercase",
+      "test_payout_creates_ledger_transaction": "PASS - Creating a payout creates a debit_payout transaction",
+      "test_payout_rejects_inactive_association": "PASS - POST /api/admin/payouts rejects if association is inactive"
+    },
+    "frontend_tests": {
+      "admin_dashboard_4_cards": "PASS - /admin page shows 4 cards including Reversements",
+      "admin_payouts_page_loads": "PASS - /admin/payouts page loads correctly",
+      "admin_payouts_title": "PASS - Title 'Reversements associations' displayed",
+      "kpi_cards_visible": "PASS - KPI cards (A reverser, En attente, Total reverse) visible",
+      "associations_list_visible": "PASS - Association cards displayed with name, balance, IBAN",
+      "iban_masked_display": "PASS - IBAN masked shows FR76 **** **** 0189 (first 4 + last 4)",
+      "disabled_button_no_iban": "PASS - 'Enregistrer un virement' button disabled when no IBAN",
+      "disabled_button_no_balance": "PASS - Button disabled when no balance",
+      "payout_form_opens": "PASS - Clicking 'Enregistrer un virement' opens payout form",
+      "payout_form_fields": "PASS - Form has amount, bank reference, date fields",
+      "payout_form_validation": "PASS - Form validates amount <= available_balance",
+      "payout_form_submit": "PASS - Payout created successfully via UI",
+      "payout_history_expandable": "PASS - Payout history expandable per association",
+      "payout_history_shows_admin": "PASS - History shows admin name for each payout",
+      "associations_edit_form": "PASS - Edit form has IBAN, BIC, account_holder fields",
+      "associations_iban_prefilled": "PASS - IBAN field shows current value in edit form"
+    }
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_charity_payouts_iter151.py",
+    "/app/test_reports/pytest/pytest_charity_payouts_iter151.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "charity_payout_routes.py: Proper admin guard using require_admin() on all endpoints",
+    "charity_payout_routes.py: Atomic payout creation with rollback on wallet debit failure",
+    "charity_payout_routes.py: IBAN/BIC/account_holder snapshots saved with each payout for audit trail",
+    "charity_associations.py: IBAN validation (15-34 chars, starts with 2 letters + 2 digits)",
+    "wallet_service.py: debit_charity_payout bypasses 5EUR minimum for charity payouts",
+    "AdminPayouts.js: Proper IBAN masking (first 4 + last 4 chars)",
+    "AdminPayouts.js: Button disabled when no balance or no IBAN",
+    "AdminPayouts.js: Form validation prevents amount > available_balance",
+    "AdminAssociations.js: Bank fields (IBAN, BIC, account_holder) in edit form"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_charity_payouts_iter151.py"
+  ],
+  "success_rate": {
+    "backend": "100% (28/28 tests passed)",
+    "frontend": "100% (all UI checks passed)"
+  },
+  "test_credentials": {
+    "admin": "testuser_audit@nlyt.app / TestAudit123!",
+    "regular_user": "igaal.hanouna@gmail.com / OrgTest123!"
+  },
+  "seed_data_creation": "Test payouts created during testing (TEST-UI-PAYOUT-001, LEDGER-TEST-*, TEST-*)",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Charity Payouts V1 complete. Endpoints: GET /api/admin/payouts/dashboard, GET /api/admin/payouts, POST /api/admin/payouts. Association assoc_croix_rouge has IBAN=FR7630006000011234567890189, BIC=BNPAFRPP, account_holder='Croix-Rouge Francaise' and charity wallet with balance (was ~30 EUR, may have been debited in tests). Other associations have no IBAN. Multiple test payouts exist in charity_payouts collection.",
+  "feature_verification": {
+    "payouts_dashboard": {
+      "endpoint": "GET /api/admin/payouts/dashboard",
+      "returns": "associations with wallet balances, IBAN, last payout",
+      "status": "WORKING"
+    },
+    "payouts_list": {
+      "endpoint": "GET /api/admin/payouts",
+      "returns": "payout history enriched with admin name",
+      "status": "WORKING"
+    },
+    "create_payout": {
+      "endpoint": "POST /api/admin/payouts",
+      "behavior": "creates payout + debits wallet atomically",
+      "validations": ["IBAN required", "amount > 0", "amount <= available_balance", "association active"],
+      "status": "WORKING"
+    },
+    "iban_validation": {
+      "endpoint": "PUT /api/charity-associations/admin/{id}",
+      "rules": "min 15 chars, starts with 2 letters + 2 digits",
+      "status": "WORKING"
+    },
+    "access_control": {
+      "admin_only": true,
+      "non_admin_gets_403": true,
+      "status": "WORKING"
+    },
+    "frontend_features": {
+      "admin_dashboard_card": "WORKING - Reversements card visible",
+      "payouts_page": "WORKING - KPI cards, association cards, payout form",
+      "iban_masking": "WORKING - Shows first 4 + last 4 chars",
+      "disabled_buttons": "WORKING - Disabled when no balance or no IBAN",
+      "payout_form_validation": "WORKING - Validates amount <= balance",
+      "payout_history": "WORKING - Expandable per association"
+    }
+  }
+}

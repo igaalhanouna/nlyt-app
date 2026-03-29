@@ -4,7 +4,7 @@ import AppBreadcrumb from '../../components/AppBreadcrumb';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
-import { Plus, Pencil, X, ExternalLink, Globe, Mail } from 'lucide-react';
+import { Plus, Pencil, X, ExternalLink, Globe, Mail, Building2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -18,6 +18,9 @@ function AssociationForm({ initial, onSave, onCancel, saving }) {
     contact_first_name: initial?.contact_first_name || '',
     contact_last_name: initial?.contact_last_name || '',
     contact_phone: initial?.contact_phone || '',
+    iban: initial?.iban || '',
+    bic: initial?.bic || '',
+    account_holder: initial?.account_holder || '',
   });
 
   const handleSubmit = (e) => {
@@ -31,6 +34,9 @@ function AssociationForm({ initial, onSave, onCancel, saving }) {
       contact_first_name: form.contact_first_name.trim() || null,
       contact_last_name: form.contact_last_name.trim() || null,
       contact_phone: form.contact_phone.trim() || null,
+      iban: form.iban.trim() || null,
+      bic: form.bic.trim() || null,
+      account_holder: form.account_holder.trim() || null,
     });
   };
 
@@ -65,8 +71,23 @@ function AssociationForm({ initial, onSave, onCancel, saving }) {
           <Input id="assoc-email" type="email" value={form.contact_email} onChange={(e) => setForm({ ...form, contact_email: e.target.value })} className="mt-1" data-testid="assoc-form-email" />
         </div>
         <div>
-          <Label htmlFor="assoc-phone">Téléphone du contact</Label>
+          <Label htmlFor="assoc-phone">Telephone du contact</Label>
           <Input id="assoc-phone" type="tel" value={form.contact_phone} onChange={(e) => setForm({ ...form, contact_phone: e.target.value })} className="mt-1" data-testid="assoc-form-contact-phone" />
+        </div>
+      </div>
+      <p className="text-sm font-medium text-slate-700 pt-2">Coordonnees bancaires</p>
+      <div>
+        <Label htmlFor="assoc-iban">IBAN</Label>
+        <Input id="assoc-iban" value={form.iban} onChange={(e) => setForm({ ...form, iban: e.target.value })} placeholder="FR76 3000 6000 0112 3456 7890 189" className="mt-1 font-mono" data-testid="assoc-form-iban" />
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="assoc-bic">BIC / SWIFT</Label>
+          <Input id="assoc-bic" value={form.bic} onChange={(e) => setForm({ ...form, bic: e.target.value })} placeholder="BNPAFRPP" className="mt-1 font-mono" data-testid="assoc-form-bic" />
+        </div>
+        <div>
+          <Label htmlFor="assoc-holder">Titulaire du compte</Label>
+          <Input id="assoc-holder" value={form.account_holder} onChange={(e) => setForm({ ...form, account_holder: e.target.value })} className="mt-1" data-testid="assoc-form-account-holder" />
         </div>
       </div>
       <div className="flex justify-end gap-3 pt-2">
@@ -228,6 +249,12 @@ export default function AdminAssociations() {
                     {assoc.contact_phone && (
                       <span className="text-xs text-slate-400 inline-flex items-center gap-1">
                         {assoc.contact_phone}
+                      </span>
+                    )}
+                    {assoc.iban && (
+                      <span className="text-xs text-slate-400 inline-flex items-center gap-1 font-mono">
+                        <Building2 className="w-3 h-3" /> IBAN ****{assoc.iban.slice(-4)}
+                        {assoc.account_holder && <span className="font-sans ml-1">({assoc.account_holder})</span>}
                       </span>
                     )}
                   </div>

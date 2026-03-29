@@ -65,6 +65,11 @@ def ensure_indexes():
     db.external_events.create_index([("external_event_id", ASCENDING), ("source", ASCENDING)], unique=True)
     db.external_events.create_index("nlyt_appointment_id", sparse=True)
 
+    # charity payouts
+    db.charity_payouts.create_index("payout_id", unique=True)
+    db.charity_payouts.create_index("association_id")
+    db.charity_payouts.create_index("created_at")
+
     # email idempotency
     db.sent_emails.create_index(
         [("email_type", ASCENDING), ("reference_id", ASCENDING), ("user_id", ASCENDING)],
