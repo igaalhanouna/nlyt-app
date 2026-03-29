@@ -4,12 +4,14 @@ import { useAuth } from '../contexts/AuthContext';
 import { Button } from './ui/button';
 import { Settings, LogOut, Menu, X, AlertTriangle, TrendingUp, Scale, ClipboardCheck, Wallet, CalendarDays } from 'lucide-react';
 import { attendanceAPI } from '../services/api';
+import api from '../services/api';
 
 export default function AppNavbar() {
   const { logout } = useAuth();
   const { pathname } = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [pendingReviewCount, setPendingReviewCount] = useState(0);
+  const [activeDisputeCount, setActiveDisputeCount] = useState(0);
 
   // Close drawer on route change
   useEffect(() => { setMobileOpen(false); }, [pathname]);
@@ -32,6 +34,23 @@ export default function AppNavbar() {
     };
     fetchCount();
     const interval = setInterval(fetchCount, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Fetch active disputes count
+  useEffect(() => {
+    const fetchDisputes = async () => {
+      try {
+        const res = await api.get('/api/disputes/mine');
+        const disputes = res.data.disputes || [];
+        const active = disputes.filter(d => d.display_state !== 'resolved').length;
+        setActiveDisputeCount(active);
+      } catch {
+        // Silently ignore
+      }
+    };
+    fetchDisputes();
+    const interval = setInterval(fetchDisputes, 60000);
     return () => clearInterval(interval);
   }, []);
 
@@ -87,8 +106,13 @@ export default function AppNavbar() {
                 </span>
               )}
             </Link>
-            <Link to="/litiges" className={linkClass('/litiges')} data-testid="navbar-litiges-link">
+            <Link to="/litiges" className={`${linkClass('/litiges')} relative flex items-center gap-1.5`} data-testid="navbar-litiges-link">
               Litiges
+              {activeDisputeCount > 0 && (
+                <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-amber-500 text-white text-[10px] font-bold leading-none" data-testid="navbar-litiges-badge">
+                  {activeDisputeCount}
+                </span>
+              )}
             </Link>
             <Link to="/mes-resultats" className={linkClass('/mes-resultats')} data-testid="navbar-results-link">
               Contributions
@@ -120,7 +144,7 @@ export default function AppNavbar() {
             aria-label="Menu"
           >
             <Menu className="w-5 h-5" />
-            {pendingReviewCount > 0 && (
+            {(pendingReviewCount > 0 || activeDisputeCount > 0) && (
               <span className="absolute top-1 right-1 w-2.5 h-2.5 rounded-full bg-amber-500" />
             )}
           </button>
@@ -173,6 +197,11 @@ export default function AppNavbar() {
               <Link to="/litiges" className={mobileLinkClass('/litiges')} data-testid="mobile-nav-litiges">
                 <Scale className="w-4.5 h-4.5" />
                 Litiges
+                {activeDisputeCount > 0 && (
+                  <span className="ml-auto inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full bg-amber-500 text-white text-xs font-bold">
+                    {activeDisputeCount}
+                  </span>
+                )}
               </Link>
               <Link to="/mes-resultats" className={mobileLinkClass('/mes-resultats')} data-testid="mobile-nav-results">
                 <TrendingUp className="w-4.5 h-4.5" />
