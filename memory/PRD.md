@@ -79,6 +79,11 @@ Application SaaS (React/FastAPI/MongoDB) de gestion des presences avec garanties
 - 24h expiry on proposals
 - Direct modification if no accepted non-org participants exist
 
+### Session 12 - Fix Modification Summary Display (2026-03-30)
+- Fixed formatChangeSummary() displaying only time changes, ignoring DATE/LIEU/VISIO
+- Now shows: Date (old → new), Horaire (old → new), Lieu (old → new), Visio (old → new), Durée
+- Validated via testing_agent iteration 135 (100% pass rate)
+
 ## Upcoming Tasks (P1)
 - Dashboard admin plateforme pour arbitrer les litiges escalades
 - Configurer webhook Stripe en production
