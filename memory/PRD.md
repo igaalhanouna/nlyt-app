@@ -77,6 +77,8 @@ Application SaaS (React/FastAPI/MongoDB) de gestion des presences avec garanties
 - Charity wallet debit ONLY on completed payout (never on view/prepare)
 - Payout idempotency keys auto-expire after 24h (TTL index)
 - ObjectId exclusion from all MongoDB responses
+- GUARANTEE RULE: No guarantee can be marked "completed" without Stripe verification (SetupIntent or Checkout). Auto-guarantee with saved card MUST call create_guarantee_with_saved_card() which verifies via Stripe API.
+- pm_dev_ payment methods are rejected when a real Stripe key is configured
 
 ## Upcoming Tasks (P1)
 - Executer le protocole de test webhook W1-W8 (apres validation utilisateur)
@@ -93,3 +95,11 @@ Application SaaS (React/FastAPI/MongoDB) de gestion des presences avec garanties
 - Chaque log inclut : event_id, event_type, contexte metier (transfer_id, payout_id, user_id, account_id, amount)
 - Protocole de test detaille W1-W8 redige dans `/app/docs/WEBHOOK_TEST_PROTOCOL.md`
 - Cas couverts : checkout (orga + participant), transfer.paid/failed/reversed, doublon, signature invalide, account.updated
+- CORRECTION CRITIQUE: Alignement evenements Stripe reels (transfer.paid/failed n'existent pas → remplaces par transfer.created/reversed/updated)
+
+## Guarantee Security Fix (2026-03-30)
+- BUG CRITIQUE: L'auto-garantie organisateur creait une garantie "completed" directement en DB sans verification Stripe
+- FIX: Remplacement par appel a create_guarantee_with_saved_card() qui verifie via SetupIntent Stripe
+- FIX: Si carte invalide/expiree/SCA → fallback vers Stripe Checkout redirect + nettoyage donnees obsoletes
+- FIX: Rejet des pm_dev_ avec une vraie cle Stripe (pas de bypass dev en production)
+- Corrige dans 2 endroits : create_appointment() et retry-organizer-guarantee()

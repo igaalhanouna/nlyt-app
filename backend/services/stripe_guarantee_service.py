@@ -53,8 +53,13 @@ class StripeGuaranteeService:
 
         # ── STRIPE VERIFICATION: confirm the card is still valid ──
         setup_intent_id = None
-        is_dev_mode = (not STRIPE_API_KEY or STRIPE_API_KEY == 'sk_test_emergent'
-                       or payment_method_id.startswith("pm_dev_"))
+        is_dev_mode = (not STRIPE_API_KEY or STRIPE_API_KEY == 'sk_test_emergent')
+
+        # pm_dev_ payment methods are fake — reject them when using a real Stripe key
+        if not is_dev_mode and payment_method_id.startswith("pm_dev_"):
+            print(f"[GUARANTEE] Rejecting fake pm_dev_ payment method with real Stripe key")
+            return {"success": False, "reason": "invalid_payment_method"}
+
         if not is_dev_mode:
             try:
                 si = stripe.SetupIntent.create(

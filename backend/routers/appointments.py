@@ -628,37 +628,42 @@ async def create_appointment(appointment: AppointmentCreate, request: Request):
         )
 
         if has_default_pm:
-            # ── OPTION A: Auto-guarantee with saved card (no Stripe redirect) ──
-            guarantee_id = str(uuid.uuid4())
-            guarantee_record = {
-                "guarantee_id": guarantee_id,
-                "participant_id": organizer_participant_id,
-                "appointment_id": appointment_id,
-                "stripe_customer_id": organizer_user['stripe_customer_id'],
-                "stripe_payment_method_id": organizer_user['default_payment_method_id'],
-                "penalty_amount": float(appointment.penalty_amount),
-                "penalty_currency": appointment.penalty_currency.lower(),
-                "status": "completed",
-                "source": "default_payment_method",
-                "created_at": now_utc_iso(),
-                "completed_at": now_utc_iso(),
-                "updated_at": now_utc_iso()
-            }
-            db.payment_guarantees.insert_one(guarantee_record)
+            # ── OPTION A: Auto-guarantee with saved card (VERIFIED via Stripe) ──
+            try:
+                from services.stripe_guarantee_service import StripeGuaranteeService
+                verify_result = StripeGuaranteeService.create_guarantee_with_saved_card(
+                    participant_id=organizer_participant_id,
+                    appointment_id=appointment_id,
+                    invitation_token=organizer_invitation_token,
+                    penalty_amount=float(appointment.penalty_amount),
+                    penalty_currency=appointment.penalty_currency.lower(),
+                    user_id=user['user_id'],
+                    stripe_customer_id=organizer_user['stripe_customer_id'],
+                    payment_method_id=organizer_user['default_payment_method_id'],
+                )
+                if verify_result.get('success'):
+                    organizer_auto_guaranteed = True
+                else:
+                    # Card invalid/expired/SCA required → clear stale DB data and fall through to OPTION B
+                    reason = verify_result.get('reason', 'unknown')
+                    print(f"[ORGANIZER] Saved card verification failed ({reason}) — falling back to Checkout")
+                    db.users.update_one(
+                        {"user_id": user['user_id']},
+                        {"$unset": {
+                            "default_payment_method_id": "",
+                            "default_payment_method_last4": "",
+                            "default_payment_method_brand": "",
+                            "default_payment_method_exp": "",
+                            "payment_method_consent": "",
+                            "payment_method_setup_at": ""
+                        }}
+                    )
+                    has_default_pm = False  # Force fallback to OPTION B
+            except Exception as e:
+                print(f"[ORGANIZER] Card verification error: {e} — falling back to Checkout")
+                has_default_pm = False  # Force fallback to OPTION B
 
-            db.participants.update_one(
-                {"participant_id": organizer_participant_id},
-                {"$set": {
-                    "status": "accepted_guaranteed",
-                    "guarantee_id": guarantee_id,
-                    "stripe_customer_id": organizer_user['stripe_customer_id'],
-                    "stripe_payment_method_id": organizer_user['default_payment_method_id'],
-                    "guaranteed_at": now_utc_iso(),
-                    "updated_at": now_utc_iso()
-                }}
-            )
-            organizer_auto_guaranteed = True
-        else:
+        if not has_default_pm and appointment.penalty_amount and appointment.penalty_amount > 0:
             # ── OPTION B: Stripe Checkout redirect (fallback) ──
             try:
                 from services.stripe_guarantee_service import StripeGuaranteeService
@@ -863,46 +868,49 @@ async def retry_organizer_guarantee(appointment_id: str, request: Request):
     )
 
     if has_default_pm:
-        # Auto-guarantee with saved card
-        guarantee_id = str(uuid.uuid4())
-        guarantee_record = {
-            "guarantee_id": guarantee_id,
-            "participant_id": org_p['participant_id'],
-            "appointment_id": appointment_id,
-            "stripe_customer_id": user_doc['stripe_customer_id'],
-            "stripe_payment_method_id": user_doc['default_payment_method_id'],
-            "penalty_amount": float(appointment.get('penalty_amount', 0)),
-            "penalty_currency": appointment.get('penalty_currency', 'eur').lower(),
-            "status": "completed",
-            "source": "default_payment_method",
-            "created_at": now_utc_iso(),
-            "completed_at": now_utc_iso(),
-            "updated_at": now_utc_iso()
-        }
-        db.payment_guarantees.insert_one(guarantee_record)
+        # Auto-guarantee with saved card (VERIFIED via Stripe)
+        try:
+            from services.stripe_guarantee_service import StripeGuaranteeService
+            verify_result = StripeGuaranteeService.create_guarantee_with_saved_card(
+                participant_id=org_p['participant_id'],
+                appointment_id=appointment_id,
+                invitation_token=org_p.get('invitation_token', ''),
+                penalty_amount=float(appointment.get('penalty_amount', 0)),
+                penalty_currency=appointment.get('penalty_currency', 'eur').lower(),
+                user_id=user['user_id'],
+                stripe_customer_id=user_doc['stripe_customer_id'],
+                payment_method_id=user_doc['default_payment_method_id'],
+            )
+            if verify_result.get('success'):
+                from services.appointment_lifecycle import activate_appointment
+                activation = await activate_appointment(appointment_id, user['user_id'])
+                return {
+                    "status": "active",
+                    "activated": True,
+                    "message": "Garantie validee avec votre carte par defaut. Invitations envoyees.",
+                    "meeting": activation.get("meeting_result")
+                }
+            else:
+                # Card invalid — clear stale DB data, fall through to Checkout
+                reason = verify_result.get('reason', 'unknown')
+                print(f"[RETRY-GUARANTEE] Saved card verification failed ({reason}) — falling back to Checkout")
+                db.users.update_one(
+                    {"user_id": user['user_id']},
+                    {"$unset": {
+                        "default_payment_method_id": "",
+                        "default_payment_method_last4": "",
+                        "default_payment_method_brand": "",
+                        "default_payment_method_exp": "",
+                        "payment_method_consent": "",
+                        "payment_method_setup_at": ""
+                    }}
+                )
+                has_default_pm = False
+        except Exception as e:
+            print(f"[RETRY-GUARANTEE] Card verification error: {e} — falling back to Checkout")
+            has_default_pm = False
 
-        db.participants.update_one(
-            {"participant_id": org_p['participant_id']},
-            {"$set": {
-                "status": "accepted_guaranteed",
-                "guarantee_id": guarantee_id,
-                "stripe_customer_id": user_doc['stripe_customer_id'],
-                "stripe_payment_method_id": user_doc['default_payment_method_id'],
-                "guaranteed_at": now_utc_iso(),
-                "updated_at": now_utc_iso()
-            }}
-        )
-
-        from services.appointment_lifecycle import activate_appointment
-        activation = await activate_appointment(appointment_id, user['user_id'])
-
-        return {
-            "status": "active",
-            "activated": True,
-            "message": "Garantie validée avec votre carte par défaut. Invitations envoyées.",
-            "meeting": activation.get("meeting_result")
-        }
-    else:
+    if not has_default_pm:
         # Create a new Stripe Checkout session
         from services.stripe_guarantee_service import StripeGuaranteeService
         frontend_url = os.environ.get('FRONTEND_URL', '').rstrip('/') or str(request.base_url).rstrip('/')
