@@ -227,11 +227,17 @@ async def list_my_disputes(request: Request):
     for d in disputes:
         apt = db.appointments.find_one(
             {"appointment_id": d['appointment_id']},
-            {"_id": 0, "title": 1, "start_datetime": 1}
+            {"_id": 0, "title": 1, "start_datetime": 1, "appointment_type": 1,
+             "location": 1, "location_display_name": 1, "meeting_provider": 1,
+             "duration_minutes": 1}
         )
         if apt:
             d['appointment_title'] = apt.get('title', '')
             d['appointment_date'] = apt.get('start_datetime', '')
+            d['appointment_type'] = apt.get('appointment_type', '')
+            d['appointment_location'] = apt.get('location_display_name') or apt.get('location', '')
+            d['appointment_meeting_provider'] = apt.get('meeting_provider', '')
+            d['appointment_duration_minutes'] = apt.get('duration_minutes', 0)
 
         target_p = db.participants.find_one(
             {"participant_id": d['target_participant_id']},
@@ -268,11 +274,17 @@ async def get_dispute_detail(dispute_id: str, request: Request):
     # Enrich with appointment info
     apt = db.appointments.find_one(
         {"appointment_id": dispute['appointment_id']},
-        {"_id": 0, "title": 1, "start_datetime": 1}
+        {"_id": 0, "title": 1, "start_datetime": 1, "appointment_type": 1,
+         "location": 1, "location_display_name": 1, "meeting_provider": 1,
+         "duration_minutes": 1}
     )
     if apt:
         dispute['appointment_title'] = apt.get('title', '')
         dispute['appointment_date'] = apt.get('start_datetime', '')
+        dispute['appointment_type'] = apt.get('appointment_type', '')
+        dispute['appointment_location'] = apt.get('location_display_name') or apt.get('location', '')
+        dispute['appointment_meeting_provider'] = apt.get('meeting_provider', '')
+        dispute['appointment_duration_minutes'] = apt.get('duration_minutes', 0)
 
     target_p = db.participants.find_one(
         {"participant_id": dispute['target_participant_id']},

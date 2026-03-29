@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { AlertTriangle, CheckCircle, Clock, Upload, FileText, Loader2, Scale, MessageSquare, UserCheck, UserX, Timer } from 'lucide-react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import { AlertTriangle, CheckCircle, Clock, Upload, FileText, Loader2, Scale, MessageSquare, UserCheck, UserX, Timer, MapPin, Video, Calendar, ArrowRight } from 'lucide-react';
 import api from '../../services/api';
 import AppNavbar from '../../components/AppNavbar';
 import AppBreadcrumb from '../../components/AppBreadcrumb';
+import { formatDateTimeCompactFr } from '../../utils/dateFormat';
 
 const STATUS_CONFIG = {
   waiting_both: { label: 'En attente de réponse', color: 'bg-amber-100 text-amber-700', icon: Clock },
@@ -125,24 +126,51 @@ export default function DisputeDetailPage() {
 
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
 
-          {/* ─── BLOC 1: Titre RDV + statut ─── */}
+          {/* ─── BLOC 1: Titre RDV + statut + contexte ─── */}
           <div className="p-5 border-b border-slate-100">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h1 className="text-lg font-semibold text-slate-800" data-testid="dispute-title">
                   {dispute.appointment_title || 'Rendez-vous'}
                 </h1>
-                {dispute.appointment_date && (
-                  <p className="text-xs text-slate-400 mt-1">
-                    {new Date(dispute.appointment_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
-                  </p>
-                )}
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5">
+                  {dispute.appointment_date && (
+                    <span className="flex items-center gap-1 text-xs text-slate-500">
+                      <Calendar className="w-3 h-3 text-slate-400" />
+                      {formatDateTimeCompactFr(dispute.appointment_date)}
+                    </span>
+                  )}
+                  {dispute.appointment_duration_minutes > 0 && (
+                    <span className="flex items-center gap-1 text-xs text-slate-500">
+                      <Clock className="w-3 h-3 text-slate-400" />
+                      {dispute.appointment_duration_minutes} min
+                    </span>
+                  )}
+                  {dispute.appointment_type && (
+                    <span className="flex items-center gap-1 text-xs text-slate-500">
+                      {dispute.appointment_type === 'physical'
+                        ? <><MapPin className="w-3 h-3 text-slate-400" /> {dispute.appointment_location || 'Physique'}</>
+                        : <><Video className="w-3 h-3 text-slate-400" /> {dispute.appointment_meeting_provider || 'Visioconference'}</>
+                      }
+                    </span>
+                  )}
+                </div>
               </div>
               <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap ${s.color}`} data-testid="dispute-status-badge">
                 <StatusIcon className="w-3.5 h-3.5" />
                 {s.label}
               </span>
             </div>
+            {dispute.appointment_id && (
+              <Link
+                to={`/appointments/${dispute.appointment_id}`}
+                className="inline-flex items-center gap-1 mt-3 text-xs text-blue-600 hover:text-blue-800 font-medium transition-colors"
+                data-testid="dispute-detail-view-appointment-link"
+              >
+                Voir le rendez-vous
+                <ArrowRight className="w-3 h-3" />
+              </Link>
+            )}
           </div>
 
           {/* ─── BLOC 2: Ce qui s'est passé ─── */}
