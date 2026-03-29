@@ -1,0 +1,157 @@
+{
+  "summary": "Presences UX Refonte - Iteration 130: All backend (11/11) and frontend tests pass. Backend API enrichment verified (appointment_type, appointment_location, appointment_meeting_provider). Frontend PresencesPage correctly displays cards with full RDV context, CTAs 'Remplir ma feuille'/'Voir ma declaration', breadcrumb, pending count badge. AttendanceSheetPage shows read-only view for submitted sheets with data-testid='sheet-readonly-view'. Submitted cards have NO opacity-70 or disabled state.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": {
+    "backend_api_tests": {
+      "test_01_health_check": "PASS - API accessible",
+      "test_02_login_user_pending": "PASS - Login with igaal@hotmail.com",
+      "test_03_pending_sheets_returns_new_fields": "PASS - appointment_type, appointment_location, appointment_meeting_provider present",
+      "test_04_pending_sheets_count_matches": "PASS - Count matches non-submitted sheets",
+      "test_05_pending_sheets_have_targets": "PASS - All sheets have targets_count > 0",
+      "test_06_sheet_detail_returns_enriched_context": "PASS - appointment_title, appointment_start_datetime, appointment_duration_minutes, appointment_type, appointment_location, appointment_meeting_provider",
+      "test_07_sheet_detail_has_declarations_with_names": "PASS - Declarations have target_name",
+      "test_08_login_user_submitted": "PASS - Login with testuser_audit@nlyt.app",
+      "test_09_submitted_sheet_detail_has_declared_status": "PASS - Submitted sheets in resolved phase",
+      "test_10_physical_appointment_has_location": "PASS - Physical appointments have location (Paris)",
+      "test_11_video_appointment_has_provider": "PASS - No video appointments (all physical)"
+    },
+    "frontend_presences_page_tests": {
+      "presences_page_loads": "PASS - data-testid='presences-page' found",
+      "breadcrumb": "PASS - 'Tableau de bord > Presences'",
+      "pending_count_badge": "PASS - '5 a remplir' for igaal@hotmail.com",
+      "sheet_cards_count": "PASS - 5 cards for igaal@hotmail.com",
+      "card_title": "PASS - 'AUDIT4-FULLY-PAST'",
+      "card_badge_pending": "PASS - 'A remplir' badge",
+      "card_cta_pending": "PASS - 'Remplir ma feuille'",
+      "card_view_appointment_link": "PASS - 'Voir le rendez-vous' link",
+      "card_duration": "PASS - '60 min' displayed",
+      "card_location": "PASS - 'Paris' displayed",
+      "card_targets_count": "PASS - '2 participants a declarer'",
+      "card_deadline": "PASS - 'Limite : mardi 31 mars 2026 à 11:49'"
+    },
+    "frontend_attendance_sheet_page_tests": {
+      "sheet_page_loads": "PASS - data-testid='attendance-sheet-page' found",
+      "appointment_title": "PASS - 'AUDIT4-FULLY-PAST'",
+      "view_appointment_link": "PASS - data-testid='sheet-view-appointment-link'",
+      "declaration_forms": "PASS - 2 declaration forms found",
+      "submit_button": "PASS - data-testid='submit-sheet-btn'"
+    },
+    "frontend_submitted_sheet_tests": {
+      "submitted_badges": "PASS - 2 submitted badges for testuser_audit",
+      "cta_voir_ma_declaration": "PASS - 'Voir ma declaration' CTA",
+      "readonly_view": "PASS - data-testid='sheet-readonly-view'",
+      "submitted_badge": "PASS - 'Soumise' badge",
+      "readonly_declarations": "PASS - 1 readonly declaration with target_name and status",
+      "breadcrumb_ma_declaration": "PASS - 'Presences > Ma declaration'"
+    },
+    "frontend_submitted_cards_clickability": {
+      "card_1_no_opacity": "PASS - No opacity-70 class",
+      "card_1_no_disabled": "PASS - No disabled state",
+      "card_2_no_opacity": "PASS - No opacity-70 class",
+      "card_2_no_disabled": "PASS - No disabled state",
+      "cta_clickable": "PASS - CTAs are not disabled"
+    }
+  },
+  "verified_features": {
+    "backend_pending_sheets_enrichment": {
+      "location": "/app/backend/routers/declarative_routes.py lines 36-40, 70-83",
+      "description": "GET /api/attendance-sheets/pending returns appointment_type, appointment_location, appointment_meeting_provider",
+      "status": "VERIFIED WORKING"
+    },
+    "backend_sheet_detail_enrichment": {
+      "location": "/app/backend/routers/declarative_routes.py lines 115-127",
+      "description": "GET /api/attendance-sheets/{id} returns appointment_title, appointment_start_datetime, appointment_duration_minutes, appointment_type, appointment_location, appointment_meeting_provider",
+      "status": "VERIFIED WORKING"
+    },
+    "frontend_presences_page_breadcrumb": {
+      "location": "/app/frontend/src/pages/declarations/PresencesPage.js lines 33-36",
+      "description": "Breadcrumb shows 'Tableau de bord > Presences'",
+      "status": "VERIFIED WORKING"
+    },
+    "frontend_pending_count_badge": {
+      "location": "/app/frontend/src/pages/declarations/PresencesPage.js lines 41-45",
+      "description": "Header shows pending count badge (e.g., '5 a remplir')",
+      "status": "VERIFIED WORKING"
+    },
+    "frontend_sheet_card_context": {
+      "location": "/app/frontend/src/pages/declarations/PresencesPage.js lines 80-173",
+      "description": "Cards show title, date+time, duration, type/location, targets count, deadline, badge, CTAs",
+      "status": "VERIFIED WORKING"
+    },
+    "frontend_cta_remplir_ma_feuille": {
+      "location": "/app/frontend/src/pages/declarations/PresencesPage.js lines 159-161",
+      "description": "Pending cards show 'Remplir ma feuille' CTA",
+      "status": "VERIFIED WORKING"
+    },
+    "frontend_cta_voir_ma_declaration": {
+      "location": "/app/frontend/src/pages/declarations/PresencesPage.js lines 157-158",
+      "description": "Submitted cards show 'Voir ma declaration' CTA",
+      "status": "VERIFIED WORKING"
+    },
+    "frontend_voir_le_rendez_vous_link": {
+      "location": "/app/frontend/src/pages/declarations/PresencesPage.js lines 163-170",
+      "description": "'Voir le rendez-vous' link on each card",
+      "status": "VERIFIED WORKING"
+    },
+    "frontend_attendance_sheet_context": {
+      "location": "/app/frontend/src/pages/declarations/AttendanceSheetPage.js lines 124-176",
+      "description": "Sheet page shows appointment context (title, date+time, duration, type, location)",
+      "status": "VERIFIED WORKING"
+    },
+    "frontend_readonly_view": {
+      "location": "/app/frontend/src/pages/declarations/AttendanceSheetPage.js lines 199-237",
+      "description": "Submitted mode shows read-only view with data-testid='sheet-readonly-view'",
+      "status": "VERIFIED WORKING"
+    },
+    "frontend_readonly_declarations": {
+      "location": "/app/frontend/src/pages/declarations/AttendanceSheetPage.js lines 206-226",
+      "description": "Each declaration shows target_name and declared_status with data-testid='readonly-declaration-{id}'",
+      "status": "VERIFIED WORKING"
+    },
+    "frontend_submitted_badge_breadcrumb": {
+      "location": "/app/frontend/src/pages/declarations/AttendanceSheetPage.js lines 115-119, 137-140",
+      "description": "Submitted mode shows 'Soumise' badge and breadcrumb says 'Ma declaration'",
+      "status": "VERIFIED WORKING"
+    },
+    "frontend_no_opacity_on_submitted": {
+      "location": "/app/frontend/src/pages/declarations/PresencesPage.js lines 87-91",
+      "description": "Submitted cards have NO opacity-70 or disabled state",
+      "status": "VERIFIED WORKING"
+    }
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_presences_ux_refonte_iter130.py",
+    "/app/test_reports/pytest/pytest_presences_ux_refonte_iter130.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Backend enrichment correctly implemented at declarative_routes.py lines 36-40 and 115-127",
+    "Frontend PresencesPage correctly displays all required card elements with proper data-testid attributes",
+    "Frontend AttendanceSheetPage correctly shows read-only view for submitted sheets",
+    "STATUS_DISPLAY map correctly transforms declared_status to French labels with appropriate colors",
+    "Submitted cards are fully clickable (no opacity-70, no disabled state)"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_presences_ux_refonte_iter130.py"
+  ],
+  "success_rate": {
+    "backend": "100% (11/11 tests passed)",
+    "frontend": "100% (all UI tests passed)"
+  },
+  "test_credentials": {
+    "user_1": "igaal@hotmail.com / Test123! (5 pending sheets)",
+    "user_2": "testuser_audit@nlyt.app / TestAudit123! (2 submitted sheets, 3 pending)"
+  },
+  "seed_data_creation": "None - used existing test data",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Presences UX Refonte verified. Key features: (1) Backend enrichment adds appointment_type, appointment_location, appointment_meeting_provider to both /api/attendance-sheets/pending and /api/attendance-sheets/{id}, (2) Frontend PresencesPage shows cards with full RDV context, CTAs, breadcrumb, pending count badge, (3) Frontend AttendanceSheetPage shows read-only view for submitted sheets with data-testid='sheet-readonly-view', (4) Submitted cards have NO opacity-70 or disabled state. Test data: igaal@hotmail.com has 5 pending sheets (AUDIT4-FULLY-PAST, AUDIT D, Test Cancel D, AUDIT C, Test Cancel C - all physical, Paris). testuser_audit@nlyt.app has 2 submitted sheets (test dispute 2, création edimbourg) and 3 pending."
+}

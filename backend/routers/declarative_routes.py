@@ -35,7 +35,9 @@ async def get_pending_sheets(request: Request):
         for a in db.appointments.find(
             {"appointment_id": {"$in": apt_ids}},
             {"_id": 0, "appointment_id": 1, "title": 1, "start_datetime": 1,
-             "duration_minutes": 1, "declarative_phase": 1, "declarative_deadline": 1}
+             "duration_minutes": 1, "declarative_phase": 1, "declarative_deadline": 1,
+             "appointment_type": 1, "location": 1, "location_display_name": 1,
+             "meeting_provider": 1}
         )
     }
 
@@ -72,6 +74,9 @@ async def get_pending_sheets(request: Request):
             "start_datetime": apt.get('start_datetime'),
             "duration_minutes": apt.get('duration_minutes'),
             "declarative_deadline": apt.get('declarative_deadline'),
+            "appointment_type": apt.get('appointment_type', ''),
+            "appointment_location": apt.get('location_display_name') or apt.get('location', ''),
+            "appointment_meeting_provider": apt.get('meeting_provider', ''),
             "targets_count": len(targets),
             "targets": targets,
             "already_submitted": sheet.get('status') == 'submitted',
@@ -106,10 +111,25 @@ async def get_my_sheet(appointment_id: str, request: Request):
     if not sheet:
         raise HTTPException(status_code=404, detail="Aucune feuille de presence trouvee")
 
+    # Enrich with appointment context
+    apt = db.appointments.find_one(
+        {"appointment_id": appointment_id},
+        {"_id": 0, "title": 1, "start_datetime": 1, "duration_minutes": 1,
+         "appointment_type": 1, "location": 1, "location_display_name": 1,
+         "meeting_provider": 1}
+    )
+    if apt:
+        sheet['appointment_title'] = apt.get('title', '')
+        sheet['appointment_start_datetime'] = apt.get('start_datetime', '')
+        sheet['appointment_duration_minutes'] = apt.get('duration_minutes', 0)
+        sheet['appointment_type'] = apt.get('appointment_type', '')
+        sheet['appointment_location'] = apt.get('location_display_name') or apt.get('location', '')
+        sheet['appointment_meeting_provider'] = apt.get('meeting_provider', '')
+
     # Enrich targets with names
     for d in sheet.get('declarations', []):
         if d.get('is_self_declaration'):
-            d['target_name'] = 'Vous-même'
+            d['target_name'] = 'Vous-meme'
         else:
             p = db.participants.find_one(
                 {"participant_id": d['target_participant_id']},
