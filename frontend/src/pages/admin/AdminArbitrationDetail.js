@@ -134,7 +134,7 @@ export default function AdminArbitrationDetail() {
         </div>
 
         {/* ════════ ZONE 1 — Verdict immediat ════════ */}
-        <VerdictBanner td={td} sa={sa} certainty={certainty} />
+        <VerdictBanner td={td} sa={sa} certainty={certainty} targetName={dispute.target_name} />
 
         {/* Tech details accordion */}
         <div className="mb-5">
@@ -304,8 +304,9 @@ export default function AdminArbitrationDetail() {
 
 // ── Zone 1: Verdict Banner ──
 
-function VerdictBanner({ td, sa, certainty }) {
+function VerdictBanner({ td, sa, certainty, targetName }) {
   const hasProof = td.has_admissible_proof;
+  const name = targetName || 'Ce participant';
 
   const CERT_CONFIG = {
     evident: { label: 'Decision evidente', dot: 'bg-red-500', bg: 'bg-red-50', text: 'text-red-700' },
@@ -318,7 +319,7 @@ function VerdictBanner({ td, sa, certainty }) {
     return (
       <section className="rounded-xl border-2 border-emerald-300 bg-emerald-50 p-5 mb-3" data-testid="verdict-bloc">
         <CertaintyBadge config={CERT_CONFIG.ambigue} label="Presence confirmee" />
-        <h2 className="text-lg font-bold text-emerald-900 mt-2">Presence confirmee par le systeme.</h2>
+        <h2 className="text-lg font-bold text-emerald-900 mt-2">Presence de {name} confirmee par le systeme.</h2>
         <p className="text-sm text-emerald-700 mt-1">
           Une preuve de connexion ou de localisation a ete validee automatiquement.
           Ce dossier n'aurait normalement pas du etre escalade.
@@ -334,10 +335,10 @@ function VerdictBanner({ td, sa, certainty }) {
     return (
       <section className="rounded-xl border-2 border-amber-300 bg-amber-50 p-5 mb-3" data-testid="verdict-bloc">
         <CertaintyBadge config={cert} />
-        <h2 className="text-lg font-bold text-amber-900 mt-2">Presence partiellement detectee.</h2>
+        <h2 className="text-lg font-bold text-amber-900 mt-2">Presence de {name} partiellement detectee.</h2>
         <p className="text-sm text-amber-700 mt-1">
           Un signal de connexion a ete detecte mais il est insuffisant pour valider automatiquement.
-          Le participant n'a pas fourni d'element suffisant pour prouver sa presence de maniere certaine.
+          {name} n'a pas fourni d'element suffisant pour prouver sa presence de maniere certaine.
         </p>
       </section>
     );
@@ -346,9 +347,9 @@ function VerdictBanner({ td, sa, certainty }) {
   return (
     <section className="rounded-xl border-2 border-red-300 bg-red-50 p-5 mb-3" data-testid="verdict-bloc">
       <CertaintyBadge config={cert} />
-      <h2 className="text-lg font-bold text-red-900 mt-2">Ce participant n'a pas prouve sa presence.</h2>
+      <h2 className="text-lg font-bold text-red-900 mt-2">{name} n'a pas prouve sa presence.</h2>
       <p className="text-sm text-red-700 mt-1">
-        Le participant n'a fourni aucun element pour prouver sa presence.
+        {name} n'a fourni aucun element pour prouver sa presence.
         Aucune preuve de connexion, de localisation ou de check-in n'a ete enregistree.
       </p>
       <p className="text-sm text-red-800 font-medium mt-2">
