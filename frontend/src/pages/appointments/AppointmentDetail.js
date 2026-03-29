@@ -790,6 +790,17 @@ export default function AppointmentDetail() {
           </div>
         )}
 
+        {/* Modification banner — TOP POSITION for immediate visibility */}
+        {activeProposal && activeProposal.status === 'pending' && (
+          <ModificationProposals
+            activeProposal={activeProposal}
+            respondingProposal={respondingProposal} onRespondProposal={handleRespondProposal} onCancelProposal={handleCancelProposal}
+            proposalHistory={[]} showHistory={false} setShowHistory={() => {}}
+            viewerParticipantId={viewerParticipant?.participant_id}
+            isOrganizer={isOrganizer}
+          />
+        )}
+
         {/* #2 — Essentials (date, lieu, lien, confiance) */}
         <AppointmentEssentials
           appointment={appointment} isCancelled={isCancelled} organizerParticipant={organizerParticipant}
@@ -898,21 +909,18 @@ export default function AppointmentDetail() {
           />
         )}
 
-        {/* #9 — Proposition active + Historique (visible for both) */}
-        {(activeProposal || proposalHistory.length > 0) && (
+        {/* #9 — Historique des modifications */}
+        {proposalHistory.length > 0 && (
           <details className="mb-4 bg-white border border-slate-200 rounded-xl overflow-hidden group" data-testid="modifications-details">
             <summary className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-slate-50 transition-colors select-none min-h-[44px]">
-              <span className="text-sm font-semibold text-slate-900">Modifications</span>
-              <div className="flex items-center gap-2">
-                {activeProposal && <span className="text-xs px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full font-medium">En cours</span>}
-                <ChevronDown className="w-4 h-4 text-slate-400 transition-transform group-open:rotate-180" />
-              </div>
+              <span className="text-sm font-semibold text-slate-900">Historique des modifications</span>
+              <ChevronDown className="w-4 h-4 text-slate-400 transition-transform group-open:rotate-180" />
             </summary>
             <div className="border-t border-slate-100">
               <ModificationProposals
-                activeProposal={activeProposal}
-                respondingProposal={respondingProposal} onRespondProposal={handleRespondProposal} onCancelProposal={handleCancelProposal}
-                proposalHistory={proposalHistory} showHistory={showHistory} setShowHistory={setShowHistory}
+                activeProposal={null}
+                respondingProposal={false} onRespondProposal={() => {}} onCancelProposal={() => {}}
+                proposalHistory={proposalHistory} showHistory={true} setShowHistory={() => {}}
                 viewerParticipantId={viewerParticipant?.participant_id}
                 isOrganizer={isOrganizer}
               />

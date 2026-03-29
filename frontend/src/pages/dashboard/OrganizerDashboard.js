@@ -234,8 +234,25 @@ function ActionCard({ item, onRemind, onAccept, onDecline, onCancel, now, onNavi
   );
 }
 
+// ── Modification change summary helper ──
+function formatChangeSummary(mod) {
+  if (!mod?.changes) return '';
+  const parts = [];
+  const c = mod.changes;
+  const o = mod.original_values || {};
+  if (c.start_datetime) {
+    const newH = new Date(c.start_datetime).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    const oldH = o.start_datetime ? new Date(o.start_datetime).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '—';
+    parts.push(`Horaire : ${oldH} → ${newH}`);
+  }
+  if (c.duration_minutes) parts.push(`Durée : ${o.duration_minutes || '—'} → ${c.duration_minutes} min`);
+  if (c.location) parts.push('Lieu modifié');
+  if (c.appointment_type) parts.push(c.appointment_type === 'video' ? 'Passage en visio' : 'Passage en présentiel');
+  return parts.join(' · ') || 'Modification demandée';
+}
+
 // ── Timeline Card (unified for organizer + participant) ──
-function TimelineCard({ item, isPast, onDelete, onRemind, onQuit, onDecline, now, fromTab, onNavigate, hasModification, modActionRequired }) {
+function TimelineCard({ item, isPast, onDelete, onRemind, onQuit, onDecline, now, fromTab, onNavigate, hasModification, modActionRequired, modificationData }) {
   const isParticipant = item.role === 'participant';
   const badge = getTemporalBadge(item, now);
   const isOngoing = badge.key === 'ongoing';
@@ -304,7 +321,7 @@ function TimelineCard({ item, isPast, onDelete, onRemind, onQuit, onDecline, now
             {hasModification && !modActionRequired && (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium rounded-full border bg-blue-50 border-blue-200 text-blue-600" data-testid={`mod-pending-badge-${item.appointment_id}`}>
                 <FileEdit className="w-3 h-3" />
-                Modification en cours
+                Modification demandée
               </span>
             )}
             {riskCfg && risk !== 'secured' && (
@@ -324,6 +341,24 @@ function TimelineCard({ item, isPast, onDelete, onRemind, onQuit, onDecline, now
             )}
           </div>
         </div>
+
+        {/* Modification context banner */}
+        {(hasModification || modActionRequired) && modificationData && (
+          <div className={`flex items-center justify-between rounded-lg px-3 py-2 mb-2.5 text-xs ${modActionRequired ? 'bg-amber-50 border border-amber-200' : 'bg-blue-50 border border-blue-100'}`} data-testid={`mod-context-${item.appointment_id}`}>
+            <div className="flex-1 min-w-0">
+              <p className={`font-medium truncate ${modActionRequired ? 'text-amber-800' : 'text-blue-700'}`}>
+                {formatChangeSummary(modificationData)}
+              </p>
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                Par {modificationData.proposed_by?.name || modificationData.proposed_by?.role}
+                {modActionRequired ? ' — En attente de votre réponse' : ' — En attente des réponses'}
+              </p>
+            </div>
+            <Link to={`/appointments/${item.appointment_id}`} className={`flex-shrink-0 ml-3 px-2.5 py-1 rounded-md text-[11px] font-medium ${modActionRequired ? 'bg-amber-600 text-white hover:bg-amber-700' : 'bg-blue-100 text-blue-700 hover:bg-blue-200'} transition-colors`} onClick={(e) => e.stopPropagation()} data-testid={`mod-cta-${item.appointment_id}`}>
+              Voir la demande
+            </Link>
+          </div>
+        )}
 
         {/* Row 1: Title */}
         <h4 className={`font-semibold text-sm leading-tight mb-2.5 ${isPast && !isOngoing ? 'text-slate-500' : 'text-slate-900'}`}>
@@ -591,9 +626,11 @@ export default function OrganizerDashboard() {
     } catch { /* non-blocking */ }
   };
 
-  // Sets for badges on timeline cards
+  // Sets + data for badges and context on timeline cards
   const modActionAptIds = new Set(pendingModifications.filter(p => p.is_action_required).map(p => p.appointment_id));
   const modPendingAptIds = new Set(pendingModifications.map(p => p.appointment_id));
+  const modDataByAptId = {};
+  pendingModifications.forEach(p => { modDataByAptId[p.appointment_id] = p; });
 
   const loadAnalytics = useCallback(async () => {
     if (!currentWorkspace) return;
@@ -968,14 +1005,14 @@ export default function OrganizerDashboard() {
                 >
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-slate-900 truncate">{mod.appointment_title || 'Rendez-vous'}</p>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      Proposé par {mod.proposed_by?.name || mod.proposed_by?.role}
+                    <p className="text-xs text-slate-700 mt-0.5 font-medium">{formatChangeSummary(mod)}</p>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      Par {mod.proposed_by?.name || mod.proposed_by?.role}
                       {mod.proposed_by?.role === 'participant' ? ' (participant)' : ' (organisateur)'}
-                      {' — '}
-                      {Object.keys(mod.changes || {}).map(k => k === 'start_datetime' ? 'Date' : k === 'duration_minutes' ? 'Durée' : k === 'location' ? 'Lieu' : k).join(', ')}
+                      {' — '}{mod.participants_summary} validé
                     </p>
                   </div>
-                  <span className="flex-shrink-0 ml-3 text-xs font-medium text-amber-700 bg-amber-100 px-2 py-1 rounded-full">
+                  <span className="flex-shrink-0 ml-3 text-xs font-medium text-white bg-amber-600 px-3 py-1.5 rounded-lg hover:bg-amber-700 transition-colors" data-testid={`mod-action-cta-${mod.proposal_id}`}>
                     Répondre
                   </span>
                 </Link>
@@ -1032,7 +1069,7 @@ export default function OrganizerDashboard() {
                   <div className="space-y-3">
                     {upcomingMerged.map(merged =>
                       merged.type === 'timeline' ? (
-                        <TimelineCard key={`tl-${merged.data.appointment_id}`} item={merged.data} isPast={false} onDelete={handleDeleteClick} onRemind={handleRemind} onQuit={handleQuitParticipation} onDecline={handleDeclineInvitation} now={now} fromTab="upcoming" onNavigate={saveScroll} hasModification={modPendingAptIds.has(merged.data.appointment_id)} modActionRequired={modActionAptIds.has(merged.data.appointment_id)} />
+                        <TimelineCard key={`tl-${merged.data.appointment_id}`} item={merged.data} isPast={false} onDelete={handleDeleteClick} onRemind={handleRemind} onQuit={handleQuitParticipation} onDecline={handleDeclineInvitation} now={now} fromTab="upcoming" onNavigate={saveScroll} hasModification={modPendingAptIds.has(merged.data.appointment_id)} modActionRequired={modActionAptIds.has(merged.data.appointment_id)} modificationData={modDataByAptId[merged.data.appointment_id]} />
                       ) : (
                         <ExternalEventCard key={`ext-${merged.data.external_event_id}`} event={merged.data} />
                       )
@@ -1050,7 +1087,7 @@ export default function OrganizerDashboard() {
                 ) : (
                   <div className="space-y-3">
                     {timeline.past.slice(0, pastVisible).map(item => (
-                      <TimelineCard key={`past-${item.role}-${item.appointment_id}`} item={item} isPast={true} onDelete={handleDeleteClick} onRemind={handleRemind} onQuit={handleQuitParticipation} onDecline={handleDeclineInvitation} now={now} fromTab="past" onNavigate={saveScroll} hasModification={modPendingAptIds.has(item.appointment_id)} modActionRequired={modActionAptIds.has(item.appointment_id)} />
+                      <TimelineCard key={`past-${item.role}-${item.appointment_id}`} item={item} isPast={true} onDelete={handleDeleteClick} onRemind={handleRemind} onQuit={handleQuitParticipation} onDecline={handleDeclineInvitation} now={now} fromTab="past" onNavigate={saveScroll} hasModification={modPendingAptIds.has(item.appointment_id)} modActionRequired={modActionAptIds.has(item.appointment_id)} modificationData={modDataByAptId[item.appointment_id]} />
                     ))}
                     {timeline.past.length > pastVisible && (
                       <div className="pt-4 text-center">

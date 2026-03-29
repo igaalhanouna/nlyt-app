@@ -46,7 +46,7 @@ export default function ModificationProposals({
           <div className="flex items-center gap-2 mb-3">
             <FileEdit className={`w-5 h-5 ${viewerMustRespond ? 'text-amber-600' : 'text-blue-600'}`} />
             <h2 className={`font-semibold ${viewerMustRespond ? 'text-amber-900' : 'text-blue-900'}`}>
-              {viewerMustRespond ? 'Modification en attente de votre réponse' : 'Modification en cours'}
+              {viewerMustRespond ? 'Modification demandée — Action requise' : 'Modification demandée'}
             </h2>
             <span className="ml-auto text-xs bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full">
               Par {activeProposal.proposed_by?.name || activeProposal.proposed_by?.role}
