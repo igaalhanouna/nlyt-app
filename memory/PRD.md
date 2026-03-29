@@ -299,6 +299,34 @@ Application SaaS (React/FastAPI/MongoDB) de gestion des presences avec garanties
 
 **Valide via testing_agent iteration 149 (100%: 14/14 backend, 100% frontend)**
 
+
+### Session 31 - Back-office Associations (2026-03-29)
+**Objectif:** Migration des associations caritatives vers MongoDB (source unique) + back-office admin CRUD.
+
+**Migration (Phase 1 - Transition progressive):**
+- Script `/app/backend/scripts/migrate_associations.py` : insere 8 associations statiques en MongoDB (idempotent, non destructif)
+- `charity-001` (legacy) conserve, non supprime
+- Fallback statique lecture seule conserve (sera supprime en Phase 2 apres validation prod)
+
+**Backend (`/app/backend/routers/charity_associations.py`) reecrit:**
+- Source MongoDB prioritaire, fallback statique Phase 1
+- `is_valid_association()` et `get_association_name()` — MongoDB d'abord
+- `GET /api/charity-associations/` — meme format exact qu'avant (compatibilite 100%)
+- `GET /api/charity-associations/admin/list` — toutes les associations (auth requise)
+- `POST /api/charity-associations/admin/create` — creation avec ID auto-genere
+- `PUT /api/charity-associations/admin/{id}` — modification
+- `PATCH /api/charity-associations/admin/{id}/toggle` — activer/desactiver
+
+**Frontend:**
+- `/app/frontend/src/pages/admin/AdminAssociations.js` — page admin avec liste, ajout, edit, toggle
+- `/settings/profile` — dropdown inchange, lit la meme API publique
+
+**Garanties validees:**
+- association_id preserves (aucun changement de format)
+- Aucune regression sur /settings/profile ni formulaires de RDV
+- Toggle admin impacte immediatement la liste publique
+
+**Valide via testing_agent iteration 150 (100%: 18/18 backend, 100% frontend)**
 ### P2 — Notifications email/push (cahier des charges)
 **Contrainte** : Respecter strictement la charte graphique email existante (email_service.py : _base_template, ACCENT_COLORS, _btn, _info_box, _alert_box, _detail_row, _greeting, _paragraph, _brand_note).
 
