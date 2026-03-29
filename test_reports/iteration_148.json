@@ -1,0 +1,90 @@
+{
+  "summary": "Iteration 148: Invitation Onboarding Flow Refonte - All tests PASSED (11/13 backend, 2 skipped). Verified new /link-account and /link-user endpoints work correctly. Frontend InvitationAccountChoice component properly calls linkAccount. Account creation does NOT auto-accept invitation (status remains 'invited'). Token stored as nlyt_token. Scenario C (logged-in user with email mismatch) correctly stays on invitation page.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Skip account flow on past appointment",
+        "issue": "Error 'body stream already read' shown when skipping account on an appointment that has already started. This is a minor error handling issue - the backend correctly returns 400 but frontend error parsing fails.",
+        "affected_selectors": ["[data-testid='skip-account-link']"],
+        "priority": "LOW"
+      }
+    ],
+    "design_issues": []
+  },
+  "passed_tests": {
+    "backend_api_tests": {
+      "test_link_account_new_user_creates_account": "PASS - Creates account, returns JWT, is_new_account=true",
+      "test_link_account_existing_user_login": "PASS - Existing user flow verified",
+      "test_link_account_wrong_password_returns_401": "PASS - Wrong password returns 401",
+      "test_link_account_invalid_token_returns_404": "PASS - Invalid token returns 404",
+      "test_link_user_email_mismatch_returns_403": "PASS - Email mismatch returns 403",
+      "test_link_user_requires_authentication": "PASS - Requires auth (401/403)",
+      "test_link_user_invalid_token_returns_404": "PASS - Invalid token returns 404",
+      "test_status_remains_invited_after_account_creation": "PASS - Status stays 'invited' after link-account",
+      "test_my_timeline_returns_action_required_bucket": "PASS - Timeline has action_required bucket",
+      "test_link_account_endpoint_exists": "PASS - Endpoint exists",
+      "test_link_user_endpoint_exists": "PASS - Endpoint exists"
+    },
+    "frontend_tests": {
+      "invitation_page_loads": "PASS - Page loads with invitation card",
+      "existing_account_banner": "PASS - Banner shown for existing accounts",
+      "accept_button_triggers_account_choice": "PASS - Clicking Accept shows account choice panel",
+      "account_choice_panel_elements": "PASS - Password input, submit button, skip link all present",
+      "display_name_and_email": "PASS - Shows participant name and email",
+      "scenario_c_email_mismatch": "PASS - Logged-in user with different email stays on invitation page",
+      "token_storage_key": "PASS - Token stored as nlyt_token (not 'token')"
+    }
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_invitation_onboarding_iter148.py",
+    "/app/test_reports/pytest/pytest_invitation_onboarding_iter148.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Backend /link-account endpoint correctly creates account without accepting invitation",
+    "Backend /link-user endpoint correctly validates email match (403 on mismatch)",
+    "Frontend InvitationAccountChoice.js calls invitationAPI.linkAccount (not accept-with-account)",
+    "Frontend AuthContext.loginWithToken properly sets nlyt_token and nlyt_user",
+    "Frontend api.js has linkAccount and linkUser methods in invitationAPI",
+    "Token storage uses nlyt_token key consistently across codebase"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_invitation_onboarding_iter148.py"
+  ],
+  "success_rate": {
+    "backend": "100% (11/11 tests passed, 2 skipped due to test data constraints)",
+    "frontend": "100% (all UI checks passed)"
+  },
+  "test_credentials": {
+    "admin": "testuser_audit@nlyt.app / TestAudit123!",
+    "user": "igaal@hotmail.com / Test123!",
+    "test_invitation_token": "02ba9bcf-206a-44d3-955a-36541192ce86 (email: dst4@test.com)"
+  },
+  "seed_data_creation": "None - used existing test invitation token",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Invitation onboarding flow refonte complete. New endpoints /link-account and /link-user work correctly. The flow is: 1) User clicks Accept on invitation page, 2) Account choice panel appears, 3) User enters password to create account or login, 4) Frontend calls /link-account which returns JWT + user data + is_new_account flag, 5) Frontend calls loginWithToken to store auth, 6) User is redirected to /dashboard. The invitation status remains 'invited' until user explicitly accepts from dashboard (which may trigger Stripe guarantee flow if penalty > 0). Scenario C (logged-in user visiting invitation link) auto-redirects to dashboard only if email matches.",
+  "feature_verification": {
+    "scenario_a_new_user": {
+      "endpoint": "POST /api/invitations/{token}/link-account",
+      "behavior": "Creates account, returns JWT, is_new_account=true, status stays 'invited'"
+    },
+    "scenario_b_existing_user": {
+      "endpoint": "POST /api/invitations/{token}/link-account",
+      "behavior": "Validates password, returns JWT, is_new_account=false, status stays 'invited'"
+    },
+    "scenario_c_logged_in_user": {
+      "endpoint": "POST /api/invitations/{token}/link-user",
+      "behavior": "Links user_id to participant if email matches, returns 403 if mismatch"
+    },
+    "dashboard_action_required": {
+      "endpoint": "GET /api/appointments/my-timeline",
+      "behavior": "Returns invited participant items in action_required bucket with Accept/Decline buttons"
+    }
+  }
+}

@@ -47,6 +47,12 @@ export function AuthProvider({ children }) {
     return response.data;
   };
 
+  const loginWithToken = (accessToken, userData) => {
+    localStorage.setItem('nlyt_token', accessToken);
+    localStorage.setItem('nlyt_user', JSON.stringify(userData));
+    setUser(userData);
+  };
+
   const logout = () => {
     localStorage.removeItem('nlyt_token');
     localStorage.removeItem('nlyt_user');
@@ -61,6 +67,7 @@ export function AuthProvider({ children }) {
     token,
     loading,
     login,
+    loginWithToken,
     register,
     logout,
   };

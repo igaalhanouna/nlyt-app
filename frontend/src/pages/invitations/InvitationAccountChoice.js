@@ -28,13 +28,8 @@ export default function InvitationAccountChoice({
     }
     setLoading(true);
     try {
-      const res = isExisting
-        ? await invitationAPI.loginAndAccept(token, password)
-        : await invitationAPI.acceptWithAccount(token, password);
+      const res = await invitationAPI.linkAccount(token, password);
       const data = res.data;
-      if (data.access_token) {
-        localStorage.setItem('token', data.access_token);
-      }
       onSuccess(data);
     } catch (err) {
       const msg = err.response?.data?.detail || 'Erreur lors de la création du compte';

@@ -4,6 +4,8 @@ import { Loader2, X } from 'lucide-react';
 import QRCheckin from '../../components/QRCheckin';
 import { toast } from 'sonner';
 import { parseUTC, localInputToUTC } from '../../utils/dateFormat';
+import { useAuth } from '../../contexts/AuthContext';
+import { invitationAPI } from '../../services/api';
 
 // Sub-components
 import InvitationStatusBadge from './InvitationStatusBadge';
@@ -24,6 +26,7 @@ export default function InvitationPage() {
   const { token } = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { user, loginWithToken } = useAuth();
 
   // Core state
   const [invitation, setInvitation] = useState(null);
@@ -75,6 +78,24 @@ export default function InvitationPage() {
     fetchInvitation();
   }, [token]);
 
+  // Scenario C: already logged-in user clicking an invitation link
+  // Auto-link user_id and redirect to dashboard
+  useEffect(() => {
+    if (!user || !invitation) return;
+    // Don't redirect if we're in the middle of guarantee polling
+    const guaranteeStatus = searchParams.get('guarantee_status');
+    if (guaranteeStatus) return;
+
+    const participantEmail = (invitation.participant?.email || '').toLowerCase();
+    const userEmail = (user.email || '').toLowerCase();
+    if (participantEmail && userEmail && participantEmail === userEmail) {
+      // Link user silently, then redirect
+      invitationAPI.linkUser(token).catch(() => {});
+      toast.success('Invitation retrouvée — direction votre dashboard');
+      navigate('/dashboard');
+    }
+  }, [user, invitation]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ─── API Functions ─────────────────────────────────────────
 
   const pollGuaranteeStatus = async (sessionId, attempts = 0) => {
@@ -101,6 +122,12 @@ export default function InvitationPage() {
           type: 'success',
           text: 'Garantie confirmée ! Votre participation est maintenant validée.'
         });
+        // If user is logged in, redirect to dashboard after guarantee confirmation
+        if (user) {
+          toast.success('Garantie confirmée — direction votre dashboard');
+          setTimeout(() => navigate('/dashboard'), 1500);
+          return;
+        }
         fetchInvitation();
         return;
       }
@@ -208,23 +235,13 @@ export default function InvitationPage() {
 
   // Called when user creates account/logs in from the choice panel
   const handleAccountSuccess = (data) => {
-    if (data.requires_guarantee && data.checkout_url) {
-      setGuaranteeMessage({ type: 'info', text: 'Redirection vers la page de garantie...' });
-      window.location.href = data.checkout_url;
-      return;
+    // Save auth state via context
+    if (data.access_token && data.user) {
+      loginWithToken(data.access_token, data.user);
     }
-
-    if (data.reused_card) {
-      setGuaranteeMessage({ type: 'success', text: data.message || 'Garantie confirmée avec votre carte enregistrée' });
-    }
-    // No guarantee needed — accepted directly
-    setResponseStatus(data.status);
-    setShowAccountChoice(false);
-    toast.success('Participation confirmée et compte créé !');
-    setInvitation(prev => ({
-      ...prev,
-      participant: { ...prev.participant, status: data.status },
-    }));
+    const label = data.is_new_account ? 'Compte créé' : 'Connexion réussie';
+    toast.success(`${label} — retrouvez votre invitation sur le dashboard`);
+    navigate('/dashboard');
   };
 
   // Called when user skips account creation

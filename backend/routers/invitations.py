@@ -486,6 +486,123 @@ class LoginAndAcceptRequest(BaseModel):
     password: str
     action: str = "accept"
 
+class LinkAccountRequest(BaseModel):
+    password: str
+
+
+@router.post("/{token}/link-account")
+@limiter.limit("5/minute")
+async def link_account(request: Request, token: str, body: LinkAccountRequest):
+    """
+    Create account or login WITHOUT accepting the invitation.
+    Links user_id to participant, returns JWT + user data.
+    The invitation status remains unchanged (e.g. 'invited').
+    """
+    import uuid
+    from utils.password_utils import hash_password, verify_password
+    from utils.jwt_utils import create_access_token
+    from services.workspace_service import WorkspaceService
+    from services.wallet_service import create_wallet
+
+    # 1. Validate invitation token
+    participant = db.participants.find_one({"invitation_token": token}, {"_id": 0})
+    if not participant:
+        raise HTTPException(status_code=404, detail="Invitation non trouvée ou expirée")
+
+    email = participant.get('email', '')
+    if not email:
+        raise HTTPException(status_code=400, detail="Email manquant sur cette invitation")
+
+    now = now_utc_iso()
+    existing_user = db.users.find_one({"email": email}, {"_id": 0})
+
+    if existing_user:
+        # --- Login flow ---
+        if not verify_password(body.password, existing_user.get('password_hash', '')):
+            raise HTTPException(status_code=401, detail="Mot de passe incorrect")
+        user_id = existing_user['user_id']
+        user_data = {
+            "user_id": user_id,
+            "email": email,
+            "first_name": existing_user.get('first_name', ''),
+            "last_name": existing_user.get('last_name', ''),
+        }
+        is_new = False
+    else:
+        # --- Account creation flow ---
+        if not body.password or len(body.password) < 6:
+            raise HTTPException(status_code=400, detail="Le mot de passe doit contenir au moins 6 caractères")
+        user_id = str(uuid.uuid4())
+        user_doc = {
+            "user_id": user_id,
+            "email": email,
+            "password_hash": hash_password(body.password),
+            "first_name": participant.get('first_name', ''),
+            "last_name": participant.get('last_name', ''),
+            "phone": None,
+            "is_verified": True,
+            "verified_via": "invitation_token",
+            "invitation_token_used": token,
+            "created_at": now,
+            "updated_at": now,
+        }
+        try:
+            db.users.insert_one(user_doc)
+        except Exception:
+            raise HTTPException(status_code=500, detail="Erreur lors de la création du compte")
+        WorkspaceService.create_default_workspace(user_id, user_doc['first_name'], user_doc['last_name'])
+        create_wallet(user_id)
+        user_data = {
+            "user_id": user_id,
+            "email": email,
+            "first_name": user_doc['first_name'],
+            "last_name": user_doc['last_name'],
+        }
+        is_new = True
+
+    # 2. Link user_id to participant (idempotent)
+    db.participants.update_one(
+        {"invitation_token": token},
+        {"$set": {"user_id": user_id, "updated_at": now}}
+    )
+
+    # 3. Generate JWT
+    access_token = create_access_token({"sub": email, "user_id": user_id})
+
+    return {
+        "success": True,
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user": user_data,
+        "is_new_account": is_new,
+    }
+
+
+@router.post("/{token}/link-user")
+@limiter.limit("10/minute")
+async def link_user_to_invitation(request: Request, token: str):
+    """
+    Authenticated endpoint: link the currently logged-in user to the invitation participant.
+    Requires email match between JWT user and invitation participant.
+    """
+    from middleware.auth_middleware import get_current_user
+    user = await get_current_user(request)
+    user_id = user["user_id"]
+    user_email = user.get("email", "").lower()
+
+    participant = db.participants.find_one({"invitation_token": token}, {"_id": 0})
+    if not participant:
+        raise HTTPException(status_code=404, detail="Invitation non trouvée")
+
+    if participant.get("email", "").lower() != user_email:
+        raise HTTPException(status_code=403, detail="Cet email ne correspond pas à l'invitation")
+
+    db.participants.update_one(
+        {"invitation_token": token},
+        {"$set": {"user_id": user_id, "updated_at": now_utc_iso()}}
+    )
+    return {"success": True}
+
 
 @router.post("/{token}/accept-with-account")
 @limiter.limit("5/minute")
