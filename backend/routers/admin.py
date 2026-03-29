@@ -35,13 +35,13 @@ class ArbitrationResolveBody(BaseModel):
 # ── Routes ───────────────────────────────────────────────────
 
 @router.get("/arbitration")
-async def list_escalated_disputes(request: Request):
-    """List all escalated disputes for admin arbitration (FIFO)."""
+async def list_disputes_for_admin(request: Request, filter: str = "escalated"):
+    """List disputes for admin arbitration, filtered by category."""
     await require_admin(request)
 
-    from services.admin_arbitration_service import get_escalated_disputes_for_admin
-    disputes = get_escalated_disputes_for_admin()
-    return {"disputes": disputes, "count": len(disputes)}
+    from services.admin_arbitration_service import get_disputes_for_admin
+    disputes = get_disputes_for_admin(filter)
+    return {"disputes": disputes, "count": len(disputes), "filter": filter}
 
 
 @router.get("/arbitration/stats")

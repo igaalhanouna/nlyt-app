@@ -145,73 +145,96 @@ def compute_system_analysis(dispute: dict, tech_dossier: dict, declaration_summa
     }
 
 
-def get_escalated_disputes_for_admin() -> list:
-    """Get all escalated disputes with enrichment for the admin list."""
+FILTER_QUERIES = {
+    "escalated": {"status": "escalated"},
+    "awaiting": {"status": "awaiting_positions"},
+    "resolved": {"status": "resolved"},
+    "agreed": {"status": {"$in": ["agreed_present", "agreed_absent", "agreed_late_penalized"]}},
+}
+
+
+def get_disputes_for_admin(filter_key: str = "escalated") -> list:
+    """Get disputes filtered by category, with enrichment for the admin list."""
+    query = FILTER_QUERIES.get(filter_key, FILTER_QUERIES["escalated"])
+    sort_field = "escalated_at" if filter_key == "escalated" else "created_at"
+    sort_dir = 1 if filter_key == "escalated" else -1  # FIFO for escalated, newest first otherwise
+
     disputes = list(db.declarative_disputes.find(
-        {"status": "escalated"},
-        {"_id": 0}
-    ).sort("escalated_at", 1))  # Oldest first (FIFO)
+        query, {"_id": 0}
+    ).sort(sort_field, sort_dir).limit(100))
 
-    enriched = []
-    for d in disputes:
-        apt = db.appointments.find_one(
-            {"appointment_id": d["appointment_id"]},
-            {"_id": 0, "title": 1, "start_datetime": 1, "appointment_type": 1,
-             "location": 1, "location_display_name": 1, "meeting_provider": 1,
-             "duration_minutes": 1}
-        )
-        if apt:
-            d["appointment_title"] = apt.get("title", "")
-            d["appointment_date"] = apt.get("start_datetime", "")
-            d["appointment_type"] = apt.get("appointment_type", "")
-            d["appointment_location"] = apt.get("location_display_name") or apt.get("location", "")
-            d["appointment_meeting_provider"] = apt.get("meeting_provider", "")
+    return [_enrich_dispute_for_list(d) for d in disputes]
 
-        # Target name
-        target_p = db.participants.find_one(
-            {"participant_id": d["target_participant_id"]},
-            {"_id": 0, "first_name": 1, "last_name": 1, "email": 1}
-        )
-        if target_p:
-            d["target_name"] = f"{target_p.get('first_name', '')} {target_p.get('last_name', '')}".strip()
-            d["target_email"] = target_p.get("email", "")
 
-        # Organizer name
-        org_p = db.participants.find_one(
-            {"appointment_id": d["appointment_id"], "is_organizer": True},
-            {"_id": 0, "first_name": 1, "last_name": 1}
-        )
-        if org_p:
-            d["organizer_name"] = f"{org_p.get('first_name', '')} {org_p.get('last_name', '')}".strip()
+def get_escalated_disputes_for_admin() -> list:
+    """Legacy wrapper — returns only escalated disputes."""
+    return get_disputes_for_admin("escalated")
 
-        # Quick tech check
-        d["has_admissible_proof"] = _has_admissible_proof(
-            d["target_participant_id"], d["appointment_id"]
-        )
 
-        # Age indicator
-        escalated_at = d.get("escalated_at")
-        if escalated_at:
-            from utils.date_utils import parse_iso_datetime
-            esc_dt = parse_iso_datetime(escalated_at)
-            if esc_dt:
-                delta = now_utc() - esc_dt
-                d["escalated_days_ago"] = delta.days
-                d["escalated_hours_ago"] = int(delta.total_seconds() / 3600)
+def _enrich_dispute_for_list(d: dict) -> dict:
+    """Enrich a single dispute document for the admin list view."""
+    apt = db.appointments.find_one(
+        {"appointment_id": d["appointment_id"]},
+        {"_id": 0, "title": 1, "start_datetime": 1, "appointment_type": 1,
+         "location": 1, "location_display_name": 1, "meeting_provider": 1,
+         "duration_minutes": 1}
+    )
+    if apt:
+        d["appointment_title"] = apt.get("title", "")
+        d["appointment_date"] = apt.get("start_datetime", "")
+        d["appointment_type"] = apt.get("appointment_type", "")
+        d["appointment_location"] = apt.get("location_display_name") or apt.get("location", "")
+        d["appointment_meeting_provider"] = apt.get("meeting_provider", "")
 
-        # Positions summary
-        d["positions"] = {
-            "organizer": d.get("organizer_position"),
-            "participant": d.get("participant_position"),
-        }
+    target_p = db.participants.find_one(
+        {"participant_id": d["target_participant_id"]},
+        {"_id": 0, "first_name": 1, "last_name": 1, "email": 1}
+    )
+    if target_p:
+        d["target_name"] = f"{target_p.get('first_name', '')} {target_p.get('last_name', '')}".strip()
+        d["target_email"] = target_p.get("email", "")
 
-        # Remove heavy fields from list
-        d.pop("evidence_submissions", None)
-        d.pop("resolution", None)
+    org_p = db.participants.find_one(
+        {"appointment_id": d["appointment_id"], "is_organizer": True},
+        {"_id": 0, "first_name": 1, "last_name": 1}
+    )
+    if org_p:
+        d["organizer_name"] = f"{org_p.get('first_name', '')} {org_p.get('last_name', '')}".strip()
 
-        enriched.append(d)
+    d["has_admissible_proof"] = _has_admissible_proof(
+        d["target_participant_id"], d["appointment_id"]
+    )
 
-    return enriched
+    escalated_at = d.get("escalated_at")
+    if escalated_at:
+        from utils.date_utils import parse_iso_datetime
+        esc_dt = parse_iso_datetime(escalated_at)
+        if esc_dt:
+            delta = now_utc() - esc_dt
+            d["escalated_days_ago"] = delta.days
+            d["escalated_hours_ago"] = int(delta.total_seconds() / 3600)
+
+    d["positions"] = {
+        "organizer": d.get("organizer_position"),
+        "participant": d.get("participant_position"),
+    }
+
+    # Status label for non-escalated views
+    status = d.get("status", "")
+    STATUS_LABELS = {
+        "escalated": "Escalade",
+        "awaiting_positions": "Positions en cours",
+        "resolved": "Resolu",
+        "agreed_present": "Accord: Present",
+        "agreed_absent": "Accord: Absent",
+        "agreed_late_penalized": "Accord: Retard",
+    }
+    d["status_label"] = STATUS_LABELS.get(status, status)
+
+    d.pop("evidence_submissions", None)
+    d.pop("resolution", None)
+
+    return d
 
 
 def get_dispute_detail_for_admin(dispute_id: str) -> dict:
