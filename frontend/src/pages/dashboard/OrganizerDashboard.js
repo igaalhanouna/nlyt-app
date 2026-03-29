@@ -249,7 +249,7 @@ function TimelineCard({ item, isPast, onDelete, onRemind, onQuit, onDecline, now
   const progressPct = total > 0 ? Math.round((accepted / total) * 100) : 100;
 
   // Participant actions based on exact backend API constraints:
-  // - "Quitter" (cancel): only for accepted / accepted_guaranteed + future
+  // - "Annuler" (cancel participation): only for accepted / accepted_guaranteed + future
   // - "Refuser" (decline): only for invited / accepted_pending_guarantee + future
   const pStatus = item.participant_status;
   const hasToken = !!item.invitation_token;
@@ -433,7 +433,7 @@ function TimelineCard({ item, isPast, onDelete, onRemind, onQuit, onDecline, now
             onClick={(e) => { e.preventDefault(); e.stopPropagation(); onQuit(item); }}
             data-testid={`quit-btn-${item.appointment_id}`}
           >
-            <LogOut className="w-3.5 h-3.5 mr-1.5" /> Quitter
+            <LogOut className="w-3.5 h-3.5 mr-1.5" /> Annuler
           </Button>
         )}
         {canDecline && (
@@ -618,7 +618,7 @@ export default function OrganizerDashboard() {
 
   const handleQuitParticipation = async (item) => {
     if (!item.invitation_token) return;
-    if (!window.confirm(`Quitter l'engagement "${item.title}" ? Cette action est irréversible si le délai est respecté.`)) return;
+    if (!window.confirm(`Annuler votre participation à "${item.title}" ? Cette action est irréversible si le délai est respecté.`)) return;
     try {
       await invitationAPI.cancelParticipation(item.invitation_token);
       toast.success('Participation annulée');

@@ -784,7 +784,7 @@ export default function AppointmentDetail() {
           guaranteedCount={guaranteedCount} canEdit={isOrganizer && canEdit} onEdit={isOrganizer ? handleOpenProposalForm : undefined}
         />
 
-        {/* #3 — Actions (calendrier, annuler, quitter) — available for both roles */}
+        {/* #3 — Actions (calendrier, annuler) — available for both roles */}
         <SecondaryActions
           appointment={appointment} isCancelled={isCancelled}
           syncStatus={syncStatus} syncingProvider={syncingProvider}
