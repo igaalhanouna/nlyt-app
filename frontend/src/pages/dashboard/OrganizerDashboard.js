@@ -674,7 +674,7 @@ export default function OrganizerDashboard() {
   };
 
   const pendingModifications = allModifications.filter(p => p.status === 'pending');
-  const appliedModifications = allModifications.filter(p => p.status === 'auto_applied' || p.status === 'approved');
+  const appliedModifications = allModifications.filter(p => p.status === 'auto_applied' || p.status === 'accepted');
 
   // Sets + data for badges and context on timeline cards
   const modActionAptIds = new Set(pendingModifications.filter(p => p.is_action_required).map(p => p.appointment_id));
