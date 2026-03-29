@@ -118,7 +118,7 @@ class TestExistingFunctionalityRegression:
         """Disputes endpoint should still work"""
         headers = {"Authorization": f"Bearer {auth_token_testuser}"}
         # Disputes endpoint requires appointment_id param
-        response = requests.get(f"{BASE_URL}/api/disputes/?appointment_id=d839b4a8-3334-4df6-8913-43045b438699", headers=headers)
+        response = requests.get(f"{BASE_URL}/api/disputes/?appointment_id=litigation-mgmt", headers=headers)
         # May return 200 or 404 depending on data
         assert response.status_code in [200, 404, 422]
         print(f"PASS: Disputes endpoint returns {response.status_code}")

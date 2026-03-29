@@ -90,7 +90,7 @@
   "seed_data_creation": "None - used existing test data",
   "retest_needed": false,
   "should_main_agent_self_test": false,
-  "context_for_next_testing_agent": "Orphan participant fix verified. Key changes: (1) respond_to_invitation now persists user_id when accepting (lines 441-447), (2) _get_user_id has email fallback (lines 145-161), (3) Migration fixed 144 orphan participants and 1 dispute. Test data: igaal@hotmail.com now sees 5 disputes including 'test email wordin' (dispute_id=23f75310-958e-4597-baf8-cc3ea0c1470b). The dispute shows 'Votre réponse attendue' status and igaal can submit position.",
+  "context_for_next_testing_agent": "Orphan participant fix verified. Key changes: (1) respond_to_invitation now persists user_id when accepting (lines 441-447), (2) _get_user_id has email fallback (lines 145-161), (3) Migration fixed 144 orphan participants and 1 dispute. Test data: igaal@hotmail.com now sees 5 disputes including 'test email wordin' (dispute_id=litigation-mgmt). The dispute shows 'Votre réponse attendue' status and igaal can submit position.",
   "rca_of_the_issue": {
     "root_cause": "participant.user_id was not being persisted when accepting invitation via respond_to_invitation endpoint. This caused disputes to have target_user_id=None, making them invisible to the target user.",
     "reproduction_steps": [

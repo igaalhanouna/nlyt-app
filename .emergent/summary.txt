@@ -1,111 +1,120 @@
-<analysis>**original_problem_statement**: The core objective is optimizing the Viral Loop and User Acquisition Funnel. Key initiatives include a frictionless 1-click account creation, designing high-converting emails, generating viral shareable result cards, seamless Stripe card reuse, and unifying the application dashboard and detail views for both organizers and participants to provide a consistent, clear UX. Recent focus has been on solidifying the participant check-in flow, clarifying dashboard Action Required logic for both roles, and ensuring correct temporal bucketing (upcoming vs. past) for appointments.
+<analysis>**original_problem_statement**: L'objectif principal est d'optimiser le moteur Trustless V4 et l'UX globale. Les focus récents ont été d'aligner parfaitement l'interface utilisateur avec la logique stricte du backend (empêcher les actions impossibles comme annuler un RDV démarré), d'améliorer drastiquement la lisibilité des pages  et  en regroupant les données par rendez-vous, et de corriger des bugs critiques de liaison de données empêchant la résolution de certains litiges (participants orphelins). PRODUCT REQUIREMENTS: Regrouper visuellement les litiges par RDV, offrir un mode lecture seule pour les présences soumises, interdire l'annulation post-démarrage, et s'assurer que les deux parties voient toujours un litige ouvert.
 
 **User's preferred language**: French (INSTRUCT next agent to respond in French ONLY: RÉPONDEZ UNIQUEMENT EN FRANÇAIS)
 
-**what currently exists?**: A React/FastAPI/MongoDB SaaS application for managing attendance with financial guarantees. The application features a stabilized Evidence Chain, real Stripe off-session validation, a unified timeline Dashboard (merging organizer and participant items), and a symmetric  page providing exact same data but segregated action permissions. It handles both physical (GPS) and video check-ins reliably. The dashboard now features precise Action Required alert logic for both participants and organizers, and temporal bucketing based on event .
+**what currently exists?**: Une application SaaS (React/FastAPI/MongoDB) gérant les présences avec garanties financières via le moteur Trustless V4. L'application dispose désormais d'une UX robuste : les litiges et feuilles de présence sont groupés par rendez-vous avec un contexte riche (heure, lieu, type), les états non modifiables sont consultables en lecture seule, et les guards temporels empêchent les annulations abusives. Un bug critique de visibilité des litiges a été corrigé et la base de données a été assainie.
 
 **Last working item**: 
-    - Last item agent was working: Auditing and fixing the temporal bucketing logic for the Dashboard tabs (À venir / Historique). The agent updated the logic to transition appointments to the Historique (Past) tab based on  () rather than just , ensuring ongoing/active meetings remain in the À venir tab.
+    - Last item agent was working: Résolution d'un bug critique où un litige était invisible pour la partie ciblée ( valait ). L'agent a corrigé la route d'acceptation d'invitation pour forcer la persistance du  dans la collection , ajouté un fallback, et exécuté un script de migration des données historiques.
     - Status: NONE (Completed and verified)
     - Agent Testing Done: Y
-    - Which testing method agent to use? NA (Testing agent used,  passed 100%)
+    - Which testing method agent to use? NA (Testing agent already used and passed)
     - User Testing Done: N
 
 **All Pending/In progress Issue list**: 
-  None active. All identified issues were fully resolved and tested.
+  None active. All P0 UI issues and data linkage bugs have been resolved.
 
 **In progress Task List**: 
   None active.
 
 **Upcoming and Future Tasks**
     Upcoming Tasks:
-    - P1: Test réel du mode calendar Teams (compte Outlook non-pro).
+    - P1: Dashboard admin plateforme pour arbitrer les litiges escaladés.
     - P1: Configurer le webhook Stripe en production pour validation end-to-end.
+    - P1: Test réel Zoom/Teams connecté avec de vrais tokens.
     
     Future Tasks:
     - P2: Charity Payouts V2 (Stripe Transfers).
     - P2: Webhooks temps réel Zoom/Teams.
-    - P2: Pages dédiées charité & Leaderboard.
+    - P2: Notification email/push lors de la création d'un litige.
 
 **Completed work in this session**
-- Participant Check-in Bug Fix: Fixed the frontend payload to include , fixed status check ( instead of ), and enabled check-in for  users. Tested for both physical and video check-ins. (DONE)
-- Dashboard Action Required (Participant): Updated logic to include  and  statuses, with clear CTAs (e.g., Finaliser ma garantie). (DONE)
-- Dashboard Cancelled Items Bug: Removed cancelled appointments from the À venir tab and forced them strictly into the Historique tab. (DONE)
-- Dashboard Action Required (Organizer): Created a new alert logic for organizers. If an appointment is within 24 hours of its cancellation deadline and less than 50% of participants have guaranteed their presence, an alert appears with CTAs to Relancer, Annuler, or Voir détails. (DONE)
-- Dashboard Temporal Bucketing: Updated bucketing logic so appointments stay in À venir while they are currently ongoing (). (DONE)
+- Restriction UX Bouton Annuler: Blocage de l'annulation participant passée la deadline et blocage backend de l'annulation organisateur pour les RDV démarrés/passés. (DONE)
+- Refonte UX : Regroupement des litiges par RDV, ajout du contexte manquant (type, lieu, durée), et filtrage des litiges résolus. (DONE)
+- Refonte UX : Ajout du contexte manquant sur les cartes et création d'un vrai mode lecture seule cliquable pour voir les déclarations déjà soumises. (DONE)
+- Fix Critique Participants Orphelins: Correction de  pour lier le . Création et exécution de  qui a réparé 144 participants et 1 litige bloqué. (DONE)
 
 **Earlier issues found/mentioned but not fixed**
-None.
+  None.
 
 **Known issue recurrence from previous fork**
-  - Issue recurrence in previous fork: 0
+  - Issue recurrence in previous fork: None
   - Recurrence count: 0
-  - Status: RESOLVED
+  - Status: NA
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
-- React Frontend, FastAPI Backend, MongoDB.
-- Symmetric UI views:  serves both Organizers and Participants, leveraging  dynamically.
-- Temporal Bucketing: Using  to calculate event  to prevent ongoing appointments from prematurely moving to Past.
-- Pydantic Validations: Check-in endpoint strictly enforces  validation.
+- **Symmetric Disputes Grouping**: While the DB maps 1 dispute per participant in , the frontend now visually groups them by  to reduce user confusion.
+- **Participant-to-User Mapping**: Crucial for the Trustless engine. A  document MUST have a valid  if the user exists, otherwise  becomes  during dispute generation, making the dispute invisible to the target and causing a deadlock.
 
 **key DB schema**
   - : 
   - : 
-  - : 
 
 **changes in tech stack**
-- None in this session.
+  - None
 
 **All files of reference** 
--  (Bucketing and alert logic updated)
--  (Action Required sections updated for Organizers and Participants)
--  (Participant check-in bug fixed here)
+  -  (Fixed logic)
+  -  (Major refactor)
+  -  (Major refactor)
+  -  (Data migration)
+  -  (Updated)
 
 **Areas that need refactoring**: 
-- None immediate. 
+  - None for now. Substantial refactoring was just completed successfully.
 
 **key api endpoints**
-- 
-- 
-- 
+  -  (Enriched with appointment details)
+  -  (Enriched with appointment details)
+  -  (Fixed  logic)
 
 **Critical Info for New Agent** 
-- **Language**: MUST interact in French.
-- **Product Philosophy**: Same information, different powers. Participants and Organizers share identical data screens; actions are hidden conditionally.
-- **Dashboard Rules**: Do not clutter the Action Requise section. It is strictly reserved for high-priority, blocking actions (unanswered invites, pending guarantees, or organizers facing empty guarantees near deadlines). 
-- **Time/Bucketing Rule**: An appointment is Past/Historique only if  or if it's explicitly cancelled/declined.
+  - **Langue** : Doit répondre en Français.
+  - **Data Integrity Rule**: Whenever dealing with invitations or participants, ALWAYS ensure the  is resolved and saved to the  collection. If it is missing, the dispute engine breaks.
+  - The frontend has been heavily optimized for readability (grouped disputes, read-only states for attendances). Ensure any future UI additions follow this new robust pattern with high context (time, location, type).
 
 **documents and test reports created in this job** 
-  -  (Continuously updated)
-  -  (Check-in fixes)
-  -  (Action Required audit)
-  -  (Organizer Action Required alert)
-  -  (End-time bucketing)
+  - 
+  -  (Cancel Guards)
+  -  (Disputes UX Refactor)
+  -  (Presences UX Refactor)
+  -  (Orphan Participants Fix)
+  - 
 
 **Last 10 User Messages and any pending HUMAN messages** 
-1. (User) Requests to audit À venir vs Historique dashboard tabs, noting ongoing meetings shouldn't move to history until they actually end.
-2. (Agent) Audits backend, identifies that  was being ignored (using only ). Creates rule to use .
-3. (User) No human message pending. Implementation finished with 100% test success.
+1. (User) Validates UI fix for Cancel buttons and asks to block organizer cancellations post-start.
+2. (Agent) Implements backend/frontend cancel blocks, tests, updates PRD.
+3. (User) Requests full UX/Logic audit for . Complains about lack of context and multiple cards for same appointment.
+4. (Agent) Audits, proposes grouping by appointment and enriching context. User approves.
+5. (Agent) Implements backend enrichments and frontend refactor, tests, updates PRD.
+6. (User) Requests full UX/Logic audit for . Complains about dead/unclickable submitted cards.
+7. (Agent) Audits, proposes adding read-only state for submitted sheets and enriching context. User approves.
+8. (Agent) Implements backend enrichments and frontend refactor, tests, updates PRD.
+9. (User) Reports critical bug: A specific dispute is visible to the organizer but NOT the target (). Asks for audit.
+10. (Agent) Traces root cause to missing  in  collection during invitation accept. Implements fix, runs migration script, tests. Bug resolved.
+*No pending human message.*
 
 **Project Health Check:**
-App is stable. All automated tests are passing.
+Very Healthy. Major UI bottlenecks have been cleared, and a silent but critical deadlock bug in the Trustless engine was identified and patched cleanly.
 
 **3rd Party Integrations** 
   - Stripe (Payments) — requires User API Key
   - Resend (Email) — requires API Key
+  - Zoom & Microsoft Teams — utilizes OAuth tokens saved in .
 
 **Testing status**
-  - Testing agent used after significant changes: YES (Iterations 98, 99, 100, 101).
+  - Testing agent used after significant changes: YES (Iterations 128, 129, 130, 131)
   - Troubleshoot agent used after agent stuck in loop: NO
-  - Test files created: None
-  - Known regressions: None
+  - Test files created/updated: None specifically, relied on .
+  - Known regressions: None.
 
 **Credentials to test flow:**
-- Test user 1: 
-- Test user 2:  
+- Test user 1:  (Organizer)
+- Test user 2: 
+- Test user 3:  (Participant)
 
 **What agent forgot to execute**
-All tasks and specific adjustments requested by the user were fully executed, tested, and validated. No items overlooked.</analysis>
+Everything requested (Cancel Guards,  refactoring,  refactoring, Deadlock Bug fix) was fully implemented and tested. Nothing was forgotten.</analysis>
