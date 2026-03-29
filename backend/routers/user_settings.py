@@ -319,7 +319,9 @@ async def remove_payment_method(user: dict = Depends(get_current_user)):
     """
     Remove the saved default payment method.
     Future guarantees will require Stripe redirect.
+    Also clears participant-level card data to prevent auto-recovery from re-adding it.
     """
+    # Clear user-level payment method
     db.users.update_one(
         {"user_id": user['user_id']},
         {"$unset": {
@@ -331,6 +333,15 @@ async def remove_payment_method(user: dict = Depends(get_current_user)):
             "payment_method_setup_at": ""
         },
         "$set": {"updated_at": datetime.now(timezone.utc).isoformat()}}
+    )
+
+    # Clear participant-level card data to prevent auto-recovery
+    db.participants.update_many(
+        {"$or": [
+            {"user_id": user['user_id']},
+            {"email": user.get('email')},
+        ], "stripe_payment_method_id": {"$exists": True}},
+        {"$unset": {"stripe_payment_method_id": "", "stripe_customer_id": ""}}
     )
 
     return {"success": True, "message": "Moyen de paiement supprimé"}
