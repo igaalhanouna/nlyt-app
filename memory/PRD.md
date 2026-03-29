@@ -104,6 +104,15 @@ Application SaaS (React/FastAPI/MongoDB) de gestion des presences avec garanties
 - Wording: "Analyse système" (pas recommandation), "Charge de la preuve sur le participant"
 - Validated via testing_agent iteration 137 (100%: 14/14 backend, 14/14 frontend)
 
+### Session 15 - Consequences financieres + KPI cliquables (2026-03-30)
+- Backend: financial_context added to dispute detail (penalty_amount, platform/charity/compensation breakdown)
+- Backend: financial_summary added to list cards for resolved disputes ("10EUR preleves — 5EUR verses")
+- Backend: GET /api/admin/arbitration?filter=escalated|awaiting|resolved|agreed (new param)
+- Frontend detail (Zone 4): Dynamic FinancialPreview component showing full breakdown when outcome selected
+- Frontend list: financial_summary badge on each resolved/agreed card (green=no penalty, red=penalty)
+- Frontend list: KPI stats are now clickable filters with active ring indicator
+- All lint clean, visually verified
+
 ## Upcoming Tasks (P1)
 - Configurer le webhook Stripe en production pour validation end-to-end
 - Configurer webhook Stripe en production

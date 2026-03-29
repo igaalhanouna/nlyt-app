@@ -276,6 +276,11 @@ export default function AdminArbitrationDetail() {
             })}
           </div>
 
+          {/* Dynamic financial consequences */}
+          {selectedOutcome && dispute.financial_context && (
+            <FinancialPreview outcome={selectedOutcome} fc={dispute.financial_context} targetName={dispute.target_name} />
+          )}
+
           {/* Note */}
           <textarea
             value={note}
@@ -409,6 +414,74 @@ function WitnessSummaryBadge({ ds }) {
   }
   return null;
 }
+
+// ── Zone 4: Financial Preview ──
+
+function FinancialPreview({ outcome, fc, targetName }) {
+  const name = targetName || 'Le participant';
+  const cur = (fc.penalty_currency || 'eur').toUpperCase();
+  const penalty = fc.penalty_amount || 0;
+
+  if (outcome === 'on_time') {
+    return (
+      <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-4 mb-5" data-testid="financial-preview">
+        <p className="text-sm font-semibold text-emerald-800 mb-1">Consequences financieres</p>
+        <p className="text-sm text-emerald-700">Aucun prelevement. La garantie de {name} sera liberee.</p>
+      </div>
+    );
+  }
+
+  if (penalty === 0) {
+    return (
+      <div className="rounded-lg bg-slate-50 border border-slate-200 p-4 mb-5" data-testid="financial-preview">
+        <p className="text-sm font-semibold text-slate-700 mb-1">Consequences financieres</p>
+        <p className="text-sm text-slate-500">Aucune garantie configuree pour ce rendez-vous.</p>
+      </div>
+    );
+  }
+
+  const platform = fc.platform_amount || 0;
+  const charity = fc.charity_amount || 0;
+  const compensation = fc.compensation_amount || 0;
+  const isPartial = outcome === 'late_penalized';
+
+  return (
+    <div className="rounded-lg bg-red-50 border border-red-200 p-4 mb-5" data-testid="financial-preview">
+      <p className="text-sm font-semibold text-red-800 mb-2">
+        Consequences financieres{isPartial ? ' (retard)' : ''}
+      </p>
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-slate-600">{name} paiera</span>
+          <span className="font-bold text-red-700">{penalty.toFixed(0)} {cur}</span>
+        </div>
+        {compensation > 0 && (
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-slate-600">Verse a l'organisateur</span>
+            <span className="font-medium text-slate-800">{compensation.toFixed(0)} {cur}</span>
+          </div>
+        )}
+        {platform > 0 && (
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-slate-600">Commission plateforme ({fc.platform_commission_percent}%)</span>
+            <span className="font-medium text-slate-500">{platform.toFixed(0)} {cur}</span>
+          </div>
+        )}
+        {charity > 0 && (
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-slate-600">Reversement association ({fc.charity_percent}%)</span>
+            <span className="font-medium text-slate-500">{charity.toFixed(0)} {cur}</span>
+          </div>
+        )}
+        <div className="border-t border-red-200 mt-2 pt-2 flex items-center justify-between text-xs text-slate-400">
+          <span>Total</span>
+          <span>{penalty.toFixed(0)} {cur}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 
 // ── Helpers ──
 

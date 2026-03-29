@@ -221,6 +221,17 @@ function DisputeCard({ d, isEscalatedView }) {
               Participant : <strong className="text-slate-700">{POSITION_LABELS[d.positions?.participant] || '—'}</strong>
             </span>
           </div>
+
+          {/* Financial summary for resolved/agreed disputes */}
+          {d.financial_summary && (
+            <p className={`text-xs font-medium mt-2 px-2.5 py-1 rounded-lg inline-block ${
+              d.financial_summary === 'Aucune penalite'
+                ? 'bg-emerald-50 text-emerald-700'
+                : 'bg-red-50 text-red-700'
+            }`} data-testid="financial-summary">
+              {d.financial_summary}
+            </p>
+          )}
         </div>
 
         {isEscalatedView && (

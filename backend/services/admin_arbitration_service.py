@@ -231,6 +231,30 @@ def _enrich_dispute_for_list(d: dict) -> dict:
     }
     d["status_label"] = STATUS_LABELS.get(status, status)
 
+    # Financial summary for resolved disputes
+    resolution = d.get("resolution") or {}
+    final_outcome = resolution.get("final_outcome", "")
+    if status in ("resolved", "agreed_present", "agreed_absent", "agreed_late_penalized"):
+        if final_outcome == "on_time" or status == "agreed_present":
+            d["financial_summary"] = "Aucune penalite"
+        else:
+            # Look up appointment penalty
+            apt_fin = db.appointments.find_one(
+                {"appointment_id": d["appointment_id"]},
+                {"_id": 0, "penalty_amount": 1, "penalty_currency": 1,
+                 "platform_commission_percent": 1, "charity_percent": 1}
+            )
+            if apt_fin and apt_fin.get("penalty_amount"):
+                p = apt_fin["penalty_amount"]
+                cur = (apt_fin.get("penalty_currency") or "eur").upper()
+                comm_pct = apt_fin.get("platform_commission_percent", 0)
+                charity_pct = apt_fin.get("charity_percent", 0)
+                p_cents = int(p * 100)
+                comp_cents = p_cents - int(p_cents * comm_pct / 100) - int(p_cents * charity_pct / 100)
+                d["financial_summary"] = f"{p:.0f}{cur} preleves — {comp_cents/100:.0f}{cur} verses a l'organisateur"
+            else:
+                d["financial_summary"] = "Penalite appliquee"
+
     d.pop("evidence_submissions", None)
     d.pop("resolution", None)
 
@@ -251,7 +275,9 @@ def get_dispute_detail_for_admin(dispute_id: str) -> dict:
         {"appointment_id": apt_id},
         {"_id": 0, "title": 1, "start_datetime": 1, "appointment_type": 1,
          "location": 1, "location_display_name": 1, "meeting_provider": 1,
-         "duration_minutes": 1, "tolerated_delay_minutes": 1}
+         "duration_minutes": 1, "tolerated_delay_minutes": 1,
+         "penalty_amount": 1, "penalty_currency": 1,
+         "platform_commission_percent": 1, "charity_percent": 1, "compensation_percent": 1}
     )
     if apt:
         dispute["appointment_title"] = apt.get("title", "")
@@ -261,6 +287,26 @@ def get_dispute_detail_for_admin(dispute_id: str) -> dict:
         dispute["appointment_meeting_provider"] = apt.get("meeting_provider", "")
         dispute["appointment_duration_minutes"] = apt.get("duration_minutes", 0)
         dispute["tolerated_delay_minutes"] = apt.get("tolerated_delay_minutes", 0)
+
+        # Financial context for preview
+        penalty = apt.get("penalty_amount", 0)
+        currency = apt.get("penalty_currency", "eur")
+        commission_pct = apt.get("platform_commission_percent", 0)
+        charity_pct = apt.get("charity_percent", 0)
+        penalty_cents = int(penalty * 100)
+        platform_cents = int(penalty_cents * commission_pct / 100)
+        charity_cents = int(penalty_cents * charity_pct / 100)
+        compensation_cents = penalty_cents - platform_cents - charity_cents
+
+        dispute["financial_context"] = {
+            "penalty_amount": penalty,
+            "penalty_currency": currency,
+            "platform_commission_percent": commission_pct,
+            "charity_percent": charity_pct,
+            "platform_amount": platform_cents / 100,
+            "charity_amount": charity_cents / 100,
+            "compensation_amount": compensation_cents / 100,
+        }
 
     # Names
     target_p = db.participants.find_one(
