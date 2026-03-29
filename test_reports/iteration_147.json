@@ -1,0 +1,96 @@
+{
+  "summary": "Iteration 147: Decisions Page UX Refonte - Grouping by Appointment. All tests PASSED (13/13 backend, 100% frontend). Verified that decisions are grouped by appointment_id: 7 decisions displayed in 5 groups. Groups with multiple decisions show badge (e.g., '2 decisions'). Unread indicators working (blue dot on sub-cards, blue background on groups). Detail page navigation and mark-as-read working. Financial impact correctly computed per user role (credit for organizer, debit for participant).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": {
+    "backend_api_tests": {
+      "test_decisions_endpoint_returns_200": "PASS - GET /api/disputes/decisions/mine returns 200",
+      "test_decisions_response_structure": "PASS - Response has {decisions: [], count: N}",
+      "test_decisions_have_appointment_id": "PASS - All decisions have appointment_id for grouping",
+      "test_decisions_have_required_fields": "PASS - All required fields present (dispute_id, appointment_title, target_name, final_outcome, financial_impact)",
+      "test_financial_impact_structure": "PASS - financial_impact has {type, label, amount}",
+      "test_count_decisions_by_appointment": "PASS - 7 decisions grouped into 5 appointments",
+      "test_appointment_location_fields": "PASS - Location fields present for all appointments",
+      "test_final_outcome_values": "PASS - All outcomes are valid (on_time, no_show, late_penalized)"
+    },
+    "notification_api_tests": {
+      "test_notification_counts_endpoint": "PASS - Returns {decisions: N, disputes: N}",
+      "test_unread_ids_decision_type": "PASS - Returns {unread_ids: [...]} for decision type",
+      "test_mark_read_endpoint": "PASS - Mark read endpoint exists and is idempotent"
+    },
+    "dispute_detail_api_tests": {
+      "test_dispute_detail_endpoint": "PASS - GET /api/disputes/{id} returns full detail",
+      "test_dispute_detail_has_financial_context": "PASS - Detail includes financial_context"
+    },
+    "frontend_tests": {
+      "admin_login": "PASS - Admin login works",
+      "decisions_page_loads": "PASS - Page loads with title 'Decisions'",
+      "grouping_verified": "PASS - 5 groups with 7 sub-cards (matches API)",
+      "badge_on_multi_decision_groups": "PASS - 'Cinema' and 'test dispute' show '2 decisions' badge",
+      "no_badge_on_single_decision_groups": "PASS - Single-decision groups have no badge",
+      "appointment_context_displayed": "PASS - Title, date/time, location shown on group cards",
+      "global_financial_impact": "PASS - Groups show 'Aucune penalite', '+0EUR recu', 'Impact mixte', '10EUR debite'",
+      "sub_card_elements": "PASS - Participant name, outcome badge, individual financial impact shown",
+      "outcome_badges": "PASS - 'Presence validee' (green), 'Absence confirmee' (red)",
+      "detail_page_navigation": "PASS - Clicking sub-card navigates to /decisions/{dispute_id}",
+      "detail_page_elements": "PASS - Outcome bloc, financial bloc, declarations bloc, status present",
+      "back_button": "PASS - Back button returns to decisions list",
+      "participant_view": "PASS - Participant sees same grouping with role-specific financial impact",
+      "unread_indicators": "PASS - Blue dots on unread sub-cards, blue background on groups with unread"
+    }
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_decisions_grouping_iter147.py",
+    "/app/test_reports/pytest/pytest_decisions_grouping_iter147.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "DecisionsListPage.js: Clean implementation with 3 components (DecisionsListPage, AppointmentDecisionCard, DecisionSubCard)",
+    "groupByAppointment(): Uses Map for O(n) grouping by appointment_id",
+    "getGlobalImpact(): Correctly computes mixed/credit/debit/neutral based on all decisions in group",
+    "Unread indicators: hasUnread computed from unreadIds Set, blue-50 background applied to group",
+    "Sub-card unread dot: data-testid='unread-dot-{dispute_id}' for individual unread indicator",
+    "Financial impact labels: Role-aware (organizer sees credit, participant sees debit)",
+    "DecisionDetailPage.js: Marks notification as read on mount via notificationAPI.markRead()"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_decisions_grouping_iter147.py"
+  ],
+  "success_rate": {
+    "backend": "100% (13/13 tests passed)",
+    "frontend": "100% (all UI checks passed)"
+  },
+  "test_credentials": {
+    "admin_organizer": "testuser_audit@nlyt.app / TestAudit123! (role=admin)",
+    "participant": "igaal@hotmail.com / Test123! (role=user)"
+  },
+  "seed_data_creation": "None - used existing decisions data (7 decisions across 5 appointments)",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Decisions page UX refonte complete. Frontend groups decisions by appointment_id using a Map. 7 decisions are displayed in 5 groups: 'Cinema' (2), 'test presence physique' (1), 'test email wordin' (1), 'test dispute' (2), 'rdv swith tet' (1). Groups with multiple decisions show badge. Unread indicators work (blue dot + blue background). Detail page marks notification as read. Financial impact is role-aware (credit for organizer, debit for participant). Same pattern as DisputesListPage.js.",
+  "feature_verification": {
+    "grouping_by_appointment": {
+      "total_decisions": 7,
+      "total_groups": 5,
+      "groups_with_multiple": ["Cinema (2)", "test dispute (2)"],
+      "groups_with_single": ["test presence physique", "test email wordin", "rdv swith tet"]
+    },
+    "unread_indicators": {
+      "admin_view": "0 unread (all read)",
+      "participant_view": "4 unread dots visible, 2 groups with blue background"
+    },
+    "financial_impact_types": {
+      "neutral": "Aucune penalite",
+      "credit": "+XEUR recu",
+      "debit": "XEUR debite",
+      "mixed": "Impact mixte"
+    }
+  }
+}
