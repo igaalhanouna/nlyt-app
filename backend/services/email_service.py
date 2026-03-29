@@ -797,7 +797,7 @@ class EmailService:
                 loc_text = f'<p style="margin:0 0 4px 0;color:#15803D;font-size:14px;font-weight:600;">Lieu : {location}</p>' if location else ''
                 access_section = (
                     '<div style="background:#F0FDF4;border:2px solid #BBF7D0;border-radius:10px;padding:24px;margin:24px 0;">'
-                    f'<p style="margin:0 0 6px 0;color:#166534;font-weight:700;font-size:15px;">Nouvelles instructions de présence</p>'
+                    '<p style="margin:0 0 6px 0;color:#166534;font-weight:700;font-size:15px;">Nouvelles instructions de présence</p>'
                     + loc_text
                     + '<p style="margin:0 0 12px 0;color:#15803D;font-size:13px;line-height:1.5;">Le jour de l\'engagement, confirmez votre arrivée sur place via le bouton ci-dessous ou le scan du QR code.</p>'
                     + _btn(access_link, "Je suis arrivé — confirmer ma présence", bg="#059669")
@@ -920,3 +920,149 @@ class EmailService:
 
         html_content = _base_template(body, accent="warning")
         return await EmailService.send_email(organizer_email, subject, html_content, email_type="review_required_notification")
+
+    # ─────────────────────────────────────────────────────────
+    # DISPUTE OPENED — litige cree
+    # ─────────────────────────────────────────────────────────
+    @staticmethod
+    async def send_dispute_opened_email(
+        to_email: str,
+        to_name: str,
+        appointment_title: str,
+        appointment_date: str,
+        appointment_location: str,
+        dispute_id: str,
+        reason: str,
+        appointment_timezone: str = 'Europe/Paris',
+    ):
+        formatted_date = format_email_datetime(appointment_date, appointment_timezone)
+        subject = f"Litige ouvert — {appointment_title}"
+
+        details = (
+            _detail_row("Engagement :", f"<strong>{appointment_title}</strong>")
+            + _detail_row("Date :", formatted_date)
+            + _detail_row("Lieu :", appointment_location or "Non specifie")
+        )
+
+        dispute_url = f"{SITE_URL}/litiges/{dispute_id}"
+
+        body = (
+            _greeting(to_name)
+            + _paragraph(
+                f"Un desaccord a ete signale sur l'engagement <strong>{appointment_title}</strong>."
+            )
+            + _info_box(details)
+            + _alert_box(
+                '<p style="margin:0;font-size:14px;color:#92400E;">'
+                'Votre position est attendue. Sans reponse dans le delai imparti, '
+                'le dossier sera automatiquement transmis a un arbitre.</p>'
+            )
+            + _btn(dispute_url, "Voir le litige et repondre")
+            + _brand_note("Chaque partie a un droit de parole egal. C'est le principe Trustless.")
+        )
+
+        html_content = _base_template(body, accent="warning")
+        return await EmailService.send_email(to_email, subject, html_content, email_type="dispute_opened")
+
+    # ─────────────────────────────────────────────────────────
+    # DISPUTE ESCALATED — litige escalade
+    # ─────────────────────────────────────────────────────────
+    @staticmethod
+    async def send_dispute_escalated_email(
+        to_email: str,
+        to_name: str,
+        appointment_title: str,
+        appointment_date: str,
+        dispute_id: str,
+        appointment_timezone: str = 'Europe/Paris',
+    ):
+        formatted_date = format_email_datetime(appointment_date, appointment_timezone)
+        subject = f"Litige transmis a un arbitre — {appointment_title}"
+
+        details = (
+            _detail_row("Engagement :", f"<strong>{appointment_title}</strong>")
+            + _detail_row("Date :", formatted_date)
+        )
+
+        dispute_url = f"{SITE_URL}/litiges/{dispute_id}"
+
+        body = (
+            _greeting(to_name)
+            + _paragraph(
+                f"Les positions sur l'engagement <strong>{appointment_title}</strong> divergent. "
+                "Un arbitre neutre va examiner le dossier."
+            )
+            + _info_box(details)
+            + _paragraph(
+                "Vous n'avez aucune action a effectuer. L'arbitre rendra sa decision "
+                "dans les meilleurs delais et vous serez notifie du resultat."
+            )
+            + _btn_secondary(dispute_url, "Suivre le dossier")
+            + _brand_note("L'arbitrage garantit une decision impartiale pour les deux parties.")
+        )
+
+        html_content = _base_template(body, accent="warning")
+        return await EmailService.send_email(to_email, subject, html_content, email_type="dispute_escalated")
+
+    # ─────────────────────────────────────────────────────────
+    # DECISION RENDERED — decision rendue
+    # ─────────────────────────────────────────────────────────
+    @staticmethod
+    async def send_decision_rendered_email(
+        to_email: str,
+        to_name: str,
+        appointment_title: str,
+        appointment_date: str,
+        dispute_id: str,
+        final_outcome: str,
+        resolved_by: str,
+        appointment_timezone: str = 'Europe/Paris',
+    ):
+        formatted_date = format_email_datetime(appointment_date, appointment_timezone)
+
+        outcome_config = {
+            "on_time": {"label": "Presence validee", "accent": "success", "icon": "&#10004;", "color": "#166534", "bg": "#F0FDF4", "border": "#BBF7D0"},
+            "no_show": {"label": "Absence confirmee", "accent": "danger", "icon": "&#10008;", "color": "#991B1B", "bg": "#FEF2F2", "border": "#FECACA"},
+            "late_penalized": {"label": "Retard penalise", "accent": "warning", "icon": "&#9888;", "color": "#92400E", "bg": "#FFFBEB", "border": "#FDE68A"},
+            "waived": {"label": "Penalite annulee", "accent": "info", "icon": "&#10004;", "color": "#1E40AF", "bg": "#EFF6FF", "border": "#BFDBFE"},
+        }
+        oc = outcome_config.get(final_outcome, outcome_config["no_show"])
+
+        source_labels = {
+            "mutual_agreement": "Accord mutuel entre les parties",
+            "admin_arbitration": "Decision d'un arbitre neutre",
+            "platform": "Decision automatique de la plateforme",
+        }
+        source_label = source_labels.get(resolved_by, resolved_by)
+
+        subject = f"Decision rendue — {appointment_title}"
+
+        details = (
+            _detail_row("Engagement :", f"<strong>{appointment_title}</strong>")
+            + _detail_row("Date :", formatted_date)
+        )
+
+        outcome_block = (
+            f'<div style="background:{oc["bg"]};border:1px solid {oc["border"]};border-radius:10px;padding:20px;margin:20px 0;text-align:center;">'
+            f'<p style="margin:0 0 8px 0;font-size:28px;line-height:1;">{oc["icon"]}</p>'
+            f'<p style="margin:0 0 4px 0;font-size:18px;font-weight:700;color:{oc["color"]};">{oc["label"]}</p>'
+            f'<p style="margin:0;font-size:13px;color:#64748B;">{source_label}</p>'
+            '</div>'
+        )
+
+        decision_url = f"{SITE_URL}/decisions/{dispute_id}"
+
+        body = (
+            _greeting(to_name)
+            + _paragraph(
+                f"Le litige concernant <strong>{appointment_title}</strong> a ete tranche."
+            )
+            + _info_box(details)
+            + outcome_block
+            + _btn(decision_url, "Voir le detail de la decision")
+            + _small("Cette decision est definitive. Les impacts financiers ont ete appliques automatiquement.")
+            + _brand_note("Transparence et equite — le fondement de NLYT.")
+        )
+
+        html_content = _base_template(body, accent=oc["accent"])
+        return await EmailService.send_email(to_email, subject, html_content, email_type="decision_rendered")

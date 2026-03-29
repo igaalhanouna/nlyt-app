@@ -1,0 +1,101 @@
+{
+  "summary": "Iteration 144: Notification System with Email Integration - All tests PASSED. Backend APIs (GET /api/notifications/counts, GET /api/notifications/unread-ids/{event_type}, POST /api/notifications/mark-read) working correctly. Email integration verified: decision_rendered emails sent via Resend API to both parties with email_sent=True in user_notifications and logged in email_attempts collection. Frontend correctly displays red badges on Decisions navbar link, blue dots on unread decision cards, and marks notifications as read when viewing detail pages. Mobile navigation shows notification dot on hamburger menu.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": {
+    "backend_api_tests": {
+      "test_counts_requires_auth": "PASS - 401 returned without auth",
+      "test_counts_returns_correct_structure": "PASS - Returns {decisions: N, disputes: N}",
+      "test_unread_ids_requires_auth": "PASS - 401 returned without auth",
+      "test_unread_ids_invalid_type_returns_400": "PASS - Returns 400 for invalid event_type",
+      "test_unread_ids_decision_returns_list": "PASS - Returns {unread_ids: [...]}",
+      "test_unread_ids_dispute_update_returns_list": "PASS - Returns {unread_ids: [...]}",
+      "test_mark_read_requires_auth": "PASS - 401 returned without auth",
+      "test_mark_read_returns_marked_count": "PASS - Returns {marked: N}",
+      "test_participant_can_access_counts": "PASS - Participant can access notification counts",
+      "test_decisions_mine_endpoint": "PASS - Returns decisions list",
+      "test_disputes_mine_endpoint": "PASS - Returns disputes list",
+      "test_escalated_disputes_endpoint": "PASS - Admin can access escalated disputes",
+      "test_arbitration_stats_endpoint": "PASS - Admin can access arbitration stats",
+      "test_mark_read_idempotent": "PASS - Multiple mark-read calls are idempotent",
+      "test_participant_notification_counts": "PASS - Participant can see notification counts",
+      "test_participant_unread_decision_ids": "PASS - Participant can get unread decision IDs",
+      "test_participant_decisions_list": "PASS - Participant can access decisions"
+    },
+    "email_integration_tests": {
+      "decision_rendered_emails_sent": "PASS - 2 decision_rendered emails in email_attempts collection",
+      "email_sent_to_both_parties": "PASS - Emails sent to testuser_audit@nlyt.app and igaal@hotmail.com",
+      "email_status_success": "PASS - Both emails have status=success with Resend response IDs",
+      "email_sent_field_in_notifications": "PASS - user_notifications have email_sent=True and email_sent_at timestamps"
+    },
+    "frontend_tests": {
+      "navbar_decisions_link": "PASS - Decisions link present with data-testid='navbar-decisions-link'",
+      "navbar_litiges_link": "PASS - Litiges link present with data-testid='navbar-litiges-link'",
+      "navbar_decisions_badge_admin": "PASS - Red badge shows count '1' for admin user",
+      "navbar_decisions_badge_participant": "PASS - Red badge shows count '3' for participant user",
+      "decisions_list_page_loads": "PASS - Page loads with title 'Decisions'",
+      "decisions_list_shows_cards": "PASS - 7 decision cards displayed",
+      "unread_dot_indicator": "PASS - Blue dot (data-testid='unread-dot-{id}') visible on unread cards",
+      "unread_card_blue_background": "PASS - Unread cards have bg-blue-50 styling",
+      "decision_detail_page_loads": "PASS - Detail page loads with all expected elements",
+      "decision_outcome_bloc": "PASS - Decision outcome bloc displayed correctly",
+      "mark_as_read_on_detail_view": "PASS - Badge count decrements after viewing decision detail (3->2)",
+      "mobile_hamburger_notification_dot": "PASS - Hamburger shows notification dot when unread notifications exist",
+      "mobile_drawer_opens": "PASS - Mobile drawer opens with all navigation links",
+      "litiges_page_empty_state": "PASS - Shows 'Aucun litige en cours' when no active disputes"
+    }
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_notifications_email_iter144.py",
+    "/app/test_reports/pytest/pytest_notifications_email_iter144.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "notification_service.py: Idempotent notification creation (lines 33-39) prevents duplicate notifications",
+    "notification_service.py: email_sent field tracks email delivery status (lines 50, 58-63)",
+    "notification_service.py: was_email_sent() check prevents duplicate emails (lines 66-72)",
+    "notification_service.py: notify_decision_rendered() sends emails to both parties (lines 169-231)",
+    "notification_service.py: notify_dispute_opened() sends emails with dispute_update idempotency key (lines 234-277)",
+    "notification_service.py: notify_dispute_escalated() uses separate 'dispute_escalated' key for email idempotency (lines 308-351)",
+    "notification_service.py: notify_dispute_position_submitted() is in-app only, no email (lines 280-305)",
+    "email_service.py: send_decision_rendered_email() with outcome-specific styling (lines 1010-1068)",
+    "email_service.py: send_dispute_opened_email() with warning accent (lines 927-965)",
+    "email_service.py: send_dispute_escalated_email() with arbitration info (lines 970-1005)",
+    "declarative_service.py: Notification triggers integrated at correct points (open_dispute, resolve_dispute, submit_position, escalation)",
+    "AppNavbar.js: Correctly fetches notification counts on mount and every 30 seconds (lines 59-73)",
+    "DecisionsListPage.js: Fetches unread IDs and applies blue styling to unread cards (lines 26-34, 64-69)",
+    "DecisionDetailPage.js: Marks notification as read on mount (line 40)",
+    "DisputesListPage.js: Fetches unread IDs for dispute_update type (lines 57-64)",
+    "DisputeDetailPage.js: Marks dispute notification as read on mount (line 50)"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_notifications_email_iter144.py"
+  ],
+  "success_rate": {
+    "backend": "100% (19/19 tests passed)",
+    "frontend": "100% (14/14 tests passed)"
+  },
+  "test_credentials": {
+    "admin_organizer": "testuser_audit@nlyt.app / TestAudit123! (role=admin)",
+    "participant": "igaal@hotmail.com / Test123! (role=user, had 3 unread decision notifications)"
+  },
+  "seed_data_creation": "None - used existing seeded notifications and email_attempts",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Notification system with email integration fully implemented and tested. Email integration verified: decision_rendered emails sent via Resend API with status=success. email_attempts collection logs all sent emails with email_type field. user_notifications collection has email_sent=True and email_sent_at for notifications where emails were sent. No active disputes exist currently (all resolved), so dispute_opened and dispute_escalated emails cannot be tested with live data - they will be triggered when new disputes are created. The notification triggers (open_dispute, submit_position, escalation, resolve_dispute) are integrated in declarative_service.py. Login route is /signin. Rate limiting is 10 requests per minute on login endpoint.",
+  "email_integration_verification": {
+    "email_attempts_collection": "Contains 2 decision_rendered emails with status=success",
+    "emails_sent_to": ["testuser_audit@nlyt.app", "igaal@hotmail.com"],
+    "resend_api_integration": "Working - emails sent via Resend with response IDs",
+    "idempotency_verified": "email_sent field in user_notifications prevents duplicate emails",
+    "email_types_available": ["decision_rendered", "dispute_opened", "dispute_escalated"],
+    "position_submission_no_email": "notify_dispute_position_submitted() is in-app only per strategy matrix"
+  }
+}
