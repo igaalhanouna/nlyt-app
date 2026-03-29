@@ -253,6 +253,12 @@ SaaS d'engagement ponctuel avec garantie financiere. Optimisation du "Viral Loop
 - **Navigation**: Lien direct vers `/appointments/{id}` depuis la liste et le détail.
 - **Tests**: 10/10 backend + 14/14 frontend (iteration_129)
 
+### Phase 31 — Refonte UX Presences (Mar 2026) - DONE
+- **Backend enrichi**: `/api/attendance-sheets/pending` et `/api/attendance-sheets/{id}` retournent `appointment_type`, `appointment_location`, `appointment_meeting_provider`, `appointment_title`, `appointment_start_datetime`, `appointment_duration_minutes`.
+- **Frontend PresencesPage reecrite**: Cartes avec contexte RDV complet (date+heure, duree, type, lieu). Cartes soumises cliquables (pas d'opacity-70). CTA "Remplir ma feuille" / "Voir ma declaration". Lien "Voir le rendez-vous". Breadcrumb + badge compteur.
+- **Frontend AttendanceSheetPage reecrite**: Mode lecture seule pour declarations soumises (affiche exactement les valeurs soumises). Contexte RDV. Lien "Voir le rendez-vous". Breadcrumb dynamique.
+- **Tests**: 11/11 backend + UI frontend (iteration_130)
+
 ## Backlog
 - P1: Dashboard admin plateforme pour arbitrer les litiges escaladés
 - P1: Configurer le webhook Stripe en production pour validation end-to-end
