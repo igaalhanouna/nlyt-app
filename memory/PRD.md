@@ -108,6 +108,13 @@ Application SaaS (React/FastAPI/MongoDB) de gestion des presences avec garanties
 - Retrait de l'onglet Decisions du OrganizerDashboard (reste: A venir, Historique, Statistiques)
 - Nettoyage imports inutilises (Scale, Wallet, disputeAPI, ArrowRight dans le dashboard)
 
+### Session 18 - Statistiques vers Parametres (2026-03-31)
+- Creation de StatisticsPage.js standalone accessible via /settings/statistics
+- Ajout du lien Statistiques + Wallet dans la page Parametres (6 cartes au total)
+- Retrait de l'onglet Statistiques du OrganizerDashboard (reste: A venir, Historique)
+- Dashboard simplifie et oriente action
+- Nettoyage imports inutilises (Loader2, analytics state/callback)
+
 ## Data Integrity Rules
 - Participant documents MUST have valid user_id when user exists
 - Every appointment MUST have an is_organizer=True participant record

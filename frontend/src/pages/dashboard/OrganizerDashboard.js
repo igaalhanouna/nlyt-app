@@ -9,7 +9,7 @@ import {
   CalendarPlus, Calendar, Users, MapPin, Video,
   Trash2, Check, X, Clock, Building2, ChevronDown, Plus, Ban,
   ShieldCheck, CreditCard, History, Play, AlertTriangle, Bell,
-  Flame, Shield, Euro, Eye, Heart, Loader2,
+  Flame, Shield, Euro, Eye, Heart,
   UserCheck, Mail, ChevronRight, CheckCircle, LogOut, FileEdit
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -607,10 +607,6 @@ export default function OrganizerDashboard() {
   const [responding, setResponding] = useState(null);
   const [pendingModifications, setPendingModifications] = useState([]);
 
-  // Analytics state
-  const [analytics, setAnalytics] = useState(null);
-  const [analyticsLoading, setAnalyticsLoading] = useState(false);
-
   // External events / calendar import state
   const [importSettings, setImportSettings] = useState(null);
   const [externalEvents, setExternalEvents] = useState([]);
@@ -670,19 +666,6 @@ export default function OrganizerDashboard() {
   const modPendingAptIds = new Set(pendingModifications.map(p => p.appointment_id));
   const modDataByAptId = {};
   pendingModifications.forEach(p => { modDataByAptId[p.appointment_id] = p; });
-
-  const loadAnalytics = useCallback(async () => {
-    if (!currentWorkspace) return;
-    setAnalyticsLoading(true);
-    try {
-      const res = await appointmentAPI.analyticsStats(currentWorkspace.workspace_id);
-      setAnalytics(res.data);
-    } catch (error) {
-      console.error('Analytics load error:', error);
-    } finally {
-      setAnalyticsLoading(false);
-    }
-  }, [currentWorkspace]);
 
   const loadImpact = async () => {
     try {
@@ -1103,10 +1086,6 @@ export default function OrganizerDashboard() {
                     <span className="ml-1 md:ml-1.5 px-1 md:px-1.5 py-0.5 text-[10px] md:text-xs font-semibold bg-slate-200 text-slate-600 rounded-full">{counts.past}</span>
                   )}
                 </TabsTrigger>
-                <TabsTrigger value="stats" data-testid="tab-stats" className="px-2 md:px-3 text-xs md:text-sm" onClick={() => { if (!analytics) loadAnalytics(); }}>
-                  <Eye className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1 md:mr-1.5" />
-                  Statistiques
-                </TabsTrigger>
               </TabsList>
 
               <TabsContent value="upcoming">
@@ -1158,69 +1137,6 @@ export default function OrganizerDashboard() {
                 )}
               </TabsContent>
 
-              <TabsContent value="stats">
-                {analyticsLoading ? (
-                  <div className="text-center py-12">
-                    <Loader2 className="w-8 h-8 animate-spin text-slate-400 mx-auto" />
-                  </div>
-                ) : analytics ? (
-                  <div className="space-y-5">
-                    <div className={`px-4 py-3 rounded-lg text-sm font-medium ${
-                      analytics.global_tone === 'positive' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' :
-                      analytics.global_tone === 'warning' ? 'bg-amber-50 text-amber-800 border border-amber-200' :
-                      'bg-slate-50 text-slate-600 border border-slate-200'
-                    }`} data-testid="analytics-global-message">
-                      {analytics.global_message}
-                    </div>
-                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-                      <div className="bg-slate-50 rounded-lg p-4 border border-slate-100" data-testid="kpi-engagements">
-                        <p className="text-2xl font-bold text-slate-900">{analytics.total_engagements}</p>
-                        <p className="text-xs text-slate-500 mt-1">Engagements créés</p>
-                      </div>
-                      <div className="bg-slate-50 rounded-lg p-4 border border-slate-100" data-testid="kpi-presence">
-                        <p className="text-2xl font-bold text-slate-900">
-                          {analytics.presence_rate !== null ? `${analytics.presence_rate}%` : '—'}
-                        </p>
-                        <p className="text-xs text-slate-500 mt-1">Taux de présence</p>
-                      </div>
-                      <div className="bg-slate-50 rounded-lg p-4 border border-slate-100" data-testid="kpi-acceptance">
-                        <p className="text-2xl font-bold text-slate-900">
-                          {analytics.acceptance_rate !== null ? `${analytics.acceptance_rate}%` : '—'}
-                        </p>
-                        <p className="text-xs text-slate-500 mt-1">Taux d'acceptation</p>
-                      </div>
-                      <div className="bg-slate-50 rounded-lg p-4 border border-slate-100" data-testid="kpi-compensation">
-                        <p className="text-2xl font-bold text-slate-900">
-                          {(analytics.personal_compensation_cents / 100).toFixed(0)} €
-                        </p>
-                        <p className="text-xs text-slate-500 mt-1">Dédommagement personnel</p>
-                      </div>
-                      <div className="bg-slate-50 rounded-lg p-4 border border-slate-100" data-testid="kpi-charity">
-                        <p className="text-2xl font-bold text-emerald-700">
-                          {(analytics.charity_total_cents / 100).toFixed(0)} €
-                        </p>
-                        <p className="text-xs text-slate-500 mt-1">Reversés à des associations</p>
-                      </div>
-                      <div className="bg-slate-50 rounded-lg p-4 border border-slate-100" data-testid="kpi-defaults">
-                        <p className={`text-2xl font-bold ${analytics.organizer_defaults > 0 ? 'text-amber-600' : 'text-slate-900'}`}>
-                          {analytics.organizer_defaults}
-                        </p>
-                        {analytics.organizer_penalties_cents > 0 && (
-                          <p className="text-sm font-semibold text-amber-600 mt-0.5">
-                            {(analytics.organizer_penalties_cents / 100).toFixed(0)} €
-                          </p>
-                        )}
-                        <p className="text-xs text-slate-500 mt-1">Engagements non honorés</p>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-center py-12">
-                    <Eye className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-                    <p className="text-slate-500">Chargement des statistiques...</p>
-                  </div>
-                )}
-              </TabsContent>
 
             </Tabs>
           )}

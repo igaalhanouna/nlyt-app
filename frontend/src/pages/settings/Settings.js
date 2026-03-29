@@ -1,14 +1,16 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { User, Building2, Plug, CreditCard } from 'lucide-react';
+import { User, Building2, Plug, CreditCard, BarChart3, Wallet } from 'lucide-react';
 import AppNavbar from '../../components/AppNavbar';
 import AppBreadcrumb from '../../components/AppBreadcrumb';
 
 const SECTIONS = [
   { to: '/settings/profile', icon: User, title: 'Profil', desc: 'Informations personnelles et associations', testId: 'settings-profile-link' },
   { to: '/settings/workspace', icon: Building2, title: 'Workspace', desc: 'Configuration du workspace', testId: 'settings-workspace-link' },
-  { to: '/settings/integrations', icon: Plug, title: 'Intégrations', desc: 'Calendriers et visioconférence', testId: 'settings-integrations-link' },
+  { to: '/settings/integrations', icon: Plug, title: 'Integrations', desc: 'Calendriers et visioconference', testId: 'settings-integrations-link' },
   { to: '/settings/payment', icon: CreditCard, title: 'Paiement', desc: 'Moyen de paiement pour vos garanties', testId: 'settings-payment-link' },
+  { to: '/wallet', icon: Wallet, title: 'Wallet', desc: 'Solde et historique des transactions', testId: 'settings-wallet-link' },
+  { to: '/settings/statistics', icon: BarChart3, title: 'Statistiques', desc: 'Analyse de vos engagements et performances', testId: 'settings-statistics-link' },
 ];
 
 export default function Settings() {
