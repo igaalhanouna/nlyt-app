@@ -115,6 +115,13 @@ Application SaaS (React/FastAPI/MongoDB) de gestion des presences avec garanties
 - Dashboard simplifie et oriente action
 - Nettoyage imports inutilises (Loader2, analytics state/callback)
 
+### Session 19 - Fix bouton Modifier participant (2026-03-31)
+- Bug: Le bouton crayon "Modifier" sur la page detail d'un RDV ne faisait rien pour les participants
+- Cause: EditProposalModal etait rendu uniquement quand isOrganizer=true (ligne 903)
+- Fix 1: Condition changee de {isOrganizer} a {(isOrganizer || viewerCanPropose)}
+- Fix 2: viewerCanPropose utilisait user_id (parfois null) -> corrige pour utiliser viewerParticipantStatus (toujours fiable)
+- Valide via testing_agent iteration 140 (100%: 8/8 frontend)
+
 ## Data Integrity Rules
 - Participant documents MUST have valid user_id when user exists
 - Every appointment MUST have an is_organizer=True participant record
