@@ -10,7 +10,7 @@ import {
   Trash2, Check, X, Clock, Building2, ChevronDown, Plus, Ban,
   ShieldCheck, CreditCard, History, Play, AlertTriangle, Bell,
   Flame, Shield, Euro, Eye, Heart,
-  UserCheck, Mail, ChevronRight, CheckCircle, LogOut, FileEdit
+  UserCheck, Mail, ChevronRight, CheckCircle, LogOut, FileEdit, Search
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDateTimeCompactFr, parseUTC } from '../../utils/dateFormat';
@@ -578,6 +578,7 @@ export default function OrganizerDashboard() {
   // Timeline state
   const [timeline, setTimeline] = useState({ action_required: [], upcoming: [], past: [] });
   const [counts, setCounts] = useState({ action_required: 0, upcoming: 0, past: 0, total: 0 });
+  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [pastVisible, setPastVisible] = useState(20);
   const { saveScroll } = useScrollRestore('dashboard', !loading);
@@ -878,6 +879,29 @@ export default function OrganizerDashboard() {
     ].sort((a, b) => (a.sortKey || '').localeCompare(b.sortKey || ''));
   }, [timeline.upcoming, externalEvents]);
 
+  // Search filter
+  const matchesSearch = useCallback((item) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    const fields = [
+      item.title,
+      item.location_display_name,
+      item.location,
+      item.counterparty_name,
+      item.status,
+      item.participant_status,
+    ];
+    return fields.some(f => f && String(f).toLowerCase().includes(q));
+  }, [searchQuery]);
+
+  const filteredUpcoming = useMemo(() =>
+    upcomingMerged.filter(m => m.type === 'external' || matchesSearch(m.data)),
+  [upcomingMerged, matchesSearch]);
+
+  const filteredPast = useMemo(() =>
+    timeline.past.filter(matchesSearch),
+  [timeline.past, matchesSearch]);
+
   return (
     <div className="min-h-screen bg-background">
       {/* Delete Modal */}
@@ -1076,33 +1100,46 @@ export default function OrganizerDashboard() {
             </div>
           ) : (
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="mb-6 w-full md:w-auto h-11 md:h-9">
-                <TabsTrigger value="upcoming" data-testid="tab-upcoming" className="px-2 md:px-3 text-xs md:text-sm">
-                  <Calendar className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1 md:mr-1.5" />
-                  À venir
-                  {(counts.upcoming > 0) && (
-                    <span className="ml-1 md:ml-1.5 px-1 md:px-1.5 py-0.5 text-[10px] md:text-xs font-semibold bg-slate-900 text-white rounded-full">{counts.upcoming}</span>
-                  )}
-                </TabsTrigger>
-                <TabsTrigger value="past" data-testid="tab-past" className="px-2 md:px-3 text-xs md:text-sm">
-                  <History className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1 md:mr-1.5" />
-                  Historique
-                  {counts.past > 0 && (
-                    <span className="ml-1 md:ml-1.5 px-1 md:px-1.5 py-0.5 text-[10px] md:text-xs font-semibold bg-slate-200 text-slate-600 rounded-full">{counts.past}</span>
-                  )}
-                </TabsTrigger>
-              </TabsList>
+              <div className="flex items-center justify-between gap-3 mb-6">
+                <TabsList className="w-auto h-11 md:h-9">
+                  <TabsTrigger value="upcoming" data-testid="tab-upcoming" className="px-2 md:px-3 text-xs md:text-sm">
+                    <Calendar className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1 md:mr-1.5" />
+                    A venir
+                    {(counts.upcoming > 0) && (
+                      <span className="ml-1 md:ml-1.5 px-1 md:px-1.5 py-0.5 text-[10px] md:text-xs font-semibold bg-slate-900 text-white rounded-full">{counts.upcoming}</span>
+                    )}
+                  </TabsTrigger>
+                  <TabsTrigger value="past" data-testid="tab-past" className="px-2 md:px-3 text-xs md:text-sm">
+                    <History className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1 md:mr-1.5" />
+                    Historique
+                    {counts.past > 0 && (
+                      <span className="ml-1 md:ml-1.5 px-1 md:px-1.5 py-0.5 text-[10px] md:text-xs font-semibold bg-slate-200 text-slate-600 rounded-full">{counts.past}</span>
+                    )}
+                  </TabsTrigger>
+                </TabsList>
+                <div className="relative w-48 md:w-64">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Rechercher..."
+                    className="w-full h-9 pl-8 pr-3 text-sm border border-slate-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-300 placeholder:text-slate-400"
+                    data-testid="engagement-search-input"
+                  />
+                </div>
+              </div>
 
               <TabsContent value="upcoming">
-                {upcomingMerged.length === 0 ? (
+                {filteredUpcoming.length === 0 ? (
                   <div className="text-center py-12">
                     <Calendar className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-                    <p className="text-slate-500">Aucun engagement à venir</p>
-                    <Link to="/appointments/create" className="mt-3 inline-block"><Button variant="outline" size="sm">Planifier un engagement</Button></Link>
+                    <p className="text-slate-500">{searchQuery ? 'Aucun engagement trouve' : 'Aucun engagement a venir'}</p>
+                    {!searchQuery && <Link to="/appointments/create" className="mt-3 inline-block"><Button variant="outline" size="sm">Planifier un engagement</Button></Link>}
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {upcomingMerged.map(merged =>
+                    {filteredUpcoming.map(merged =>
                       merged.type === 'timeline' ? (
                         <TimelineCard key={`tl-${merged.data.appointment_id}`} item={merged.data} isPast={false} onDelete={handleDeleteClick} onRemind={handleRemind} onQuit={handleQuitParticipation} onDecline={handleDeclineInvitation} now={now} fromTab="upcoming" onNavigate={saveScroll} hasModification={modPendingAptIds.has(merged.data.appointment_id)} modActionRequired={modActionAptIds.has(merged.data.appointment_id)} modificationData={modDataByAptId[merged.data.appointment_id]} />
                       ) : (
@@ -1114,17 +1151,17 @@ export default function OrganizerDashboard() {
               </TabsContent>
 
               <TabsContent value="past">
-                {timeline.past.length === 0 ? (
+                {filteredPast.length === 0 ? (
                   <div className="text-center py-12">
                     <History className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-                    <p className="text-slate-500">Aucun engagement passé</p>
+                    <p className="text-slate-500">{searchQuery ? 'Aucun engagement trouve' : 'Aucun engagement passe'}</p>
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {timeline.past.slice(0, pastVisible).map(item => (
+                    {filteredPast.slice(0, pastVisible).map(item => (
                       <TimelineCard key={`past-${item.role}-${item.appointment_id}`} item={item} isPast={true} onDelete={handleDeleteClick} onRemind={handleRemind} onQuit={handleQuitParticipation} onDecline={handleDeclineInvitation} now={now} fromTab="past" onNavigate={saveScroll} hasModification={modPendingAptIds.has(item.appointment_id)} modActionRequired={modActionAptIds.has(item.appointment_id)} modificationData={modDataByAptId[item.appointment_id]} />
                     ))}
-                    {timeline.past.length > pastVisible && (
+                    {filteredPast.length > pastVisible && (
                       <div className="pt-4 text-center">
                         <Button
                           variant="ghost"
@@ -1135,7 +1172,7 @@ export default function OrganizerDashboard() {
                         >
                           Voir plus
                         </Button>
-                        <p className="text-xs text-slate-400 mt-1">{Math.min(pastVisible, timeline.past.length)} sur {timeline.past.length}</p>
+                        <p className="text-xs text-slate-400 mt-1">{Math.min(pastVisible, filteredPast.length)} sur {filteredPast.length}</p>
                       </div>
                     )}
                   </div>
