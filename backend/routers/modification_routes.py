@@ -125,7 +125,11 @@ async def get_appointment_proposals(appointment_id: str, request: Request):
         "workspace_id": appointment['workspace_id'],
         "user_id": user['user_id']
     }, {"_id": 0})
-    if not membership:
+    participant = db.participants.find_one({
+        "appointment_id": appointment_id,
+        "user_id": user['user_id']
+    }, {"_id": 0})
+    if not membership and not participant:
         raise HTTPException(status_code=403, detail="Accès refusé")
 
     proposals = get_proposals_for_appointment(appointment_id)
