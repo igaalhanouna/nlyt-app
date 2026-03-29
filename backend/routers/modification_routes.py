@@ -62,7 +62,7 @@ async def create_modification_proposal(body: CreateProposalRequest, request: Req
             "name": f"{participant.get('first_name', '')} {participant.get('last_name', '')}".strip()
         }
     else:
-        # Organizer proposing via JWT
+        # JWT-authenticated user — determine role (organizer or participant)
         user = await get_current_user(request)
         appointment = db.appointments.find_one(
             {"appointment_id": body.appointment_id},
@@ -70,14 +70,29 @@ async def create_modification_proposal(body: CreateProposalRequest, request: Req
         )
         if not appointment:
             raise HTTPException(status_code=404, detail="Rendez-vous introuvable")
-        if appointment['organizer_id'] != user['user_id']:
-            raise HTTPException(status_code=403, detail="Seul l'organisateur peut proposer une modification via ce canal")
 
-        proposed_by = {
-            "user_id": user['user_id'],
-            "role": "organizer",
-            "name": f"{user.get('first_name', '')} {user.get('last_name', '')}".strip() or user.get('email', '')
-        }
+        if appointment['organizer_id'] == user['user_id']:
+            # Organizer proposing
+            proposed_by = {
+                "user_id": user['user_id'],
+                "role": "organizer",
+                "name": f"{user.get('first_name', '')} {user.get('last_name', '')}".strip() or user.get('email', '')
+            }
+        else:
+            # Participant proposing via JWT (P1.2 — bidirectional)
+            participant = db.participants.find_one(
+                {"appointment_id": body.appointment_id, "user_id": user['user_id'], "is_organizer": {"$ne": True}},
+                {"_id": 0}
+            )
+            if not participant:
+                raise HTTPException(status_code=403, detail="Vous n'êtes pas participant de ce rendez-vous")
+            if participant.get('status') not in ('accepted', 'guaranteed', 'accepted_pending_guarantee', 'accepted_guaranteed'):
+                raise HTTPException(status_code=400, detail="Seuls les participants ayant accepté peuvent proposer une modification")
+            proposed_by = {
+                "participant_id": participant['participant_id'],
+                "role": "participant",
+                "name": f"{participant.get('first_name', '')} {participant.get('last_name', '')}".strip()
+            }
 
     try:
         result = create_proposal(body.appointment_id, body.changes, proposed_by)
@@ -117,6 +132,93 @@ async def get_appointment_proposals(appointment_id: str, request: Request):
     return {"proposals": proposals}
 
 
+@router.get("/mine")
+async def get_my_modifications(request: Request):
+    """Get all modification proposals involving the current user (as organizer or participant)."""
+    user = await get_current_user(request)
+    user_id = user['user_id']
+
+    # Appointments where user is organizer
+    org_apt_ids = set()
+    for apt in db.appointments.find({"organizer_id": user_id, "status": {"$ne": "deleted"}}, {"_id": 0, "appointment_id": 1}):
+        org_apt_ids.add(apt["appointment_id"])
+
+    # Appointments where user is participant
+    part_map = {}
+    for p in db.participants.find({"user_id": user_id, "is_organizer": {"$ne": True}}, {"_id": 0, "appointment_id": 1, "participant_id": 1}):
+        part_map[p["appointment_id"]] = p["participant_id"]
+
+    all_apt_ids = org_apt_ids | set(part_map.keys())
+    if not all_apt_ids:
+        return {"proposals": []}
+
+    proposals = list(db.modification_proposals.find(
+        {"appointment_id": {"$in": list(all_apt_ids)}},
+        {"_id": 0}
+    ).sort("created_at", -1))
+
+    # Cache appointments for enrichment
+    apt_cache = {}
+    for apt in db.appointments.find(
+        {"appointment_id": {"$in": list(all_apt_ids)}},
+        {"_id": 0, "appointment_id": 1, "title": 1, "start_datetime": 1}
+    ):
+        apt_cache[apt["appointment_id"]] = apt
+
+    result = []
+    for prop in proposals:
+        apt_id = prop["appointment_id"]
+        apt = apt_cache.get(apt_id, {})
+        is_org = apt_id in org_apt_ids
+        my_role = "organizer" if is_org else "participant"
+
+        # My response status
+        my_response_status = None
+        if is_org:
+            my_response_status = prop.get("organizer_response", {}).get("status")
+        else:
+            pid = part_map.get(apt_id)
+            for r in prop.get("responses", []):
+                if r.get("participant_id") == pid:
+                    my_response_status = r.get("status")
+                    break
+
+        is_action_required = prop.get("status") == "pending" and my_response_status == "pending"
+
+        # Participants summary
+        responses = prop.get("responses", [])
+        accepted_count = sum(1 for r in responses if r["status"] == "accepted")
+        total_voters = len(responses)
+        org_resp = prop.get("organizer_response", {}).get("status")
+        if org_resp == "auto_accepted":
+            total_voters += 1
+            accepted_count += 1
+        elif org_resp in ("pending", "accepted", "rejected"):
+            total_voters += 1
+            if org_resp == "accepted":
+                accepted_count += 1
+
+        result.append({
+            "proposal_id": prop["proposal_id"],
+            "appointment_id": apt_id,
+            "appointment_title": apt.get("title", ""),
+            "start_datetime": apt.get("start_datetime", ""),
+            "proposed_by": prop.get("proposed_by", {}),
+            "changes": prop.get("changes", {}),
+            "original_values": prop.get("original_values", {}),
+            "status": prop.get("status"),
+            "mode": prop.get("mode", "proposal"),
+            "expires_at": prop.get("expires_at"),
+            "created_at": prop.get("created_at"),
+            "my_role": my_role,
+            "my_response_status": my_response_status,
+            "is_action_required": is_action_required,
+            "participants_summary": f"{accepted_count}/{total_voters}"
+        })
+
+    return {"proposals": result}
+
+
 @router.get("/active/{appointment_id}")
 async def get_active_proposal_endpoint(appointment_id: str):
     """Get the active (pending) proposal for an appointment. Public endpoint."""
@@ -152,16 +254,29 @@ async def respond_to_modification(proposal_id: str, body: RespondProposalRequest
         responder_id = participant['participant_id']
         responder_type = 'participant'
     else:
-        # Organizer responding
+        # JWT-authenticated user — determine role
         user = await get_current_user(request)
         appointment = db.appointments.find_one(
             {"appointment_id": proposal['appointment_id']},
             {"_id": 0}
         )
-        if not appointment or appointment['organizer_id'] != user['user_id']:
-            raise HTTPException(status_code=403, detail="Seul l'organisateur peut répondre via ce canal")
-        responder_id = user['user_id']
-        responder_type = 'organizer'
+        if not appointment:
+            raise HTTPException(status_code=404, detail="Rendez-vous introuvable")
+
+        if appointment['organizer_id'] == user['user_id']:
+            # Organizer responding
+            responder_id = user['user_id']
+            responder_type = 'organizer'
+        else:
+            # Participant responding via JWT (P1.2 — bidirectional)
+            participant = db.participants.find_one(
+                {"appointment_id": proposal['appointment_id'], "user_id": user['user_id'], "is_organizer": {"$ne": True}},
+                {"_id": 0}
+            )
+            if not participant:
+                raise HTTPException(status_code=403, detail="Vous n'êtes pas participant de ce rendez-vous")
+            responder_id = participant['participant_id']
+            responder_type = 'participant'
 
     try:
         updated = respond_to_proposal(proposal_id, responder_id, body.action, responder_type)
@@ -184,8 +299,28 @@ async def cancel_modification_proposal(proposal_id: str, request: Request):
     """Cancel an active proposal. Only the proposer can cancel."""
     user = await get_current_user(request)
 
+    proposal = db.modification_proposals.find_one({"proposal_id": proposal_id}, {"_id": 0})
+    if not proposal:
+        raise HTTPException(status_code=404, detail="Proposition introuvable")
+
+    # Determine canceller identity
+    appointment = db.appointments.find_one({"appointment_id": proposal['appointment_id']}, {"_id": 0})
+    if appointment and appointment.get('organizer_id') == user['user_id']:
+        canceller_id = user['user_id']
+        canceller_type = 'organizer'
+    else:
+        participant = db.participants.find_one(
+            {"appointment_id": proposal['appointment_id'], "user_id": user['user_id'], "is_organizer": {"$ne": True}},
+            {"_id": 0}
+        )
+        if participant:
+            canceller_id = participant['participant_id']
+            canceller_type = 'participant'
+        else:
+            raise HTTPException(status_code=403, detail="Vous n'êtes pas impliqué dans ce rendez-vous")
+
     try:
-        result = cancel_proposal(proposal_id, user['user_id'], 'organizer')
+        result = cancel_proposal(proposal_id, canceller_id, canceller_type)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 

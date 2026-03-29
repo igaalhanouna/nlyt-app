@@ -694,6 +694,11 @@ export default function AppointmentDetail() {
   );
   const isDirectModification = !hasAcceptedNonOrgParticipants;
 
+  // Viewer's participant record (for participants responding to proposals)
+  const viewerParticipant = participants.find(p => p.user_id === user?.user_id && !p.is_organizer);
+  const viewerCanPropose = !isOrganizer && canEdit && viewerParticipant
+    && ACCEPTED_STATUSES.includes(viewerParticipant.status);
+
   // Proof summary for <details>
   const proofSessionCount = proofSessions.length;
   const validatedCount = proofSessions.filter(s => s.validated_status).length;
@@ -788,7 +793,7 @@ export default function AppointmentDetail() {
         {/* #2 — Essentials (date, lieu, lien, confiance) */}
         <AppointmentEssentials
           appointment={appointment} isCancelled={isCancelled} organizerParticipant={organizerParticipant}
-          guaranteedCount={guaranteedCount} canEdit={isOrganizer && canEdit} onEdit={isOrganizer ? handleOpenProposalForm : undefined}
+          guaranteedCount={guaranteedCount} canEdit={(isOrganizer || viewerCanPropose) && canEdit} onEdit={(isOrganizer || viewerCanPropose) ? handleOpenProposalForm : undefined}
         />
 
         {/* #3 — Actions (calendrier, annuler) — available for both roles */}
@@ -906,8 +911,10 @@ export default function AppointmentDetail() {
             <div className="border-t border-slate-100">
               <ModificationProposals
                 activeProposal={activeProposal}
-                respondingProposal={respondingProposal} onRespondProposal={handleRespondProposal} onCancelProposal={isOrganizer ? handleCancelProposal : undefined}
+                respondingProposal={respondingProposal} onRespondProposal={handleRespondProposal} onCancelProposal={handleCancelProposal}
                 proposalHistory={proposalHistory} showHistory={showHistory} setShowHistory={setShowHistory}
+                viewerParticipantId={viewerParticipant?.participant_id}
+                isOrganizer={isOrganizer}
               />
             </div>
           </details>

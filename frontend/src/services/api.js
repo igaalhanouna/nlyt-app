@@ -148,6 +148,7 @@ export const modificationAPI = {
   getActive: (appointmentId) => api.get(`/api/modifications/active/${appointmentId}`),
   respond: (proposalId, data) => api.post(`/api/modifications/${proposalId}/respond`, data),
   cancel: (proposalId) => api.post(`/api/modifications/${proposalId}/cancel`),
+  mine: () => api.get('/api/modifications/mine'),
 };
 
 export const videoEvidenceAPI = {

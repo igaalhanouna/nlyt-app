@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useWorkspace } from '../../contexts/WorkspaceContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { appointmentAPI, walletAPI, externalEventsAPI, invitationAPI } from '../../services/api';
+import { appointmentAPI, walletAPI, externalEventsAPI, invitationAPI, modificationAPI } from '../../services/api';
 import { Button } from '../../components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/tabs';
 import {
@@ -10,7 +10,7 @@ import {
   Trash2, Check, X, Clock, Building2, ChevronDown, Plus, Ban,
   ShieldCheck, CreditCard, History, Play, AlertTriangle, Bell,
   ArrowRight, Flame, Shield, Euro, Eye, Heart, Loader2,
-  UserCheck, Mail, ChevronRight, CheckCircle, LogOut
+  UserCheck, Mail, ChevronRight, CheckCircle, LogOut, FileEdit
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDateTimeCompactFr, parseUTC } from '../../utils/dateFormat';
@@ -235,7 +235,7 @@ function ActionCard({ item, onRemind, onAccept, onDecline, onCancel, now, onNavi
 }
 
 // ── Timeline Card (unified for organizer + participant) ──
-function TimelineCard({ item, isPast, onDelete, onRemind, onQuit, onDecline, now, fromTab, onNavigate }) {
+function TimelineCard({ item, isPast, onDelete, onRemind, onQuit, onDecline, now, fromTab, onNavigate, hasModification, modActionRequired }) {
   const isParticipant = item.role === 'participant';
   const badge = getTemporalBadge(item, now);
   const isOngoing = badge.key === 'ongoing';
@@ -295,6 +295,18 @@ function TimelineCard({ item, isPast, onDelete, onRemind, onQuit, onDecline, now
             {isParticipant ? `Invitation de ${item.counterparty_name}` : 'Créé par vous'}
           </span>
           <div className="flex items-center gap-1.5 flex-shrink-0">
+            {modActionRequired && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium rounded-full border bg-amber-50 border-amber-300 text-amber-700" data-testid={`mod-action-badge-${item.appointment_id}`}>
+                <FileEdit className="w-3 h-3" />
+                Action requise
+              </span>
+            )}
+            {hasModification && !modActionRequired && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium rounded-full border bg-blue-50 border-blue-200 text-blue-600" data-testid={`mod-pending-badge-${item.appointment_id}`}>
+                <FileEdit className="w-3 h-3" />
+                Modification en cours
+              </span>
+            )}
             {riskCfg && risk !== 'secured' && (
               <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium rounded-full border ${riskCfg.className}`}>
                 <RiskIcon className="w-3 h-3" />
@@ -519,6 +531,7 @@ export default function OrganizerDashboard() {
   const [deleting, setDeleting] = useState(false);
   const [workspaceDropdownOpen, setWorkspaceDropdownOpen] = useState(false);
   const [responding, setResponding] = useState(null);
+  const [pendingModifications, setPendingModifications] = useState([]);
 
   // Analytics state
   const [analytics, setAnalytics] = useState(null);
@@ -534,6 +547,7 @@ export default function OrganizerDashboard() {
     loadTimeline();
     loadImpact();
     loadImportSettings().then(() => loadExternalEvents());
+    loadPendingModifications();
   }, [currentWorkspace]);
 
   // Dashboard polling: refresh timeline every 60s when page is visible
@@ -569,6 +583,17 @@ export default function OrganizerDashboard() {
       setLoading(false);
     }
   };
+
+  const loadPendingModifications = async () => {
+    try {
+      const res = await modificationAPI.mine();
+      setPendingModifications((res.data?.proposals || []).filter(p => p.status === 'pending'));
+    } catch { /* non-blocking */ }
+  };
+
+  // Sets for badges on timeline cards
+  const modActionAptIds = new Set(pendingModifications.filter(p => p.is_action_required).map(p => p.appointment_id));
+  const modPendingAptIds = new Set(pendingModifications.map(p => p.appointment_id));
 
   const loadAnalytics = useCallback(async () => {
     if (!currentWorkspace) return;
@@ -924,6 +949,41 @@ export default function OrganizerDashboard() {
           />
         )}
 
+        {/* Modification Actions Section */}
+        {!loading && pendingModifications.filter(p => p.is_action_required).length > 0 && (
+          <div className="mb-6 bg-amber-50/50 border border-amber-200 rounded-lg p-4" data-testid="modification-actions-section">
+            <div className="flex items-center gap-2 mb-3">
+              <FileEdit className="w-5 h-5 text-amber-600" />
+              <h3 className="text-base font-semibold text-amber-900">
+                Modifications en attente ({pendingModifications.filter(p => p.is_action_required).length})
+              </h3>
+            </div>
+            <div className="space-y-2">
+              {pendingModifications.filter(p => p.is_action_required).map(mod => (
+                <Link
+                  key={mod.proposal_id}
+                  to={`/appointments/${mod.appointment_id}`}
+                  className="flex items-center justify-between bg-white border border-amber-200 rounded-lg p-3 hover:border-amber-400 transition-colors"
+                  data-testid={`mod-action-card-${mod.proposal_id}`}
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-slate-900 truncate">{mod.appointment_title || 'Rendez-vous'}</p>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Proposé par {mod.proposed_by?.name || mod.proposed_by?.role}
+                      {mod.proposed_by?.role === 'participant' ? ' (participant)' : ' (organisateur)'}
+                      {' — '}
+                      {Object.keys(mod.changes || {}).map(k => k === 'start_datetime' ? 'Date' : k === 'duration_minutes' ? 'Durée' : k === 'location' ? 'Lieu' : k).join(', ')}
+                    </p>
+                  </div>
+                  <span className="flex-shrink-0 ml-3 text-xs font-medium text-amber-700 bg-amber-100 px-2 py-1 rounded-full">
+                    Répondre
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Main list */}
         <div className="bg-white rounded-lg border border-slate-200 p-4 md:p-6">
           <h3 className="text-lg font-semibold text-slate-900 mb-4">Engagements</h3>
@@ -972,7 +1032,7 @@ export default function OrganizerDashboard() {
                   <div className="space-y-3">
                     {upcomingMerged.map(merged =>
                       merged.type === 'timeline' ? (
-                        <TimelineCard key={`tl-${merged.data.appointment_id}`} item={merged.data} isPast={false} onDelete={handleDeleteClick} onRemind={handleRemind} onQuit={handleQuitParticipation} onDecline={handleDeclineInvitation} now={now} fromTab="upcoming" onNavigate={saveScroll} />
+                        <TimelineCard key={`tl-${merged.data.appointment_id}`} item={merged.data} isPast={false} onDelete={handleDeleteClick} onRemind={handleRemind} onQuit={handleQuitParticipation} onDecline={handleDeclineInvitation} now={now} fromTab="upcoming" onNavigate={saveScroll} hasModification={modPendingAptIds.has(merged.data.appointment_id)} modActionRequired={modActionAptIds.has(merged.data.appointment_id)} />
                       ) : (
                         <ExternalEventCard key={`ext-${merged.data.external_event_id}`} event={merged.data} />
                       )
@@ -990,7 +1050,7 @@ export default function OrganizerDashboard() {
                 ) : (
                   <div className="space-y-3">
                     {timeline.past.slice(0, pastVisible).map(item => (
-                      <TimelineCard key={`past-${item.role}-${item.appointment_id}`} item={item} isPast={true} onDelete={handleDeleteClick} onRemind={handleRemind} onQuit={handleQuitParticipation} onDecline={handleDeclineInvitation} now={now} fromTab="past" onNavigate={saveScroll} />
+                      <TimelineCard key={`past-${item.role}-${item.appointment_id}`} item={item} isPast={true} onDelete={handleDeleteClick} onRemind={handleRemind} onQuit={handleQuitParticipation} onDecline={handleDeclineInvitation} now={now} fromTab="past" onNavigate={saveScroll} hasModification={modPendingAptIds.has(item.appointment_id)} modActionRequired={modActionAptIds.has(item.appointment_id)} />
                     ))}
                     {timeline.past.length > pastVisible && (
                       <div className="pt-4 text-center">
