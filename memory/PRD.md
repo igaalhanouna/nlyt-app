@@ -160,6 +160,14 @@ Application SaaS (React/FastAPI/MongoDB) de gestion des presences avec garanties
 - 24h expiry on proposals
 - Direct modification if no accepted non-org participants exist
 
+### Session 23 - Fusion "Actions requises" Dashboard (2026-03-29)
+- Section unifiée "Actions requises" sur OrganizerDashboard.js (lignes 982-1061)
+- Sous-section 1: "Action immédiate — Invitations & garanties" (ActionCards)
+- Sous-section 2: "Modifications à valider" (cartes modification avec barre de progression + CTA "Examiner")
+- Rendu conditionnel: section masquée si aucune action requise
+- Divider entre sous-sections quand les deux ont des données
+- Validé via testing_agent iteration 142 (100%: 12/12 backend, 10/10 frontend)
+
 ## Upcoming Tasks (P1)
 - Configurer le webhook Stripe en production pour validation end-to-end
 - Test reel Zoom/Teams avec vrais tokens
