@@ -566,7 +566,7 @@ export default function AppointmentDetail() {
     if (!Object.keys(changes).length) { toast.error('Aucune modification détectée'); return; }
     if (changes.start_datetime && new Date(changes.start_datetime) <= new Date()) { toast.error("La nouvelle date doit être dans le futur"); return; }
     setSubmittingProposal(true);
-    try { await modificationAPI.create({ appointment_id: id, changes }); toast.success('Proposition envoyée'); setShowProposalForm(false); loadData(); }
+    try { const res = await modificationAPI.create({ appointment_id: id, changes }); toast.success(res.data?.mode === 'direct' ? 'Modification appliquée' : 'Proposition envoyée'); setShowProposalForm(false); loadData(); }
     catch (err) { toast.error(err.response?.data?.detail || 'Erreur'); }
     finally { setSubmittingProposal(false); }
   };
@@ -686,6 +686,13 @@ export default function AppointmentDetail() {
   })();
 
   const canEdit = !isCancelled && !activeProposal && !isEnded;
+
+  // Determine if modification will be direct (no vote) or proposal (vote needed)
+  const ACCEPTED_STATUSES = ['accepted', 'accepted_pending_guarantee', 'accepted_guaranteed', 'guaranteed'];
+  const hasAcceptedNonOrgParticipants = participants.some(
+    p => !p.is_organizer && ACCEPTED_STATUSES.includes(p.status)
+  );
+  const isDirectModification = !hasAcceptedNonOrgParticipants;
 
   // Proof summary for <details>
   const proofSessionCount = proofSessions.length;
@@ -882,6 +889,7 @@ export default function AppointmentDetail() {
             open={showProposalForm} onClose={() => setShowProposalForm(false)}
             proposalForm={proposalForm} setProposalForm={setProposalForm}
             submittingProposal={submittingProposal} onSubmitProposal={handleSubmitProposal}
+            isDirect={isDirectModification}
           />
         )}
 

@@ -9,6 +9,7 @@ export default function EditProposalModal({
   open, onClose,
   proposalForm, setProposalForm,
   submittingProposal, onSubmitProposal,
+  isDirect = false,
 }) {
   const dateInputRef = useRef(null);
   const isPastDate = proposalForm.start_datetime && new Date(proposalForm.start_datetime) <= new Date();
@@ -27,10 +28,12 @@ export default function EditProposalModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileEdit className="w-5 h-5 text-blue-600" />
-            Proposer une modification
+            {isDirect ? 'Modifier le rendez-vous' : 'Proposer une modification'}
           </DialogTitle>
           <DialogDescription>
-            Les participants devront accepter cette modification avant qu'elle ne soit appliquée.
+            {isDirect
+              ? 'La modification sera appliquée immédiatement. Les participants seront informés.'
+              : 'Les participants devront accepter cette modification avant qu\'elle ne soit appliquée.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -105,7 +108,7 @@ export default function EditProposalModal({
           </Button>
           <Button onClick={onSubmitProposal} disabled={submittingProposal} data-testid="submit-proposal-btn">
             {submittingProposal ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Send className="w-4 h-4 mr-1" />}
-            Envoyer la proposition
+            {isDirect ? 'Appliquer la modification' : 'Envoyer la proposition'}
           </Button>
         </div>
       </DialogContent>

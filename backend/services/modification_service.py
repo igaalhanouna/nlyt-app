@@ -85,10 +85,18 @@ def create_proposal(appointment_id: str, changes: dict, proposed_by: dict) -> di
         {"_id": 0}
     ))
 
+    # Exclude organizer participants — only non-org accepted count for vote requirement
+    non_org_accepted = [p for p in participants if not p.get('is_organizer')]
+
+    # RULE: If organizer proposes and no non-organizer has accepted yet
+    # → Apply modification directly (no vote needed)
+    if proposed_by['role'] == 'organizer' and len(non_org_accepted) == 0:
+        return _apply_direct_modification(appointment_id, valid_changes, original_values, proposed_by)
+
     responses = []
     if proposed_by['role'] == 'organizer':
-        # All accepted participants must respond
-        for p in participants:
+        # Only non-organizer accepted participants vote
+        for p in non_org_accepted:
             responses.append({
                 "participant_id": p['participant_id'],
                 "first_name": p.get('first_name', ''),
@@ -99,8 +107,8 @@ def create_proposal(appointment_id: str, changes: dict, proposed_by: dict) -> di
             })
         organizer_response = {"status": "auto_accepted", "responded_at": now_utc_iso()}
     else:
-        # Organizer + all OTHER participants must respond
-        for p in participants:
+        # Organizer + all OTHER non-org participants must respond
+        for p in non_org_accepted:
             if p['participant_id'] != proposed_by.get('participant_id'):
                 responses.append({
                     "participant_id": p['participant_id'],
@@ -112,8 +120,9 @@ def create_proposal(appointment_id: str, changes: dict, proposed_by: dict) -> di
                 })
         organizer_response = {"status": "pending", "responded_at": None}
 
+    # Safety fallback — should not trigger after the direct modification check above
     if not responses and organizer_response['status'] == 'auto_accepted':
-        raise ValueError("Aucun participant accepté à notifier")
+        return _apply_direct_modification(appointment_id, valid_changes, original_values, proposed_by)
 
     proposal_id = str(uuid.uuid4())
     now_str = now_utc_iso()
@@ -140,6 +149,110 @@ def create_proposal(appointment_id: str, changes: dict, proposed_by: dict) -> di
     logger.info(f"[MODIFICATION] Proposal {proposal_id} created for appointment {appointment_id} by {proposed_by['role']}")
 
     return proposal
+
+
+def _apply_direct_modification(appointment_id: str, valid_changes: dict, original_values: dict, proposed_by: dict) -> dict:
+    """
+    Apply modification directly when no accepted non-organizer participant exists.
+    Stores history as auto_applied proposal. Sends info emails to ALL participants.
+    """
+    proposal_id = str(uuid.uuid4())
+    now_str = now_utc_iso()
+
+    proposal = {
+        "proposal_id": proposal_id,
+        "appointment_id": appointment_id,
+        "proposed_by": proposed_by,
+        "changes": valid_changes,
+        "original_values": original_values,
+        "responses": [],
+        "organizer_response": {"status": "auto_accepted", "responded_at": now_str},
+        "status": "auto_applied",
+        "mode": "direct",
+        "expires_at": None,
+        "created_at": now_str,
+        "resolved_at": now_str
+    }
+
+    db.modification_proposals.insert_one(proposal)
+    proposal.pop('_id', None)
+
+    # Apply changes (calendar sync, meeting creation, guarantee recalculation)
+    _apply_proposal(proposal)
+
+    # Send informational emails to ALL non-organizer participants (including invited)
+    try:
+        _send_direct_modification_emails(appointment_id, valid_changes, original_values)
+    except Exception as e:
+        logger.warning(f"[MODIFICATION] Direct modification email failed (non-blocking): {e}")
+
+    logger.info(f"[MODIFICATION] Direct modification {proposal_id} auto-applied for {appointment_id}")
+
+    return proposal
+
+
+def _send_direct_modification_emails(appointment_id: str, changes: dict, original_values: dict):
+    """
+    Send informational 'Engagement modifie' emails to ALL non-organizer participants
+    when a direct modification is applied (no vote needed).
+    Includes participants with status 'invited' who haven't accepted yet.
+    """
+    import asyncio
+
+    appointment = db.appointments.find_one({"appointment_id": appointment_id}, {"_id": 0})
+    if not appointment:
+        return
+
+    frontend_url = os.environ.get('FRONTEND_URL', '').rstrip('/')
+    new_type = appointment.get('appointment_type', 'physical')
+    type_changed = 'appointment_type' in changes
+
+    # ALL non-organizer participants regardless of status
+    all_participants = list(db.participants.find(
+        {"appointment_id": appointment_id, "is_organizer": {"$ne": True}},
+        {"_id": 0}
+    ))
+
+    from services.email_service import EmailService
+
+    for p in all_participants:
+        email = p.get('email', '')
+        if not email:
+            continue
+
+        token = p.get('invitation_token', '')
+        name = f"{p.get('first_name', '')} {p.get('last_name', '')}".strip()
+        if not name:
+            name = email.split('@')[0]
+
+        if type_changed and new_type == 'video':
+            access_link = f"{frontend_url}/proof/{appointment_id}?token={token}"
+        else:
+            access_link = f"{frontend_url}/invitation/{token}"
+
+        invitation_link = f"{frontend_url}/invitation/{token}"
+
+        try:
+            loop = asyncio.new_event_loop()
+            loop.run_until_complete(EmailService.send_modification_applied_email(
+                to_email=email,
+                to_name=name,
+                appointment_title=appointment.get('title', 'Rendez-vous'),
+                appointment_datetime=appointment.get('start_datetime', ''),
+                appointment_timezone=appointment.get('appointment_timezone', 'Europe/Paris'),
+                changes=changes,
+                original_values=original_values,
+                new_appointment_type=new_type,
+                type_changed=type_changed,
+                access_link=access_link,
+                invitation_link=invitation_link,
+                meeting_provider=appointment.get('meeting_provider'),
+                location=appointment.get('location'),
+            ))
+            loop.close()
+            logger.info(f"[MODIFICATION_EMAIL] Direct mod notification sent to {email}")
+        except Exception as e:
+            logger.warning(f"[MODIFICATION_EMAIL] Direct mod failed for {email}: {e}")
 
 
 def respond_to_proposal(proposal_id: str, responder_id: str, action: str, responder_type: str = 'participant') -> dict:

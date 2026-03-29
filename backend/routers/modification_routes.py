@@ -80,18 +80,19 @@ async def create_modification_proposal(body: CreateProposalRequest, request: Req
         }
 
     try:
-        proposal = create_proposal(body.appointment_id, body.changes, proposed_by)
+        result = create_proposal(body.appointment_id, body.changes, proposed_by)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    # Send notification emails (non-blocking)
-    try:
-        await _send_proposal_emails(proposal)
-    except Exception as e:
-        import logging
-        logging.getLogger(__name__).warning(f"[MODIFICATION] Failed to send proposal emails: {e}")
+    # Only send proposal notification emails for real proposals (not direct modifications)
+    if result.get('mode') != 'direct':
+        try:
+            await _send_proposal_emails(result)
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"[MODIFICATION] Failed to send proposal emails: {e}")
 
-    return proposal
+    return result
 
 
 @router.get("/appointment/{appointment_id}")
