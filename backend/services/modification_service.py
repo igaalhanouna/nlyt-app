@@ -52,6 +52,13 @@ def create_proposal(appointment_id: str, changes: dict, proposed_by: dict) -> di
     if start_dt and start_dt <= now_utc():
         raise ValueError("Impossible de modifier un rendez-vous passé")
 
+    # Check cancellation deadline — modifications follow the same window as cancellations
+    cancellation_hours = appointment.get('cancellation_deadline_hours', 0)
+    if start_dt and cancellation_hours > 0:
+        cancellation_deadline = start_dt - timedelta(hours=cancellation_hours)
+        if now_utc() >= cancellation_deadline:
+            raise ValueError("Le délai de modification est dépassé")
+
     # Check no active proposal exists
     active = db.modification_proposals.find_one({
         "appointment_id": appointment_id,

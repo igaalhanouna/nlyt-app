@@ -122,6 +122,12 @@ Application SaaS (React/FastAPI/MongoDB) de gestion des presences avec garanties
 - Fix 2: viewerCanPropose utilisait user_id (parfois null) -> corrige pour utiliser viewerParticipantStatus (toujours fiable)
 - Valide via testing_agent iteration 140 (100%: 8/8 frontend)
 
+### Session 20 - Guard deadline modification (2026-03-31)
+- Regle metier: Les modifications suivent la meme fenetre temporelle que les annulations (cancellation_deadline_hours)
+- Backend: Guard ajoute dans create_proposal() - verifie now_utc() < start_datetime - cancellation_deadline_hours
+- Frontend: Ajout de isBeyondDeadline dans le calcul de canEdit (meme logique que SecondaryActions pour l'annulation)
+- Tests curl: Apres deadline -> 400 "Le delai de modification est depasse" / Avant deadline -> auto_applied OK
+
 ## Data Integrity Rules
 - Participant documents MUST have valid user_id when user exists
 - Every appointment MUST have an is_organizer=True participant record

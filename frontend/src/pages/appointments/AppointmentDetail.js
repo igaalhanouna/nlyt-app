@@ -685,7 +685,17 @@ export default function AppointmentDetail() {
     return new Date() > new Date(start.getTime() + (appointment.duration_minutes || 60) * 60000);
   })();
 
-  const canEdit = !isCancelled && !activeProposal && !isEnded;
+  const isBeyondDeadline = (() => {
+    if (!appointment?.start_datetime) return false;
+    const start = parseUTC(appointment.start_datetime);
+    if (!start) return false;
+    const deadlineHours = appointment.cancellation_deadline_hours || 0;
+    if (deadlineHours <= 0) return false;
+    const deadline = new Date(start.getTime() - deadlineHours * 3600000);
+    return new Date() >= deadline;
+  })();
+
+  const canEdit = !isCancelled && !activeProposal && !isEnded && !isBeyondDeadline;
 
   // Determine if modification will be direct (no vote) or proposal (vote needed)
   const ACCEPTED_STATUSES = ['accepted', 'accepted_pending_guarantee', 'accepted_guaranteed', 'guaranteed'];
