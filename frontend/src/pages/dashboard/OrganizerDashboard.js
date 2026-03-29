@@ -384,9 +384,9 @@ function TimelineCard({ item, isPast, onDelete, onRemind, onQuit, onDecline, now
                   {modActionRequired ? ' — En attente de votre réponse' : ' — En attente des réponses'}
                 </p>
               </div>
-              <Link to={`/appointments/${item.appointment_id}`} className={`flex-shrink-0 ml-3 px-2.5 py-1 rounded-md text-[11px] font-medium ${modActionRequired ? 'bg-amber-600 text-white hover:bg-amber-700' : 'bg-blue-100 text-blue-700 hover:bg-blue-200'} transition-colors`} onClick={(e) => e.stopPropagation()} data-testid={`mod-cta-${item.appointment_id}`}>
+              <span className={`flex-shrink-0 ml-3 px-2.5 py-1 rounded-md text-[11px] font-medium cursor-pointer ${modActionRequired ? 'bg-amber-600 text-white hover:bg-amber-700' : 'bg-blue-100 text-blue-700 hover:bg-blue-200'} transition-colors`} data-testid={`mod-cta-${item.appointment_id}`}>
                 Voir la demande
-              </Link>
+              </span>
             </div>
             {/* Mini vote progress */}
             <div className="flex items-center gap-2 mt-1.5" data-testid={`mod-timeline-progress-${item.appointment_id}`}>

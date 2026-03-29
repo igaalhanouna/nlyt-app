@@ -84,14 +84,21 @@ Application SaaS (React/FastAPI/MongoDB) de gestion des presences avec garanties
 - Now shows: Date (old → new), Horaire (old → new), Lieu (old → new), Visio (old → new), Durée
 - Validated via testing_agent iteration 135 (100% pass rate)
 
+### Session 13 - P2.1 Timeline History + P2.2 Vote Progress (2026-03-30)
+- P2.2: VoteProgressBar component with X/Y counter + colored progress bar (emerald=100%, amber=partial)
+  - Displayed in: active proposal banner (detail page), Dashboard modification cards, Dashboard timeline context banners
+- P2.1: Full chronological timeline replacing minimal history list
+  - Vertical line with colored dots per status (green=accepted, red=rejected, grey=expired/cancelled)
+  - Each entry shows: date, proposer, mode (Direct/Vote), old→new values per changed field, individual vote responses
+- Fixed nested <a> HTML warning in Dashboard timeline cards
+- Validated via testing_agent iteration 136 (100% pass rate: 9/9 backend, 12/12 frontend)
+
 ## Upcoming Tasks (P1)
 - Dashboard admin plateforme pour arbitrer les litiges escalades
 - Configurer webhook Stripe en production
 - Test reel Zoom/Teams avec vrais tokens
 
 ## Future Tasks (P2)
-- Timeline/historique complet des modifications (P2.1)
-- Compteur progression votes (P2.2)
 - Notifications in-app (P2.3)
 - Charity Payouts V2 (Stripe Transfers)
 - Webhooks temps reel Zoom/Teams
