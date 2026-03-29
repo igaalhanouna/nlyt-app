@@ -103,7 +103,6 @@ export default function AdminArbitrationList() {
   }
 
   const emptyMsg = EMPTY_MESSAGES[activeFilter] || EMPTY_MESSAGES.escalated;
-  const isEscalatedView = activeFilter === 'escalated';
 
   return (
     <>
@@ -156,7 +155,7 @@ export default function AdminArbitrationList() {
         ) : (
           <div className="space-y-3" data-testid="dispute-list">
             {disputes.map((d) => (
-              <DisputeCard key={d.dispute_id} d={d} isEscalatedView={isEscalatedView} />
+              <DisputeCard key={d.dispute_id} d={d} />
             ))}
           </div>
         )}
@@ -165,29 +164,25 @@ export default function AdminArbitrationList() {
   );
 }
 
-function DisputeCard({ d, isEscalatedView }) {
+function DisputeCard({ d }) {
   const statusBadge = STATUS_BADGES[d.status];
 
   return (
     <Link
-      to={isEscalatedView ? `/admin/arbitration/${d.dispute_id}` : '#'}
-      onClick={!isEscalatedView ? (e) => e.preventDefault() : undefined}
-      className={`block bg-white border border-slate-200 rounded-xl p-5 transition-all ${
-        isEscalatedView ? 'hover:border-slate-400 hover:shadow-sm cursor-pointer' : 'cursor-default'
-      }`}
+      to={`/admin/arbitration/${d.dispute_id}`}
+      className="block bg-white border border-slate-200 rounded-xl p-5 transition-all hover:border-slate-400 hover:shadow-sm cursor-pointer"
       data-testid={`dispute-card-${d.dispute_id}`}
     >
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap mb-1.5">
             <h3 className="text-sm font-semibold text-slate-900 truncate">{d.appointment_title || 'Rendez-vous'}</h3>
-            {/* Status badge for non-escalated views */}
-            {!isEscalatedView && statusBadge && (
+            {statusBadge && (
               <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold ${statusBadge.cls}`} data-testid="status-badge">
                 {statusBadge.label}
               </span>
             )}
-            {isEscalatedView && <AgeIndicator daysAgo={d.escalated_days_ago} hoursAgo={d.escalated_hours_ago} />}
+            {d.status === 'escalated' && <AgeIndicator daysAgo={d.escalated_days_ago} hoursAgo={d.escalated_hours_ago} />}
           </div>
 
           <p className="text-xs text-slate-500 mb-2 flex items-center gap-2 flex-wrap">
@@ -234,12 +229,13 @@ function DisputeCard({ d, isEscalatedView }) {
           )}
         </div>
 
-        {isEscalatedView && (
-          <div className="flex-shrink-0 flex items-center gap-2">
-            <span className="hidden sm:inline text-xs font-medium text-slate-500">Arbitrer</span>
-            <ChevronRight className="w-5 h-5 text-slate-400" />
-          </div>
-        )}
+        {/* Right: CTA */}
+        <div className="flex-shrink-0 flex items-center gap-2">
+          <span className="hidden sm:inline text-xs font-medium text-slate-500">
+            {d.status === 'escalated' ? 'Arbitrer' : 'Voir la decision'}
+          </span>
+          <ChevronRight className="w-5 h-5 text-slate-400" />
+        </div>
       </div>
     </Link>
   );

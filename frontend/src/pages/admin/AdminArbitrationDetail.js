@@ -91,6 +91,10 @@ export default function AdminArbitrationDetail() {
   const hasEvidence = (dispute.evidence_submissions || []).length > 0;
   const hasWitnessContent = hasDeclarants || hasEvidence;
 
+  // Read-only mode: dispute is already resolved/agreed
+  const isReadOnly = dispute.status !== 'escalated';
+  const resolution = dispute.resolution || {};
+
   // Certainty level
   const certainty = sa.confidence === 'high' ? 'evident' : sa.confidence === 'medium' ? 'analyser' : 'ambigue';
 
@@ -246,62 +250,66 @@ export default function AdminArbitrationDetail() {
           </div>
         )}
 
-        {/* ════════ ZONE 4 — Votre decision ════════ */}
-        <section className="rounded-xl border-2 border-slate-900 bg-white p-6" data-testid="arbitration-action-bloc">
-          <h3 className="text-base font-bold text-slate-900 mb-1">Votre decision</h3>
-          <p className="text-xs text-slate-500 mb-5">Cette decision est definitive. La consequence financiere sera appliquee immediatement.</p>
+        {/* ════════ ZONE 4 — Decision (active) or Resolution (read-only) ════════ */}
+        {isReadOnly ? (
+          <ResolutionReadOnly resolution={resolution} fc={dispute.financial_context} targetName={dispute.target_name} status={dispute.status} />
+        ) : (
+          <section className="rounded-xl border-2 border-slate-900 bg-white p-6" data-testid="arbitration-action-bloc">
+            <h3 className="text-base font-bold text-slate-900 mb-1">Votre decision</h3>
+            <p className="text-xs text-slate-500 mb-5">Cette decision est definitive. La consequence financiere sera appliquee immediatement.</p>
 
-          {/* Outcome cards */}
-          <div className="grid grid-cols-3 gap-3 mb-5" data-testid="outcome-options">
-            {OUTCOME_OPTIONS.map((opt) => {
-              const Icon = opt.icon;
-              const selected = selectedOutcome === opt.value;
-              const ring = {
-                emerald: selected ? 'border-emerald-500 bg-emerald-50 ring-2 ring-emerald-200' : 'border-slate-200 hover:border-emerald-300',
-                red: selected ? 'border-red-500 bg-red-50 ring-2 ring-red-200' : 'border-slate-200 hover:border-red-300',
-                amber: selected ? 'border-amber-500 bg-amber-50 ring-2 ring-amber-200' : 'border-slate-200 hover:border-amber-300',
-              };
-              return (
-                <button
-                  key={opt.value}
-                  onClick={() => setSelectedOutcome(opt.value)}
-                  className={`rounded-xl border-2 p-4 text-center transition-all cursor-pointer ${ring[opt.color]}`}
-                  data-testid={`outcome-${opt.value}`}
-                >
-                  <Icon className={`w-6 h-6 mx-auto mb-1.5 ${selected ? `text-${opt.color}-600` : 'text-slate-400'}`} />
-                  <p className={`text-sm font-semibold ${selected ? 'text-slate-900' : 'text-slate-600'}`}>{opt.label}</p>
-                  <p className="text-[11px] text-slate-400 mt-0.5">{opt.subtitle}</p>
-                </button>
-              );
-            })}
-          </div>
+            {/* Outcome cards */}
+            <div className="grid grid-cols-3 gap-3 mb-5" data-testid="outcome-options">
+              {OUTCOME_OPTIONS.map((opt) => {
+                const Icon = opt.icon;
+                const selected = selectedOutcome === opt.value;
+                const ring = {
+                  emerald: selected ? 'border-emerald-500 bg-emerald-50 ring-2 ring-emerald-200' : 'border-slate-200 hover:border-emerald-300',
+                  red: selected ? 'border-red-500 bg-red-50 ring-2 ring-red-200' : 'border-slate-200 hover:border-red-300',
+                  amber: selected ? 'border-amber-500 bg-amber-50 ring-2 ring-amber-200' : 'border-slate-200 hover:border-amber-300',
+                };
+                return (
+                  <button
+                    key={opt.value}
+                    onClick={() => setSelectedOutcome(opt.value)}
+                    className={`rounded-xl border-2 p-4 text-center transition-all cursor-pointer ${ring[opt.color]}`}
+                    data-testid={`outcome-${opt.value}`}
+                  >
+                    <Icon className={`w-6 h-6 mx-auto mb-1.5 ${selected ? `text-${opt.color}-600` : 'text-slate-400'}`} />
+                    <p className={`text-sm font-semibold ${selected ? 'text-slate-900' : 'text-slate-600'}`}>{opt.label}</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5">{opt.subtitle}</p>
+                  </button>
+                );
+              })}
+            </div>
 
-          {/* Dynamic financial consequences */}
-          {selectedOutcome && dispute.financial_context && (
-            <FinancialPreview outcome={selectedOutcome} fc={dispute.financial_context} targetName={dispute.target_name} />
-          )}
+            {/* Dynamic financial consequences */}
+            {selectedOutcome && dispute.financial_context && (
+              <FinancialPreview outcome={selectedOutcome} fc={dispute.financial_context} targetName={dispute.target_name} />
+            )}
 
-          {/* Note */}
-          <textarea
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            placeholder="Justifiez votre decision en quelques mots..."
-            className="w-full border border-slate-300 rounded-lg px-4 py-3 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400 resize-none"
-            rows={3}
-            data-testid="arbitration-note"
-          />
+            {/* Note */}
+            <textarea
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="Justifiez votre decision en quelques mots..."
+              className="w-full border border-slate-300 rounded-lg px-4 py-3 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400 resize-none"
+              rows={3}
+              data-testid="arbitration-note"
+            />
 
-          <div className="flex items-center justify-end mt-4">
-            <Button
-              onClick={handleResolve}
-              disabled={submitting || !selectedOutcome || !note || note.trim().length < 5}
-              className="px-6"
-              data-testid="submit-arbitration-btn"
-            >
-              {submitting ? 'Traitement...' : 'Valider la decision'}
-            </Button>
-          </div>
-        </section>
+            <div className="flex items-center justify-end mt-4">
+              <Button
+                onClick={handleResolve}
+                disabled={submitting || !selectedOutcome || !note || note.trim().length < 5}
+                className="px-6"
+                data-testid="submit-arbitration-btn"
+              >
+                {submitting ? 'Traitement...' : 'Valider la decision'}
+              </Button>
+            </div>
+          </section>
+        )}
       </div>
     </>
   );
@@ -482,6 +490,72 @@ function FinancialPreview({ outcome, fc, targetName }) {
   );
 }
 
+
+
+// ── Zone 4 Read-Only: Resolution Summary ──
+
+const OUTCOME_LABELS = {
+  on_time: { label: 'Present', subtitle: 'Aucune penalite', color: 'emerald', Icon: CheckCircle },
+  no_show: { label: 'Absent', subtitle: 'Penalite appliquee', color: 'red', Icon: UserX },
+  late_penalized: { label: 'En retard', subtitle: 'Penalite partielle', color: 'amber', Icon: Timer },
+};
+
+const STATUS_LABELS_RESOLVED = {
+  resolved: 'Arbitre par l\'admin',
+  agreed_present: 'Accord mutuel : Present',
+  agreed_absent: 'Accord mutuel : Absent',
+  agreed_late_penalized: 'Accord mutuel : Retard',
+};
+
+function ResolutionReadOnly({ resolution, fc, targetName, status }) {
+  const outcome = resolution?.final_outcome;
+  const note = resolution?.resolution_note || '';
+  const resolvedAt = resolution?.resolved_at;
+  const resolvedBy = resolution?.resolved_by;
+  const cfg = OUTCOME_LABELS[outcome] || OUTCOME_LABELS.no_show;
+  const Icon = cfg.Icon;
+  const name = targetName || 'Le participant';
+
+  const borderColor = { emerald: 'border-emerald-300', red: 'border-red-300', amber: 'border-amber-300' };
+  const bgColor = { emerald: 'bg-emerald-50', red: 'bg-red-50', amber: 'bg-amber-50' };
+  const textColor = { emerald: 'text-emerald-800', red: 'text-red-800', amber: 'text-amber-800' };
+
+  return (
+    <section className={`rounded-xl border-2 ${borderColor[cfg.color]} ${bgColor[cfg.color]} p-6`} data-testid="resolution-readonly-bloc">
+      <div className="flex items-center gap-2 mb-1">
+        <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Decision rendue</span>
+        <span className="text-[11px] text-slate-400 ml-auto">
+          {STATUS_LABELS_RESOLVED[status] || 'Resolu'}
+          {resolvedAt && <> — {new Date(resolvedAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}</>}
+        </span>
+      </div>
+
+      {/* Outcome */}
+      <div className="flex items-center gap-3 mt-3 mb-4">
+        <div className={`w-12 h-12 rounded-xl ${bgColor[cfg.color]} border ${borderColor[cfg.color]} flex items-center justify-center`}>
+          <Icon className={`w-6 h-6 ${textColor[cfg.color]}`} />
+        </div>
+        <div>
+          <p className={`text-lg font-bold ${textColor[cfg.color]}`}>{cfg.label}</p>
+          <p className="text-sm text-slate-500">{cfg.subtitle}</p>
+        </div>
+      </div>
+
+      {/* Note */}
+      {note && (
+        <div className="bg-white/60 rounded-lg border border-white/80 px-4 py-3 mb-4">
+          <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Justification</p>
+          <p className="text-sm text-slate-700">{note}</p>
+        </div>
+      )}
+
+      {/* Financial impact */}
+      {fc && (
+        <FinancialPreview outcome={outcome} fc={fc} targetName={name} />
+      )}
+    </section>
+  );
+}
 
 // ── Helpers ──
 
