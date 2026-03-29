@@ -132,6 +132,7 @@ export const disputeAPI = {
   create: (data) => api.post('/api/disputes/', data),
   list: (appointment_id) => api.get('/api/disputes/', { params: { appointment_id } }),
   get: (id) => api.get(`/api/disputes/${id}`),
+  getMyDecisions: () => api.get('/api/disputes/decisions/mine'),
   updateStatus: (id, status, resolution) => 
     api.patch(`/api/disputes/${id}?status=${status}&resolution=${resolution || ''}`),
 };

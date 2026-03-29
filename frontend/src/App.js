@@ -28,6 +28,7 @@ import CheckinPage from './pages/proof/CheckinPage';
 
 import DisputesListPage from './pages/disputes/DisputesListPage';
 import DisputeDetailPage from './pages/disputes/DisputeDetailPage';
+import DecisionDetailPage from './pages/decisions/DecisionDetailPage';
 import AttendanceSheetPage from './pages/declarations/AttendanceSheetPage';
 import PresencesPage from './pages/declarations/PresencesPage';
 
@@ -89,6 +90,7 @@ function App() {
               <Route path="/presences" element={<PrivateRoute><PresencesPage /></PrivateRoute>} />
               <Route path="/litiges" element={<PrivateRoute><DisputesListPage /></PrivateRoute>} />
               <Route path="/litiges/:id" element={<PrivateRoute><DisputeDetailPage /></PrivateRoute>} />
+              <Route path="/decisions/:disputeId" element={<PrivateRoute><DecisionDetailPage /></PrivateRoute>} />
               <Route path="/appointments/:id/attendance-sheet" element={<PrivateRoute><AttendanceSheetPage /></PrivateRoute>} />
               
               <Route path="/admin/review" element={<PrivateRoute><ReviewerDashboard /></PrivateRoute>} />

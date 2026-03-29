@@ -255,6 +255,103 @@ async def list_my_disputes(request: Request):
     return {"disputes": disputes, "count": len(disputes)}
 
 
+@router.get("/decisions/mine")
+async def list_my_decisions(request: Request):
+    """List resolved/agreed disputes for the current user, enriched with financial context."""
+    user = await get_current_user(request)
+    user_id = user['user_id']
+
+    user_participants = list(db.participants.find(
+        {"user_id": user_id},
+        {"_id": 0, "appointment_id": 1, "participant_id": 1, "is_organizer": 1}
+    ))
+    if not user_participants:
+        return {"decisions": [], "count": 0}
+
+    apt_ids = list({p['appointment_id'] for p in user_participants})
+    participant_map = {p['appointment_id']: p for p in user_participants}
+
+    resolved_statuses = ["resolved", "agreed_present", "agreed_absent", "agreed_late_penalized"]
+    disputes = list(db.declarative_disputes.find(
+        {"appointment_id": {"$in": apt_ids}, "status": {"$in": resolved_statuses}},
+        {"_id": 0}
+    ).sort("created_at", -1))
+
+    decisions = []
+    for d in disputes:
+        apt_id = d['appointment_id']
+        apt = db.appointments.find_one(
+            {"appointment_id": apt_id},
+            {"_id": 0, "title": 1, "start_datetime": 1, "appointment_type": 1,
+             "location": 1, "location_display_name": 1, "meeting_provider": 1,
+             "penalty_amount": 1, "penalty_currency": 1,
+             "platform_commission_percent": 1, "charity_percent": 1}
+        )
+        if apt:
+            d['appointment_title'] = apt.get('title', '')
+            d['appointment_date'] = apt.get('start_datetime', '')
+            d['appointment_type'] = apt.get('appointment_type', '')
+            d['appointment_location'] = apt.get('location_display_name') or apt.get('location', '')
+            d['appointment_meeting_provider'] = apt.get('meeting_provider', '')
+
+        target_p = db.participants.find_one(
+            {"participant_id": d['target_participant_id']},
+            {"_id": 0, "first_name": 1, "last_name": 1}
+        )
+        if target_p:
+            d['target_name'] = f"{target_p.get('first_name', '')} {target_p.get('last_name', '')}".strip()
+
+        # Resolution info
+        resolution = d.get('resolution', {})
+        final_outcome = resolution.get('final_outcome', '')
+        d['final_outcome'] = final_outcome
+        d['resolution_note'] = resolution.get('resolution_note', '')
+        d['resolved_at'] = resolution.get('resolved_at', '')
+
+        # User role in this dispute
+        my_part = participant_map.get(apt_id, {})
+        is_organizer = my_part.get('is_organizer', False)
+        is_target = my_part.get('participant_id') == d.get('target_participant_id')
+        d['my_role'] = 'organizer' if is_organizer else ('target' if is_target else 'observer')
+
+        # Financial impact from user's perspective
+        penalty = apt.get('penalty_amount', 0) if apt else 0
+        cur = (apt.get('penalty_currency', 'eur') if apt else 'eur').upper()
+        comm_pct = apt.get('platform_commission_percent', 0) if apt else 0
+        charity_pct = apt.get('charity_percent', 0) if apt else 0
+        penalty_cents = int(penalty * 100)
+        comp_cents = penalty_cents - int(penalty_cents * comm_pct / 100) - int(penalty_cents * charity_pct / 100)
+
+        if final_outcome == 'on_time' or d['status'] == 'agreed_present':
+            d['financial_impact'] = {'type': 'neutral', 'label': 'Aucune penalite', 'amount': 0}
+        elif is_target:
+            d['financial_impact'] = {
+                'type': 'debit',
+                'label': f'Debite de {penalty:.0f}{cur}' if penalty > 0 else 'Penalite appliquee',
+                'amount': penalty,
+                'currency': cur,
+            }
+        elif is_organizer:
+            d['financial_impact'] = {
+                'type': 'credit',
+                'label': f'Recu {comp_cents/100:.0f}{cur}' if comp_cents > 0 else 'Compensation versee',
+                'amount': comp_cents / 100,
+                'currency': cur,
+            }
+        else:
+            d['financial_impact'] = {'type': 'neutral', 'label': 'Non concerne', 'amount': 0}
+
+        # Cleanup
+        d.pop('evidence_submissions', None)
+        d.pop('resolution', None)
+
+        _enrich_dispute_for_user(d, user_id)
+        decisions.append(d)
+
+    return {"decisions": decisions, "count": len(decisions)}
+
+
+
 @router.get("/{dispute_id}")
 async def get_dispute_detail(dispute_id: str, request: Request):
     """Get dispute detail with symmetric role-based view."""
@@ -271,12 +368,13 @@ async def get_dispute_detail(dispute_id: str, request: Request):
     if not participant:
         raise HTTPException(status_code=403, detail="Acces refuse")
 
-    # Enrich with appointment info
+    # Enrich with appointment info + financial context
     apt = db.appointments.find_one(
         {"appointment_id": dispute['appointment_id']},
         {"_id": 0, "title": 1, "start_datetime": 1, "appointment_type": 1,
          "location": 1, "location_display_name": 1, "meeting_provider": 1,
-         "duration_minutes": 1}
+         "duration_minutes": 1, "penalty_amount": 1, "penalty_currency": 1,
+         "platform_commission_percent": 1, "charity_percent": 1}
     )
     if apt:
         dispute['appointment_title'] = apt.get('title', '')
@@ -285,6 +383,25 @@ async def get_dispute_detail(dispute_id: str, request: Request):
         dispute['appointment_location'] = apt.get('location_display_name') or apt.get('location', '')
         dispute['appointment_meeting_provider'] = apt.get('meeting_provider', '')
         dispute['appointment_duration_minutes'] = apt.get('duration_minutes', 0)
+
+        # Financial context for detail view
+        penalty = apt.get('penalty_amount', 0)
+        cur = apt.get('penalty_currency', 'eur')
+        comm_pct = apt.get('platform_commission_percent', 0)
+        charity_pct = apt.get('charity_percent', 0)
+        p_cents = int(penalty * 100)
+        platform_cents = int(p_cents * comm_pct / 100)
+        charity_cents = int(p_cents * charity_pct / 100)
+        comp_cents = p_cents - platform_cents - charity_cents
+        dispute['financial_context'] = {
+            'penalty_amount': penalty,
+            'penalty_currency': cur,
+            'platform_commission_percent': comm_pct,
+            'charity_percent': charity_pct,
+            'platform_amount': platform_cents / 100,
+            'charity_amount': charity_cents / 100,
+            'compensation_amount': comp_cents / 100,
+        }
 
     target_p = db.participants.find_one(
         {"participant_id": dispute['target_participant_id']},
