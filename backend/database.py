@@ -50,6 +50,14 @@ def ensure_indexes():
 
     # wallets — user wallet lookup
     db.wallets.create_index("user_id")
+    db.wallets.create_index("wallet_id", unique=True)
+    
+    # payouts — prevent concurrent pending payouts per user
+    db.payouts.create_index("payout_id", unique=True)
+    db.payouts.create_index([("user_id", ASCENDING), ("status", ASCENDING)])
+    
+    # payout_locks — distributed lock for concurrent payout prevention
+    db.payout_locks.create_index("user_id", unique=True)
 
     # stripe
     db.stripe_customers.create_index("email", unique=True, sparse=True)

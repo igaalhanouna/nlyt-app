@@ -1,0 +1,98 @@
+{
+  "summary": "Iteration 152: NLYT QA Recette Approfondie - CRITICAL BUG FOUND (H6 Double Payout). Backend: 16/18 tests passed. Security tests (B3/B4) PASS. Dispute visibility (F1) PASS. Double resolution prevention (G4) PASS. CRITICAL: Double payout concurrent (H6) FAILS - race condition allows multiple payouts.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "POST /api/wallet/payout",
+        "issue": "H6 CRITICAL: Double payout race condition - concurrent requests can both succeed, causing double debit. Tested with 2 concurrent requests: both returned 200 and debited wallet. Root cause: Lock mechanism using payout_locks collection is not preventing concurrent access in single-worker async environment. In multi-worker production, this would be worse.",
+        "priority": "CRITICAL",
+        "rca": "The payout_locks collection with unique index on user_id should prevent concurrent payouts, but the lock is released after payout completion. In async single-worker mode, requests are processed sequentially so the first completes before the second starts. However, the atomic $gte check on wallet balance allows both payouts if balance is sufficient for both.",
+        "fix_attempted": "Added payout_locks collection with unique index, DuplicateKeyError handling, and delayed lock release. Fix did not work because requests are processed sequentially in single-worker mode.",
+        "recommended_fix": "1. Use MongoDB transactions to make lock acquisition + wallet debit atomic. 2. Or use findOneAndUpdate on wallet with $gte guard as the ONLY concurrency control (remove payout_locks). 3. Or add a 'payout_in_progress' flag on the wallet document itself."
+      }
+    ],
+    "minor": [
+      {
+        "endpoint": "/api/appointments",
+        "issue": "B6: Endpoint returns 401 when tested without proper token caching between test methods",
+        "priority": "LOW"
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": {
+    "A1_admin_login": "PASS - Admin login successful with testuser_audit@nlyt.app",
+    "A2_wrong_password": "PASS - Wrong password returns 401 with generic error",
+    "A6_no_auth_access": "PASS - Dashboard API returns 401 without authentication",
+    "A9_double_registration": "PASS - Double registration rejected with proper message",
+    "B3_non_admin_access_admin": "PASS - Non-admin gets 403 on /api/admin/arbitration",
+    "B4_admin_api_non_admin": "PASS - All admin endpoints return 403 for non-admin user",
+    "B4_admin_api_with_admin": "PASS - Admin can access admin endpoints",
+    "F1_dispute_visibility": "PASS - All 7 disputes have target_user_id set, visible to both parties",
+    "F7_position_on_resolved": "PASS - Cannot submit position on resolved dispute",
+    "G1_arbitration_filters": "PASS - All filters (escalated, all, resolved) work correctly",
+    "G4_double_resolution": "PASS - Double resolution rejected with proper error",
+    "H1_wallet_balance": "PASS - Wallet balance coherent (available=40.90 EUR before tests)",
+    "H4_payout_exceeds_balance": "PASS - Excessive payout rejected, balance unchanged",
+    "H5_zero_payout": "PASS - Zero amount payout rejected",
+    "H7_connect_refresh": "PASS - Connect refresh-status endpoint responds correctly",
+    "H8_transactions_history": "PASS - Transaction history returns chronologically ordered"
+  },
+  "failed_tests": {
+    "H6_double_payout_concurrent": "CRITICAL FAIL - 2 concurrent payouts both succeeded, causing double debit from 50 EUR to 0 EUR"
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_nlyt_qa_recette_iter152.py",
+    "/app/backend/tests/test_nlyt_qa_direct.py"
+  ],
+  "action_items": [
+    "CRITICAL: Fix H6 double payout race condition in /app/backend/services/payout_service.py",
+    "Recommended approach: Use wallet document itself as lock with findOneAndUpdate and $gte guard, or use MongoDB transactions",
+    "Alternative: Add 'payout_in_progress' boolean flag on wallet document, set atomically before payout, clear after"
+  ],
+  "critical_code_review_comments": [
+    "payout_service.py: Race condition in request_payout() - lock acquisition and wallet debit are not atomic",
+    "payout_service.py: The payout_locks collection approach doesn't work because lock is released after payout completes, allowing sequential requests to both succeed",
+    "payout_service.py: The $gte guard on wallet balance prevents overdraft but not double payout when balance is sufficient for both",
+    "admin.py: require_admin() function correctly checks role == 'admin' and returns 403 for non-admins",
+    "dispute_routes.py: list_my_disputes correctly filters by user's participant appointments",
+    "dispute_routes.py: submit_position correctly rejects positions on resolved disputes"
+  ],
+  "updated_files": [
+    "/app/backend/services/payout_service.py",
+    "/app/backend/database.py",
+    "/app/backend/tests/test_nlyt_qa_recette_iter152.py",
+    "/app/backend/tests/test_nlyt_qa_direct.py"
+  ],
+  "success_rate": {
+    "backend": "88.9% (16/18 tests passed)",
+    "frontend": "Not tested (backend critical bug found first)"
+  },
+  "test_credentials": {
+    "admin": "testuser_audit@nlyt.app / TestAudit123!",
+    "user1": "igaal@hotmail.com / Test123!",
+    "user2": "igaal.hanouna@gmail.com / OrgTest123!"
+  },
+  "seed_data_creation": "Multiple test payouts created during H6 testing (wallet balance depleted from 40.90 EUR to 0 EUR)",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "CRITICAL: H6 double payout bug not fixed. The payout_locks mechanism was added but doesn't prevent concurrent payouts in async single-worker mode. The wallet balance was depleted during testing. Main agent needs to implement a proper atomic solution using MongoDB transactions or wallet-level locking.",
+  "mocked_apis": {
+    "stripe_payout": "Stripe Transfer API is simulated in test mode via _execute_dev_payout_after_debit(), but wallet debit is REAL"
+  },
+  "rca_of_the_issue": {
+    "bug": "H6 Double Payout Race Condition",
+    "root_cause": "The payout_locks collection with unique index was intended to prevent concurrent payouts, but the lock is released after payout completion. In FastAPI's async single-worker mode, requests are processed sequentially, so the first request completes entirely (including lock release) before the second request starts. Both requests pass the lock check because they don't overlap in time.",
+    "reproduction_steps": [
+      "1. Ensure wallet has sufficient balance (e.g., 50 EUR)",
+      "2. Send 2 concurrent POST /api/wallet/payout requests with amount_cents = balance/2",
+      "3. Both requests return 200 success",
+      "4. Wallet balance is debited twice (50 EUR -> 0 EUR instead of 50 EUR -> 25 EUR)"
+    ],
+    "mitigation": "The current fix attempt added payout_locks collection but it doesn't work. Need to implement one of: (1) MongoDB transactions, (2) Wallet-level atomic flag, (3) Redis distributed lock"
+  }
+}
