@@ -79,9 +79,17 @@ Application SaaS (React/FastAPI/MongoDB) de gestion des presences avec garanties
 - ObjectId exclusion from all MongoDB responses
 
 ## Upcoming Tasks (P1)
+- Executer le protocole de test webhook W1-W8 (apres validation utilisateur)
 - Configurer le webhook Stripe en production (coherence wallet/payout/Stripe states)
+- Job planifie : detection payouts bloques en `processing` > 24h
 - Test reel Zoom/Teams avec vrais tokens
 
 ## Future Tasks (P2)
 - Charity Payouts V2 (Automatisation via Stripe Connect)
 - Webhooks temps reel Zoom/Teams
+
+## Webhook Infrastructure (2026-03-30)
+- Logging structure complet dans `webhooks.py` (7 print() remplaces par logger.info/warning/error)
+- Chaque log inclut : event_id, event_type, contexte metier (transfer_id, payout_id, user_id, account_id, amount)
+- Protocole de test detaille W1-W8 redige dans `/app/docs/WEBHOOK_TEST_PROTOCOL.md`
+- Cas couverts : checkout (orga + participant), transfer.paid/failed/reversed, doublon, signature invalide, account.updated

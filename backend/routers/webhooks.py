@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, Request
 import os
 import sys
 import json
+import logging
 import stripe
 sys.path.append('/app/backend')
 from services.stripe_guarantee_service import StripeGuaranteeService
@@ -10,6 +11,9 @@ from services.payout_service import handle_transfer_paid, handle_transfer_failed
 from datetime import datetime, timezone
 
 from database import db
+
+logger = logging.getLogger("webhooks")
+
 router = APIRouter()
 
 STRIPE_API_KEY = os.environ.get('STRIPE_API_KEY')
@@ -47,10 +51,10 @@ async def stripe_webhook(request: Request):
         if event_id != "unknown":
             existing = db.stripe_events.find_one({"event_id": event_id})
             if existing:
-                print(f"[WEBHOOK] Duplicate event {event_id} — skipping")
+                logger.info(f"DUPLICATE event_id={event_id} type={event_type} — skipping")
                 return {"status": "duplicate", "event_id": event_id}
         
-        print(f"[WEBHOOK] Received event: {event_type}")
+        logger.info(f"RECEIVED event_id={event_id} type={event_type}")
         
         # Log event (with unique event_id as guard)
         db.stripe_events.insert_one({
@@ -65,6 +69,7 @@ async def stripe_webhook(request: Request):
             session = event_data
             session_mode = session.get("mode")
             metadata = session.get("metadata", {})
+            logger.info(f"CHECKOUT event_id={event_id} mode={session_mode} meta_type={metadata.get('type', 'N/A')} appointment_id={metadata.get('appointment_id', 'N/A')} guarantee_id={metadata.get('guarantee_id', 'N/A')}")
             
             # ── Default payment method setup (Settings page) ──
             if session_mode == "setup" and metadata.get("type") == "nlyt_default_payment_method":
@@ -78,8 +83,8 @@ async def stripe_webhook(request: Request):
                 if apt_id:
                     apt = db.appointments.find_one({"appointment_id": apt_id}, {"_id": 0, "status": 1})
                     if apt and apt.get("status") in ("cancelled", "deleted"):
-                        print(f"[WEBHOOK] Appointment {apt_id} is {apt['status']} — releasing guarantee")
                         g_id = metadata.get("guarantee_id")
+                        logger.warning(f"SKIP_GUARANTEE event_id={event_id} appointment_id={apt_id} status={apt['status']} guarantee_id={g_id} — appointment inactive, releasing guarantee")
                         if g_id:
                             StripeGuaranteeService.release_guarantee(g_id, f"appointment_{apt['status']}")
                         return {"status": "skipped", "reason": f"appointment_{apt['status']}"}
@@ -111,9 +116,9 @@ async def stripe_webhook(request: Request):
                                         appointment["appointment_id"],
                                         appointment["organizer_id"]
                                     )
-                                    print(f"[WEBHOOK] Appointment {appointment['appointment_id']} activated: {activation.get('success')}")
+                                    logger.info(f"ACTIVATION event_id={event_id} appointment_id={appointment['appointment_id']} organizer_id={appointment['organizer_id']} success={activation.get('success')}")
                                 except Exception as act_err:
-                                    print(f"[WEBHOOK] Activation error: {act_err}")
+                                    logger.error(f"ACTIVATION_ERROR event_id={event_id} appointment_id={appointment['appointment_id']} error={act_err}")
                             else:
                                 # Regular participant — send confirmation email (idempotent)
                                 from routers.invitations import send_confirmation_email_once
@@ -126,6 +131,7 @@ async def stripe_webhook(request: Request):
             payment_intent = event_data
             metadata = payment_intent.get("metadata", {})
             guarantee_id = metadata.get("guarantee_id")
+            logger.info(f"PAYMENT_INTENT event_id={event_id} guarantee_id={guarantee_id or 'N/A'} amount={payment_intent.get('amount', '?')}")
             
             if guarantee_id:
                 db.payment_guarantees.update_one(
@@ -134,34 +140,50 @@ async def stripe_webhook(request: Request):
                         "capture_confirmed_at": datetime.now(timezone.utc).isoformat()
                     }}
                 )
+                logger.info(f"CAPTURE_CONFIRMED event_id={event_id} guarantee_id={guarantee_id}")
         
         # Handle Stripe Connect account updates
         elif event_type == "account.updated":
+            account_id = event_data.get("id", "unknown")
+            logger.info(f"CONNECT_UPDATE event_id={event_id} account_id={account_id}")
             result = handle_account_updated(event_data)
+            logger.info(f"CONNECT_UPDATE_RESULT event_id={event_id} account_id={account_id} result={result}")
             return {"status": "success", "event_type": event_type, "result": result}
         
         # Handle Stripe Connect deauthorization
         elif event_type == "account.application.deauthorized":
             account_id = event_data.get("id") or event_data.get("account")
+            logger.warning(f"CONNECT_DEAUTH event_id={event_id} account_id={account_id}")
             if account_id:
                 result = handle_account_deauthorized(account_id)
+                logger.info(f"CONNECT_DEAUTH_RESULT event_id={event_id} account_id={account_id} result={result}")
                 return {"status": "success", "event_type": event_type, "result": result}
         
         # Handle Stripe Transfer paid (payout completed)
         elif event_type == "transfer.paid":
+            transfer_id = event_data.get("id", "unknown")
+            payout_meta = event_data.get("metadata", {})
+            logger.info(f"TRANSFER_PAID event_id={event_id} transfer_id={transfer_id} payout_id={payout_meta.get('payout_id', 'N/A')} user_id={payout_meta.get('user_id', 'N/A')} amount={event_data.get('amount', '?')}")
             result = handle_transfer_paid(event_data)
+            logger.info(f"TRANSFER_PAID_RESULT event_id={event_id} transfer_id={transfer_id} result={result}")
             return {"status": "success", "event_type": event_type, "result": result}
         
         # Handle Stripe Transfer failed/reversed (payout failed)
         elif event_type in ("transfer.failed", "transfer.reversed"):
+            transfer_id = event_data.get("id", "unknown")
+            payout_meta = event_data.get("metadata", {})
+            logger.warning(f"TRANSFER_FAIL event_id={event_id} type={event_type} transfer_id={transfer_id} payout_id={payout_meta.get('payout_id', 'N/A')} user_id={payout_meta.get('user_id', 'N/A')} failure={event_data.get('failure_message', 'N/A')}")
             result = handle_transfer_failed(event_data)
+            logger.info(f"TRANSFER_FAIL_RESULT event_id={event_id} transfer_id={transfer_id} result={result}")
             return {"status": "success", "event_type": event_type, "result": result}
         
+        logger.info(f"UNHANDLED event_id={event_id} type={event_type} — no specific handler")
         return {"status": "success", "event_type": event_type}
     
     except stripe.error.SignatureVerificationError as e:
-        print(f"[WEBHOOK] Signature verification failed: {e}")
+        logger.error(f"SIGNATURE_INVALID error={e}")
         raise HTTPException(status_code=400, detail="Invalid signature")
     except Exception as e:
-        print(f"[WEBHOOK] Error: {e}")
+        _eid = locals().get('event_id', 'N/A')
+        logger.error(f"WEBHOOK_ERROR event_id={_eid} error={e}")
         raise HTTPException(status_code=400, detail=f"Webhook error: {str(e)}")
