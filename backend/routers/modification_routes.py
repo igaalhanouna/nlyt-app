@@ -99,14 +99,6 @@ async def create_modification_proposal(body: CreateProposalRequest, request: Req
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    # Only send proposal notification emails for real proposals (not direct modifications)
-    if result.get('mode') != 'direct':
-        try:
-            await _send_proposal_emails(result)
-        except Exception as e:
-            import logging
-            logging.getLogger(__name__).warning(f"[MODIFICATION] Failed to send proposal emails: {e}")
-
     return result
 
 
@@ -287,14 +279,6 @@ async def respond_to_modification(proposal_id: str, body: RespondProposalRequest
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    # If proposal was just accepted unanimously, send confirmation emails
-    if updated['status'] == 'accepted':
-        try:
-            await _send_acceptance_emails(updated)
-        except Exception as e:
-            import logging
-            logging.getLogger(__name__).warning(f"[MODIFICATION] Failed to send acceptance emails: {e}")
-
     return updated
 
 
@@ -331,177 +315,7 @@ async def cancel_modification_proposal(proposal_id: str, request: Request):
     return result
 
 
-# --- Email helpers ---
-
-async def _send_proposal_emails(proposal: dict):
-    """Send notification emails to all respondents about a new modification proposal."""
-    from services.email_service import EmailService
-
-    appointment = db.appointments.find_one(
-        {"appointment_id": proposal['appointment_id']},
-        {"_id": 0}
-    )
-    if not appointment:
-        return
-
-    proposer_name = proposal['proposed_by'].get('name', 'Un participant')
-    base_url = os.environ.get('FRONTEND_URL', '').rstrip('/')
-
-    # Build changes description
-    appt_tz = appointment.get('appointment_timezone', 'Europe/Paris')
-    changes_html = _build_changes_html(proposal, appt_tz)
-
-    # Notify participants who need to respond
-    for resp in proposal.get('responses', []):
-        participant = db.participants.find_one(
-            {"participant_id": resp['participant_id']},
-            {"_id": 0}
-        )
-        if not participant or not participant.get('email'):
-            continue
-
-        invitation_link = f"{base_url}/invitation/{participant.get('invitation_token', '')}"
-        to_name = f"{resp.get('first_name', '')} {resp.get('last_name', '')}".strip() or resp.get('email', '')
-
-        subject = f"Modification proposée - {appointment.get('title', 'Rendez-vous')}"
-        html_content = f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <style>
-                body {{ font-family: 'Inter', Arial, sans-serif; line-height: 1.6; color: #334155; }}
-                .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
-                .header {{ background: #2563EB; color: white; padding: 25px; text-align: center; }}
-                .content {{ background: #ffffff; padding: 30px; border: 1px solid #E2E8F0; }}
-                .changes-box {{ background: #F0F9FF; padding: 20px; border-radius: 8px; border: 1px solid #BAE6FD; margin: 20px 0; }}
-                .button {{ display: inline-block; padding: 14px 28px; background: #2563EB; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; }}
-                .footer {{ text-align: center; color: #64748B; font-size: 14px; padding: 20px; }}
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <div class="header">
-                    <h1 style="margin: 0; font-size: 22px;">Modification proposée</h1>
-                    <p style="margin: 10px 0 0 0; opacity: 0.9;">NLYT</p>
-                </div>
-                <div class="content">
-                    <h2 style="color: #1E293B;">Bonjour {to_name},</h2>
-                    <p><strong>{proposer_name}</strong> propose une modification pour le rendez-vous <strong>{appointment.get('title', '')}</strong>.</p>
-
-                    <div class="changes-box">
-                        {changes_html}
-                    </div>
-
-                    <p>Votre accord est requis. Veuillez accepter ou refuser cette modification.</p>
-
-                    <div style="text-align: center; margin: 25px 0;">
-                        <a href="{invitation_link}" class="button">Voir et répondre</a>
-                    </div>
-
-                    <p style="color: #94A3B8; font-size: 13px;">Cette proposition expire dans 24 heures.</p>
-                </div>
-                <div class="footer"><p>&copy; 2026 NLYT</p></div>
-            </div>
-        </body>
-        </html>
-        """
-        await EmailService.send_email(participant['email'], subject, html_content, email_type="modification_proposal")
-
-    # Notify organizer if a participant proposed
-    if proposal['proposed_by']['role'] == 'participant' and proposal['organizer_response']['status'] == 'pending':
-        organizer = db.users.find_one(
-            {"user_id": appointment['organizer_id']},
-            {"_id": 0}
-        )
-        if organizer and organizer.get('email'):
-            org_link = f"{base_url}/appointments/{appointment['appointment_id']}"
-            org_name = f"{organizer.get('first_name', '')} {organizer.get('last_name', '')}".strip() or organizer.get('email', '')
-
-            subject = f"Modification proposée par un participant - {appointment.get('title', '')}"
-            html_content = f"""
-            <!DOCTYPE html>
-            <html>
-            <head><style>
-                body {{ font-family: 'Inter', Arial, sans-serif; line-height: 1.6; color: #334155; }}
-                .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
-                .header {{ background: #2563EB; color: white; padding: 25px; text-align: center; }}
-                .content {{ background: #ffffff; padding: 30px; border: 1px solid #E2E8F0; }}
-                .changes-box {{ background: #F0F9FF; padding: 20px; border-radius: 8px; border: 1px solid #BAE6FD; margin: 20px 0; }}
-                .button {{ display: inline-block; padding: 14px 28px; background: #2563EB; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; }}
-                .footer {{ text-align: center; color: #64748B; font-size: 14px; padding: 20px; }}
-            </style></head>
-            <body>
-            <div class="container">
-                <div class="header"><h1 style="margin:0;font-size:22px;">Modification proposée</h1></div>
-                <div class="content">
-                    <h2>Bonjour {org_name},</h2>
-                    <p><strong>{proposer_name}</strong> propose une modification.</p>
-                    <div class="changes-box">{changes_html}</div>
-                    <div style="text-align:center;margin:25px 0;">
-                        <a href="{org_link}" class="button">Voir et répondre</a>
-                    </div>
-                    <p style="color:#94A3B8;font-size:13px;">Cette proposition expire dans 24 heures.</p>
-                </div>
-                <div class="footer"><p>&copy; 2026 NLYT</p></div>
-            </div>
-            </body></html>
-            """
-            await EmailService.send_email(organizer['email'], subject, html_content, email_type="modification_proposal_organizer")
-
-
-async def _send_acceptance_emails(proposal: dict):
-    """Send confirmation emails when a proposal is unanimously accepted."""
-    from services.email_service import EmailService
-
-    appointment = db.appointments.find_one(
-        {"appointment_id": proposal['appointment_id']},
-        {"_id": 0}
-    )
-    if not appointment:
-        return
-
-    appt_tz = appointment.get('appointment_timezone', 'Europe/Paris')
-    changes_html = _build_changes_html(proposal, appt_tz)
-    base_url = os.environ.get('FRONTEND_URL', '').rstrip('/')
-
-    # Notify all participants
-    accepted_statuses = ["accepted", "guaranteed", "accepted_pending_guarantee", "accepted_guaranteed"]
-    all_participants = list(db.participants.find(
-        {"appointment_id": proposal['appointment_id'], "status": {"$in": accepted_statuses}},
-        {"_id": 0}
-    ))
-    for p in all_participants:
-        if not p.get('email'):
-            continue
-        to_name = f"{p.get('first_name', '')} {p.get('last_name', '')}".strip()
-        invitation_link = f"{base_url}/invitation/{p.get('invitation_token', '')}"
-
-        subject = f"Modification confirmée - {appointment.get('title', '')}"
-        html_content = f"""
-        <!DOCTYPE html><html><head><style>
-        body {{ font-family: 'Inter', Arial, sans-serif; line-height: 1.6; color: #334155; }}
-        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
-        .header {{ background: #059669; color: white; padding: 25px; text-align: center; }}
-        .content {{ background: #fff; padding: 30px; border: 1px solid #E2E8F0; }}
-        .changes-box {{ background: #F0FDF4; padding: 20px; border-radius: 8px; border: 1px solid #BBF7D0; margin: 20px 0; }}
-        .footer {{ text-align: center; color: #64748B; font-size: 14px; padding: 20px; }}
-        </style></head><body>
-        <div class="container">
-            <div class="header"><h1 style="margin:0;font-size:22px;">Modification confirmée</h1></div>
-            <div class="content">
-                <h2>Bonjour {to_name},</h2>
-                <p>La modification du rendez-vous <strong>{appointment.get('title','')}</strong> a été acceptée par tous les participants.</p>
-                <div class="changes-box">{changes_html}</div>
-                <p>Le rendez-vous a été mis à jour.</p>
-                <div style="text-align:center;margin:25px 0;">
-                    <a href="{invitation_link}" style="padding:14px 28px;background:#059669;color:white;text-decoration:none;border-radius:8px;font-weight:bold;">Voir le rendez-vous</a>
-                </div>
-            </div>
-            <div class="footer"><p>&copy; 2026 NLYT</p></div>
-        </div></body></html>
-        """
-        await EmailService.send_email(p['email'], subject, html_content, email_type="modification_accepted")
-
+# --- Utility helpers (kept for test compatibility) ---
 
 def _build_changes_html(proposal: dict, tz_name: str = 'Europe/Paris') -> str:
     """Build HTML showing old vs new values."""
