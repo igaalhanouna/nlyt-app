@@ -832,6 +832,7 @@ export default function WalletPage() {
   const [currentUserId, setCurrentUserId] = useState(null);
   const [payoutLoading, setPayoutLoading] = useState(false);
   const [showPayoutConfirm, setShowPayoutConfirm] = useState(false);
+  const [payoutAmount, setPayoutAmount] = useState('');
   const [showChangeType, setShowChangeType] = useState(false);
   const [changeTypeLoading, setChangeTypeLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -951,14 +952,17 @@ export default function WalletPage() {
   };
 
   const handlePayout = async () => {
+    const cents = Math.round(parseFloat(payoutAmount || '0') * 100);
+    if (cents <= 0 || cents > (wallet?.available_balance || 0)) return;
     setPayoutLoading(true);
     setShowPayoutConfirm(false);
     try {
-      const res = await walletAPI.requestPayout(null); // Full withdrawal
+      const res = await walletAPI.requestPayout(cents);
       const msg = res.data.dev_mode
-        ? `[DEV] Retrait simulé : ${fmt(res.data.amount_cents)}`
+        ? `[DEV] Retrait simule : ${fmt(res.data.amount_cents)}`
         : `Retrait de ${fmt(res.data.amount_cents)} en cours`;
       toast.success(msg);
+      setPayoutAmount('');
       await fetchData();
     } catch (err) {
       toast.error(err.response?.data?.detail || "Erreur lors du retrait");
@@ -993,7 +997,7 @@ export default function WalletPage() {
           <p className="text-sm text-slate-500 mt-1">Vos fonds, dedommagements et retraits</p>
         </div>
 
-        <BalanceCards wallet={wallet} onPayout={() => setShowPayoutConfirm(true)} payoutLoading={payoutLoading} />
+        <BalanceCards wallet={wallet} onPayout={() => { setPayoutAmount((wallet?.available_balance / 100).toFixed(2)); setShowPayoutConfirm(true); }} payoutLoading={payoutLoading} />
 
         {/* Profile type selector — shown when no profile_type chosen yet AND no account exists */}
         {connectStatus?.connect_status === 'not_started' && !connectStatus?.profile_type ? (
@@ -1018,7 +1022,7 @@ export default function WalletPage() {
               onRefresh={handleRefreshStatus}
               refreshing={refreshing}
               onboarding={onboarding}
-              onPayout={() => setShowPayoutConfirm(true)}
+              onPayout={() => { setPayoutAmount(((wallet?.available_balance || 0) / 100).toFixed(2)); setShowPayoutConfirm(true); }}
               canPayout={wallet?.can_payout}
               onChangeType={() => setShowChangeType(true)}
             />
@@ -1028,9 +1032,28 @@ export default function WalletPage() {
         {/* Payout Confirmation Modal */}
         {showPayoutConfirm && wallet && (
           <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 rounded-lg" data-testid="payout-confirm-modal">
-            <p className="text-sm font-medium text-emerald-900 mb-2">Confirmer le retrait</p>
+            <p className="text-sm font-medium text-emerald-900 mb-3">Confirmer le retrait</p>
+            <div className="mb-3">
+              <label htmlFor="payout-user-amount" className="text-xs text-emerald-700 block mb-1">Montant a retirer (EUR)</label>
+              <input
+                id="payout-user-amount"
+                type="number"
+                step="0.01"
+                min="0.01"
+                max={(wallet.available_balance / 100).toFixed(2)}
+                value={payoutAmount}
+                onChange={(e) => setPayoutAmount(e.target.value)}
+                className="w-full sm:w-48 px-3 py-2 text-sm border border-emerald-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+                data-testid="payout-user-amount-input"
+              />
+              <p className="text-[11px] text-emerald-600 mt-1">
+                Solde disponible : {fmt(wallet.available_balance, wallet.currency)}
+              </p>
+              {parseFloat(payoutAmount || '0') * 100 > wallet.available_balance && payoutAmount && (
+                <p className="text-[11px] text-red-500 mt-0.5">Depasse le solde disponible</p>
+              )}
+            </div>
             <p className="text-xs text-emerald-700 mb-3">
-              Vous allez retirer <span className="font-bold">{fmt(wallet.available_balance, wallet.currency)}</span> vers votre compte bancaire.
               Ce transfert est irreversible.
             </p>
             <div className="flex flex-col sm:flex-row gap-2">
@@ -1038,13 +1061,13 @@ export default function WalletPage() {
                 size="sm"
                 className="bg-emerald-600 hover:bg-emerald-700 text-white min-h-[44px] sm:min-h-0"
                 onClick={handlePayout}
-                disabled={payoutLoading}
+                disabled={payoutLoading || !payoutAmount || parseFloat(payoutAmount) <= 0 || Math.round(parseFloat(payoutAmount) * 100) > wallet.available_balance}
                 data-testid="payout-confirm-btn"
               >
                 {payoutLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <ArrowUpRight className="w-3.5 h-3.5 mr-1.5" />}
                 Confirmer le retrait
               </Button>
-              <Button size="sm" variant="ghost" onClick={() => setShowPayoutConfirm(false)} className="min-h-[44px] sm:min-h-0">Annuler</Button>
+              <Button size="sm" variant="ghost" onClick={() => { setShowPayoutConfirm(false); setPayoutAmount(''); }} className="min-h-[44px] sm:min-h-0">Annuler</Button>
             </div>
           </div>
         )}
