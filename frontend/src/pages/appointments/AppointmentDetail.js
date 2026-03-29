@@ -405,9 +405,11 @@ export default function AppointmentDetail() {
       modificationAPI.getForAppointment(id).then(res => setProposalHistory(res.data?.proposals || [])).catch(() => {});
       proofAPI.getSessions(id).then(res => setProofSessions(res.data?.sessions || [])).catch(() => {});
 
+      // Calendar sync — loaded for the current viewer (backend uses viewer's own connections)
+      calendarAPI.getSyncStatus(id).then(res => setSyncStatus(res.data)).catch(() => {});
+
       // Organizer-only loads
       if (viewerIsOrganizer) {
-        calendarAPI.getSyncStatus(id).then(res => setSyncStatus(res.data)).catch(() => {});
         videoEvidenceAPI.get(id).then(res => setVideoEvidence(res.data)).catch(() => {});
         videoEvidenceAPI.getLogs(id).then(res => setVideoIngestionLogs(res.data?.logs || [])).catch(() => {});
       }
@@ -739,14 +741,6 @@ export default function AppointmentDetail() {
           }} />
         )}
 
-        {/* Trust signal for participants */}
-        {!isOrganizer && guaranteedCount > 0 && (
-          <div className="mb-4 flex items-center gap-2 px-4 py-2.5 bg-emerald-50 border border-emerald-200 rounded-lg text-xs font-medium text-emerald-700" data-testid="trust-signal-banner">
-            <ShieldCheck className="w-4 h-4 flex-shrink-0" />
-            {guaranteedCount} participant{guaranteedCount > 1 ? 's' : ''} {guaranteedCount > 1 ? 'ont' : 'a'} déjà confirmé {guaranteedCount > 1 ? 'leur' : 'son'} engagement
-          </div>
-        )}
-
         {/* Declarative phase CTA */}
         {appointment.declarative_phase === 'collecting' && (
           <div className="mb-4 flex items-center justify-between gap-3 px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg" data-testid="declarative-cta-banner">
@@ -795,7 +789,7 @@ export default function AppointmentDetail() {
         <SecondaryActions
           appointment={appointment} isCancelled={isCancelled}
           syncStatus={syncStatus} syncingProvider={syncingProvider}
-          onSyncCalendar={isOrganizer ? handleSyncCalendar : undefined}
+          onSyncCalendar={handleSyncCalendar}
           onDownloadICS={handleDownloadICS}
           onShowCancelModal={isOrganizer ? () => setShowCancelModal(true) : undefined}
           isOrganizer={isOrganizer}

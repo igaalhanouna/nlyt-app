@@ -41,36 +41,36 @@ export default function QuickActions({
           <Download className="w-3.5 h-3.5" /> .ics
         </Button>
 
-        {/* Google Calendar — organizer only */}
-        {isOrganizer && syncStatus?.google?.synced ? (
+        {/* Google Calendar — based on viewer's own connections */}
+        {syncStatus?.google?.synced ? (
           <Button variant="outline" size="sm" className="text-emerald-700 border-emerald-300 h-9 text-xs gap-1.5" disabled data-testid="google-synced-btn">
             {syncStatus.google.sync_source === 'auto' ? <Zap className="w-3.5 h-3.5" /> : <Check className="w-3.5 h-3.5" />}
             Google
           </Button>
-        ) : isOrganizer && syncStatus?.google?.out_of_sync ? (
+        ) : syncStatus?.google?.out_of_sync ? (
           <Button variant="outline" size="sm" className="text-amber-700 border-amber-300 h-9 text-xs gap-1.5" onClick={() => onSyncCalendar('google')} disabled={syncingProvider !== null} data-testid="google-out-of-sync-btn">
             {syncingProvider === 'google' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <AlertTriangle className="w-3.5 h-3.5" />}
             Google
           </Button>
-        ) : isOrganizer && syncStatus?.google?.has_connection && !isCancelled ? (
+        ) : syncStatus?.google?.has_connection && !isCancelled ? (
           <Button variant="outline" size="sm" onClick={() => onSyncCalendar('google')} disabled={syncingProvider !== null} className="h-9 text-xs gap-1.5" data-testid="sync-google-btn">
             {syncingProvider === 'google' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Calendar className="w-3.5 h-3.5" />}
             Google
           </Button>
         ) : null}
 
-        {/* Outlook Calendar — organizer only */}
-        {isOrganizer && syncStatus?.outlook?.synced ? (
+        {/* Outlook Calendar — based on viewer's own connections */}
+        {syncStatus?.outlook?.synced ? (
           <Button variant="outline" size="sm" className="text-emerald-700 border-emerald-300 h-9 text-xs gap-1.5" disabled data-testid="outlook-synced-btn">
             {syncStatus.outlook.sync_source === 'auto' ? <Zap className="w-3.5 h-3.5" /> : <Check className="w-3.5 h-3.5" />}
             Outlook
           </Button>
-        ) : isOrganizer && syncStatus?.outlook?.out_of_sync ? (
+        ) : syncStatus?.outlook?.out_of_sync ? (
           <Button variant="outline" size="sm" className="text-amber-700 border-amber-300 h-9 text-xs gap-1.5" onClick={() => onSyncCalendar('outlook')} disabled={syncingProvider !== null} data-testid="outlook-out-of-sync-btn">
             {syncingProvider === 'outlook' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <AlertTriangle className="w-3.5 h-3.5" />}
             Outlook
           </Button>
-        ) : isOrganizer && syncStatus?.outlook?.has_connection && !isCancelled ? (
+        ) : syncStatus?.outlook?.has_connection && !isCancelled ? (
           <Button variant="outline" size="sm" onClick={() => onSyncCalendar('outlook')} disabled={syncingProvider !== null} className="h-9 text-xs gap-1.5" data-testid="sync-outlook-btn">
             {syncingProvider === 'outlook' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Calendar className="w-3.5 h-3.5" />}
             Outlook

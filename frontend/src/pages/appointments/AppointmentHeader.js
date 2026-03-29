@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '../../components/ui/button';
-import { Ban, Check, MapPin, ArrowRight, Loader2, CreditCard, AlertTriangle, Settings2, Shield, Clock } from 'lucide-react';
+import { Ban, Check, MapPin, ArrowRight, Loader2, CreditCard, AlertTriangle, Settings2, Shield } from 'lucide-react';
 
 const STATUS_STYLES = {
   active: 'bg-emerald-100 text-emerald-800',
@@ -27,7 +27,6 @@ export default function AppointmentHeader({
   const WINDOW_BEFORE_MIN = 30;
   const WINDOW_AFTER_MIN = 60;
   let checkinTimeState = 'during';
-  let minutesUntilOpen = 0;
   if (appointment?.start_datetime) {
     const startMs = new Date(appointment.start_datetime).getTime();
     const durationMin = appointment.duration_minutes || 60;
@@ -36,20 +35,10 @@ export default function AppointmentHeader({
     const nowMs = Date.now();
     if (nowMs < openMs) {
       checkinTimeState = 'before';
-      minutesUntilOpen = Math.ceil((openMs - nowMs) / 60000);
     } else if (nowMs > closeMs) {
       checkinTimeState = 'after';
     }
   }
-
-  const formatCountdown = (mins) => {
-    const d = Math.floor(mins / 1440);
-    const h = Math.floor((mins % 1440) / 60);
-    const m = mins % 60;
-    if (d > 0) return `${d}j ${h}h`;
-    if (h > 0) return `${h}h ${m}min`;
-    return `${m} min`;
-  };
 
   const canCheckin = isOrganizer && organizerParticipant?.status === 'accepted_guaranteed' && !isCancelled && !isPendingGuarantee && checkinTimeState === 'during';
   const isVideo = appointment.appointment_type === 'video';
@@ -100,23 +89,6 @@ export default function AppointmentHeader({
               </div>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* Check-in time gate states */}
-      {isOrganizer && organizerParticipant?.status === 'accepted_guaranteed' && !isCancelled && !isPendingGuarantee && !organizerCheckinDone && checkinTimeState === 'before' && (
-        <div className="flex items-center gap-2.5 px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg mb-2" data-testid="checkin-before-window">
-          <Clock className="w-4 h-4 text-slate-400 flex-shrink-0" />
-          <span className="text-xs font-medium text-slate-500">
-            Check-in disponible dans {formatCountdown(minutesUntilOpen)}
-          </span>
-        </div>
-      )}
-
-      {isOrganizer && organizerParticipant?.status === 'accepted_guaranteed' && !isCancelled && !isPendingGuarantee && !organizerCheckinDone && checkinTimeState === 'after' && (
-        <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg mb-2" data-testid="checkin-after-window">
-          <Ban className="w-4 h-4 text-slate-400 flex-shrink-0" />
-          <span className="text-xs text-slate-500">Fenêtre de check-in expirée</span>
         </div>
       )}
 

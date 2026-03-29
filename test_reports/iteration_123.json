@@ -1,0 +1,80 @@
+{
+  "summary": "Iteration 123 - UX Consistency Fixes Testing: All tests passed. Verified 4 UX inconsistencies are fixed: (1) No duplicate check-in banner in AppointmentHeader (only 1 CheckinBlock visible), (2) No green trust signal banner for participants (trust info only in AppointmentEssentials), (3) Calendar sync status loaded for ALL roles (participants see their own Google/Outlook buttons), (4) Calendar sync buttons available for participants (isOrganizer guard removed).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": {
+    "backend_pytest": [
+      "✅ test_participant_can_access_calendar_sync_status - Participant can access /api/calendar/sync/status/{id}",
+      "✅ test_organizer_can_access_calendar_sync_status - Organizer can access /api/calendar/sync/status/{id}",
+      "✅ test_calendar_sync_returns_viewer_connections - Returns viewer's own calendar connections",
+      "✅ test_organizer_can_access_appointment_detail - Organizer has viewer_role != participant",
+      "✅ test_participant_can_access_appointment_detail - Participant has viewer_role == participant",
+      "✅ test_participant_has_invitation_token - Participant has viewer_invitation_token",
+      "✅ test_organizer_dashboard_loads - Organizer dashboard loads",
+      "✅ test_participant_dashboard_loads - Participant dashboard loads",
+      "✅ test_api_health - API is healthy"
+    ],
+    "frontend_playwright": [
+      "✅ Organizer view: Only 1 CheckinBlock visible (data-testid='checkin-block-before-window')",
+      "✅ Organizer view: No duplicate check-in banners in header (checkin-before-window=0, checkin-after-window=0)",
+      "✅ Organizer view: Trust signal only in AppointmentEssentials (trust-signal=1, trust-signal-banner=0)",
+      "✅ Organizer view: 'Annuler l'engagement' button present",
+      "✅ Organizer view: .ics download button present",
+      "✅ Organizer view: Google calendar button present",
+      "✅ Organizer view: AppointmentEssentials visible with trust text 'Engagement actif · 1 participant garanti'",
+      "✅ Participant view: NO green trust signal banner (trust-signal-banner=0)",
+      "✅ Participant view: Trust info in AppointmentEssentials visible ('Engagement actif · 2 participants garantis')",
+      "✅ Participant view: .ics download button visible",
+      "✅ Participant view: Google calendar button visible (participant's own connection)",
+      "✅ Participant view: CheckinBlock present ('Check-in disponible dans 8h 31min')",
+      "✅ Participant view: 'Annuler ma participation' button present",
+      "✅ Participant view: 'Annuler l'engagement' button NOT shown (organizer only)",
+      "✅ Dashboard loads without errors for organizer (igaal@hotmail.com)",
+      "✅ Dashboard loads without errors for participant (testuser_audit@nlyt.app)",
+      "✅ No console errors on dashboard for either role"
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_ux_consistency_iter123.py"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "AppointmentHeader.js: Correctly removed duplicate time-gate blocks (lines 106-121 deleted per review_request). Only CheckinBlock now handles time-gating.",
+    "AppointmentDetail.js: calendarAPI.getSyncStatus() correctly moved outside viewerIsOrganizer guard (line 409). Both roles now load their own calendar sync status.",
+    "SecondaryActions.js: isOrganizer guard correctly removed from Google/Outlook calendar buttons. Buttons now render based on syncStatus.google.has_connection / syncStatus.outlook.has_connection for all roles.",
+    "AppointmentEssentials.js: Trust signal correctly displayed with data-testid='trust-signal' for all roles. No separate green banner.",
+    "CheckinBlock.js: Unified check-in block correctly handles time-gating for both organizer and participant with data-testid='checkin-block-before-window', 'checkin-block-after-window', 'checkin-block-pending', 'checkin-block-confirmed'."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_ux_consistency_iter123.py"
+  ],
+  "success_rate": {
+    "backend": "100% (9/9 tests passed)",
+    "frontend": "100% (17/17 tests passed)"
+  },
+  "test_credentials": {
+    "organizer": "igaal@hotmail.com / Test123!",
+    "participant": "testuser_audit@nlyt.app / TestAudit123!"
+  },
+  "seed_data_creation": "None - used existing appointments",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "UX consistency fixes verified. Key changes: (1) AppointmentHeader no longer has time-gate blocks - only CheckinBlock handles this, (2) No green trust banner for participants - trust info only in AppointmentEssentials, (3) Calendar sync status loaded for all roles via calendarAPI.getSyncStatus(), (4) Calendar buttons (Google/Outlook) available for all roles based on viewer's own connections. Test appointments: 884a22e1-e110-49ec-b785-2bab318b7084 (igaal@hotmail.com organizer), e823473a-f37a-4f59-8576-82e49ee22c53 (igaal@hotmail.com organizer, testuser_audit@nlyt.app participant).",
+  "features_verified": {
+    "1_no_duplicate_checkin_banner": "✅ VERIFIED - Only 1 CheckinBlock visible, no time-gate in AppointmentHeader",
+    "2_no_green_trust_banner_participant": "✅ VERIFIED - trust-signal-banner=0 for participant, trust info only in AppointmentEssentials",
+    "3_calendar_sync_all_roles": "✅ VERIFIED - GET /api/calendar/sync/status/{id} works for participant, returns viewer's own connections",
+    "4_calendar_buttons_all_roles": "✅ VERIFIED - Google button visible for participant (has_connection=true)",
+    "5_organizer_cancel_button": "✅ VERIFIED - 'Annuler l'engagement' button present for organizer",
+    "6_participant_cancel_button": "✅ VERIFIED - 'Annuler ma participation' button present for participant",
+    "7_dashboard_regression": "✅ VERIFIED - Dashboard loads without errors for both roles",
+    "8_no_console_errors": "✅ VERIFIED - No console errors on appointment detail page for either role"
+  }
+}
