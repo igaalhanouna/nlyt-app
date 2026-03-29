@@ -162,6 +162,16 @@ SaaS d'engagement ponctuel avec garantie financiere. Optimisation du "Viral Loop
 - Frontend: `DisputesListPage` action hints with counterpart names
 - Tests: 20/20 (12 backend + 8 frontend, iteration_119)
 
+### Phase 22 — Participant UX Parity (Feb 2026) - DONE
+- **AUDIT + FIX**: Aligned participant ("invité") experience on organizer ("créé par vous") reference across dashboard cards and detail pages
+- **CheckinBlock.js** (NEW unified component): Replaces both OrganizerCheckinBlock and inline ParticipantCheckinBlock. Same time-gating (before/during/after), countdown, GPS display, proof link for both roles
+- **SecondaryActions.js** (REWRITTEN): Now supports both roles. Participant gets ICS download + "Annuler ma participation" (wired to existing POST /api/invitations/{token}/cancel)
+- **AppointmentDetail.js** (MODIFIED): Removed inline ParticipantCheckinBlock, uses unified CheckinBlock, SecondaryActions visible for both roles
+- **OrganizerDashboard.js** (MODIFIED): TimelineCard gets "Quitter" button for accepted upcoming participant cards + engagement signal ("X participants engagés")
+- **api.js** (MODIFIED): Added invitationAPI.cancelParticipation
+- Zero backend changes, zero new routes, zero business logic modifications
+- Tests: 19/19 (10 backend + 9 frontend, iteration_121)
+
 ### Phase 21 — P0 Dispute Perspective Wording Fix (Feb 2026) - DONE
 - **BUG FIX**: `isTarget` on frontend was derived from `my_role === 'participant'` which failed in deadlock cases (organizer = target)
 - Backend: `_enrich_dispute_for_user()` now returns absolute `is_target: bool` (based on `target_user_id == user_id`)
