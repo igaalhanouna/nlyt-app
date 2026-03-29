@@ -60,15 +60,14 @@ export default function AuthCallback() {
           return;
         }
 
-        // Check for error from Microsoft
+        // Check for error/cancellation from provider
         const error = searchParams.get('error');
         if (error) {
-          const desc = searchParams.get('error_description') || 'Authentification annulée';
-          throw new Error(desc);
+          throw new Error('Connexion annulée');
         }
 
-        // No recognizable callback data
-        throw new Error('Paramètres de callback manquants');
+        // No recognizable callback data (user arrived here directly)
+        throw new Error('Connexion annulée');
       } catch (err) {
         console.error('[AuthCallback] Error:', err);
         toast.error(err.message || 'Erreur d\'authentification');
