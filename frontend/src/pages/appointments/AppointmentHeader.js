@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '../../components/ui/button';
-import { Ban, Check, MapPin, ArrowRight, Loader2, CreditCard, AlertTriangle, Settings2, Shield } from 'lucide-react';
+import { Ban, Check, MapPin, ArrowRight, Loader2, CreditCard, AlertTriangle, Settings2, Shield, Clock } from 'lucide-react';
 
 const STATUS_STYLES = {
   active: 'bg-emerald-100 text-emerald-800',
