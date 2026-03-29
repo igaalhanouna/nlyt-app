@@ -109,24 +109,6 @@ function ImpactCard({ totalCharityCents }) {
 }
 
 // ── Action Required Section ──
-function ActionRequiredSection({ items, onRemind, onAccept, onDecline, onCancel, now, onNavigate }) {
-  if (items.length === 0) return null;
-  return (
-    <div className="mb-6 bg-red-50/60 border border-red-200 rounded-lg p-5" data-testid="action-required-section">
-      <div className="flex items-center gap-2 mb-4">
-        <Flame className="w-5 h-5 text-red-500" />
-        <h3 className="text-base font-semibold text-red-700">Action requise</h3>
-        <span className="ml-auto text-xs text-red-400 font-medium">{items.length} élément{items.length > 1 ? 's' : ''}</span>
-      </div>
-      <div className="space-y-3">
-        {items.slice(0, 8).map(item => (
-          <ActionCard key={`${item.role}-${item.appointment_id}`} item={item} onRemind={onRemind} onAccept={onAccept} onDecline={onDecline} onCancel={onCancel} now={now} onNavigate={onNavigate} />
-        ))}
-      </div>
-    </div>
-  );
-}
-
 function ActionCard({ item, onRemind, onAccept, onDecline, onCancel, now, onNavigate }) {
   const isParticipant = item.role === 'participant';
   const isOrgAlert = !isParticipant && item.action_required;
@@ -997,65 +979,86 @@ export default function OrganizerDashboard() {
           </Link>
         </div>
 
-        {/* Action Required Section */}
-        {!loading && (
-          <ActionRequiredSection
-            items={timeline.action_required}
-            onRemind={handleRemind}
-            onAccept={handleAcceptInvitation}
-            onDecline={handleDeclineInvitation}
-            onCancel={handleCancelAppointment}
-            now={now}
-            onNavigate={saveScroll}
-          />
-        )}
+        {/* Unified Action Required Section */}
+        {!loading && (timeline.action_required.length > 0 || pendingModifications.filter(p => p.is_action_required).length > 0) && (() => {
+          const invItems = timeline.action_required;
+          const modItems = pendingModifications.filter(p => p.is_action_required);
+          const total = invItems.length + modItems.length;
+          return (
+            <div className="mb-6 bg-red-50/60 border border-red-200 rounded-lg p-5" data-testid="action-required-section">
+              <div className="flex items-center gap-2 mb-1">
+                <Flame className="w-5 h-5 text-red-500" />
+                <h3 className="text-base font-semibold text-red-700">Actions requises</h3>
+                <span className="ml-auto text-xs text-red-400 font-medium">{total} action{total !== 1 ? 's' : ''}</span>
+              </div>
+              <p className="text-xs text-red-400 mb-4">Ces actions nécessitent votre intervention pour débloquer les rendez-vous.</p>
 
-        {/* Modification Actions Section */}
-        {!loading && pendingModifications.filter(p => p.is_action_required).length > 0 && (
-          <div className="mb-6 bg-amber-50/50 border border-amber-200 rounded-lg p-4" data-testid="modification-actions-section">
-            <div className="flex items-center gap-2 mb-3">
-              <FileEdit className="w-5 h-5 text-amber-600" />
-              <h3 className="text-base font-semibold text-amber-900">
-                Modifications en attente ({pendingModifications.filter(p => p.is_action_required).length})
-              </h3>
-            </div>
-            <div className="space-y-2">
-              {pendingModifications.filter(p => p.is_action_required).map(mod => {
-                const [accStr, totStr] = (mod.participants_summary || '0/0').split('/');
-                const accN = parseInt(accStr) || 0;
-                const totN = parseInt(totStr) || 0;
-                const pct = totN > 0 ? Math.round((accN / totN) * 100) : 0;
-                return (
-                <Link
-                  key={mod.proposal_id}
-                  to={`/appointments/${mod.appointment_id}`}
-                  className="flex items-center justify-between bg-white border border-amber-200 rounded-lg p-3 hover:border-amber-400 transition-colors"
-                  data-testid={`mod-action-card-${mod.proposal_id}`}
-                >
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-slate-900 truncate">{mod.appointment_title || 'Rendez-vous'}</p>
-                    <p className="text-xs text-slate-700 mt-0.5 font-medium">{formatChangeSummary(mod)}</p>
-                    <p className="text-[11px] text-slate-500 mt-0.5">
-                      Par {mod.proposed_by?.name || mod.proposed_by?.role}
-                      {mod.proposed_by?.role === 'participant' ? ' (participant)' : ' (organisateur)'}
-                    </p>
-                    {/* P2.2: Mini progress bar */}
-                    <div className="flex items-center gap-2 mt-1.5" data-testid={`mod-progress-${mod.proposal_id}`}>
-                      <div className="flex-1 max-w-[120px] bg-slate-100 rounded-full h-1.5">
-                        <div className={`h-1.5 rounded-full transition-all ${pct === 100 ? 'bg-emerald-500' : pct > 0 ? 'bg-amber-400' : 'bg-slate-200'}`} style={{ width: `${pct}%` }} />
-                      </div>
-                      <span className="text-[11px] font-medium text-slate-500">{accN}/{totN} validé{accN !== 1 ? 's' : ''}</span>
-                    </div>
+              {/* Sub-section 1: Invitations & garanties */}
+              {invItems.length > 0 && (
+                <div className="mb-4" data-testid="action-subsection-invitations">
+                  <div className="flex items-center gap-2 mb-2.5">
+                    <span className="text-xs font-semibold text-red-600 uppercase tracking-wide">Action immédiate</span>
+                    <span className="text-[11px] text-red-400">— Invitations & garanties ({invItems.length})</span>
                   </div>
-                  <span className="flex-shrink-0 ml-3 text-xs font-medium text-white bg-amber-600 px-3 py-1.5 rounded-lg hover:bg-amber-700 transition-colors" data-testid={`mod-action-cta-${mod.proposal_id}`}>
-                    Répondre
-                  </span>
-                </Link>
-                );
-              })}
+                  <div className="space-y-3">
+                    {invItems.slice(0, 8).map(item => (
+                      <ActionCard key={`${item.role}-${item.appointment_id}`} item={item} onRemind={handleRemind} onAccept={handleAcceptInvitation} onDecline={handleDeclineInvitation} onCancel={handleCancelAppointment} now={now} onNavigate={saveScroll} />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Divider between sub-sections */}
+              {invItems.length > 0 && modItems.length > 0 && (
+                <div className="border-t border-red-200 my-4" />
+              )}
+
+              {/* Sub-section 2: Modifications à valider */}
+              {modItems.length > 0 && (
+                <div data-testid="action-subsection-modifications">
+                  <div className="flex items-center gap-2 mb-2.5">
+                    <FileEdit className="w-4 h-4 text-amber-600" />
+                    <span className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Modifications à valider ({modItems.length})</span>
+                  </div>
+                  <div className="space-y-2">
+                    {modItems.map(mod => {
+                      const [accStr, totStr] = (mod.participants_summary || '0/0').split('/');
+                      const accN = parseInt(accStr) || 0;
+                      const totN = parseInt(totStr) || 0;
+                      const pct = totN > 0 ? Math.round((accN / totN) * 100) : 0;
+                      return (
+                        <Link
+                          key={mod.proposal_id}
+                          to={`/appointments/${mod.appointment_id}`}
+                          className="flex items-center justify-between bg-white border border-red-100 rounded-lg p-3 hover:border-red-300 transition-colors"
+                          data-testid={`mod-action-card-${mod.proposal_id}`}
+                        >
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-slate-900 truncate">{mod.appointment_title || 'Rendez-vous'}</p>
+                            <p className="text-xs text-slate-700 mt-0.5 font-medium">{formatChangeSummary(mod)}</p>
+                            <p className="text-[11px] text-slate-500 mt-0.5">
+                              Par {mod.proposed_by?.name || mod.proposed_by?.role}
+                              {mod.proposed_by?.role === 'participant' ? ' (participant)' : ' (organisateur)'}
+                            </p>
+                            <div className="flex items-center gap-2 mt-1.5" data-testid={`mod-progress-${mod.proposal_id}`}>
+                              <div className="flex-1 max-w-[120px] bg-slate-100 rounded-full h-1.5">
+                                <div className={`h-1.5 rounded-full transition-all ${pct === 100 ? 'bg-emerald-500' : pct > 0 ? 'bg-amber-400' : 'bg-slate-200'}`} style={{ width: `${pct}%` }} />
+                              </div>
+                              <span className="text-[11px] font-medium text-slate-500">{accN}/{totN} validé{accN !== 1 ? 's' : ''}</span>
+                            </div>
+                          </div>
+                          <span className="flex-shrink-0 ml-3 text-xs font-medium text-white bg-amber-600 px-3 py-1.5 rounded-lg hover:bg-amber-700 transition-colors" data-testid={`mod-action-cta-${mod.proposal_id}`}>
+                            Examiner
+                          </span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Main list */}
         <div className="bg-white rounded-lg border border-slate-200 p-4 md:p-6">
