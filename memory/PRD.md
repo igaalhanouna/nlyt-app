@@ -202,7 +202,15 @@ Application SaaS (React/FastAPI/MongoDB) de gestion des presences avec garanties
 **Garde-fou:** notification in-app créée AVANT l'email. Si email échoue, in-app reste visible
 - Validé via testing_agent iteration 144 (100%: 19/19 backend, 14/14 frontend)
 
-### Session 26 - Notifications email Modifications (2026-03-29)
+### Session 27 - Fix doublon email modifications (2026-03-29)
+**Bug:** Deux systèmes d'envoi email coexistaient pour les modifications de RDV
+- ANCIEN: _send_proposal_emails() + _send_acceptance_emails() dans modification_routes.py (HTML inline, pas d'idempotence)
+- NOUVEAU: _notify_modification_proposed() + _notify_modification_applied() dans modification_service.py (charte NLYT, idempotent)
+**Fix:** Suppression des 2 fonctions legacy de modification_routes.py (170 lignes de dead code)
+- Source de vérité unique = modification_service.py
+- Seuls email_types actifs: 'modification_proposed' et 'modification_applied'
+- Prouvé: 1 proposition = 1 email (avant: 2 emails)
+- Validé via testing_agent iteration 146 (100%: 21/21 backend, 6/6 frontend)
 **Emails ajoutés:**
 - send_modification_proposed_email: accent info, tableau avant/après, CTA "Voter sur la modification"
 - send_modification_reminder_email: accent warning, alerte expiration imminente, CTA "Voter avant expiration"
