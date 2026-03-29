@@ -9,8 +9,8 @@ Flow:
   3. Call stripe.Transfer.create()
   4. If Stripe OK → atomically debit wallet → payout: processing
   5. If Stripe KO → payout: failed, wallet untouched
-  6. Webhook transfer.paid → payout: completed
-  7. Webhook transfer.failed → re-credit wallet, payout: failed
+  6. Webhook transfer.created → payout: completed
+  7. Webhook transfer.reversed → re-credit wallet, payout: failed
 
 All amounts in CENTIMES (int). Ledger is append-only.
 """
@@ -615,7 +615,7 @@ def _fail_payout(payout_id: str, reason: str):
 
 def handle_transfer_paid(transfer_data: dict) -> dict:
     """
-    Handle Stripe webhook: transfer.paid
+    Handle Stripe webhook: transfer.created
     Marks the payout as completed. Idempotent.
     """
     transfer_id = transfer_data.get("id")
@@ -661,7 +661,7 @@ def handle_transfer_paid(transfer_data: dict) -> dict:
 
 def handle_transfer_failed(transfer_data: dict) -> dict:
     """
-    Handle Stripe webhook: transfer.failed or transfer.reversed
+    Handle Stripe webhook: transfer.reversed (or transfer.updated with reversed=True)
     Re-credits the wallet and marks payout as failed. Idempotent.
     """
     transfer_id = transfer_data.get("id")

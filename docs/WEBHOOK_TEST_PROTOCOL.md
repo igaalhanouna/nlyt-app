@@ -15,12 +15,12 @@
    ```
    https://litigation-mgmt.preview.emergentagent.com/api/webhooks/stripe
    ```
-4. Dans **"Select events to listen to"**, cocher exactement ces evenements :
+4. Dans **"Select events to listen to"**, cocher exactement ces 7 evenements :
    - `checkout.session.completed`
    - `payment_intent.succeeded`
-   - `transfer.paid`
-   - `transfer.failed`
+   - `transfer.created`
    - `transfer.reversed`
+   - `transfer.updated`
    - `account.updated`
    - `account.application.deauthorized`
 5. Cliquer **"Add endpoint"**
@@ -78,7 +78,7 @@ stripe listen --forward-to https://litigation-mgmt.preview.emergentagent.com/api
 - **Pre-requis** : Etat initial necessaire avant le test
 - **Declenchement** : Comment provoquer l'evenement
 - **Verif DB** : Ce qu'on doit trouver dans MongoDB apres
-- **Verif Logs** : Lignes de log attendues (backend.err.log / backend.out.log)
+- **Verif Logs** : Lignes de log attendues (backend.err.log)
 - **Verif UI** : Ce que l'utilisateur voit dans l'application
 
 ---
@@ -92,14 +92,10 @@ stripe listen --forward-to https://litigation-mgmt.preview.emergentagent.com/api
 - Un participant organisateur avec `is_organizer: true` et une garantie en attente
 
 **Declenchement :**
-- **Via Dashboard** : L'organisateur complete le checkout Stripe normalement via l'UI
+- **Via UI** : L'organisateur complete le checkout Stripe normalement
 - **Via Stripe CLI** :
   ```bash
-  stripe trigger checkout.session.completed \
-    --override checkout_session:mode=setup \
-    --override checkout_session:metadata.type=nlyt_guarantee \
-    --override checkout_session:metadata.appointment_id=<APPOINTMENT_ID> \
-    --override checkout_session:metadata.guarantee_id=<GUARANTEE_ID>
+  stripe trigger checkout.session.completed
   ```
 
 **Verif DB :**
@@ -128,7 +124,6 @@ INFO:webhooks:ACTIVATION event_id=evt_xxx appointment_id=xxx organizer_id=xxx su
 
 **Declenchement :**
 - **Via UI** : Le participant clique "Accepter" et complete le checkout Stripe
-- **Via Stripe CLI** : Meme commande que W1, avec le `participant_id` correspondant au participant (non-organisateur)
 
 **Verif DB :**
 - `stripe_events` : document cree
@@ -146,70 +141,52 @@ INFO:webhooks:CHECKOUT event_id=evt_xxx mode=setup meta_type=nlyt_guarantee ...
 
 ---
 
-### W3 — transfer.paid (Retrait reussi)
+### W3 — transfer.created (Retrait confirme par Stripe)
 
-**Objectif :** Stripe confirme qu'un Transfer (retrait wallet -> compte Connect) est complete. Le payout passe en `completed`.
+**Objectif :** Stripe confirme qu'un Transfer (retrait wallet → compte Connect) a ete cree avec succes. Le payout passe en `completed`.
 
 **Pre-requis :**
 - Un payout existant en statut `processing` dans la collection `payouts`
 - Ce payout doit avoir un `stripe_transfer_id` correspondant
 
 **Declenchement :**
+- **Via UI** : Lancer un retrait reel depuis la page Wallet (genere un Transfer Stripe, qui emet `transfer.created`)
 - **Via Stripe CLI** :
   ```bash
-  stripe trigger transfer.paid
+  stripe trigger transfer.created
   ```
-  > Note : l'evenement CLI utilise un transfer_id fictif. Pour un test realiste, il faut d'abord creer un vrai payout via l'UI, puis attendre que Stripe envoie l'evenement automatiquement. Alternativement, on peut injecter manuellement :
-  ```bash
-  curl -X POST https://litigation-mgmt.preview.emergentagent.com/api/webhooks/stripe \
-    -H "Content-Type: application/json" \
-    -H "Stripe-Signature: <VALIDE_PAR_CLI>" \
-    -d '{
-      "id": "evt_test_transfer_paid",
-      "type": "transfer.paid",
-      "data": {
-        "object": {
-          "id": "<STRIPE_TRANSFER_ID_REEL>",
-          "amount": 5000,
-          "metadata": {
-            "payout_id": "<PAYOUT_ID_REEL>",
-            "user_id": "<USER_ID>",
-            "source": "nlyt_payout"
-          }
-        }
-      }
-    }'
-  ```
+  > Note : le CLI cree un Transfer fictif. Pour un test realiste, il faut d'abord creer un vrai retrait via l'UI.
 
 **Verif DB :**
 - `payouts` : statut passe de `processing` a `completed`, champ `completed_at` rempli
-- `stripe_events` : document cree avec `event_type: "transfer.paid"`
+- `stripe_events` : document cree avec `event_type: "transfer.created"`
 
 **Verif Logs :**
 ```
-INFO:webhooks:RECEIVED event_id=evt_xxx type=transfer.paid
-INFO:webhooks:TRANSFER_PAID event_id=evt_xxx transfer_id=tr_xxx payout_id=xxx user_id=xxx amount=5000
-INFO:webhooks:TRANSFER_PAID_RESULT event_id=evt_xxx transfer_id=tr_xxx result={'success': True, 'payout_id': 'xxx'}
+INFO:webhooks:RECEIVED event_id=evt_xxx type=transfer.created
+INFO:webhooks:TRANSFER_CREATED event_id=evt_xxx transfer_id=tr_xxx payout_id=xxx user_id=xxx amount=5000
+INFO:webhooks:TRANSFER_CREATED_RESULT event_id=evt_xxx transfer_id=tr_xxx result={'success': True, 'payout_id': 'xxx'}
 ```
 
 **Verif UI :** Dans la page Wallet, le retrait affiche "Complete" (vert)
 
 ---
 
-### W4 — transfer.failed (Retrait echoue — re-credit wallet)
+### W4 — transfer.reversed (Transfer inverse — re-credit wallet)
 
-**Objectif :** Stripe signale qu'un Transfer a echoue. Le wallet est re-credite et le payout passe en `failed`.
+**Objectif :** Stripe a inverse un Transfer deja effectue. Le wallet est re-credite et le payout passe en `failed`.
 
 **Pre-requis :**
-- Un payout en statut `processing` avec un `stripe_transfer_id` valide
+- Un payout en statut `processing` ou `completed` avec un `stripe_transfer_id` valide
 - Noter le `available_balance` du wallet AVANT le test
 
 **Declenchement :**
+- **Via Dashboard Stripe** : Ouvrir le Transfer dans Payments > Transfers, cliquer **"Reverse transfer"**
 - **Via Stripe CLI** :
   ```bash
-  stripe trigger transfer.failed
+  stripe trigger transfer.reversed
   ```
-- **Via Dashboard** : Provoquer un echec (compte Connect invalide, etc.)
+  (si disponible dans votre version CLI, sinon reverser manuellement dans le Dashboard)
 
 **Verif DB :**
 - `payouts` : statut passe a `failed`, `failure_reason` rempli, `failed_at` rempli
@@ -219,40 +196,44 @@ INFO:webhooks:TRANSFER_PAID_RESULT event_id=evt_xxx transfer_id=tr_xxx result={'
 
 **Verif Logs :**
 ```
-WARNING:webhooks:TRANSFER_FAIL event_id=evt_xxx type=transfer.failed transfer_id=tr_xxx payout_id=xxx user_id=xxx failure=xxx
-INFO:webhooks:TRANSFER_FAIL_RESULT event_id=evt_xxx transfer_id=tr_xxx result={'success': True, 'payout_id': 'xxx', 're_credited': True}
+WARNING:webhooks:TRANSFER_REVERSED event_id=evt_xxx transfer_id=tr_xxx payout_id=xxx user_id=xxx
+INFO:webhooks:TRANSFER_REVERSED_RESULT event_id=evt_xxx transfer_id=tr_xxx re_credited=True
 ```
 
 **Verif UI :** Wallet affiche le solde initial restaure + retrait marque "Echoue"
 
 ---
 
-### W5 — transfer.reversed (Transfer inverse — re-credit wallet)
+### W5 — transfer.updated (Monitoring changement de statut)
 
-**Objectif :** Stripe a inverse un Transfer deja effectue. Meme logique que W4 (re-credit wallet).
+**Objectif :** Stripe notifie une mise a jour sur un Transfer. Si le champ `reversed` est True, declenche la meme logique que W4 (re-credit wallet).
 
-**Pre-requis :** Identique a W4
+**Pre-requis :**
+- Un Transfer existant (payout en `processing` ou `completed`)
 
 **Declenchement :**
 - **Via Stripe CLI** :
   ```bash
-  stripe trigger transfer.reversed
+  stripe trigger transfer.updated
   ```
-  > Note: `transfer.reversed` n'est pas disponible nativement dans `stripe trigger`. Utilisez plutot :
-  ```bash
-  # Si CLI ne supporte pas, envoyer via le forward du listener en inversant manuellement le transfer dans le Dashboard
-  ```
-- **Via Dashboard** : Ouvrir un Transfer dans Payments > Transfers, cliquer "Reverse transfer"
+- **Naturellement** : Se declenche quand un Transfer change de statut
 
-**Verif DB :** Identique a W4
+**Verif DB :**
+- `stripe_events` : document cree avec `event_type: "transfer.updated"`
+- Si `reversed=true` dans le Transfer : meme impact que W4 (re-credit + payout failed)
+- Si `reversed=false` : aucun impact sur `payouts` / `wallets` (log uniquement)
 
 **Verif Logs :**
 ```
-WARNING:webhooks:TRANSFER_FAIL event_id=evt_xxx type=transfer.reversed transfer_id=tr_xxx ...
-INFO:webhooks:TRANSFER_FAIL_RESULT ...
+INFO:webhooks:RECEIVED event_id=evt_xxx type=transfer.updated
+INFO:webhooks:TRANSFER_UPDATED event_id=evt_xxx transfer_id=tr_xxx payout_id=xxx reversed=false
+```
+OU si reversed :
+```
+WARNING:webhooks:TRANSFER_UPDATED_REVERSED event_id=evt_xxx transfer_id=tr_xxx — triggering reversal handler
 ```
 
-**Verif UI :** Identique a W4
+**Verif UI :** Aucun impact sauf si reversed=true (meme que W4)
 
 ---
 
@@ -260,17 +241,15 @@ INFO:webhooks:TRANSFER_FAIL_RESULT ...
 
 **Objectif :** Verifier que le meme evenement recu deux fois n'est traite qu'une seule fois.
 
-**Pre-requis :** Avoir deja execute un test W1 a W5 avec un `event_id` connu (ex: `evt_test_transfer_paid`)
+**Pre-requis :** Avoir deja execute un test W1 a W5 avec un `event_id` connu
 
 **Declenchement :**
-- Envoyer exactement le meme payload que lors du test precedent (meme `id`)
-- Via Stripe CLI : les events ont des IDs uniques, donc pour tester l'idempotence :
+- Via Stripe CLI :
   ```bash
-  # Methode 1 : Replay un evenement depuis le Dashboard
+  # Replay un evenement depuis le Dashboard
   stripe events resend evt_XXXXXX
-  
-  # Methode 2 : Le listener Stripe CLI renvoie parfois automatiquement en cas de retry
   ```
+- Ou : Stripe retente automatiquement les webhooks en echec
 
 **Verif DB :**
 - `stripe_events` : PAS de nouveau document (un seul pour cet event_id)
@@ -278,7 +257,7 @@ INFO:webhooks:TRANSFER_FAIL_RESULT ...
 
 **Verif Logs :**
 ```
-INFO:webhooks:DUPLICATE event_id=evt_xxx type=transfer.paid — skipping
+INFO:webhooks:DUPLICATE event_id=evt_xxx type=transfer.created — skipping
 ```
 
 **Verif UI :** Aucun changement visible
@@ -296,7 +275,7 @@ INFO:webhooks:DUPLICATE event_id=evt_xxx type=transfer.paid — skipping
 curl -X POST https://litigation-mgmt.preview.emergentagent.com/api/webhooks/stripe \
   -H "Content-Type: application/json" \
   -H "Stripe-Signature: t=9999999999,v1=fake_signature_value" \
-  -d '{"id":"evt_fake","type":"transfer.paid","data":{"object":{"id":"tr_fake"}}}'
+  -d '{"id":"evt_fake","type":"transfer.created","data":{"object":{"id":"tr_fake"}}}'
 ```
 
 **Verif DB :** AUCUNE ecriture dans `stripe_events`
@@ -343,16 +322,16 @@ INFO:webhooks:CONNECT_UPDATE_RESULT event_id=evt_xxx account_id=acct_xxx result=
 
 ## PARTIE C — RESUME DES CAS ET INTERVENTION REQUISE
 
-| Cas | Evenement | Votre intervention requise ? | Details |
-|-----|-----------|------------------------------|---------|
-| W1 | checkout.session.completed (orga) | OUI — creer un RDV via l'UI ou CLI | Le checkout genere l'event |
-| W2 | checkout.session.completed (participant) | OUI — inviter un participant | Le participant complete le checkout |
-| W3 | transfer.paid | OUI si test reel — lancer un retrait | Stripe envoie l'event automatiquement |
-| W4 | transfer.failed | PARTIEL — necessite un compte Connect en echec ou CLI | CLI peut simuler |
-| W5 | transfer.reversed | OUI — reverser manuellement dans Dashboard | Ou CLI si dispo |
-| W6 | Doublon | NON — reproductible automatiquement | Rejouer un event deja traite |
-| W7 | Signature invalide | NON — simple curl sans signature | Purement technique |
-| W8 | account.updated | NON si CLI dispo / OUI si KYC reel | CLI peut simuler |
+| Cas | Evenement Stripe | Handler backend | Votre intervention requise ? |
+|-----|-----------------|-----------------|------------------------------|
+| W1 | `checkout.session.completed` | Activation RDV | OUI — creer un RDV via l'UI |
+| W2 | `checkout.session.completed` | Confirmation participant | OUI — inviter un participant |
+| W3 | `transfer.created` | Payout → completed | OUI si test reel (retrait via UI) |
+| W4 | `transfer.reversed` | Re-credit wallet | OUI — reverser dans Dashboard Stripe |
+| W5 | `transfer.updated` | Monitoring (+ re-credit si reversed) | NON — CLI peut simuler |
+| W6 | (doublon) | Idempotence guard | NON — reproductible automatiquement |
+| W7 | (signature invalide) | Rejet 400 | NON — simple curl |
+| W8 | `account.updated` | Sync Connect KYC | NON si CLI / OUI si KYC reel |
 
 ---
 
@@ -362,7 +341,21 @@ INFO:webhooks:CONNECT_UPDATE_RESULT event_id=evt_xxx account_id=acct_xxx result=
 Executer W6 et W7 immediatement — ils ne necessitent aucun prealable.
 
 ### Phase 2 : Tests via Stripe CLI
-Installer CLI, lancer `stripe listen --forward-to`, puis trigger W3, W4, W8.
+Installer CLI, lancer `stripe listen --forward-to`, puis trigger W3, W5, W8.
 
 ### Phase 3 : Tests end-to-end reels
-Creer un vrai RDV, completer le checkout, declencher un retrait pour valider W1, W2, W3 en conditions reelles.
+Creer un vrai RDV, completer le checkout, declencher un retrait, puis inverser le Transfer pour valider W1, W2, W3, W4 en conditions reelles.
+
+---
+
+## PARTIE E — MAPPING COMPLET (Code ↔ Evenements Stripe)
+
+| Evenement Stripe (reel) | Handler dans webhooks.py | Service appele |
+|--------------------------|--------------------------|----------------|
+| `checkout.session.completed` | Ligne 68 | `StripeGuaranteeService` |
+| `payment_intent.succeeded` | Ligne 130 | Direct DB update |
+| `transfer.created` | Ligne 163 | `handle_transfer_paid()` → payout completed |
+| `transfer.reversed` | Ligne 172 | `handle_transfer_failed()` → re-credit wallet |
+| `transfer.updated` | Ligne 181 | Log + re-credit si `reversed=true` |
+| `account.updated` | Ligne 146 | `handle_account_updated()` |
+| `account.application.deauthorized` | Ligne 154 | `handle_account_deauthorized()` |

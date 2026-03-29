@@ -159,23 +159,36 @@ async def stripe_webhook(request: Request):
                 logger.info(f"CONNECT_DEAUTH_RESULT event_id={event_id} account_id={account_id} result={result}")
                 return {"status": "success", "event_type": event_type, "result": result}
         
-        # Handle Stripe Transfer paid (payout completed)
-        elif event_type == "transfer.paid":
+        # Handle Stripe Transfer created (payout confirmed by Stripe)
+        elif event_type == "transfer.created":
             transfer_id = event_data.get("id", "unknown")
             payout_meta = event_data.get("metadata", {})
-            logger.info(f"TRANSFER_PAID event_id={event_id} transfer_id={transfer_id} payout_id={payout_meta.get('payout_id', 'N/A')} user_id={payout_meta.get('user_id', 'N/A')} amount={event_data.get('amount', '?')}")
+            logger.info(f"TRANSFER_CREATED event_id={event_id} transfer_id={transfer_id} payout_id={payout_meta.get('payout_id', 'N/A')} user_id={payout_meta.get('user_id', 'N/A')} amount={event_data.get('amount', '?')}")
             result = handle_transfer_paid(event_data)
-            logger.info(f"TRANSFER_PAID_RESULT event_id={event_id} transfer_id={transfer_id} result={result}")
+            logger.info(f"TRANSFER_CREATED_RESULT event_id={event_id} transfer_id={transfer_id} result={result}")
             return {"status": "success", "event_type": event_type, "result": result}
         
-        # Handle Stripe Transfer failed/reversed (payout failed)
-        elif event_type in ("transfer.failed", "transfer.reversed"):
+        # Handle Stripe Transfer reversed (payout reversed — re-credit wallet)
+        elif event_type == "transfer.reversed":
             transfer_id = event_data.get("id", "unknown")
             payout_meta = event_data.get("metadata", {})
-            logger.warning(f"TRANSFER_FAIL event_id={event_id} type={event_type} transfer_id={transfer_id} payout_id={payout_meta.get('payout_id', 'N/A')} user_id={payout_meta.get('user_id', 'N/A')} failure={event_data.get('failure_message', 'N/A')}")
+            logger.warning(f"TRANSFER_REVERSED event_id={event_id} transfer_id={transfer_id} payout_id={payout_meta.get('payout_id', 'N/A')} user_id={payout_meta.get('user_id', 'N/A')}")
             result = handle_transfer_failed(event_data)
-            logger.info(f"TRANSFER_FAIL_RESULT event_id={event_id} transfer_id={transfer_id} result={result}")
+            logger.info(f"TRANSFER_REVERSED_RESULT event_id={event_id} transfer_id={transfer_id} re_credited={result.get('re_credited', False)}")
             return {"status": "success", "event_type": event_type, "result": result}
+        
+        # Handle Stripe Transfer updated (status change — log for monitoring)
+        elif event_type == "transfer.updated":
+            transfer_id = event_data.get("id", "unknown")
+            payout_meta = event_data.get("metadata", {})
+            reversed_flag = event_data.get("reversed", False)
+            logger.info(f"TRANSFER_UPDATED event_id={event_id} transfer_id={transfer_id} payout_id={payout_meta.get('payout_id', 'N/A')} reversed={reversed_flag}")
+            # If the transfer was flagged as reversed via update, handle it
+            if reversed_flag:
+                logger.warning(f"TRANSFER_UPDATED_REVERSED event_id={event_id} transfer_id={transfer_id} — triggering reversal handler")
+                result = handle_transfer_failed(event_data)
+                return {"status": "success", "event_type": event_type, "result": result}
+            return {"status": "success", "event_type": event_type}
         
         logger.info(f"UNHANDLED event_id={event_id} type={event_type} — no specific handler")
         return {"status": "success", "event_type": event_type}
