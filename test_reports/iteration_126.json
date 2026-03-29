@@ -1,0 +1,109 @@
+{
+  "summary": "P0 Bug Fix Verification - Iteration 126: Verified idempotency guard on initialize_declarative_phase() and is_self_declaration preservation in submit_sheet(). All 9 unit tests pass for idempotency guard, all presences flow tests pass, all strong proof lockdown tests pass. API endpoints verified working: /api/attendance-sheets/pending, /api/disputes/mine, /api/appointments/.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": {
+    "idempotency_guard_unit_tests": {
+      "test_1_guard_blocks_reentry_on_collecting": "PASS - Re-entry blocked, deadline unchanged, no duplicate sheets",
+      "test_2_guard_blocks_reentry_on_analyzing": "PASS - Re-entry blocked on 'analyzing'",
+      "test_3_guard_blocks_reentry_on_disputed": "PASS - Re-entry blocked on 'disputed'",
+      "test_4_guard_blocks_reentry_on_resolved": "PASS - Re-entry blocked on 'resolved'",
+      "test_5_guard_allows_entry_from_not_needed": "PASS - Legitimate initialization from 'not_needed' allowed",
+      "test_6_guard_allows_first_entry_phase_none": "PASS - First initialization works correctly",
+      "test_7_is_self_declaration_preserved": "PASS - is_self_declaration preserved through submit_sheet",
+      "test_8_full_1v1_disagreement_flow": "PASS - Full flow works correctly with guard active, dispute created",
+      "test_9_full_1v1_agreement_auto_resolves": "PASS - Agreement auto-resolves to on_time"
+    },
+    "presences_flow_tests": {
+      "test_initialize_declarative_phase_1v1": "PASS - Phase is 'collecting'",
+      "test_sheets_created": "PASS - 2 sheets created correctly",
+      "test_no_disputes_before_submission": "PASS - No dispute before Presences submission",
+      "test_agreement_flow": "PASS - Agreement → resolved, no dispute",
+      "test_disagreement_flow": "PASS - Disagreement → dispute created"
+    },
+    "strong_proof_lockdown_tests": {
+      "test_gps_valid_auto_confirmation": "PASS - GPS valid → no manual_review",
+      "test_qr_code_auto_confirmation": "PASS - QR code → no manual_review",
+      "test_nlyt_proof_55_auto_confirmation": "PASS - NLYT Proof >= 55 → no manual_review",
+      "test_video_api_zoom_auto_confirmation": "PASS - Zoom API → no manual_review",
+      "test_video_api_teams_auto_confirmation": "PASS - Teams API → no manual_review",
+      "test_google_meet_not_admissible": "PASS - Google Meet → NOT admissible",
+      "test_manual_only_goes_to_presences": "PASS - Manual only → Presences phase",
+      "test_weak_proof_goes_to_presences": "PASS - Weak proof → Presences phase",
+      "test_gps_outside_radius_not_admissible": "PASS - GPS outside radius → NOT admissible"
+    },
+    "api_endpoint_tests": {
+      "test_health_endpoint": "PASS",
+      "test_auth_user1": "PASS - testuser_audit@nlyt.app",
+      "test_auth_user2": "PASS - igaal.hanouna@gmail.com",
+      "test_auth_user3": "PASS - igaal@hotmail.com",
+      "test_get_pending_sheets_user1": "PASS - 4 pending sheets",
+      "test_get_pending_sheets_user2": "PASS",
+      "test_get_pending_sheets_user3": "PASS",
+      "test_get_sheet_nonexistent": "PASS - Returns 404",
+      "test_get_sheet_status_nonexistent": "PASS - Returns phase=not_needed",
+      "test_submit_sheet_invalid": "PASS - Returns error",
+      "test_get_disputes_user1": "PASS",
+      "test_get_disputes_user2": "PASS",
+      "test_submit_position_invalid": "PASS - Returns error",
+      "test_get_appointments_user1": "PASS",
+      "test_get_appointments_user2": "PASS"
+    }
+  },
+  "fixes_verified": {
+    "idempotency_guard": {
+      "location": "/app/backend/services/declarative_service.py lines 42-54",
+      "description": "Guard blocks re-entry when phase is already collecting/analyzing/disputed/resolved. Only None and 'not_needed' are safe entry points.",
+      "status": "VERIFIED WORKING"
+    },
+    "is_self_declaration_preservation": {
+      "location": "/app/backend/services/declarative_service.py lines 179-198",
+      "description": "Original declaration map preserves is_self_declaration field when creating updated_declarations in submit_sheet()",
+      "status": "VERIFIED WORKING"
+    },
+    "strong_proof_lockdown": {
+      "location": "/app/backend/services/attendance_service.py",
+      "description": "GPS/QR/Video/NLYT Proof >= 55 → auto-confirmation, no manual_review, no Presences phase",
+      "status": "VERIFIED WORKING"
+    }
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_p0_idempotency_fix_iter126.py",
+    "/app/backend/tests/test_idempotency_guard.py",
+    "/app/backend/tests/test_presences_flow.py",
+    "/app/backend/tests/test_strong_proof_lockdown.py",
+    "/app/test_reports/pytest/pytest_p0_idempotency_fix_iter126.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Idempotency guard correctly implemented at lines 42-54 of declarative_service.py",
+    "is_self_declaration field correctly preserved via original_decl_map at lines 179-198",
+    "All 9 idempotency guard unit tests pass",
+    "All presences flow tests pass",
+    "All strong proof lockdown tests pass (9 tests)",
+    "API endpoints working correctly with proper authentication"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_p0_idempotency_fix_iter126.py"
+  ],
+  "success_rate": {
+    "backend": "100% (19/19 pytest tests + 9 idempotency + 5 presences + 9 lockdown = 42 total tests passed)",
+    "frontend": "N/A - Backend only testing requested"
+  },
+  "test_credentials": {
+    "user_1": "testuser_audit@nlyt.app / TestAudit123!",
+    "user_2": "igaal.hanouna@gmail.com / OrgTest123!",
+    "user_3": "igaal@hotmail.com / Test123!"
+  },
+  "seed_data_creation": "None - used existing data and test fixtures",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "P0 bug fix verified: idempotency guard on initialize_declarative_phase() prevents re-entry when phase is already collecting/analyzing/disputed/resolved. is_self_declaration field is now preserved through submit_sheet(). Key test files: test_idempotency_guard.py (9 tests), test_presences_flow.py (5 tests), test_strong_proof_lockdown.py (9 tests). API routes: /api/attendance-sheets/* (not /api/presences/*), /api/disputes/mine (not /api/disputes). Note: appointments endpoint requires trailing slash (/api/appointments/) due to 307 redirect."
+}

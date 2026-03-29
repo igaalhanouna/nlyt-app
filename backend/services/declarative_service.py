@@ -39,6 +39,20 @@ def initialize_declarative_phase(appointment_id: str):
     if not appointment:
         return
 
+    # ── Idempotency guard ──────────────────────────────────────────
+    # If the declarative phase has already been initialized (collecting, analyzing,
+    # disputed, resolved), a re-entry must be blocked to prevent overwriting
+    # an in-flight or completed phase back to "collecting".
+    # Only 'not_needed' (no review records found previously) and absent/None
+    # (never initialized) are safe entry points.
+    current_phase = appointment.get('declarative_phase')
+    if current_phase and current_phase not in ('not_needed',):
+        logger.warning(
+            f"[DECLARATIVE][GUARD] Re-entry blocked for {appointment_id}. "
+            f"Phase already '{current_phase}'. Skipping re-initialization."
+        )
+        return
+
     participants = list(db.participants.find(
         {"appointment_id": appointment_id},
         {"_id": 0}
@@ -162,6 +176,11 @@ def submit_sheet(appointment_id: str, user_id: str, declarations: list) -> dict:
     valid_statuses = ('present_on_time', 'present_late', 'absent', 'unknown')
     valid_targets = {d['target_participant_id'] for d in sheet['declarations']}
 
+    # Build lookup for preserved fields from original declarations
+    original_decl_map = {
+        d['target_participant_id']: d for d in sheet['declarations']
+    }
+
     updated_declarations = []
     for decl in declarations:
         tid = decl.get('target_participant_id')
@@ -170,11 +189,12 @@ def submit_sheet(appointment_id: str, user_id: str, declarations: list) -> dict:
             return {"error": f"Participant cible invalide: {tid}"}
         if status not in valid_statuses:
             return {"error": f"Statut invalide: {status}. Valeurs: {', '.join(valid_statuses)}"}
-        target_uid = next((d['target_user_id'] for d in sheet['declarations'] if d['target_participant_id'] == tid), '')
+        original = original_decl_map.get(tid, {})
         updated_declarations.append({
             "target_participant_id": tid,
-            "target_user_id": target_uid,
+            "target_user_id": original.get('target_user_id', ''),
             "declared_status": status,
+            "is_self_declaration": original.get('is_self_declaration', False),
         })
 
     # Verify all targets are covered
