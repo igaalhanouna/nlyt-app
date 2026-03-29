@@ -128,6 +128,16 @@ Application SaaS (React/FastAPI/MongoDB) de gestion des presences avec garanties
 - Frontend: Ajout de isBeyondDeadline dans le calcul de canEdit (meme logique que SecondaryActions pour l'annulation)
 - Tests curl: Apres deadline -> 400 "Le delai de modification est depasse" / Avant deadline -> auto_applied OK
 
+### Session 21 - Harmonisation UX check-in (2026-03-31)
+- Cause: Header CTA proéminent reserve a isOrganizer, participant n'avait qu'un petit bouton outline
+- AppointmentHeader.js: Condition canCheckin generalisee (status accepted_guaranteed + fenetre temporelle, quel que soit le role)
+- AppointmentHeader.js: Props generiques (participantRecord, checkinDone, checkinData, handleCheckin) au lieu de org-specific
+- CheckinBlock.js: Transforme en bloc details-only (GPS coords, distance, adresse) — zero CTA
+- AppointmentDetail.js: Ajout viewerCheckinDone/Data + handleViewerCheckin + props unifiees activeCheckin*
+- OrganizerCheckinBlock.js: Supprime (dead code)
+- Wording harmonise: "Check-in GPS" (physique) / "Effectuer mon check-in" (video) / "Check-in effectue" (apres)
+- Valide via testing_agent iteration 141 (100%: 7/7 frontend)
+
 ## Data Integrity Rules
 - Participant documents MUST have valid user_id when user exists
 - Every appointment MUST have an is_organizer=True participant record
