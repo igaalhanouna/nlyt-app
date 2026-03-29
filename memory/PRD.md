@@ -216,10 +216,22 @@ SaaS d'engagement ponctuel avec garantie financiere. Optimisation du "Viral Loop
 - Frontend: `DisputesListPage.js` shows "Votre présence est contestée" when `is_target === true`
 - Tests: 22/22 (9 unit + 6 API + 7 frontend, iteration_120)
 
+### Phase 26 — P0 Decision Engine Idempotency Fix (Feb 2026) - DONE
+- **BUG FIX**: `initialize_declarative_phase()` was not idempotent — always overwrote `declarative_phase` to "collecting" even if phase had already advanced
+- **Root cause**: A second call (most likely from server hot-reload during critical window) reset the phase from "analyzing/disputed" back to "collecting", preventing `_run_analysis` from completing
+- **Fix 1**: Idempotency guard at top of `initialize_declarative_phase()` — blocks re-entry if phase is already `collecting`/`analyzing`/`disputed`/`resolved`. Only `None` and `not_needed` are safe entry points.
+- **Fix 2**: `submit_sheet()` now preserves `is_self_declaration` field in updated declarations (was being stripped before)
+- **Remediation**: Stuck appointment `1aaf3fb5` manually resolved via controlled `_run_analysis` call — now phase="disputed", 1 dispute (awaiting_positions, reason=small_group_disagreement)
+- **Investigation**: 2nd call source most probable = server hot-reload between 17:53-17:55, causing scheduler to re-trigger `evaluate_appointment` which called `initialize_declarative_phase` again
+- **Files**: `declarative_service.py` (lines 40-48 guard, lines 179-196 is_self_declaration)
+- **Tests**: 42 total (9 idempotency guard + 5 presences flow + 9 strong proof lockdown + 19 API endpoint tests, iteration_126)
+- **Dead code audit**: `POST /api/attendance/evaluate/{id}`, `POST /api/attendance/reevaluate/{id}`, `PUT /api/attendance/reclassify/{id}` confirmed as dead HTTP endpoints (0 frontend calls, 0 scheduler calls). Pending user decision on removal.
+
 ## Upcoming Tasks
 - P1: Dashboard admin plateforme (arbitrage final des litiges escalades "maintained")
 - P1: Configurer webhook Stripe en production
 - P1: Test reel Zoom/Teams avec vrais tokens
+- P1.5: Supprimer les endpoints dead code evaluate/reevaluate/reclassify (pending user approval)
 
 ## Backlog
 - P2: Charity Payouts V2 (Stripe Transfers)
