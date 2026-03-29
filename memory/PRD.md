@@ -278,6 +278,27 @@ Application SaaS (React/FastAPI/MongoDB) de gestion des presences avec garanties
 
 **Validé via testing_agent iteration 148 (100%: 11/11 backend, 7/7 frontend)**
 
+### Session 30 - OAuth Google + Microsoft (2026-02-25)
+**Objectif:** Inscription/connexion en 1 clic via Google (Emergent Auth) et Microsoft (Azure AD).
+
+**Backend (`/app/backend/routers/oauth_routes.py`) :**
+- `POST /api/auth/google/callback` : echange session_id Emergent Auth -> creation/liaison compte -> JWT
+- `GET /api/auth/microsoft/login` : genere URL d'autorisation Microsoft
+- `POST /api/auth/microsoft/callback` : echange code -> token Microsoft -> profil Graph API -> creation/liaison compte -> JWT
+- Account linking : meme email = pas de doublon, provider_id ajoute au compte existant
+- `auth_service.py` : utilisateur OAuth-only (password_hash=null) qui tente login email -> message d'erreur explicite
+
+**Frontend :**
+- `OAuthButtons.js` : composant reutilisable boutons Google/Microsoft
+- `AuthCallback.js` : route `/auth/callback` gerant les deux providers
+- `SignIn.js` et `SignUp.js` : boutons OAuth + separateur "ou continuer avec email"
+
+**Schema users etendu :** `google_id`, `microsoft_id`, `auth_provider`
+
+**Microsoft Azure :** Client ID=3336efa7, Tenant=f67d38e1, Redirect URI: `{FRONTEND_URL}/auth/callback`
+
+**Valide via testing_agent iteration 149 (100%: 14/14 backend, 100% frontend)**
+
 ### P2 — Notifications email/push (cahier des charges)
 **Contrainte** : Respecter strictement la charte graphique email existante (email_service.py : _base_template, ACCENT_COLORS, _btn, _info_box, _alert_box, _detail_row, _greeting, _paragraph, _brand_note).
 
