@@ -162,6 +162,15 @@ SaaS d'engagement ponctuel avec garantie financiere. Optimisation du "Viral Loop
 - Frontend: `DisputesListPage` action hints with counterpart names
 - Tests: 20/20 (12 backend + 8 frontend, iteration_119)
 
+### Phase 24 — UX Deduplication & Viewer-based Calendar (Feb 2026) - DONE
+- **Removed duplicate check-in banner** from `AppointmentHeader.js` (was duplicated with `CheckinBlock`)
+- **Removed redundant green trust banner** for participants (kept only `AppointmentEssentials` trust text for all roles)
+- **Calendar sync now viewer-based**: `calendarAPI.getSyncStatus` loaded for ALL roles (backend already used `user_id` from JWT). Participant sees their own Google/Outlook buttons if they have connections.
+- **Removed `isOrganizer` guard** from calendar sync buttons in `SecondaryActions.js`
+- Files: `AppointmentHeader.js`, `AppointmentDetail.js`, `SecondaryActions.js`
+- Zero backend changes
+- Tests: 26/26 (9 backend + 17 frontend, iteration_123)
+
 ### Phase 23 — Participant Action Buttons on Dashboard Cards (Feb 2026) - DONE
 - Added status-aware participant actions on dashboard cards:
   - `invited` → "Refuser" (calls POST /invitations/{token}/respond decline)
