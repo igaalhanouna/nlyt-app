@@ -168,12 +168,32 @@ Application SaaS (React/FastAPI/MongoDB) de gestion des presences avec garanties
 - Divider entre sous-sections quand les deux ont des données
 - Validé via testing_agent iteration 142 (100%: 12/12 backend, 10/10 frontend)
 
+### Session 24 - Notifications in-app P0+P1 (2026-03-29)
+**Backend:**
+- Collection `user_notifications` avec logique lu/non-lu
+- Service notification_service.py: create, counts, mark_read, unread_ids
+- Routes notification_routes.py: GET /counts, GET /unread-ids/{type}, POST /mark-read
+- Triggers automatiques dans declarative_service.py:
+  - open_dispute() → notifie les 2 parties (dispute_update)
+  - submit_dispute_position() → notifie l'autre partie (dispute_update)
+  - _check_positions_and_resolve() escalade → notifie les 2 parties (dispute_update)
+  - resolve_dispute() → notifie les 2 parties (decision)
+
+**Frontend:**
+- AppNavbar.js: Badge rouge Décisions + badge Litiges (avec polling 30s)
+- DecisionsListPage.js: Point bleu + fond bleu sur cartes non lues
+- DecisionDetailPage.js: Marque comme lu à l'ouverture
+- DisputesListPage.js: Point bleu sur cartes de litige non lues
+- DisputeDetailPage.js: Marque comme lu à l'ouverture
+- Mobile: badges + dot notification sur hamburger
+- Validé via testing_agent iteration 143 (100%: 13/13 backend, 13/13 frontend)
+
 ## Upcoming Tasks (P1)
 - Configurer le webhook Stripe en production pour validation end-to-end
 - Test reel Zoom/Teams avec vrais tokens
 
 ## Future Tasks (P2)
-- Notifications in-app (P2.3)
+- P2: Triggers notifications in-app pour les modifications de RDV (persistance lu/non-lu)
 - Charity Payouts V2 (Stripe Transfers)
 - Webhooks temps reel Zoom/Teams
 - Notification email/push creation litige
