@@ -162,6 +162,15 @@ SaaS d'engagement ponctuel avec garantie financiere. Optimisation du "Viral Loop
 - Frontend: `DisputesListPage` action hints with counterpart names
 - Tests: 20/20 (12 backend + 8 frontend, iteration_119)
 
+### Phase 25 — ResultCard Feature Removal (Feb 2026) - DONE
+- **DELETED**: `ResultCardSection.js`, `ResultCard.js`, `ResultCardPublicPage.js` (frontend) + `result_cards.py`, `test_result_cards.py` (backend)
+- **CLEANED**: `server.py` (router), `App.js` (route), `api.js` (API), `AppointmentDetail.js` (component), `financial_emails.py` (auto-creation + card HTML + share button removed)
+- **Cleaned test files**: Removed `TestResultCardsRegression` class from `test_milestones_and_banner.py`
+- `FinancialResultSection` is now the SOLE source of result information
+- Historical data in MongoDB `result_cards` collection preserved (no destructive purge)
+- ~900 lines of dead code removed
+- Tests: 12/12 backend + all frontend checks passed (iteration_125)
+
 ### Phase 24b — Cross-Validation Matrix (Feb 2026) - DONE
 - Verified unified appointment structure across 7 matrix cases: Physical/Video × Upcoming/Past/Declined × Organizer/Participant
 - All 6 verification points confirmed: no duplicate check-in, no redundant trust banner, calendar viewer-based, same block order, legitimate role-specific actions, result cards for both roles
