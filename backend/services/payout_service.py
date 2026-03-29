@@ -18,7 +18,7 @@ import os
 import uuid
 import stripe
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from database import db
 from services.wallet_service import MINIMUM_PAYOUT_CENTS
 
@@ -81,9 +81,11 @@ def request_payout(user_id: str, amount_cents: int | None = None) -> dict:
     Request a payout from NLYT wallet to user's Stripe Connect account.
 
     If amount_cents is None, withdraws the full available_balance.
-    
-    CONCURRENCY SAFETY: Uses a payout lock document with unique index to ensure
-    only one payout can be processed at a time per user.
+
+    CONCURRENCY SAFETY:
+    - Cooldown: rejects if a payout was completed < 10s ago (anti double-clic)
+    - Atomic $gte guard on wallet balance (prevents overdraft)
+    - Existing pending/processing check (prevents parallel payouts)
     """
     # 1. Get wallet
     wallet = db.wallets.find_one(
@@ -114,58 +116,40 @@ def request_payout(user_id: str, amount_cents: int | None = None) -> dict:
     if not connect_account_id:
         return {"success": False, "error": "Aucun compte Stripe Connect associé"}
 
-    # 3. ATOMIC LOCK: Try to acquire a payout lock for this user
-    # Uses insert with unique index on user_id - only one can succeed
-    now_iso = datetime.now(timezone.utc).isoformat()
-    payout_id = str(uuid.uuid4())
-    
-    from pymongo.errors import DuplicateKeyError
-    try:
-        logger.info(f"[PAYOUT] Attempting to acquire lock for user {user_id}, payout {payout_id}")
-        db.payout_locks.insert_one({
-            "user_id": user_id,
-            "payout_id": payout_id,
-            "locked_at": now_iso,
-        })
-        logger.info(f"[PAYOUT] Lock acquired for user {user_id}, payout {payout_id}")
-    except DuplicateKeyError:
-        # Another request has the lock
-        logger.info(f"[PAYOUT] Lock DENIED (DuplicateKeyError) for user {user_id}, payout {payout_id}")
-        return {"success": False, "error": "Un retrait est déjà en cours"}
-    except Exception as e:
-        # Check for duplicate key error in string form (belt and suspenders)
-        logger.info(f"[PAYOUT] Lock exception for user {user_id}: {type(e).__name__}: {e}")
-        if "duplicate key" in str(e).lower() or "E11000" in str(e):
-            return {"success": False, "error": "Un retrait est déjà en cours"}
-        logger.error(f"[PAYOUT] Lock acquisition failed: {e}")
-        return {"success": False, "error": "Erreur lors du verrouillage"}
-    
-    # Also check for existing pending/processing payouts (belt and suspenders)
+    # 3. Anti double-clic: reject if last payout was < 10 seconds ago
+    cooldown_cutoff = (datetime.now(timezone.utc) - timedelta(seconds=10)).isoformat()
+    recent_payout = db.payouts.find_one(
+        {"user_id": user_id, "created_at": {"$gte": cooldown_cutoff}},
+        {"_id": 0, "payout_id": 1},
+    )
+    if recent_payout:
+        logger.info(f"[PAYOUT] Cooldown rejection for user {user_id} (recent payout {recent_payout['payout_id']})")
+        return {"success": False, "error": "Veuillez patienter quelques secondes avant un nouveau retrait"}
+
+    # Also check for existing pending/processing payouts
     existing = db.payouts.find_one(
         {"user_id": user_id, "status": {"$in": ["pending", "processing"]}},
         {"_id": 0, "payout_id": 1},
     )
     if existing:
-        # Release lock
-        db.payout_locks.delete_one({"user_id": user_id})
         return {"success": False, "error": "Un retrait est déjà en cours"}
 
     # 4. Check Stripe platform balance (skip for dev and test accounts)
+    now_iso = datetime.now(timezone.utc).isoformat()
+    payout_id = str(uuid.uuid4())
     currency = wallet.get("currency", "eur")
     is_dev = _is_dev_mode() or connect_account_id.startswith("acct_dev_")
     is_test = _is_test_mode()
     if not is_dev and not is_test:
         balance_check = check_stripe_platform_balance(amount_cents, currency)
         if not balance_check.get("sufficient"):
-            # Release lock
-            db.payout_locks.delete_one({"user_id": user_id})
             logger.warning(
                 f"[PAYOUT] Stripe balance insufficient for {amount_cents}c "
                 f"(available: {balance_check.get('available_cents')}c)"
             )
             return {"success": False, "error": "Fonds plateforme temporairement insuffisants. Réessayez plus tard."}
 
-    # 5. ATOMIC DEBIT - The $gte guard ensures balance is sufficient
+    # 5. ATOMIC DEBIT — $gte guard ensures balance is sufficient
     debit_result = db.wallets.update_one(
         {
             "wallet_id": wallet["wallet_id"],
@@ -179,10 +163,8 @@ def request_payout(user_id: str, amount_cents: int | None = None) -> dict:
             "$set": {"updated_at": now_iso},
         },
     )
-    
+
     if debit_result.matched_count == 0:
-        # Release lock
-        db.payout_locks.delete_one({"user_id": user_id})
         return {"success": False, "error": "Solde insuffisant (vérification atomique)"}
 
     # 6. Create ledger transaction for the debit
@@ -195,12 +177,12 @@ def request_payout(user_id: str, amount_cents: int | None = None) -> dict:
         "currency": currency,
         "reference_type": "payout",
         "reference_id": payout_id,
-        "description": f"Retrait vers Stripe Connect",
+        "description": "Retrait vers Stripe Connect",
         "created_at": now_iso,
     }
     db.wallet_transactions.insert_one(tx)
 
-    # 7. Create payout record (after successful debit) - stays in "pending" until lock is released
+    # 7. Create payout record
     payout = {
         "payout_id": payout_id,
         "user_id": user_id,
@@ -223,22 +205,12 @@ def request_payout(user_id: str, amount_cents: int | None = None) -> dict:
     db.payouts.insert_one(payout)
     payout.pop("_id", None)
 
-    # 8. Execute payout (dev mode or Stripe transfer)
-    # NOTE: Lock is NOT released here - it will be released after payout execution
-    # This ensures concurrent requests see the "pending" payout and are rejected
-    
-    # 9. Dev mode or Test mode: simulate completion
+    # 8. Dev mode or Test mode: simulate
     if is_dev or is_test:
-        result = _execute_dev_payout_after_debit(payout)
-        # Release lock after payout is complete
-        db.payout_locks.delete_one({"user_id": user_id})
-        return result
+        return _execute_dev_payout_after_debit(payout)
 
-    # 10. Call Stripe Transfer
-    result = _execute_stripe_transfer_after_debit(payout)
-    # Release lock after payout is complete
-    db.payout_locks.delete_one({"user_id": user_id})
-    return result
+    # 9. Call Stripe Transfer
+    return _execute_stripe_transfer_after_debit(payout)
 
 
 def _execute_dev_payout_after_debit(payout: dict) -> dict:
