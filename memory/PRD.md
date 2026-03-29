@@ -233,6 +233,11 @@ SaaS d'engagement ponctuel avec garantie financiere. Optimisation du "Viral Loop
 - **Files modified**: `attendance_service.py`, `declarative_service.py`, `attendance_routes.py`
 - **Files created**: `test_atomic_guards.py`, `test_idempotency_guard.py`
 
+### Phase 28 — Observability & Edge Case Validation (Feb 2026) - DONE
+- **Structured logging**: Full appointment traceability with tags: `[ATTENDANCE][ENTER]`, `[ATTENDANCE][CAS]`, `[ATTENDANCE][PHASE]`, `[DECLARATIVE][GUARD]`, `[DECLARATIVE][TRIGGER]`, `[DECLARATIVE][WAITING]`, `[DECLARATIVE][ANALYSIS_START]`, `[DECLARATIVE][PHASE_TRANSITION]`, `[AUTO-RECOVERY][TRIGGERED]`
+- **Auto-recovery**: monitoring renamed `[MONITORING][STUCK_COLLECTING]` → `[AUTO-RECOVERY][TRIGGERED]` with delay since last submit
+- **Edge cases confirmed**: 2p agreement→resolve, 2p disagreement→dispute, 3+p unanimity with triple guard (coherence+contradiction+MIN_TIERS=2), 3+p split→dispute, cross-accusations→dispute, contestant_contradiction→dispute
+
 ## Backlog
 - P2: Charity Payouts V2 (Stripe Transfers)
 - P2: Webhooks temps reel Zoom/Teams

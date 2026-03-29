@@ -482,6 +482,8 @@ def evaluate_appointment(appointment_id: str) -> dict:
         logger.info(f"[ATTENDANCE][CAS] Evaluation skipped for {appointment_id}: already claimed by another caller")
         return {"skipped": True, "reason": "Déjà évalué"}
 
+    logger.info(f"[ATTENDANCE][ENTER] evaluate_appointment({appointment_id}) — CAS lock acquired")
+
     participants = list(db.participants.find(
         {"appointment_id": appointment_id},
         {"_id": 0}
@@ -546,6 +548,7 @@ def evaluate_appointment(appointment_id: str) -> dict:
         from services.declarative_service import initialize_declarative_phase
         review_count = summary.get('manual_review', 0)
         if review_count > 0:
+            logger.info(f"[ATTENDANCE][PHASE] {appointment_id}: {review_count} manual_review → initializing declarative phase")
             initialize_declarative_phase(appointment_id)
         else:
             db.appointments.update_one(

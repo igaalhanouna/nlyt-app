@@ -226,7 +226,10 @@ def _check_and_trigger_analysis(appointment_id: str):
     submitted = db.attendance_sheets.count_documents({"appointment_id": appointment_id, "status": "submitted"})
 
     if submitted >= total:
+        logger.info(f"[DECLARATIVE][TRIGGER] {appointment_id}: all sheets submitted ({submitted}/{total}) → triggering _run_analysis")
         _run_analysis(appointment_id)
+    else:
+        logger.info(f"[DECLARATIVE][WAITING] {appointment_id}: {submitted}/{total} sheets submitted — waiting for remaining")
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -261,6 +264,8 @@ def _run_analysis(appointment_id: str):
             f"Phase is '{current_phase}', expected 'collecting'. Skipping double-analysis."
         )
         return
+
+    logger.info(f"[DECLARATIVE][ANALYSIS_START] {appointment_id}: CAS collecting→analyzing acquired")
 
     sheets = list(db.attendance_sheets.find({"appointment_id": appointment_id}, {"_id": 0}))
     submitted_sheets = [s for s in sheets if s['status'] == 'submitted']
@@ -313,6 +318,12 @@ def _run_analysis(appointment_id: str):
     db.appointments.update_one(
         {"appointment_id": appointment_id},
         {"$set": {"declarative_phase": new_phase}}
+    )
+    logger.info(
+        f"[DECLARATIVE][PHASE_TRANSITION] {appointment_id}: analyzing→{new_phase} "
+        f"(disputes={sum(1 for r in per_participant_results if not r['auto_resolvable'])}, "
+        f"auto_resolved={sum(1 for r in per_participant_results if r['auto_resolvable'])}, "
+        f"group_size={active_count})"
     )
 
     if new_phase == "resolved":
@@ -921,10 +932,10 @@ def run_declarative_deadline_job():
                     delay_minutes = (now - submit_dt).total_seconds() / 60
                     if delay_minutes > 10:
                         logger.warning(
-                            f"[MONITORING][STUCK_COLLECTING] Appointment {apt_id}: "
+                            f"[AUTO-RECOVERY][TRIGGERED] Appointment {apt_id}: "
                             f"all {submitted_sheets}/{total_sheets} sheets submitted "
-                            f"but phase still 'collecting' after {delay_minutes:.0f} min. "
-                            f"Last submit: {last_submit}. Auto-triggering _run_analysis."
+                            f"but phase still 'collecting' after {delay_minutes:.0f} min since last submit. "
+                            f"Last submit: {last_submit}. Triggering _run_analysis as safety net."
                         )
                         _run_analysis(apt_id)
                         processed += 1
