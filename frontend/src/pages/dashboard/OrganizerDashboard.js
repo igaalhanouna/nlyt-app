@@ -367,22 +367,37 @@ function TimelineCard({ item, isPast, onDelete, onRemind, onQuit, onDecline, now
         </div>
 
         {/* Modification context banner */}
-        {(hasModification || modActionRequired) && modificationData && (
-          <div className={`flex items-center justify-between rounded-lg px-3 py-2 mb-2.5 text-xs ${modActionRequired ? 'bg-amber-50 border border-amber-200' : 'bg-blue-50 border border-blue-100'}`} data-testid={`mod-context-${item.appointment_id}`}>
-            <div className="flex-1 min-w-0">
-              <p className={`font-medium truncate ${modActionRequired ? 'text-amber-800' : 'text-blue-700'}`}>
-                {formatChangeSummary(modificationData)}
-              </p>
-              <p className="text-[11px] text-slate-500 mt-0.5">
-                Par {modificationData.proposed_by?.name || modificationData.proposed_by?.role}
-                {modActionRequired ? ' — En attente de votre réponse' : ' — En attente des réponses'}
-              </p>
+        {(hasModification || modActionRequired) && modificationData && (() => {
+          const [a, t] = (modificationData.participants_summary || '0/0').split('/');
+          const acc = parseInt(a) || 0;
+          const tot = parseInt(t) || 0;
+          const pctMod = tot > 0 ? Math.round((acc / tot) * 100) : 0;
+          return (
+          <div className={`rounded-lg px-3 py-2 mb-2.5 text-xs ${modActionRequired ? 'bg-amber-50 border border-amber-200' : 'bg-blue-50 border border-blue-100'}`} data-testid={`mod-context-${item.appointment_id}`}>
+            <div className="flex items-center justify-between">
+              <div className="flex-1 min-w-0">
+                <p className={`font-medium truncate ${modActionRequired ? 'text-amber-800' : 'text-blue-700'}`}>
+                  {formatChangeSummary(modificationData)}
+                </p>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  Par {modificationData.proposed_by?.name || modificationData.proposed_by?.role}
+                  {modActionRequired ? ' — En attente de votre réponse' : ' — En attente des réponses'}
+                </p>
+              </div>
+              <Link to={`/appointments/${item.appointment_id}`} className={`flex-shrink-0 ml-3 px-2.5 py-1 rounded-md text-[11px] font-medium ${modActionRequired ? 'bg-amber-600 text-white hover:bg-amber-700' : 'bg-blue-100 text-blue-700 hover:bg-blue-200'} transition-colors`} onClick={(e) => e.stopPropagation()} data-testid={`mod-cta-${item.appointment_id}`}>
+                Voir la demande
+              </Link>
             </div>
-            <Link to={`/appointments/${item.appointment_id}`} className={`flex-shrink-0 ml-3 px-2.5 py-1 rounded-md text-[11px] font-medium ${modActionRequired ? 'bg-amber-600 text-white hover:bg-amber-700' : 'bg-blue-100 text-blue-700 hover:bg-blue-200'} transition-colors`} onClick={(e) => e.stopPropagation()} data-testid={`mod-cta-${item.appointment_id}`}>
-              Voir la demande
-            </Link>
+            {/* Mini vote progress */}
+            <div className="flex items-center gap-2 mt-1.5" data-testid={`mod-timeline-progress-${item.appointment_id}`}>
+              <div className="flex-1 max-w-[100px] bg-white/60 rounded-full h-1.5">
+                <div className={`h-1.5 rounded-full transition-all ${pctMod === 100 ? 'bg-emerald-500' : pctMod > 0 ? 'bg-amber-400' : 'bg-slate-200'}`} style={{ width: `${pctMod}%` }} />
+              </div>
+              <span className="text-[11px] font-medium text-slate-500">{acc}/{tot} validé{acc !== 1 ? 's' : ''}</span>
+            </div>
           </div>
-        )}
+          );
+        })()}
 
         {/* Row 1: Title */}
         <h4 className={`font-semibold text-sm leading-tight mb-2.5 ${isPast && !isOngoing ? 'text-slate-500' : 'text-slate-900'}`}>
@@ -1020,7 +1035,12 @@ export default function OrganizerDashboard() {
               </h3>
             </div>
             <div className="space-y-2">
-              {pendingModifications.filter(p => p.is_action_required).map(mod => (
+              {pendingModifications.filter(p => p.is_action_required).map(mod => {
+                const [accStr, totStr] = (mod.participants_summary || '0/0').split('/');
+                const accN = parseInt(accStr) || 0;
+                const totN = parseInt(totStr) || 0;
+                const pct = totN > 0 ? Math.round((accN / totN) * 100) : 0;
+                return (
                 <Link
                   key={mod.proposal_id}
                   to={`/appointments/${mod.appointment_id}`}
@@ -1033,14 +1053,21 @@ export default function OrganizerDashboard() {
                     <p className="text-[11px] text-slate-500 mt-0.5">
                       Par {mod.proposed_by?.name || mod.proposed_by?.role}
                       {mod.proposed_by?.role === 'participant' ? ' (participant)' : ' (organisateur)'}
-                      {' — '}{mod.participants_summary} validé
                     </p>
+                    {/* P2.2: Mini progress bar */}
+                    <div className="flex items-center gap-2 mt-1.5" data-testid={`mod-progress-${mod.proposal_id}`}>
+                      <div className="flex-1 max-w-[120px] bg-slate-100 rounded-full h-1.5">
+                        <div className={`h-1.5 rounded-full transition-all ${pct === 100 ? 'bg-emerald-500' : pct > 0 ? 'bg-amber-400' : 'bg-slate-200'}`} style={{ width: `${pct}%` }} />
+                      </div>
+                      <span className="text-[11px] font-medium text-slate-500">{accN}/{totN} validé{accN !== 1 ? 's' : ''}</span>
+                    </div>
                   </div>
                   <span className="flex-shrink-0 ml-3 text-xs font-medium text-white bg-amber-600 px-3 py-1.5 rounded-lg hover:bg-amber-700 transition-colors" data-testid={`mod-action-cta-${mod.proposal_id}`}>
                     Répondre
                   </span>
                 </Link>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
