@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { disputeAPI } from '../../services/api';
+import { disputeAPI, notificationAPI } from '../../services/api';
 import AppNavbar from '../../components/AppNavbar';
 import { formatDateTimeFr } from '../../utils/dateFormat';
 import {
@@ -36,6 +36,8 @@ export default function DecisionDetailPage() {
       try {
         const res = await disputeAPI.get(disputeId);
         setData(res.data);
+        // Mark decision notification as read
+        notificationAPI.markRead('decision', disputeId).catch(() => {});
       } catch (e) {
         console.error(e);
       } finally {

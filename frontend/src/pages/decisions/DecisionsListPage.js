@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { disputeAPI } from '../../services/api';
+import { disputeAPI, notificationAPI } from '../../services/api';
 import AppNavbar from '../../components/AppNavbar';
 import {
   ArrowRight, Shield, Clock, Loader2, Flame, Scale,
@@ -21,12 +21,17 @@ const FI_STYLES = {
 export default function DecisionsListPage() {
   const [decisions, setDecisions] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [unreadIds, setUnreadIds] = useState(new Set());
 
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await disputeAPI.getMyDecisions();
-        setDecisions(res.data.decisions || []);
+        const [decRes, unreadRes] = await Promise.all([
+          disputeAPI.getMyDecisions(),
+          notificationAPI.getUnreadIds('decision'),
+        ]);
+        setDecisions(decRes.data.decisions || []);
+        setUnreadIds(new Set(unreadRes.data.unread_ids || []));
       } catch (e) {
         console.error(e);
         setDecisions([]);
@@ -56,16 +61,20 @@ export default function DecisionsListPage() {
               const OIcon = oc.Icon;
               const fi = dec.financial_impact || {};
               const fiBg = FI_STYLES[fi.type] || FI_STYLES.neutral;
+              const isUnread = unreadIds.has(dec.dispute_id);
               return (
                 <Link
                   key={dec.dispute_id}
                   to={`/decisions/${dec.dispute_id}`}
-                  className="block bg-white border border-slate-200 rounded-xl p-5 hover:border-slate-400 hover:shadow-sm transition-all"
+                  className={`block border rounded-xl p-5 hover:border-slate-400 hover:shadow-sm transition-all ${isUnread ? 'bg-blue-50/40 border-blue-200' : 'bg-white border-slate-200'}`}
                   data-testid={`decision-card-${dec.dispute_id}`}
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                        {isUnread && (
+                          <span className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0" data-testid={`unread-dot-${dec.dispute_id}`} />
+                        )}
                         <h3 className="text-sm font-semibold text-slate-900 truncate">{dec.appointment_title || 'Rendez-vous'}</h3>
                         <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold ${oc.className}`}>
                           <OIcon className="w-3 h-3" /> {oc.label}

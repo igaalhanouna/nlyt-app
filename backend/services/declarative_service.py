@@ -639,6 +639,15 @@ def open_dispute(appointment_id: str, target_participant_id: str, reason: str):
     }
     db.declarative_disputes.insert_one(dispute)
     logger.info(f"[DISPUTE] Opened for {target_participant_id} in {appointment_id}: {reason}. Organizer: {organizer_user_id}")
+
+    # Notification trigger: litige ouvert
+    try:
+        from services.notification_service import notify_dispute_opened
+        apt = db.appointments.find_one({"appointment_id": appointment_id}, {"_id": 0, "title": 1})
+        notify_dispute_opened(dispute, apt.get("title", "") if apt else "")
+    except Exception as e:
+        logger.warning(f"[NOTIF] Failed to notify dispute opened: {e}")
+
     return dispute['dispute_id']
 
 
@@ -671,6 +680,15 @@ def resolve_dispute(dispute_id: str, final_outcome: str, resolution_note: str, r
             }
         }}
     )
+
+    # Notification trigger: décision rendue
+    try:
+        from services.notification_service import notify_decision_rendered
+        resolved_dispute = db.declarative_disputes.find_one({"dispute_id": dispute_id}, {"_id": 0})
+        apt = db.appointments.find_one({"appointment_id": dispute['appointment_id']}, {"_id": 0, "title": 1})
+        notify_decision_rendered(resolved_dispute, apt.get("title", "") if apt else "")
+    except Exception as e:
+        logger.warning(f"[NOTIF] Failed to notify decision rendered: {e}")
 
     # Apply to attendance record
     previous_outcome = None
@@ -785,6 +803,15 @@ def submit_dispute_position(dispute_id: str, user_id: str, position: str) -> dic
         )
         logger.info(f"[DISPUTE] Participant {user_id} submitted position '{position}' on {dispute_id}")
 
+    # Notification trigger: position soumise -> notifier l'autre partie
+    try:
+        from services.notification_service import notify_dispute_position_submitted
+        updated = db.declarative_disputes.find_one({"dispute_id": dispute_id}, {"_id": 0})
+        apt = db.appointments.find_one({"appointment_id": updated["appointment_id"]}, {"_id": 0, "title": 1})
+        notify_dispute_position_submitted(updated, user_id, apt.get("title", "") if apt else "")
+    except Exception as e:
+        logger.warning(f"[NOTIF] Failed to notify position submitted: {e}")
+
     # Re-fetch and check if both positions are in → auto-resolve
     return _check_positions_and_resolve(dispute_id)
 
@@ -839,6 +866,14 @@ def _check_positions_and_resolve(dispute_id: str) -> dict:
             }}
         )
         logger.info(f"[DISPUTE] {dispute_id} escalated: organizer={org_pos}, participant={par_pos}")
+        # Notification trigger: escalade
+        try:
+            from services.notification_service import notify_dispute_escalated
+            escalated = db.declarative_disputes.find_one({"dispute_id": dispute_id}, {"_id": 0})
+            apt = db.appointments.find_one({"appointment_id": escalated["appointment_id"]}, {"_id": 0, "title": 1})
+            notify_dispute_escalated(escalated, apt.get("title", "") if apt else "")
+        except Exception as e:
+            logger.warning(f"[NOTIF] Failed to notify escalation: {e}")
         return {"success": True, "message": "Les positions divergent. Le dossier est transmis à un arbitre neutre.", "escalated": True}
 
 

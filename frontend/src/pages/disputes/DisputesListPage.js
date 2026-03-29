@@ -5,6 +5,7 @@ import {
   MapPin, Video, Calendar, ArrowRight, User
 } from 'lucide-react';
 import api from '../../services/api';
+import { notificationAPI } from '../../services/api';
 import AppNavbar from '../../components/AppNavbar';
 import AppBreadcrumb from '../../components/AppBreadcrumb';
 import { formatDateTimeCompactFr } from '../../utils/dateFormat';
@@ -51,11 +52,16 @@ function groupByAppointment(disputes) {
 export default function DisputesListPage() {
   const [disputes, setDisputes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [unreadIds, setUnreadIds] = useState(new Set());
 
   const fetchDisputes = useCallback(async () => {
     try {
-      const res = await api.get('/api/disputes/mine');
+      const [res, unreadRes] = await Promise.all([
+        api.get('/api/disputes/mine'),
+        notificationAPI.getUnreadIds('dispute_update'),
+      ]);
       setDisputes(res.data.disputes || []);
+      setUnreadIds(new Set(unreadRes.data.unread_ids || []));
     } catch (err) {
       console.error('Error fetching disputes:', err);
     } finally {
@@ -103,7 +109,7 @@ export default function DisputesListPage() {
         ) : (
           <div className="space-y-4">
             {groups.map(group => (
-              <AppointmentDisputeCard key={group.appointment_id} group={group} />
+              <AppointmentDisputeCard key={group.appointment_id} group={group} unreadIds={unreadIds} />
             ))}
           </div>
         )}
@@ -112,7 +118,7 @@ export default function DisputesListPage() {
   );
 }
 
-function AppointmentDisputeCard({ group }) {
+function AppointmentDisputeCard({ group, unreadIds }) {
   const { disputes } = group;
   const globalStatus = getGlobalStatus(disputes);
   const GlobalIcon = globalStatus.icon;
@@ -120,10 +126,11 @@ function AppointmentDisputeCard({ group }) {
   const locationLabel = isPhysical
     ? (group.appointment_location || 'Physique')
     : (group.appointment_meeting_provider || 'Visioconference');
+  const hasUnread = disputes.some(d => unreadIds.has(d.dispute_id));
 
   return (
     <div
-      className="bg-white rounded-xl border border-slate-200 overflow-hidden"
+      className={`rounded-xl border overflow-hidden ${hasUnread ? 'bg-blue-50/30 border-blue-200' : 'bg-white border-slate-200'}`}
       data-testid={`dispute-group-${group.appointment_id}`}
     >
       {/* ── Header: RDV context ── */}
@@ -171,7 +178,7 @@ function AppointmentDisputeCard({ group }) {
       {/* ── Sub-cards: individual disputes ── */}
       <div className="divide-y divide-slate-50">
         {disputes.map(d => (
-          <DisputeSubCard key={d.dispute_id} dispute={d} />
+          <DisputeSubCard key={d.dispute_id} dispute={d} isUnread={unreadIds.has(d.dispute_id)} />
         ))}
       </div>
 
@@ -190,7 +197,7 @@ function AppointmentDisputeCard({ group }) {
   );
 }
 
-function DisputeSubCard({ dispute }) {
+function DisputeSubCard({ dispute, isUnread }) {
   const displayState = dispute.display_state || 'waiting_both';
   const badgeConfig = {
     waiting_both: { label: 'En attente', color: 'bg-amber-50 text-amber-600 border-amber-200' },
@@ -218,8 +225,11 @@ function DisputeSubCard({ dispute }) {
       className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50/80 transition-colors group"
       data-testid={`dispute-sub-card-${dispute.dispute_id}`}
     >
-      <div className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center flex-shrink-0">
+      <div className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center flex-shrink-0 relative">
         <User className="w-3.5 h-3.5 text-slate-400" />
+        {isUnread && (
+          <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-blue-500 border border-white" data-testid={`unread-dot-${dispute.dispute_id}`} />
+        )}
       </div>
 
       <div className="flex-1 min-w-0">

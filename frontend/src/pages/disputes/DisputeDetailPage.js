@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { AlertTriangle, CheckCircle, Clock, Upload, FileText, Loader2, Scale, MessageSquare, UserCheck, UserX, Timer, MapPin, Video, Calendar, ArrowRight } from 'lucide-react';
 import api from '../../services/api';
+import { notificationAPI } from '../../services/api';
 import AppNavbar from '../../components/AppNavbar';
 import AppBreadcrumb from '../../components/AppBreadcrumb';
 import { formatDateTimeCompactFr } from '../../utils/dateFormat';
@@ -45,6 +46,8 @@ export default function DisputeDetailPage() {
     try {
       const res = await api.get(`/api/disputes/${disputeId}`);
       setDispute(res.data);
+      // Mark dispute notification as read
+      notificationAPI.markRead('dispute_update', disputeId).catch(() => {});
     } catch (err) {
       console.error('Error fetching dispute:', err);
     } finally {

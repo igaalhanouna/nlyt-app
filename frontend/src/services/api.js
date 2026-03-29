@@ -207,4 +207,10 @@ export const financialAPI = {
   getMyResults: () => api.get('/api/financial/my-results'),
 };
 
+export const notificationAPI = {
+  getCounts: () => api.get('/api/notifications/counts'),
+  markRead: (event_type, reference_id) => api.post('/api/notifications/mark-read', { event_type, reference_id }),
+  getUnreadIds: (event_type) => api.get(`/api/notifications/unread-ids/${event_type}`),
+};
+
 export default api;
