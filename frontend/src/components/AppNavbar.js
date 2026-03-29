@@ -143,11 +143,6 @@ export default function AppNavbar() {
                 </span>
               )}
             </Link>
-            {isAdmin && (
-              <Link to="/admin" className={linkClass('/admin')} data-testid="navbar-admin-link">
-                Admin
-              </Link>
-            )}
             <Link to="/mes-resultats" className={linkClass('/mes-resultats')} data-testid="navbar-results-link">
               Contributions
             </Link>
@@ -157,6 +152,11 @@ export default function AppNavbar() {
                 Parametres
               </span>
             </Link>
+            {isAdmin && (
+              <Link to="/admin" className={linkClass('/admin')} data-testid="navbar-admin-link">
+                Admin
+              </Link>
+            )}
           </div>
 
           {/* Desktop logout */}
