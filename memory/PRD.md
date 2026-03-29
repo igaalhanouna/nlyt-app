@@ -196,4 +196,26 @@ Application SaaS (React/FastAPI/MongoDB) de gestion des presences avec garanties
 - P2: Triggers notifications in-app pour les modifications de RDV (persistance lu/non-lu)
 - Charity Payouts V2 (Stripe Transfers)
 - Webhooks temps reel Zoom/Teams
-- Notification email/push creation litige
+
+### P2 — Notifications email/push (cahier des charges)
+**Contrainte** : Respecter strictement la charte graphique email existante (email_service.py : _base_template, ACCENT_COLORS, _btn, _info_box, _alert_box, _detail_row, _greeting, _paragraph, _brand_note).
+
+**Evenements declencheurs** :
+
+| Evenement | Destinataire | Accent | Sujet type |
+|---|---|---|---|
+| Demande de feuille de presence | Organisateur | info (#3B82F6) | "Feuille de presence a completer" |
+| Creation d'un litige | Les 2 parties (org + participant) | warning (#F59E0B) | "Un litige a ete ouvert" |
+| Decision d'arbitrage rendue | Les 2 parties | neutral (#64748B) ou success/danger selon outcome | "Decision rendue sur votre litige" |
+| Position adverse soumise sur un litige | L'autre partie | info | "Nouvelle position soumise" |
+| Litige escalade vers arbitrage | Les 2 parties | danger (#EF4444) | "Litige transmis a un arbitre" |
+| Proposition de modification de RDV | Tous les votants | info | "Modification proposee — vote requis" |
+| Modification de RDV appliquee | Tous les participants | success (#10B981) | "Votre RDV a ete modifie" |
+| Rappel : vote modification expirant (J-1) | Votants n'ayant pas vote | warning | "Vote en attente — expiration demain" |
+
+**Principes** :
+- Chaque email utilise _base_template() avec l'accent adapte
+- CTA principal vers la page concernee (ex: /decisions/{id}, /litiges/{id})
+- Info box avec details du RDV (titre, date, lieu, type)
+- Ton professionnel, concis, meme hierarchie que les emails existants
+- Pas de push navigateur dans un premier temps (email uniquement)
