@@ -420,8 +420,6 @@ async def get_sessions(appointment_id: str, user=Depends(get_current_user)):
             raise HTTPException(status_code=403, detail="Accès réservé aux membres de ce rendez-vous")
 
     session_filter = {"appointment_id": appointment_id}
-    if not is_organizer and viewer_participant:
-        session_filter["participant_id"] = viewer_participant["participant_id"]
 
     sessions = list(db.proof_sessions.find(session_filter, {"_id": 0, "heartbeats": 0}))
 

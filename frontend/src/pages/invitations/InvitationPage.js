@@ -641,22 +641,6 @@ export default function InvitationPage() {
           </div>
         )}
 
-        {/* Check-in Section */}
-        {['accepted', 'accepted_guaranteed', 'accepted_pending_guarantee'].includes(responseStatus) && (
-          <InvitationCheckinSection
-            appointment={appointment}
-            participant={participant}
-            responseStatus={responseStatus}
-            engagementRules={engagement_rules}
-            checkinStatus={checkinStatus}
-            checkingIn={checkingIn}
-            onManualCheckin={handleManualCheckin}
-            onShowQR={handleShowQR}
-            onOpenQRScanner={() => setShowQRScanner(true)}
-            token={token}
-          />
-        )}
-
         {/* Footer */}
         <div className="text-center mt-8 text-sm text-slate-500">
           <p>Besoin d'aide ? Contactez l'organisateur directement.</p>
