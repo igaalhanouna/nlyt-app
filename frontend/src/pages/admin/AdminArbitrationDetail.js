@@ -384,21 +384,13 @@ function PositionCard({ role, declarantName, subjectName, isSelfDeclaration, pos
   const textColor = isPresent ? 'text-emerald-700' : isAbsent ? 'text-red-700' : 'text-amber-700';
 
   const statusLabel = POSITION_STATUS[position];
-
-  // Build the explicit phrase: "[QUI parle] dit que [QUI est évalué] était [STATUT]"
-  let phrase;
-  if (!statusLabel) {
-    phrase = 'Position non soumise';
-  } else if (isSelfDeclaration) {
-    phrase = `Selon ${declarantName}, il/elle etait ${statusLabel}`;
-  } else {
-    phrase = `Selon ${declarantName}, ${subjectName} etait ${statusLabel}`;
-  }
+  const phrase = statusLabel
+    ? `Selon ${declarantName}, ${subjectName} etait ${statusLabel}`
+    : 'Position non soumise';
 
   return (
     <div className={`flex-1 rounded-lg border p-4 ${colors}`} data-testid={`position-${role.toLowerCase()}`}>
-      <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">{role}</p>
-      <p className="text-sm font-medium text-slate-800 mt-1">{declarantName || '—'}</p>
+      <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Position de {declarantName}</p>
       <p className={`text-sm font-bold mt-2 ${textColor}`}>
         {phrase}
       </p>
