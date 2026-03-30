@@ -7,6 +7,8 @@ import { toast } from 'sonner';
 import {
   XCircle, ArrowLeft, Clock, CheckCircle, ChevronDown,
   Video, MapPin, UserCheck, UserX, Timer, CircleDot,
+  Wifi, WifiOff, Navigation, QrCode, Monitor, LogIn, LogOut,
+  AlertTriangle, Minus,
 } from 'lucide-react';
 
 // ── Human-readable wording maps ──
@@ -40,7 +42,6 @@ export default function AdminArbitrationDetail() {
   const [selectedOutcome, setSelectedOutcome] = useState('');
   const [note, setNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [showTechDetails, setShowTechDetails] = useState(false);
   const [showWitnesses, setShowWitnesses] = useState(false);
 
   useEffect(() => {
@@ -84,7 +85,6 @@ export default function AdminArbitrationDetail() {
   }
 
   const td = dispute.tech_dossier || {};
-  const ps = td.proof_summary || {};
   const sa = dispute.system_analysis || {};
   const ds = dispute.declaration_summary || {};
   const hasDeclarants = (ds.declarants || []).length > 0;
@@ -140,25 +140,15 @@ export default function AdminArbitrationDetail() {
         {/* ════════ ZONE 1 — Verdict immediat ════════ */}
         <VerdictBanner td={td} sa={sa} certainty={certainty} targetName={dispute.target_name} />
 
-        {/* Tech details accordion */}
-        <div className="mb-5">
-          <button
-            onClick={() => setShowTechDetails(!showTechDetails)}
-            className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-600 transition-colors"
-            data-testid="toggle-tech-details"
-          >
-            <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showTechDetails ? 'rotate-180' : ''}`} />
-            Voir le detail technique
-          </button>
-          {showTechDetails && (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2" data-testid="tech-details-grid">
-              <TechItem label="Connexion app" value={ps.nlyt_proof_score != null ? `${ps.nlyt_proof_score} pts` : 'Aucune'} active={ps.nlyt_proof_score != null} />
-              <TechItem label="Visioconference" value={ps.video_api_outcome ? `${ps.video_provider}` : 'Aucune'} active={!!ps.video_api_outcome} />
-              <TechItem label="Localisation GPS" value={ps.gps_evidence ? 'Confirmee' : 'Aucune'} active={ps.gps_evidence} />
-              <TechItem label="Check-in QR" value={ps.qr_evidence ? 'Valide' : 'Aucun'} active={ps.qr_evidence} />
-            </div>
-          )}
-        </div>
+        {/* Tech dossier — per-participant view */}
+        <TechnicalDossier
+          td={td}
+          durationMinutes={dispute.appointment_duration_minutes}
+          appointmentType={dispute.appointment_type}
+          meetingProvider={dispute.appointment_meeting_provider}
+          startDatetime={dispute.appointment_date}
+          defaultOpen={true}
+        />
 
         {/* ════════ ZONE 2 — Ce que disent les parties ════════ */}
         <section className="rounded-xl border border-slate-200 bg-white p-5 mb-5" data-testid="positions-bloc">
@@ -559,11 +549,269 @@ function ResolutionReadOnly({ resolution, fc, targetName, status }) {
 
 // ── Helpers ──
 
-function TechItem({ label, value, active }) {
+// ── Technical Dossier — Per-participant evidence view ──
+
+function formatTime(isoStr) {
+  if (!isoStr) return '—';
+  try { return new Date(isoStr).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }); }
+  catch { return '—'; }
+}
+
+function formatDuration(seconds) {
+  if (!seconds && seconds !== 0) return '—';
+  const m = Math.round(seconds / 60);
+  if (m < 1) return `${seconds}s`;
+  return `${m} min`;
+}
+
+function pctOfRdv(seconds, durationMinutes) {
+  if (!seconds || !durationMinutes) return null;
+  return Math.round((seconds / (durationMinutes * 60)) * 100);
+}
+
+function TechnicalDossier({ td, durationMinutes, appointmentType, meetingProvider, startDatetime, defaultOpen }) {
+  const [open, setOpen] = useState(defaultOpen ?? false);
+  const dossiers = td?.participant_dossiers || [];
+
+  if (dossiers.length === 0) return null;
+
+  // Sort: target first, then organizer, then rest
+  const sorted = [...dossiers].sort((a, b) => {
+    if (a.is_target && !b.is_target) return -1;
+    if (!a.is_target && b.is_target) return 1;
+    if (a.is_organizer && !b.is_organizer) return -1;
+    if (!a.is_organizer && b.is_organizer) return 1;
+    return 0;
+  });
+
   return (
-    <div className={`rounded-lg px-3 py-2 border ${active ? 'bg-emerald-50 border-emerald-200' : 'bg-slate-50 border-slate-100'}`}>
-      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">{label}</p>
-      <p className={`text-xs font-medium mt-0.5 ${active ? 'text-emerald-700' : 'text-slate-400'}`}>{value}</p>
+    <section className="mb-5" data-testid="technical-dossier">
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex items-center justify-between w-full rounded-xl border border-slate-200 bg-white px-5 py-3.5 hover:bg-slate-50 transition-colors"
+        data-testid="toggle-tech-dossier"
+      >
+        <span className="text-sm font-bold text-slate-700">Dossier technique</span>
+        <span className="flex items-center gap-2">
+          <span className="text-[11px] text-slate-400">
+            {dossiers.length} participant{dossiers.length > 1 ? 's' : ''}
+            {durationMinutes ? ` · ${durationMinutes} min` : ''}
+            {meetingProvider ? ` · ${meetingProvider.charAt(0).toUpperCase() + meetingProvider.slice(1)}` : ''}
+          </span>
+          <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+        </span>
+      </button>
+
+      {open && (
+        <div className="rounded-b-xl border border-t-0 border-slate-200 bg-white px-5 py-4 space-y-4" data-testid="tech-dossier-content">
+          {/* RDV context bar */}
+          <div className="flex items-center gap-3 text-xs text-slate-400 pb-3 border-b border-slate-100">
+            <span>{appointmentType === 'video' ? 'Visio' : 'Physique'}</span>
+            <span>·</span>
+            <span>{startDatetime ? formatTime(startDatetime) : '—'} → {startDatetime && durationMinutes ? formatTime(new Date(new Date(startDatetime).getTime() + durationMinutes * 60000).toISOString()) : '—'}</span>
+            <span>·</span>
+            <span>{durationMinutes} min</span>
+          </div>
+
+          {sorted.map((p) => (
+            <ParticipantDossierCard key={p.participant_id} p={p} durationMinutes={durationMinutes} />
+          ))}
+
+          {/* Incoherence detection */}
+          <IncoherenceSummary dossiers={sorted} />
+        </div>
+      )}
+    </section>
+  );
+}
+
+function ParticipantDossierCard({ p, durationMinutes }) {
+  const hasVideo = p.video_sessions?.length > 0;
+  const hasCheckin = !!p.checkin;
+  const hasGps = !!p.gps;
+  const hasQr = !!p.qr;
+  const hasAnyEvidence = hasVideo || hasCheckin || hasGps || hasQr || p.evidence_count > 0;
+
+  // Total video duration
+  const totalVideoSeconds = hasVideo ? p.video_sessions.reduce((acc, s) => acc + (s.duration_seconds || 0), 0) : 0;
+  const videoPct = pctOfRdv(totalVideoSeconds, durationMinutes);
+
+  // Role label
+  const roleLabel = p.is_organizer ? 'Organisateur' : 'Participant';
+  const name = `${p.first_name || ''} ${p.last_name || ''}`.trim() || p.email;
+
+  // Declaration context
+  const declPresent = p.declarations_about?.declared_present || 0;
+  const declAbsent = p.declarations_about?.declared_absent || 0;
+
+  // Signal badge
+  let signalBadge;
+  if (!hasAnyEvidence) {
+    signalBadge = { label: 'Aucune trace', bg: 'bg-slate-100', text: 'text-slate-500', Icon: WifiOff };
+  } else if (hasVideo && videoPct >= 70) {
+    signalBadge = { label: `Signal fort (${videoPct}%)`, bg: 'bg-emerald-50', text: 'text-emerald-700', Icon: Wifi };
+  } else if (hasVideo || hasGps || hasQr) {
+    signalBadge = { label: 'Signal partiel', bg: 'bg-amber-50', text: 'text-amber-700', Icon: Wifi };
+  } else {
+    signalBadge = { label: 'Check-in seul', bg: 'bg-sky-50', text: 'text-sky-700', Icon: Monitor };
+  }
+
+  return (
+    <div
+      className={`rounded-lg border p-4 ${p.is_target ? 'border-blue-200 bg-blue-50/30' : 'border-slate-100 bg-slate-50/30'}`}
+      data-testid={`dossier-${p.participant_id}`}
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-semibold text-slate-900">{name}</span>
+          <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${p.is_target ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-500'}`}>
+            {roleLabel}{p.is_target ? ' · cible' : ''}
+          </span>
+        </div>
+        <span className={`inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full ${signalBadge.bg} ${signalBadge.text}`}>
+          <signalBadge.Icon className="w-3 h-3" />
+          {signalBadge.label}
+        </span>
+      </div>
+
+      {/* Declarations about this person */}
+      {(declPresent > 0 || declAbsent > 0) && (
+        <div className="flex items-center gap-3 text-xs mb-3 pb-2 border-b border-slate-100">
+          <span className="text-slate-400">Declare :</span>
+          {declPresent > 0 && <span className="text-emerald-600 font-medium">{declPresent}x present</span>}
+          {declAbsent > 0 && <span className="text-red-600 font-medium">{declAbsent}x absent</span>}
+        </div>
+      )}
+
+      {/* Evidence rows */}
+      <div className="space-y-2">
+        {/* Video sessions */}
+        {hasVideo ? (
+          <div data-testid={`evidence-video-${p.participant_id}`}>
+            <div className="flex items-center gap-1.5 text-xs text-slate-500 mb-1">
+              <Video className="w-3.5 h-3.5" />
+              <span className="font-medium">Visio</span>
+              <span className="text-slate-400">· {p.video_sessions.length} session{p.video_sessions.length > 1 ? 's' : ''}</span>
+            </div>
+            {p.video_sessions.map((s, i) => (
+              <div key={i} className="flex items-center gap-2 text-xs ml-5 py-0.5">
+                <LogIn className="w-3 h-3 text-emerald-500" />
+                <span className="text-slate-700 font-mono">{formatTime(s.joined_at)}</span>
+                <span className="text-slate-300">→</span>
+                <LogOut className="w-3 h-3 text-red-400" />
+                <span className="text-slate-700 font-mono">{formatTime(s.left_at)}</span>
+                <span className="text-slate-400">({formatDuration(s.duration_seconds)})</span>
+                {s.identity_confidence && (
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded ${s.identity_confidence === 'high' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>
+                    id: {s.identity_confidence}
+                  </span>
+                )}
+              </div>
+            ))}
+            <div className="flex items-center gap-2 text-xs ml-5 pt-1 text-slate-500 font-medium">
+              <span>Total : {formatDuration(totalVideoSeconds)}</span>
+              {videoPct != null && <span className="text-slate-400">({videoPct}% du RDV)</span>}
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center gap-1.5 text-xs text-slate-400">
+            <Video className="w-3.5 h-3.5" />
+            <span>Visio : aucune donnee</span>
+          </div>
+        )}
+
+        {/* Check-in NLYT */}
+        {hasCheckin ? (
+          <div className="flex items-center gap-1.5 text-xs" data-testid={`evidence-checkin-${p.participant_id}`}>
+            <UserCheck className="w-3.5 h-3.5 text-sky-500" />
+            <span className="text-slate-600">Check-in : <span className="font-mono font-medium">{formatTime(p.checkin.timestamp)}</span></span>
+            {p.checkin.temporal_detail && <span className="text-slate-400">({p.checkin.temporal_detail})</span>}
+          </div>
+        ) : (
+          <div className="flex items-center gap-1.5 text-xs text-slate-400">
+            <UserCheck className="w-3.5 h-3.5" />
+            <span>Check-in : —</span>
+          </div>
+        )}
+
+        {/* GPS */}
+        {hasGps ? (
+          <div className="flex items-center gap-1.5 text-xs" data-testid={`evidence-gps-${p.participant_id}`}>
+            <Navigation className="w-3.5 h-3.5 text-teal-500" />
+            <span className="text-slate-600">
+              GPS : {p.gps.within_radius ? (
+                <span className="text-emerald-600 font-medium">a {p.gps.distance_meters != null ? `${Math.round(p.gps.distance_meters)}m` : '?'} du lieu</span>
+              ) : (
+                <span className="text-red-600 font-medium">hors zone ({p.gps.distance_meters != null ? `${Math.round(p.gps.distance_meters)}m` : '?'})</span>
+              )}
+            </span>
+            {p.gps.geographic_detail && <span className="text-slate-400 truncate max-w-[180px]">({p.gps.geographic_detail})</span>}
+          </div>
+        ) : (
+          <div className="flex items-center gap-1.5 text-xs text-slate-400">
+            <Navigation className="w-3.5 h-3.5" />
+            <span>GPS : —</span>
+          </div>
+        )}
+
+        {/* QR */}
+        {hasQr ? (
+          <div className="flex items-center gap-1.5 text-xs" data-testid={`evidence-qr-${p.participant_id}`}>
+            <QrCode className="w-3.5 h-3.5 text-violet-500" />
+            <span className="text-slate-600">QR : <span className="font-mono font-medium">{formatTime(p.qr.timestamp)}</span></span>
+          </div>
+        ) : (
+          <div className="flex items-center gap-1.5 text-xs text-slate-400">
+            <QrCode className="w-3.5 h-3.5" />
+            <span>QR : —</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function IncoherenceSummary({ dossiers }) {
+  const flags = [];
+
+  for (const p of dossiers) {
+    const name = `${p.first_name || ''}`.trim() || 'Un participant';
+    const hasAnySignal = p.video_sessions?.length > 0 || p.checkin || p.gps || p.qr;
+    const declAbsent = p.declarations_about?.declared_absent || 0;
+    const declPresent = p.declarations_about?.declared_present || 0;
+
+    // Signal technique present mais declare absent par d'autres
+    if (hasAnySignal && declAbsent > 0) {
+      const totalSec = (p.video_sessions || []).reduce((a, s) => a + (s.duration_seconds || 0), 0);
+      const detail = totalSec > 0 ? ` (${Math.round(totalSec / 60)} min de visio)` : '';
+      flags.push({
+        type: 'contradiction',
+        text: `${name} a une trace technique${detail}, mais est declare absent par ${declAbsent} participant${declAbsent > 1 ? 's' : ''}.`,
+      });
+    }
+
+    // Aucun signal mais declare present par tous
+    if (!hasAnySignal && declPresent > 0 && declAbsent === 0) {
+      flags.push({
+        type: 'missing_proof',
+        text: `${name} est declare present, mais aucune trace technique n'a ete enregistree.`,
+      });
+    }
+  }
+
+  if (flags.length === 0) return null;
+
+  return (
+    <div className="mt-2 space-y-2" data-testid="incoherence-summary">
+      {flags.map((f, i) => (
+        <div key={i} className={`flex items-start gap-2 rounded-lg px-3 py-2 text-xs ${
+          f.type === 'contradiction' ? 'bg-amber-50 border border-amber-200 text-amber-800' : 'bg-blue-50 border border-blue-200 text-blue-800'
+        }`}>
+          <AlertTriangle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+          <span>{f.text}</span>
+        </div>
+      ))}
     </div>
   );
 }

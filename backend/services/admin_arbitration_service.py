@@ -15,11 +15,16 @@ logger = logging.getLogger(__name__)
 
 
 def build_tech_dossier(appointment_id: str, target_participant_id: str) -> dict:
-    """Aggregate all technical evidence for the admin dossier."""
-    # 1. Admissible proof check
+    """Aggregate all technical evidence for the admin dossier.
+
+    Returns the legacy proof_summary for backward compat AND a new
+    `participant_dossiers` list with per-participant raw evidence.
+    No business logic — pure aggregation and structuring.
+    """
+    # 1. Admissible proof check (existing)
     has_proof = _has_admissible_proof(target_participant_id, appointment_id)
 
-    # 2. NLYT Proof session
+    # 2. NLYT Proof session for target (existing)
     proof_session = _get_best_proof_session(appointment_id, target_participant_id)
     nlyt_score = None
     nlyt_level = None
@@ -36,7 +41,7 @@ def build_tech_dossier(appointment_id: str, target_participant_id: str) -> dict:
             "score_breakdown": proof_session.get("score_breakdown"),
         }
 
-    # 3. Raw evidence items
+    # 3. Raw evidence items for target (existing — kept for backward compat)
     evidence_items = list(db.evidence_items.find(
         {"appointment_id": appointment_id, "participant_id": target_participant_id},
         {"_id": 0, "source": 1, "derived_facts": 1, "collected_at": 1}
@@ -57,11 +62,174 @@ def build_tech_dossier(appointment_id: str, target_participant_id: str) -> dict:
         elif src == "qr":
             qr_evidence = True
 
-    # 4. Attendance record (initial evaluation result)
+    # 4. Attendance record (existing)
     attendance_record = db.attendance_records.find_one(
         {"appointment_id": appointment_id, "participant_id": target_participant_id},
         {"_id": 0, "outcome": 1, "decision_basis": 1, "confidence_level": 1, "delay_minutes": 1}
     )
+
+    # ──────────────────────────────────────────────────────
+    # 5. NEW: Per-participant dossiers (all participants)
+    # ──────────────────────────────────────────────────────
+    participants = list(db.participants.find(
+        {"appointment_id": appointment_id,
+         "status": {"$in": ["accepted", "accepted_pending_guarantee", "accepted_guaranteed"]}},
+        {"_id": 0, "participant_id": 1, "first_name": 1, "last_name": 1,
+         "email": 1, "is_organizer": 1, "role": 1}
+    ))
+
+    # All evidence items for this appointment (all participants)
+    all_evidence = list(db.evidence_items.find(
+        {"appointment_id": appointment_id},
+        {"_id": 0, "evidence_id": 1, "participant_id": 1, "source": 1,
+         "source_timestamp": 1, "collected_at": 1, "derived_facts": 1,
+         "confidence_score": 1}
+    ))
+
+    # All proof sessions for this appointment
+    all_proof_sessions = list(db.proof_sessions.find(
+        {"appointment_id": appointment_id},
+        {"_id": 0, "participant_id": 1, "checked_in_at": 1, "checked_out_at": 1,
+         "heartbeat_count": 1, "active_duration_seconds": 1, "score": 1,
+         "proof_level": 1, "score_breakdown": 1}
+    ))
+
+    # All attendance records
+    all_records = list(db.attendance_records.find(
+        {"appointment_id": appointment_id},
+        {"_id": 0, "participant_id": 1, "outcome": 1, "decision_basis": 1,
+         "delay_minutes": 1, "review_required": 1}
+    ))
+
+    # All attendance sheets (declarations)
+    all_sheets = list(db.attendance_sheets.find(
+        {"appointment_id": appointment_id, "status": "submitted"},
+        {"_id": 0, "submitted_by_participant_id": 1, "declarations": 1}
+    ))
+
+    # Index by participant
+    ev_by_pid = {}
+    for e in all_evidence:
+        ev_by_pid.setdefault(e["participant_id"], []).append(e)
+
+    ps_by_pid = {}
+    for ps in all_proof_sessions:
+        ps_by_pid.setdefault(ps["participant_id"], []).append(ps)
+
+    rec_by_pid = {}
+    for r in all_records:
+        rec_by_pid[r["participant_id"]] = r
+
+    # Build declarations index: what did others declare about each participant?
+    decl_about_pid = {}
+    for sheet in all_sheets:
+        for decl in sheet.get("declarations", []):
+            target = decl.get("participant_id")
+            if target:
+                decl_about_pid.setdefault(target, []).append({
+                    "declared_by": sheet["submitted_by_participant_id"],
+                    "declared_status": decl.get("status"),
+                })
+
+    participant_dossiers = []
+    for p in participants:
+        pid = p["participant_id"]
+        p_evidence = ev_by_pid.get(pid, [])
+        p_sessions = ps_by_pid.get(pid, [])
+        p_record = rec_by_pid.get(pid)
+        p_declarations = decl_about_pid.get(pid, [])
+
+        # Structure video sessions
+        video_sessions = []
+        for e in p_evidence:
+            if e["source"] == "video_conference":
+                df = e.get("derived_facts") or {}
+                video_sessions.append({
+                    "joined_at": df.get("joined_at"),
+                    "left_at": df.get("left_at"),
+                    "duration_seconds": df.get("duration_seconds"),
+                    "provider": df.get("provider"),
+                    "identity_confidence": df.get("identity_confidence"),
+                    "identity_match_method": df.get("identity_match_method"),
+                    "temporal_detail": df.get("temporal_detail"),
+                    "video_outcome": df.get("video_attendance_outcome"),
+                    "name_from_provider": df.get("participant_name_from_provider"),
+                })
+
+        # Structure checkin data
+        checkin_data = None
+        for e in p_evidence:
+            if e["source"] == "manual_checkin":
+                df = e.get("derived_facts") or {}
+                checkin_data = {
+                    "timestamp": e.get("source_timestamp"),
+                    "temporal_detail": df.get("temporal_detail"),
+                }
+                break
+
+        # Structure GPS data
+        gps_data = None
+        for e in p_evidence:
+            if e["source"] == "gps":
+                df = e.get("derived_facts") or {}
+                gps_data = {
+                    "timestamp": e.get("source_timestamp") or e.get("collected_at"),
+                    "distance_meters": df.get("distance_meters"),
+                    "geographic_detail": df.get("geographic_detail"),
+                    "geographic_consistency": df.get("geographic_consistency"),
+                    "within_radius": df.get("gps_within_radius", False),
+                }
+                break
+
+        # Structure QR data
+        qr_data = None
+        for e in p_evidence:
+            if e["source"] == "qr":
+                qr_data = {
+                    "timestamp": e.get("source_timestamp") or e.get("collected_at"),
+                }
+                break
+
+        # Proof session summary (best)
+        proof_session_data = None
+        if p_sessions:
+            best = max(p_sessions, key=lambda s: s.get("score", 0))
+            proof_session_data = {
+                "checked_in_at": best.get("checked_in_at"),
+                "checked_out_at": best.get("checked_out_at"),
+                "heartbeat_count": best.get("heartbeat_count", 0),
+                "active_duration_seconds": best.get("active_duration_seconds", 0),
+                "score": best.get("score"),
+                "proof_level": best.get("proof_level"),
+            }
+
+        # Declared position about this participant (by others)
+        declared_present = sum(1 for d in p_declarations if d["declared_status"] in ("present", "late"))
+        declared_absent = sum(1 for d in p_declarations if d["declared_status"] == "absent")
+
+        participant_dossiers.append({
+            "participant_id": pid,
+            "first_name": p.get("first_name", ""),
+            "last_name": p.get("last_name", ""),
+            "email": p.get("email", ""),
+            "is_organizer": p.get("is_organizer", False),
+            "is_target": pid == target_participant_id,
+            "video_sessions": video_sessions,
+            "checkin": checkin_data,
+            "gps": gps_data,
+            "qr": qr_data,
+            "proof_session": proof_session_data,
+            "attendance_record": {
+                "outcome": p_record.get("outcome") if p_record else None,
+                "decision_basis": p_record.get("decision_basis") if p_record else None,
+                "delay_minutes": p_record.get("delay_minutes") if p_record else None,
+            },
+            "declarations_about": {
+                "declared_present": declared_present,
+                "declared_absent": declared_absent,
+            },
+            "evidence_count": len(p_evidence),
+        })
 
     return {
         "has_admissible_proof": has_proof,
@@ -76,6 +244,7 @@ def build_tech_dossier(appointment_id: str, target_participant_id: str) -> dict:
             "evidence_count": len(evidence_items),
         },
         "attendance_record": attendance_record,
+        "participant_dossiers": participant_dossiers,
     }
 
 
