@@ -193,7 +193,9 @@ def send_distribution_created_email(
     appointment_title: str,
     appointment_date: str,
     distribution_id: str,
-    hold_expires_at: str,
+    hold_expires_at: str | None,
+    immediate_release: bool = False,
+    release_reason: str = "hold",
 ):
     """Email sent to each beneficiary when a distribution is created."""
     user = _get_user(user_id)
@@ -203,14 +205,28 @@ def send_distribution_created_email(
     first_name = user.get("first_name", "")
     amount = _fmt_amount(amount_cents)
     date = _fmt_date(appointment_date)
-    hold_date = _fmt_date(hold_expires_at)
 
     role_context = {
         "organizer": "en tant qu'organisateur du rendez-vous",
         "participant": "en tant que participant présent au rendez-vous",
     }.get(role, "suite au rendez-vous")
 
-    html = _wrap_html(f"""
+    if immediate_release:
+        reason_label = {
+            "consensus": "suite à l'accord des participants",
+            "admin_arbitration": "suite à l'arbitrage de la plateforme",
+        }.get(release_reason, "")
+        html = _wrap_html(f"""
+<p>Bonjour{' ' + first_name if first_name else ''},</p>
+<p>Un <strong>crédit de {amount}</strong> a été enregistré dans votre wallet NLYT, {role_context} <strong>« {appointment_title} »</strong> du {date}.</p>
+<p>Ce montant est <strong>immédiatement disponible</strong> pour retrait{' ' + reason_label if reason_label else ''}.</p>
+{_button(WALLET_URL, 'Retirer mes fonds')}
+{_ref_line(distribution_id)}
+""")
+        subject = f"Fonds disponibles — {appointment_title}"
+    else:
+        hold_date = _fmt_date(hold_expires_at) if hold_expires_at else "N/A"
+        html = _wrap_html(f"""
 <p>Bonjour{' ' + first_name if first_name else ''},</p>
 <p>Un <strong>crédit en attente de {amount}</strong> a été enregistré dans votre wallet NLYT, {role_context} <strong>« {appointment_title} »</strong> du {date}.</p>
 <p>Ce montant est actuellement <strong>en période de vérification</strong>. Il sera disponible dans votre wallet à partir du <strong>{hold_date}</strong>, sauf contestation en cours.</p>
@@ -218,9 +234,9 @@ def send_distribution_created_email(
 {_button(WALLET_URL, 'Voir mon wallet')}
 {_ref_line(distribution_id)}
 """)
+        subject = f"Crédit en attente enregistré — {appointment_title}"
 
-    _send_async(user["email"], f"Crédit en attente enregistré — {appointment_title}",
-                html, "distribution_created", distribution_id, user_id)
+    _send_async(user["email"], subject, html, "distribution_created", distribution_id, user_id)
 
 
 # ─── 3. Fonds disponibles (après hold) ──────────────────────

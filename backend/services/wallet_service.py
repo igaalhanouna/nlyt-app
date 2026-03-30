@@ -132,6 +132,40 @@ def confirm_pending_to_available(wallet_id: str, amount_cents: int, currency: st
     return {"success": True, "transaction_id": tx["transaction_id"]}
 
 
+def credit_available_direct(wallet_id: str, amount_cents: int, currency: str,
+                            reference_type: str, reference_id: str, description: str) -> dict:
+    """
+    Credit available_balance directly (no pending phase).
+    Used when funds are released immediately after consensus or admin arbitration.
+    """
+    if amount_cents <= 0:
+        return {"success": False, "error": "Amount must be positive"}
+
+    now = datetime.now(timezone.utc).isoformat()
+
+    result = db.wallets.update_one(
+        {"wallet_id": wallet_id},
+        {
+            "$inc": {"available_balance": amount_cents, "total_received": amount_cents},
+            "$set": {"updated_at": now},
+        }
+    )
+    if result.matched_count == 0:
+        return {"success": False, "error": "Wallet not found"}
+
+    tx = _create_transaction(
+        wallet_id=wallet_id,
+        tx_type="credit_available_direct",
+        amount=amount_cents,
+        currency=currency,
+        reference_type=reference_type,
+        reference_id=reference_id,
+        description=description,
+    )
+    logger.info(f"[WALLET] credit_available_direct {amount_cents}c to wallet {wallet_id} (ref={reference_id})")
+    return {"success": True, "transaction_id": tx["transaction_id"]}
+
+
 def debit_payout(wallet_id: str, amount_cents: int, currency: str,
                  payout_id: str, description: str) -> dict:
     """

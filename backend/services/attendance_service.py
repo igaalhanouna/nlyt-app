@@ -802,7 +802,8 @@ def reset_cas_a_overrides(appointment_id: str) -> int:
     return count
 
 
-def _process_financial_outcomes(appointment_id: str, appointment: dict, participants: list):
+def _process_financial_outcomes(appointment_id: str, appointment: dict, participants: list,
+                                immediate_release: bool = False, release_reason: str = "hold"):
     """
     Post-evaluation hook: process capture/release for all evaluated participants.
 
@@ -884,7 +885,8 @@ def _process_financial_outcomes(appointment_id: str, appointment: dict, particip
 
             capture_reason = "no_show" if outcome == "no_show" else "late_beyond_tolerance"
             _execute_capture_and_distribution(
-                appointment, participant, guarantee, eligible_beneficiaries, capture_reason
+                appointment, participant, guarantee, eligible_beneficiaries, capture_reason,
+                immediate_release=immediate_release, release_reason=release_reason,
             )
         elif outcome in ('on_time', 'late'):
             _execute_release(guarantee)
@@ -892,7 +894,8 @@ def _process_financial_outcomes(appointment_id: str, appointment: dict, particip
 
 def _execute_capture_and_distribution(
     appointment: dict, participant: dict, guarantee: dict, present_participants: list,
-    capture_reason: str = "no_show"
+    capture_reason: str = "no_show",
+    immediate_release: bool = False, release_reason: str = "hold",
 ):
     """Capture guarantee and create distribution."""
     from services.stripe_guarantee_service import StripeGuaranteeService
@@ -948,6 +951,8 @@ def _execute_capture_and_distribution(
         charity_association_id=appointment.get('charity_association_id'),
         organizer_user_id=organizer_user_id or '',
         present_participants=filtered_present,
+        immediate_release=immediate_release,
+        release_reason=release_reason,
     )
     logger.info(f"[FINANCIAL] Captured + distributed for guarantee {guarantee_id}")
 

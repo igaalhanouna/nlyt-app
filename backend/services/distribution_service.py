@@ -15,6 +15,7 @@ from services.wallet_service import (
     ensure_wallet,
     credit_pending,
     confirm_pending_to_available,
+    credit_available_direct,
     debit_refund,
     create_wallet,
 )
@@ -138,9 +139,16 @@ def create_distribution(
     charity_association_id: str | None,
     organizer_user_id: str,
     present_participants: list[dict],
+    immediate_release: bool = False,
+    release_reason: str = "hold",
 ) -> dict:
     """
-    Create a distribution record and credit beneficiary wallets (pending).
+    Create a distribution record and credit beneficiary wallets.
+
+    immediate_release=False → credit pending_balance, hold 15 days (default)
+    immediate_release=True  → credit available_balance directly (consensus/arbitration)
+
+    release_reason: "hold" | "consensus" | "admin_arbitration"
 
     Idempotent on guarantee_id: if a distribution already exists, returns it.
     """
@@ -168,8 +176,12 @@ def create_distribution(
 
     now = datetime.now(timezone.utc)
     now_iso = now.isoformat()
-    hold_expires = (now + timedelta(days=HOLD_DAYS)).isoformat()
+    hold_expires = None if immediate_release else (now + timedelta(days=HOLD_DAYS)).isoformat()
     distribution_id = str(uuid.uuid4())
+
+    # Choose credit function based on release mode
+    _credit = credit_available_direct if immediate_release else credit_pending
+    _benef_status_ok = "credited_available" if immediate_release else "credited_pending"
 
     # Build beneficiary list and credit wallets
     beneficiaries = []
@@ -182,7 +194,7 @@ def create_distribution(
     # --- Platform beneficiary ---
     if calc["platform_cents"] > 0:
         platform_wallet = _ensure_platform_wallet()
-        tx_result = credit_pending(
+        tx_result = _credit(
             wallet_id=platform_wallet["wallet_id"],
             amount_cents=calc["platform_cents"],
             currency=capture_currency,
@@ -196,14 +208,14 @@ def create_distribution(
             "user_id": PLATFORM_WALLET_USER_ID,
             "role": "platform",
             "amount_cents": calc["platform_cents"],
-            "status": "credited_pending" if tx_result.get("success") else "failed",
+            "status": _benef_status_ok if tx_result.get("success") else "failed",
             "transaction_id": tx_result.get("transaction_id"),
         })
 
     # --- Charity beneficiary ---
     if calc["charity_cents"] > 0 and charity_association_id:
         charity_wallet = _ensure_charity_wallet(charity_association_id)
-        tx_result = credit_pending(
+        tx_result = _credit(
             wallet_id=charity_wallet["wallet_id"],
             amount_cents=calc["charity_cents"],
             currency=capture_currency,
@@ -217,13 +229,13 @@ def create_distribution(
             "user_id": charity_association_id,
             "role": "charity",
             "amount_cents": calc["charity_cents"],
-            "status": "credited_pending" if tx_result.get("success") else "failed",
+            "status": _benef_status_ok if tx_result.get("success") else "failed",
             "transaction_id": tx_result.get("transaction_id"),
         })
     elif calc["charity_cents"] > 0 and not charity_association_id:
         # Charity configured but no association → absorb into platform
         platform_wallet = _ensure_platform_wallet()
-        tx_result = credit_pending(
+        tx_result = _credit(
             wallet_id=platform_wallet["wallet_id"],
             amount_cents=calc["charity_cents"],
             currency=capture_currency,
@@ -245,7 +257,7 @@ def create_distribution(
                 "user_id": PLATFORM_WALLET_USER_ID,
                 "role": "platform",
                 "amount_cents": calc["charity_cents"],
-                "status": "credited_pending" if tx_result.get("success") else "failed",
+                "status": _benef_status_ok if tx_result.get("success") else "failed",
                 "transaction_id": tx_result.get("transaction_id"),
             })
 
@@ -253,7 +265,7 @@ def create_distribution(
     for comp_benef in calc["beneficiaries"]:
         user_wallet = ensure_wallet(comp_benef["user_id"])
         role_label = "Dédommagement" if comp_benef["role"] == "organizer" else "Compensation"
-        tx_result = credit_pending(
+        tx_result = _credit(
             wallet_id=user_wallet["wallet_id"],
             amount_cents=comp_benef["amount_cents"],
             currency=capture_currency,
@@ -267,11 +279,12 @@ def create_distribution(
             "user_id": comp_benef["user_id"],
             "role": comp_benef["role"],
             "amount_cents": comp_benef["amount_cents"],
-            "status": "credited_pending" if tx_result.get("success") else "failed",
+            "status": _benef_status_ok if tx_result.get("success") else "failed",
             "transaction_id": tx_result.get("transaction_id"),
         })
 
     # Create distribution document
+    dist_status = "completed" if immediate_release else "pending_hold"
     distribution = {
         "distribution_id": distribution_id,
         "appointment_id": appointment_id,
@@ -282,7 +295,8 @@ def create_distribution(
         "capture_amount_cents": capture_amount_cents,
         "capture_currency": capture_currency,
         "stripe_payment_intent_id": stripe_payment_intent_id,
-        "status": "pending_hold",
+        "status": dist_status,
+        "release_reason": release_reason,
         "distribution_rules": {
             "platform_commission_percent": platform_commission_percent,
             "affected_compensation_percent": affected_compensation_percent,
@@ -295,8 +309,8 @@ def create_distribution(
         "contested_by": None,
         "contest_reason": None,
         "captured_at": now_iso,
-        "distributed_at": None,
-        "completed_at": None,
+        "distributed_at": now_iso if immediate_release else None,
+        "completed_at": now_iso if immediate_release else None,
         "cancelled_at": None,
         "cancel_reason": None,
         "created_at": now_iso,
@@ -307,7 +321,8 @@ def create_distribution(
 
     logger.info(
         f"[DISTRIBUTION] Created {distribution_id} for guarantee {guarantee_id} "
-        f"— {capture_amount_cents}c, {len(beneficiaries)} beneficiaries"
+        f"— {capture_amount_cents}c, {len(beneficiaries)} beneficiaries, "
+        f"release={release_reason}, immediate={immediate_release}"
     )
 
     # Send distribution created emails to human beneficiaries (non-blocking)
@@ -315,7 +330,7 @@ def create_distribution(
         from services.financial_emails import send_distribution_created_email
         apt_date = appointment.get("start_datetime", "") if appointment else ""
         for benef in beneficiaries:
-            if benef["role"] in ("organizer", "participant") and benef.get("status") == "credited_pending":
+            if benef["role"] in ("organizer", "participant") and benef.get("status") in ("credited_pending", "credited_available"):
                 send_distribution_created_email(
                     user_id=benef["user_id"],
                     role=benef["role"],
@@ -324,6 +339,8 @@ def create_distribution(
                     appointment_date=apt_date,
                     distribution_id=distribution_id,
                     hold_expires_at=hold_expires,
+                    immediate_release=immediate_release,
+                    release_reason=release_reason,
                 )
     except Exception as e:
         logger.warning(f"[DISTRIBUTION] Email notification error (non-blocking): {e}")

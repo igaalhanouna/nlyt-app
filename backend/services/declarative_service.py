@@ -345,8 +345,11 @@ def _run_analysis(appointment_id: str):
         reset_cas_a_overrides(appointment_id)
         appointment = db.appointments.find_one({"appointment_id": appointment_id}, {"_id": 0})
         participants = list(db.participants.find({"appointment_id": appointment_id}, {"_id": 0}))
-        _process_financial_outcomes(appointment_id, appointment, participants)
-        logger.info(f"[DECLARATIVE] All manual_reviews resolved for {appointment_id}. Financial engine relaunched.")
+        _process_financial_outcomes(
+            appointment_id, appointment, participants,
+            immediate_release=True, release_reason="consensus",
+        )
+        logger.info(f"[DECLARATIVE] All manual_reviews resolved for {appointment_id}. Financial engine relaunched (immediate release: consensus).")
 
 
 def _run_small_group_analysis(appointment_id: str, review_records: list, submitted_sheets: list) -> list:
@@ -728,8 +731,11 @@ def resolve_dispute(dispute_id: str, final_outcome: str, resolution_note: str, r
         reset_cas_a_overrides(appointment_id)
         appointment = db.appointments.find_one({"appointment_id": appointment_id}, {"_id": 0})
         participants = list(db.participants.find({"appointment_id": appointment_id}, {"_id": 0}))
-        _process_financial_outcomes(appointment_id, appointment, participants)
-        logger.info(f"[DISPUTE] All disputes resolved for {appointment_id}. Financial engine relaunched.")
+        _process_financial_outcomes(
+            appointment_id, appointment, participants,
+            immediate_release=True, release_reason="admin_arbitration",
+        )
+        logger.info(f"[DISPUTE] All disputes resolved for {appointment_id}. Financial engine relaunched (immediate release: admin_arbitration).")
 
     # Non-blocking: send dispute resolution emails
     try:
