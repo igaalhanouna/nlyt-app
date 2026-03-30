@@ -175,6 +175,7 @@ async def teams_webhook(request: Request):
     notifications = payload.get("value", [])
     logger.info(f"[TEAMS-WH] Received {len(notifications)} notification(s)")
 
+    processed_count = 0
     for notif in notifications:
         resource = notif.get("resource", "")
         change_type = notif.get("changeType", "")
@@ -210,8 +211,9 @@ async def teams_webhook(request: Request):
             call_record_id = resource.split("/")[-1] if "/" in resource else resource
             logger.info(f"[TEAMS-WH] Call record created: {call_record_id}")
             _process_teams_call_record(call_record_id, event_id)
+            processed_count += 1
 
-    return {"status": "success", "processed": len(notifications)}
+    return {"status": "success", "processed": processed_count}
 
 
 def _process_teams_call_record(call_record_id: str, event_id: str):

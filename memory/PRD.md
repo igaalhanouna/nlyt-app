@@ -175,3 +175,12 @@ Application SaaS (React/FastAPI/MongoDB) de gestion des presences avec garanties
 - Teams delegated OAuth: meeting cree via connexion Outlook existante (https://teams.microsoft.com/l/meetup-join/...)
 - Les deux integrations sont operationnelles avec de vrais tokens
 - Aucun correctif necessaire
+
+## Webhooks temps reel Zoom/Teams (2026-03-30)
+- POST /api/webhooks/zoom : CRC challenge + meeting.ended → fetch attendance immediat (60s delay)
+- POST /api/webhooks/teams : validation token + callRecords → fetch attendance (30s delay)
+- Dedup via video_webhook_events collection
+- Routes admin: GET /api/admin/webhooks/status + POST /api/admin/webhooks/teams-subscribe
+- Scheduler: renouvellement subscriptions Graph toutes les 24h
+- ZOOM_WEBHOOK_SECRET_TOKEN configure dans .env
+- Tests: 15/15 PASS (iteration 161)
