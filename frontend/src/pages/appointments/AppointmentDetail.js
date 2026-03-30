@@ -186,13 +186,13 @@ function FinancialResultSection({ appointment, participants, isOrganizer }) {
             statusIcon = <CheckCircle className="w-4 h-4" />;
             statusColor = 'text-emerald-700';
             statusBg = 'bg-emerald-50';
-            statusText = 'Present';
+            statusText = 'Présent à l\'heure';
             explanation = `Compensation recue : +${formatAmount(f.compensation_received_cents)}`;
           } else if (isOnTime) {
             statusIcon = <CheckCircle className="w-4 h-4" />;
             statusColor = 'text-emerald-700';
             statusBg = 'bg-emerald-50';
-            statusText = 'Present';
+            statusText = 'Présent à l\'heure';
             explanation = 'Engagement respecte — garantie liberee';
           } else if (isWaived) {
             statusIcon = <CheckCircle className="w-4 h-4" />;

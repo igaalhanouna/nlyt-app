@@ -25,8 +25,8 @@ const REASON_LABELS = {
 };
 
 const DECLARATION_LABELS = {
-  present_on_time: 'présent(e)',
-  present_late: 'présent(e) (en retard)',
+  present_on_time: 'présent(e) à l\'heure',
+  present_late: 'présent(e) en retard',
   absent: 'absent(e)',
   unknown: 'ne sait pas',
 };
@@ -408,8 +408,8 @@ export default function DisputeDetailPage() {
 
 const STATUS_DISPLAY = {
   absent: { label: 'absent(e)', color: 'text-red-600 bg-red-50 border-red-100', icon: UserX },
-  present_on_time: { label: 'présent(e)', color: 'text-emerald-600 bg-emerald-50 border-emerald-100', icon: UserCheck },
-  present_late: { label: 'présent(e) (en retard)', color: 'text-amber-600 bg-amber-50 border-amber-100', icon: Clock },
+  present_on_time: { label: 'présent(e) à l\'heure', color: 'text-emerald-600 bg-emerald-50 border-emerald-100', icon: UserCheck },
+  present_late: { label: 'présent(e) en retard', color: 'text-amber-600 bg-amber-50 border-amber-100', icon: Clock },
   unknown: { label: 'ne sait pas', color: 'text-slate-500 bg-slate-50 border-slate-100', icon: AlertTriangle },
 };
 

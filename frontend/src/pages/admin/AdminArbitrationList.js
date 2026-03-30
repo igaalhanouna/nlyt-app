@@ -5,7 +5,7 @@ import AppNavbar from '../../components/AppNavbar';
 import { Shield, Clock, CheckCircle, XCircle, Scale, ChevronRight, Video, MapPin } from 'lucide-react';
 
 const POSITION_LABELS = {
-  confirmed_present: 'Present',
+  confirmed_present: 'Présent à l\'heure',
   confirmed_absent: 'Absent',
   confirmed_late_penalized: 'Retard penalise',
 };

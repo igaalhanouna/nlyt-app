@@ -171,7 +171,7 @@ export default function DecisionDetailPage() {
                   )}
                   <span className="text-slate-600">{dec.first_name || 'Participant'}</span>
                   <span className={`text-xs font-medium ${dec.declared_status === 'absent' ? 'text-red-600' : 'text-emerald-600'}`}>
-                    {dec.declared_status === 'absent' ? 'Absent' : 'Present'}
+                    {dec.declared_status === 'absent' ? 'Absent' : dec.declared_status === 'present_late' ? 'Présent en retard' : 'Présent à l\'heure'}
                   </span>
                 </div>
               ))}

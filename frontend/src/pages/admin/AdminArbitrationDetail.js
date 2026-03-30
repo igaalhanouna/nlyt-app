@@ -14,13 +14,13 @@ import {
 // ── Human-readable wording maps ──
 
 const POSITION_STATUS = {
-  confirmed_present: 'présent',
+  confirmed_present: 'présent à l\'heure',
   confirmed_absent: 'absent',
   confirmed_late_penalized: 'en retard',
 };
 
 const OUTCOME_OPTIONS = [
-  { value: 'on_time', label: 'Present', subtitle: 'Aucune penalite', icon: CheckCircle, color: 'emerald' },
+  { value: 'on_time', label: 'Présent à l\'heure', subtitle: 'Aucune pénalité', icon: CheckCircle, color: 'emerald' },
   { value: 'no_show', label: 'Absent', subtitle: 'Penalite appliquee', icon: UserX, color: 'red' },
   { value: 'late_penalized', label: 'En retard', subtitle: 'Penalite partielle', icon: Timer, color: 'amber' },
 ];
@@ -210,7 +210,7 @@ export default function AdminArbitrationDetail() {
                         <span className="text-slate-700 font-medium">{dec.first_name || 'Participant'}</span>
                         <span className="text-slate-400">dit :</span>
                         <span className={`font-medium ${dec.declared_status === 'absent' ? 'text-red-600' : 'text-emerald-600'}`}>
-                          {dec.declared_status === 'absent' ? 'Il etait absent' : 'Il etait present'}
+                          {dec.declared_status === 'absent' ? 'Absent' : dec.declared_status === 'present_late' ? 'Présent en retard' : 'Présent à l\'heure'}
                         </span>
                       </div>
                     ))}
@@ -494,14 +494,14 @@ function FinancialPreview({ outcome, fc, targetName }) {
 // ── Zone 4 Read-Only: Resolution Summary ──
 
 const OUTCOME_LABELS = {
-  on_time: { label: 'Present', subtitle: 'Aucune penalite', color: 'emerald', Icon: CheckCircle },
+  on_time: { label: 'Présent à l\'heure', subtitle: 'Aucune pénalité', color: 'emerald', Icon: CheckCircle },
   no_show: { label: 'Absent', subtitle: 'Penalite appliquee', color: 'red', Icon: UserX },
   late_penalized: { label: 'En retard', subtitle: 'Penalite partielle', color: 'amber', Icon: Timer },
 };
 
 const STATUS_LABELS_RESOLVED = {
   resolved: 'Arbitre par l\'admin',
-  agreed_present: 'Accord mutuel : Present',
+  agreed_present: 'Accord mutuel : Présent à l\'heure',
   agreed_absent: 'Accord mutuel : Absent',
   agreed_late_penalized: 'Accord mutuel : Retard',
 };
@@ -854,7 +854,7 @@ function IncoherenceSummary({ dossiers }) {
     if (!hasAnySignal && declPresent > 0 && declAbsent === 0) {
       flags.push({
         type: 'missing_proof',
-        text: `${name} est declare present, mais aucune trace technique n'a ete enregistree.`,
+        text: `${name} est déclaré présent à l'heure, mais aucune trace technique n'a été enregistrée.`,
       });
     }
   }
