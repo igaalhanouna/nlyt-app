@@ -1,11 +1,11 @@
 import React from 'react';
 import { Button } from '../../components/ui/button';
-import { Fingerprint, Activity, Video, Copy, UserCheck, UserX, AlertTriangle, Loader2, CheckCircle } from 'lucide-react';
+import { Fingerprint, Activity, Video, Copy, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
-export default function ProofSessionsPanel({ participants, proofSessions, validatingSession, onValidateSession, onRefresh }) {
+export default function ProofSessionsPanel({ participants, proofSessions, isOrganizer }) {
   const handleCopyProofLink = (participant) => {
     const link = `${API_URL}/proof/${participant.invitation_token}?token=${participant.invitation_token}`;
     navigator.clipboard.writeText(link).then(() => {
@@ -41,7 +41,7 @@ export default function ProofSessionsPanel({ participants, proofSessions, valida
         </div>
       </div>
 
-      {participants.length > 0 && (
+      {isOrganizer && participants.length > 0 && (
         <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
           <p className="text-sm font-semibold text-blue-900 mb-2">Liens de check-in NLYT</p>
           <p className="text-xs text-blue-700 mb-3">Chaque participant a un lien unique. Ce lien est inclus dans l'email d'invitation.</p>
@@ -80,7 +80,6 @@ export default function ProofSessionsPanel({ participants, proofSessions, valida
                 <th className="text-left py-2 px-3 text-xs font-semibold text-slate-500 uppercase">Score</th>
                 <th className="text-left py-2 px-3 text-xs font-semibold text-slate-500 uppercase">Niveau</th>
                 <th className="text-left py-2 px-3 text-xs font-semibold text-slate-500 uppercase">Statut</th>
-                <th className="text-right py-2 px-3 text-xs font-semibold text-slate-500 uppercase">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -137,35 +136,6 @@ export default function ProofSessionsPanel({ participants, proofSessions, valida
                         <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[finalStatus] || 'bg-slate-50 text-slate-500'}`}>
                           {statusLabels[finalStatus] || '—'} <span className="ml-1 text-slate-400">(suggéré)</span>
                         </span>
-                      )}
-                    </td>
-                    <td className="py-2.5 px-3 text-right">
-                      {/* Validation buttons only shown for organizer (when onValidateSession is provided) */}
-                      {!session.final_status && !isActive && onValidateSession && (
-                        <div className="flex items-center gap-1 justify-end">
-                          <Button variant="outline" size="sm" className="h-6 text-xs px-2 text-emerald-700 border-emerald-200 hover:bg-emerald-50"
-                            onClick={() => onValidateSession(session.session_id, 'present')} disabled={validatingSession === session.session_id}
-                            data-testid={`validate-present-${session.session_id}`}>
-                            {validatingSession === session.session_id ? <Loader2 className="w-3 h-3 animate-spin" /> : <UserCheck className="w-3 h-3" />}
-                          </Button>
-                          <Button variant="outline" size="sm" className="h-6 text-xs px-2 text-amber-700 border-amber-200 hover:bg-amber-50"
-                            onClick={() => onValidateSession(session.session_id, 'partial')} disabled={validatingSession === session.session_id}
-                            data-testid={`validate-partial-${session.session_id}`}>
-                            <AlertTriangle className="w-3 h-3" />
-                          </Button>
-                          <Button variant="outline" size="sm" className="h-6 text-xs px-2 text-red-700 border-red-200 hover:bg-red-50"
-                            onClick={() => onValidateSession(session.session_id, 'absent')} disabled={validatingSession === session.session_id}
-                            data-testid={`validate-absent-${session.session_id}`}>
-                            <UserX className="w-3 h-3" />
-                          </Button>
-                        </div>
-                      )}
-                      {/* Read-only status for participant (when onValidateSession is not provided) */}
-                      {!session.final_status && !isActive && !onValidateSession && (
-                        <span className="text-xs text-slate-400">En attente de validation</span>
-                      )}
-                      {session.final_status && (
-                        <span className="text-xs text-slate-400">Validé</span>
                       )}
                     </td>
                   </tr>

@@ -341,7 +341,6 @@ export default function AppointmentDetail() {
 
   // Proof sessions
   const [proofSessions, setProofSessions] = useState([]);
-  const [validatingSession, setValidatingSession] = useState(null);
 
   // File ingest
   const [ingestMode, setIngestMode] = useState('file');
@@ -435,8 +434,12 @@ export default function AppointmentDetail() {
 
       // Organizer-only loads
       if (viewerIsOrganizer) {
-        videoEvidenceAPI.get(id).then(res => setVideoEvidence(res.data)).catch(() => {});
         videoEvidenceAPI.getLogs(id).then(res => setVideoIngestionLogs(res.data?.logs || [])).catch(() => {});
+      }
+
+      // Video evidence — both roles can see results
+      if (viewerIsOrganizer || data.appointment_type === 'video') {
+        videoEvidenceAPI.get(id).then(res => setVideoEvidence(res.data)).catch(() => {});
       }
     } catch { toast.error('Erreur lors du chargement'); }
     finally { setLoading(false); }
@@ -561,17 +564,6 @@ export default function AppointmentDetail() {
     try { await invitationAPI.resend(token); toast.success('Invitation renvoyée'); }
     catch (error) { toast.error(error.response?.data?.detail || "Erreur lors du renvoi"); }
     finally { setResendingToken(null); }
-  };
-
-  const handleValidateSession = async (sessionId, status) => {
-    setValidatingSession(sessionId);
-    try {
-      await proofAPI.validate(id, sessionId, status);
-      toast.success(`Session validée : ${status === 'present' ? 'Présent' : status === 'partial' ? 'Partiel' : 'Absent'}`);
-      const res = await proofAPI.getSessions(id);
-      setProofSessions(res.data?.sessions || []);
-    } catch (error) { toast.error(error.response?.data?.detail || "Erreur lors de la validation"); }
-    finally { setValidatingSession(null); }
   };
 
   const handleResumeGuarantee = async () => {
@@ -940,11 +932,12 @@ export default function AppointmentDetail() {
                 <EvidenceDashboard participants={participants} evidenceData={evidenceData} appointment={appointment} />
               )}
               {appointment.appointment_type === 'video' && (
-                <ProofSessionsPanel participants={participants} proofSessions={proofSessions} validatingSession={validatingSession} onValidateSession={isOrganizer ? handleValidateSession : undefined} />
+                <ProofSessionsPanel participants={participants} proofSessions={proofSessions} isOrganizer={isOrganizer} />
               )}
-              {isOrganizer && appointment.appointment_type === 'video' && (
+              {appointment.appointment_type === 'video' && (
                 <VideoEvidencePanel
                   appointment={appointment} videoEvidence={videoEvidence} videoIngestionLogs={videoIngestionLogs}
+                  isOrganizer={isOrganizer}
                   showVideoIngest={showVideoIngest} setShowVideoIngest={setShowVideoIngest}
                   videoIngestForm={videoIngestForm} setVideoIngestForm={setVideoIngestForm}
                   ingestMode={ingestMode} setIngestMode={setIngestMode}

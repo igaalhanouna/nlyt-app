@@ -40,6 +40,7 @@ export default function VideoEvidencePanel({
   appointment,
   videoEvidence,
   videoIngestionLogs,
+  isOrganizer,
   showVideoIngest, setShowVideoIngest,
   videoIngestForm, setVideoIngestForm,
   ingestMode, setIngestMode,
@@ -75,7 +76,7 @@ export default function VideoEvidencePanel({
           )}
         </div>
         <div className="flex gap-2">
-          {!appointment.meeting_join_url && appointment.meeting_provider && (
+          {isOrganizer && !appointment.meeting_join_url && appointment.meeting_provider && (
             <Button variant="default" size="sm" onClick={onCreateMeeting} disabled={creatingMeeting} className="whitespace-normal h-auto min-h-[36px]" data-testid="create-meeting-btn">
               {creatingMeeting ? <Loader2 className="w-4 h-4 animate-spin mr-1 flex-shrink-0" /> : <PlayCircle className="w-4 h-4 mr-1 flex-shrink-0" />}
               Créer la réunion
@@ -105,16 +106,18 @@ export default function VideoEvidencePanel({
                 )}
               </div>
               <div className="flex flex-wrap gap-2">
-                {appointment.meeting_join_url && (
+                {isOrganizer && appointment.meeting_join_url && (
                   <Button variant={isMeetingEnded && !hasEvidence ? 'default' : 'outline'} size="sm" onClick={onFetchAttendance} disabled={fetchingAttendance} className="whitespace-normal text-left h-auto min-h-[36px]" data-testid="fetch-attendance-btn">
                     {fetchingAttendance ? <Loader2 className="w-4 h-4 animate-spin mr-1 flex-shrink-0" /> : <RefreshCw className="w-4 h-4 mr-1 flex-shrink-0" />}
                     Récupérer les présences
                   </Button>
                 )}
+                {isOrganizer && (
                 <Button variant="outline" size="sm" onClick={() => setShowVideoIngest(!showVideoIngest)} className="whitespace-normal text-left h-auto min-h-[36px]" data-testid="toggle-video-ingest-btn">
                   <Upload className="w-4 h-4 mr-1 flex-shrink-0" />
                   Import manuel
                 </Button>
+                )}
               </div>
             </div>
 
@@ -156,11 +159,16 @@ export default function VideoEvidencePanel({
                   <p className="text-sm font-medium text-emerald-800" data-testid="evidence-status-fetched">Présences importées pour {providerLabel}</p>
                 ) : (
                   <>
-                    <p className="text-sm font-medium text-amber-900" data-testid="evidence-status-meet-manual">Import requis — {providerLabel}</p>
-                    <p className="text-xs text-amber-700 mt-0.5">Google Meet ne fournit pas de rapport automatique. Après la réunion, importez le rapport de présence (CSV ou JSON).</p>
+                    <p className="text-sm font-medium text-amber-900" data-testid="evidence-status-meet-manual">
+                      {isOrganizer ? 'Import requis' : 'En attente de données'} — {providerLabel}
+                    </p>
+                    {isOrganizer && (
+                      <p className="text-xs text-amber-700 mt-0.5">Google Meet ne fournit pas de rapport automatique. Après la réunion, importez le rapport de présence (CSV ou JSON).</p>
+                    )}
                   </>
                 )}
               </div>
+              {isOrganizer && (
               <div className="flex-shrink-0">
                 <Button variant={!hasEvidence ? 'default' : 'outline'} size="sm"
                   onClick={() => setShowVideoIngest(!showVideoIngest)}
@@ -170,13 +178,14 @@ export default function VideoEvidencePanel({
                   Importer le rapport de présence
                 </Button>
               </div>
+              )}
             </div>
           </div>
         )}
       </div>
 
-      {/* Ingestion Form */}
-      {showVideoIngest && (
+      {/* Ingestion Form — Organizer only */}
+      {isOrganizer && showVideoIngest && (
         <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-5 mb-5" data-testid="video-ingest-form">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">

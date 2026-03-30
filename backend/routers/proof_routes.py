@@ -399,17 +399,31 @@ async def checkout(appointment_id: str, req: CheckoutRequest):
 
 @router.get("/{appointment_id}/sessions")
 async def get_sessions(appointment_id: str, user=Depends(get_current_user)):
-    """Get all proof sessions for an appointment (organizer only)."""
+    """Get proof sessions for an appointment.
+    - Organizer: sees all sessions
+    - Participant: sees only their own sessions
+    """
     appointment = db.appointments.find_one({"appointment_id": appointment_id}, {"_id": 0})
     if not appointment:
         raise HTTPException(status_code=404, detail="Rendez-vous introuvable")
-    if appointment.get("organizer_id") != user["user_id"]:
-        raise HTTPException(status_code=403, detail="Accès réservé à l'organisateur")
 
-    sessions = list(db.proof_sessions.find(
-        {"appointment_id": appointment_id},
-        {"_id": 0, "heartbeats": 0},
-    ))
+    is_organizer = appointment.get("organizer_id") == user["user_id"]
+
+    # Participant access: must be a participant of this appointment
+    viewer_participant = None
+    if not is_organizer:
+        viewer_participant = db.participants.find_one(
+            {"appointment_id": appointment_id, "user_id": user["user_id"]},
+            {"_id": 0, "participant_id": 1},
+        )
+        if not viewer_participant:
+            raise HTTPException(status_code=403, detail="Accès réservé aux membres de ce rendez-vous")
+
+    session_filter = {"appointment_id": appointment_id}
+    if not is_organizer and viewer_participant:
+        session_filter["participant_id"] = viewer_participant["participant_id"]
+
+    sessions = list(db.proof_sessions.find(session_filter, {"_id": 0, "heartbeats": 0}))
 
     # Enrich with video provider display names from evidence
     participant_ids = list({s["participant_id"] for s in sessions})
