@@ -14,7 +14,7 @@ import {
 // ── Human-readable wording maps ──
 
 const POSITION_STATUS = {
-  confirmed_present: 'present',
+  confirmed_present: 'présent',
   confirmed_absent: 'absent',
   confirmed_late_penalized: 'en retard',
 };
@@ -385,7 +385,9 @@ function PositionCard({ role, declarantName, subjectName, isSelfDeclaration, pos
 
   const statusLabel = POSITION_STATUS[position];
   const phrase = statusLabel
-    ? `Selon ${declarantName}, ${subjectName} etait ${statusLabel}`
+    ? (declarantName === subjectName
+        ? `${declarantName} déclare être ${statusLabel}`
+        : `Selon ${declarantName}, ${subjectName} était ${statusLabel}`)
     : 'Position non soumise';
 
   return (
@@ -883,5 +885,11 @@ function buildDisagreementPhrase(dispute) {
   const targetName = dispute.target_name || 'la cible';
   const orgSays = POSITION_STATUS[org] || '?';
   const parSays = POSITION_STATUS[par] || '?';
-  return `Desaccord : ${orgName} dit que ${targetName} etait ${orgSays}. ${cpName} dit que ${targetName} etait ${parSays}.`;
+  const orgPhrase = orgName === targetName
+    ? `${orgName} déclare être ${orgSays}`
+    : `Selon ${orgName}, ${targetName} était ${orgSays}`;
+  const cpPhrase = cpName === targetName
+    ? `${cpName} déclare être ${parSays}`
+    : `Selon ${cpName}, ${targetName} était ${parSays}`;
+  return `Désaccord : ${orgPhrase}. ${cpPhrase}.`;
 }
