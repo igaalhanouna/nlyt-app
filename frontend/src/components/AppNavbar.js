@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from './ui/button';
-import { Settings, LogOut, Menu, X, AlertTriangle, TrendingUp, ClipboardCheck, CalendarDays } from 'lucide-react';
+import { Settings, LogOut, Menu, X, AlertTriangle, TrendingUp, ClipboardCheck, CalendarDays, LayoutDashboard, Scale, FileCheck, Shield } from 'lucide-react';
 import { attendanceAPI, appointmentAPI, notificationAPI } from '../services/api';
 import api from '../services/api';
 
@@ -235,6 +235,7 @@ export default function AppNavbar() {
                 Agenda
               </Link>
               <Link to="/dashboard" className={mobileLinkClass('/dashboard')} data-testid="mobile-nav-dashboard">
+                <LayoutDashboard className="w-4.5 h-4.5" />
                 Tableau de bord
                 {actionRequiredCount > 0 && (
                   <span className="ml-auto inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full bg-red-500 text-white text-xs font-bold" data-testid="mobile-action-required-badge">
@@ -252,6 +253,7 @@ export default function AppNavbar() {
                 )}
               </Link>
               <Link to="/litiges" className={mobileLinkClass('/litiges')} data-testid="mobile-nav-litiges">
+                <Scale className="w-4.5 h-4.5" />
                 Litiges
                 {(activeDisputeCount > 0 || unreadDisputes > 0) && (
                   <span className={`ml-auto inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full text-white text-xs font-bold ${unreadDisputes > 0 ? 'bg-red-500' : 'bg-amber-500'}`}>
@@ -260,6 +262,7 @@ export default function AppNavbar() {
                 )}
               </Link>
               <Link to="/decisions" className={mobileLinkClass('/decisions')} data-testid="mobile-nav-decisions">
+                <FileCheck className="w-4.5 h-4.5" />
                 Decisions
                 {unreadDecisions > 0 && (
                   <span className="ml-auto inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full bg-red-500 text-white text-xs font-bold">
@@ -269,6 +272,7 @@ export default function AppNavbar() {
               </Link>
               {isAdmin && (
                 <Link to="/admin" className={mobileLinkClass('/admin')} data-testid="mobile-nav-admin">
+                  <Shield className="w-4.5 h-4.5" />
                   Admin
                 </Link>
               )}
