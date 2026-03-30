@@ -149,3 +149,9 @@ Application SaaS (React/FastAPI/MongoDB) de gestion des presences avec garanties
 - Backend (7/7): timeline flags, labels, retry endpoint, appointment detail
 - Frontend (6/6): boutons garantie, clic→API, reuse carte, URL handling, autres flows intacts
 - Total: 13/13 PASS
+
+## Navbar Action Required Badge (2026-03-30)
+- Ajout badge rouge sur "Tableau de bord" dans la navbar avec le nombre d'actions requises
+- Fetch via `appointmentAPI.myTimeline()` toutes les 60s (meme pattern que les autres badges)
+- Visible en desktop et mobile (hamburger dot rouge inclus)
+- Fichier modifie: AppNavbar.js

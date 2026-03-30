@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from './ui/button';
 import { Settings, LogOut, Menu, X, AlertTriangle, TrendingUp, ClipboardCheck, CalendarDays } from 'lucide-react';
-import { attendanceAPI, notificationAPI } from '../services/api';
+import { attendanceAPI, appointmentAPI, notificationAPI } from '../services/api';
 import api from '../services/api';
 
 export default function AppNavbar() {
@@ -14,6 +14,7 @@ export default function AppNavbar() {
   const [activeDisputeCount, setActiveDisputeCount] = useState(0);
   const [unreadDecisions, setUnreadDecisions] = useState(0);
   const [unreadDisputes, setUnreadDisputes] = useState(0);
+  const [actionRequiredCount, setActionRequiredCount] = useState(0);
 
   // Close drawer on route change
   useEffect(() => { setMobileOpen(false); }, [pathname]);
@@ -72,6 +73,21 @@ export default function AppNavbar() {
     return () => clearInterval(interval);
   }, []);
 
+  // Fetch action_required count for dashboard badge
+  useEffect(() => {
+    const fetchActionCount = async () => {
+      try {
+        const res = await appointmentAPI.myTimeline();
+        setActionRequiredCount(res.data.counts?.action_required || 0);
+      } catch {
+        // Silently ignore
+      }
+    };
+    fetchActionCount();
+    const interval = setInterval(fetchActionCount, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
   const isActive = (path) => {
     if (path === '/dashboard') return pathname === '/dashboard' || pathname === '/dashboard/participant';
     if (path === '/settings') return pathname.startsWith('/settings');
@@ -116,8 +132,13 @@ export default function AppNavbar() {
             <Link to="/agenda" className={linkClass('/agenda')} data-testid="navbar-agenda-link">
               Agenda
             </Link>
-            <Link to="/dashboard" className={linkClass('/dashboard')} data-testid="navbar-dashboard-link">
+            <Link to="/dashboard" className={`${linkClass('/dashboard')} relative flex items-center gap-1.5`} data-testid="navbar-dashboard-link">
               Tableau de bord
+              {actionRequiredCount > 0 && (
+                <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold leading-none" data-testid="navbar-action-required-badge">
+                  {actionRequiredCount}
+                </span>
+              )}
             </Link>
             <Link to="/presences" className={`${linkClass('/presences')} relative flex items-center gap-1.5`} data-testid="navbar-presences-link">
               Presences
@@ -175,8 +196,8 @@ export default function AppNavbar() {
             aria-label="Menu"
           >
             <Menu className="w-5 h-5" />
-            {(pendingReviewCount > 0 || activeDisputeCount > 0 || unreadDecisions > 0 || unreadDisputes > 0) && (
-              <span className={`absolute top-1 right-1 w-2.5 h-2.5 rounded-full ${unreadDecisions > 0 || unreadDisputes > 0 ? 'bg-red-500' : 'bg-amber-500'}`} />
+            {(pendingReviewCount > 0 || activeDisputeCount > 0 || unreadDecisions > 0 || unreadDisputes > 0 || actionRequiredCount > 0) && (
+              <span className={`absolute top-1 right-1 w-2.5 h-2.5 rounded-full ${unreadDecisions > 0 || unreadDisputes > 0 || actionRequiredCount > 0 ? 'bg-red-500' : 'bg-amber-500'}`} />
             )}
           </button>
         </div>
@@ -215,6 +236,11 @@ export default function AppNavbar() {
               </Link>
               <Link to="/dashboard" className={mobileLinkClass('/dashboard')} data-testid="mobile-nav-dashboard">
                 Tableau de bord
+                {actionRequiredCount > 0 && (
+                  <span className="ml-auto inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full bg-red-500 text-white text-xs font-bold" data-testid="mobile-action-required-badge">
+                    {actionRequiredCount}
+                  </span>
+                )}
               </Link>
               <Link to="/presences" className={mobileLinkClass('/presences')} data-testid="mobile-nav-presences">
                 <ClipboardCheck className="w-4.5 h-4.5" />
