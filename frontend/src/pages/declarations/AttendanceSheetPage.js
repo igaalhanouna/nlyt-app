@@ -10,15 +10,15 @@ import AppBreadcrumb from '../../components/AppBreadcrumb';
 import { formatDateTimeCompactFr } from '../../utils/dateFormat';
 
 const STATUS_OPTIONS = [
-  { value: 'present_on_time', label: "Present(e) a l'heure", color: 'border-emerald-400 bg-emerald-50 text-emerald-800', icon: UserCheck },
-  { value: 'present_late', label: 'Present(e) en retard', color: 'border-amber-400 bg-amber-50 text-amber-800', icon: Timer },
+  { value: 'present_on_time', label: "Présent(e) à l'heure", color: 'border-emerald-400 bg-emerald-50 text-emerald-800', icon: UserCheck },
+  { value: 'present_late', label: 'Présent(e) en retard', color: 'border-amber-400 bg-amber-50 text-amber-800', icon: Timer },
   { value: 'absent', label: 'Absent(e)', color: 'border-red-400 bg-red-50 text-red-800', icon: UserX },
   { value: 'unknown', label: 'Je ne sais pas', color: 'border-slate-300 bg-slate-50 text-slate-600', icon: HelpCircle },
 ];
 
 const STATUS_DISPLAY = {
-  present_on_time: { label: "Present(e) a l'heure", color: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: UserCheck },
-  present_late: { label: 'Present(e) en retard', color: 'bg-amber-50 text-amber-700 border-amber-200', icon: Timer },
+  present_on_time: { label: "Présent(e) à l'heure", color: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: UserCheck },
+  present_late: { label: 'Présent(e) en retard', color: 'bg-amber-50 text-amber-700 border-amber-200', icon: Timer },
   absent: { label: 'Absent(e)', color: 'bg-red-50 text-red-700 border-red-200', icon: UserX },
   unknown: { label: 'Je ne sais pas', color: 'bg-slate-50 text-slate-600 border-slate-200', icon: HelpCircle },
 };
