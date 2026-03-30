@@ -120,6 +120,12 @@ Application SaaS (React/FastAPI/MongoDB) de gestion des presences avec garanties
 - Tous les CTA existants preserves (Accept, Refuse, Relancer, Annuler, Finaliser)
 - Alignement complet avec le pattern TimelineCard
 
+## safeFetchJson Standardization (2026-03-30)
+- Helper cree: /app/frontend/src/utils/safeFetchJson.js
+- Pattern: resp.text() + JSON.parse() avec fallback (evite "body stream already read")
+- 12 fichiers migres, 0 appel .json() brut restant dans toute l'app
+- Fichiers: OrganizerDashboard, AppointmentDetail, AppointmentWizard, InvitationPage, Profile, AuthCallback, OAuthButtons, AdminAssociations, AdminPayouts, AdminUsers, QRCheckin, LandingPage, AddressAutocomplete
+
 ## Test Results - Iteration 155 (2026-03-30)
 - FLUX1 (suppression carte sans auto-recovery): PASS
 - FLUX2 (creation RDV sans carte → Stripe redirect): PASS

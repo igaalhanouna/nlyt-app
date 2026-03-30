@@ -10,7 +10,8 @@ export default function LandingPage() {
 
   useEffect(() => {
     fetch(`${API}/api/impact`)
-      .then(r => r.json())
+      .then(r => r.text())
+      .then(text => { try { return JSON.parse(text); } catch { return {}; } })
       .then(d => setImpactCents(d.total_charity_cents || 0))
       .catch(() => {});
   }, []);
