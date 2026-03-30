@@ -169,3 +169,9 @@ Application SaaS (React/FastAPI/MongoDB) de gestion des presences avec garanties
 - Lien dans le dashboard admin (`AdminDashboard.js`)
 - Le webhook Stripe peut toujours ecraser stale → completed/failed
 - Tests: 15/15 PASS (iteration 160)
+
+## Test reel Zoom/Teams (2026-03-30)
+- Zoom S2S OAuth: token acquis + meeting cree (https://us05web.zoom.us/j/83755430702)
+- Teams delegated OAuth: meeting cree via connexion Outlook existante (https://teams.microsoft.com/l/meetup-join/...)
+- Les deux integrations sont operationnelles avec de vrais tokens
+- Aucun correctif necessaire
