@@ -282,6 +282,9 @@ def _get_ms_app_token() -> str:
     """Get an application-level token for Microsoft Graph."""
     if not MS_CLIENT_ID or not MS_CLIENT_SECRET:
         return ""
+    if not MS_TENANT_ID or MS_TENANT_ID == "common":
+        logger.warning("[TEAMS-WH] client_credentials requires a specific tenant ID, not 'common'")
+        return ""
     try:
         resp = requests.post(
             f"https://login.microsoftonline.com/{MS_TENANT_ID}/oauth2/v2.0/token",
@@ -307,7 +310,7 @@ def create_graph_subscription() -> dict:
         return {"error": "Cannot acquire application token"}
 
     webhook_url = f"{FRONTEND_URL}/api/webhooks/teams"
-    expiry = (datetime.now(timezone.utc) + timedelta(hours=71)).isoformat() + "Z"
+    expiry = (datetime.now(timezone.utc) + timedelta(hours=71)).strftime("%Y-%m-%dT%H:%M:%S.000Z")
 
     try:
         resp = requests.post(
