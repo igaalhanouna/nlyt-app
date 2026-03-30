@@ -932,7 +932,7 @@ export default function AppointmentDetail() {
                 <EvidenceDashboard participants={participants} evidenceData={evidenceData} appointment={appointment} />
               )}
               {appointment.appointment_type === 'video' && (
-                <ProofSessionsPanel participants={participants} proofSessions={proofSessions} isOrganizer={isOrganizer} />
+                <ProofSessionsPanel proofSessions={proofSessions} isOrganizer={isOrganizer} />
               )}
               {appointment.appointment_type === 'video' && (
                 <VideoEvidencePanel

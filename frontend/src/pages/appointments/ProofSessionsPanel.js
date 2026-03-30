@@ -1,20 +1,7 @@
 import React from 'react';
-import { Button } from '../../components/ui/button';
-import { Fingerprint, Activity, Video, Copy, CheckCircle } from 'lucide-react';
-import { toast } from 'sonner';
+import { Fingerprint, Activity, Video, CheckCircle } from 'lucide-react';
 
-const API_URL = process.env.REACT_APP_BACKEND_URL;
-
-export default function ProofSessionsPanel({ participants, proofSessions, isOrganizer }) {
-  const handleCopyProofLink = (participant) => {
-    const link = `${API_URL}/proof/${participant.invitation_token}?token=${participant.invitation_token}`;
-    navigator.clipboard.writeText(link).then(() => {
-      toast.success(`Lien copié pour ${participant.first_name}`);
-    }).catch(() => {
-      toast.error('Impossible de copier le lien');
-    });
-  };
-
+export default function ProofSessionsPanel({ proofSessions, isOrganizer }) {
   const levelColors = {
     strong: 'bg-emerald-50 text-emerald-700 border-emerald-200',
     medium: 'bg-amber-50 text-amber-700 border-amber-200',
@@ -40,33 +27,6 @@ export default function ProofSessionsPanel({ participants, proofSessions, isOrga
           <span className="text-sm text-slate-500">{proofSessions.length} session(s)</span>
         </div>
       </div>
-
-      {isOrganizer && participants.length > 0 && (
-        <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-          <p className="text-sm font-semibold text-blue-900 mb-2">Liens de check-in NLYT</p>
-          <p className="text-xs text-blue-700 mb-3">Chaque participant a un lien unique. Ce lien est inclus dans l'email d'invitation.</p>
-          <div className="space-y-2">
-            {participants.filter(p => !p.is_organizer).map(p => (
-              <div key={p.participant_id} className="flex items-center justify-between gap-2 bg-white rounded-lg border border-blue-100 px-3 py-2">
-                <div className="flex-1 min-w-0">
-                  <span className="text-sm font-medium text-slate-900">{p.first_name} {p.last_name}</span>
-                  <span className="text-xs text-slate-400 ml-2">{p.email}</span>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-7 text-xs gap-1 flex-shrink-0"
-                  onClick={() => handleCopyProofLink(p)}
-                  data-testid={`copy-proof-link-${p.participant_id}`}
-                >
-                  <Copy className="w-3 h-3" />
-                  Copier le lien
-                </Button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       {proofSessions.length > 0 ? (
         <div className="overflow-x-auto">

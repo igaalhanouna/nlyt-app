@@ -106,18 +106,16 @@ export default function VideoEvidencePanel({
                 )}
               </div>
               <div className="flex flex-wrap gap-2">
-                {isOrganizer && appointment.meeting_join_url && (
+                {appointment.meeting_join_url && (
                   <Button variant={isMeetingEnded && !hasEvidence ? 'default' : 'outline'} size="sm" onClick={onFetchAttendance} disabled={fetchingAttendance} className="whitespace-normal text-left h-auto min-h-[36px]" data-testid="fetch-attendance-btn">
                     {fetchingAttendance ? <Loader2 className="w-4 h-4 animate-spin mr-1 flex-shrink-0" /> : <RefreshCw className="w-4 h-4 mr-1 flex-shrink-0" />}
                     Récupérer les présences
                   </Button>
                 )}
-                {isOrganizer && (
                 <Button variant="outline" size="sm" onClick={() => setShowVideoIngest(!showVideoIngest)} className="whitespace-normal text-left h-auto min-h-[36px]" data-testid="toggle-video-ingest-btn">
                   <Upload className="w-4 h-4 mr-1 flex-shrink-0" />
                   Import manuel
                 </Button>
-                )}
               </div>
             </div>
 
@@ -160,15 +158,12 @@ export default function VideoEvidencePanel({
                 ) : (
                   <>
                     <p className="text-sm font-medium text-amber-900" data-testid="evidence-status-meet-manual">
-                      {isOrganizer ? 'Import requis' : 'En attente de données'} — {providerLabel}
+                      Import requis — {providerLabel}
                     </p>
-                    {isOrganizer && (
-                      <p className="text-xs text-amber-700 mt-0.5">Google Meet ne fournit pas de rapport automatique. Après la réunion, importez le rapport de présence (CSV ou JSON).</p>
-                    )}
+                    <p className="text-xs text-amber-700 mt-0.5">Google Meet ne fournit pas de rapport automatique. Après la réunion, importez le rapport de présence (CSV ou JSON).</p>
                   </>
                 )}
               </div>
-              {isOrganizer && (
               <div className="flex-shrink-0">
                 <Button variant={!hasEvidence ? 'default' : 'outline'} size="sm"
                   onClick={() => setShowVideoIngest(!showVideoIngest)}
@@ -178,14 +173,13 @@ export default function VideoEvidencePanel({
                   Importer le rapport de présence
                 </Button>
               </div>
-              )}
             </div>
           </div>
         )}
       </div>
 
-      {/* Ingestion Form — Organizer only */}
-      {isOrganizer && showVideoIngest && (
+      {/* Ingestion Form */}
+      {showVideoIngest && (
         <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-5 mb-5" data-testid="video-ingest-form">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">

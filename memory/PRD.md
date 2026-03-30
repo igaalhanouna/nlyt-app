@@ -176,6 +176,13 @@ Application SaaS (React/FastAPI/MongoDB) de gestion des presences avec garanties
 - Les deux integrations sont operationnelles avec de vrais tokens
 - Aucun correctif necessaire
 
+## Proof & Evidence Symmetry Fix (2026-03-30)
+- Bloc "Liens de check-in NLYT" supprimé de ProofSessionsPanel (organisateur ne voit plus les liens de copie)
+- Boutons "Récupérer les présences" et "Import manuel" restaurés pour les participants dans VideoEvidencePanel
+- Formulaire d'ingestion (CSV/JSON) accessible aux deux rôles (organisateur + participant)
+- Seul "Créer la réunion" reste réservé à l'organisateur
+
+
 ## Webhooks temps reel Zoom/Teams (2026-03-30)
 - POST /api/webhooks/zoom : CRC challenge + meeting.ended → fetch attendance immediat (60s delay)
 - POST /api/webhooks/teams : validation token + callRecords → fetch attendance (30s delay)
