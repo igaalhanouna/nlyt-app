@@ -132,3 +132,20 @@ Application SaaS (React/FastAPI/MongoDB) de gestion des presences avec garanties
 - W3-W8 (webhook protocol): 6/6 PASS
 - Frontend (payment settings, login, dashboard): 4/4 PASS
 - Total: 16/16 PASS
+
+## Organizer Guarantee UX Fix (2026-03-30)
+- BUG UX: Les RDV en `pending_organizer_guarantee` n'affichaient aucun CTA sur le dashboard → l'utilisateur ne voyait pas l'action requise
+- CAUSE BACKEND: La logique `action_required` du timeline API ne verifiait que les garanties participants, pas le statut du RDV lui-meme
+- FIX BACKEND: Ajout d'un flag `needs_organizer_guarantee` force a `true` quand status=`pending_organizer_guarantee`. Force `action_required=true` avec un label explicite
+- FIX FRONTEND: Ajout CTA "Garantir le RDV" dans ActionCard et TimelineCard. Handler `handleGuaranteeOrganizer` appelle `retry-organizer-guarantee` et redirige vers Stripe ou active avec carte sauvegardee
+
+## Stripe Redirect to Dashboard (2026-03-30)
+- BUG UX: Apres paiement Stripe, retour sur /appointments/{id} au lieu du dashboard
+- FIX: `return_url` change de `/appointments/{id}` vers `/dashboard` dans les 2 flows (create_appointment + retry-organizer-guarantee)
+- FIX FRONTEND: Dashboard detecte `?guarantee_status=success` au retour Stripe, affiche toast, nettoie URL, rafraichit timeline
+- Fichiers modifies: appointments.py, OrganizerDashboard.js
+
+## Test Results - Iteration 159 (2026-03-30)
+- Backend (7/7): timeline flags, labels, retry endpoint, appointment detail
+- Frontend (6/6): boutons garantie, clic→API, reuse carte, URL handling, autres flows intacts
+- Total: 13/13 PASS
