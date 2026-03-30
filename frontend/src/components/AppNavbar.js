@@ -253,7 +253,7 @@ export default function AppNavbar() {
                 )}
               </Link>
               <Link to="/litiges" className={mobileLinkClass('/litiges')} data-testid="mobile-nav-litiges">
-                <Scale className="w-4.5 h-4.5" />
+                <FileCheck className="w-4.5 h-4.5" />
                 Litiges
                 {(activeDisputeCount > 0 || unreadDisputes > 0) && (
                   <span className={`ml-auto inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full text-white text-xs font-bold ${unreadDisputes > 0 ? 'bg-red-500' : 'bg-amber-500'}`}>
@@ -262,7 +262,7 @@ export default function AppNavbar() {
                 )}
               </Link>
               <Link to="/decisions" className={mobileLinkClass('/decisions')} data-testid="mobile-nav-decisions">
-                <FileCheck className="w-4.5 h-4.5" />
+                <Scale className="w-4.5 h-4.5" />
                 Decisions
                 {unreadDecisions > 0 && (
                   <span className="ml-auto inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full bg-red-500 text-white text-xs font-bold">
