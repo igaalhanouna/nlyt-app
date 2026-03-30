@@ -1013,8 +1013,8 @@ async def get_my_timeline(request: Request):
             org_alert_label = None
             needs_organizer_guarantee = False
 
-            # P0: Organizer must guarantee FIRST — always flag as action_required
-            if apt.get("status") == "pending_organizer_guarantee" and not is_cancelled:
+            # P0: Organizer must guarantee FIRST — flag as action_required (only future/ongoing)
+            if apt.get("status") == "pending_organizer_guarantee" and not is_cancelled and not is_ended:
                 action_required = True
                 needs_organizer_guarantee = True
                 org_alert_label = "Votre garantie est requise pour activer ce rendez-vous"

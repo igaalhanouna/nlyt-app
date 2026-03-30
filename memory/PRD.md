@@ -155,3 +155,8 @@ Application SaaS (React/FastAPI/MongoDB) de gestion des presences avec garanties
 - Fetch via `appointmentAPI.myTimeline()` toutes les 60s (meme pattern que les autres badges)
 - Visible en desktop et mobile (hamburger dot rouge inclus)
 - Fichier modifie: AppNavbar.js
+
+## Fix Regression Actions Requises sur RDV passes (2026-03-30)
+- BUG: La condition `pending_organizer_guarantee` ajoutee precedemment ne verifiait pas `is_ended`, causant l'affichage de RDV passes dans "Actions requises"
+- FIX: Ajout de `and not is_ended` a la condition (ligne 1017 de appointments.py)
+- Resultat: 10 → 4 items (6 RDV passes correctement reclasses dans l'historique)
