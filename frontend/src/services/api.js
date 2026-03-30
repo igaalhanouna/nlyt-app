@@ -82,6 +82,7 @@ export const participantAPI = {
 };
 
 export const invitationAPI = {
+  respond: (token, data) => api.post(`/api/invitations/${token}/respond`, data),
   resend: (token) => api.post(`/api/invitations/${token}/resend`),
   acceptWithAccount: (token, password) => api.post(`/api/invitations/${token}/accept-with-account`, { password }),
   loginAndAccept: (token, password) => api.post(`/api/invitations/${token}/login-and-accept`, { password }),

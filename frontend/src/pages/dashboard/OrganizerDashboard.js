@@ -13,7 +13,6 @@ import {
   UserCheck, Mail, ChevronRight, CheckCircle, LogOut, FileEdit, Search
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { safeFetchJson } from '../../utils/safeFetchJson';
 import { formatDateTimeCompactFr, parseUTC } from '../../utils/dateFormat';
 import AppNavbar from '../../components/AppNavbar';
 import CalendarSyncPanel from './CalendarSyncPanel';
@@ -758,13 +757,7 @@ export default function OrganizerDashboard() {
     if (!item.invitation_token) return;
     setResponding(item.appointment_id);
     try {
-      const API_URL = process.env.REACT_APP_BACKEND_URL;
-      const { ok, data } = await safeFetchJson(`${API_URL}/api/invitations/${item.invitation_token}/respond`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'accept' }),
-      });
-      if (!ok) throw new Error(data.detail || 'Erreur');
+      const { data } = await invitationAPI.respond(item.invitation_token, { action: 'accept' });
 
       if (data.requires_guarantee && data.checkout_url) {
         toast.info('Redirection vers la page de garantie...');
@@ -778,7 +771,7 @@ export default function OrganizerDashboard() {
       }
       await loadTimeline();
     } catch (err) {
-      toast.error(err.message || 'Erreur lors de l\'acceptation');
+      toast.error(err.response?.data?.detail || err.message || 'Erreur lors de l\'acceptation');
     } finally {
       setResponding(null);
     }
@@ -788,17 +781,11 @@ export default function OrganizerDashboard() {
     if (!item.invitation_token) return;
     setResponding(item.appointment_id);
     try {
-      const API_URL = process.env.REACT_APP_BACKEND_URL;
-      const { ok, data } = await safeFetchJson(`${API_URL}/api/invitations/${item.invitation_token}/respond`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'decline' }),
-      });
-      if (!ok) throw new Error(data.detail || 'Erreur');
+      await invitationAPI.respond(item.invitation_token, { action: 'decline' });
       toast.success('Invitation refusée');
       await loadTimeline();
     } catch (err) {
-      toast.error(err.message || 'Erreur lors du refus');
+      toast.error(err.response?.data?.detail || err.message || 'Erreur lors du refus');
     } finally {
       setResponding(null);
     }

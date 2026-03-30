@@ -4,7 +4,6 @@ import { appointmentAPI, participantAPI, calendarAPI, invitationAPI, attendanceA
 import { Button } from '../../components/ui/button';
 import { Loader2, ChevronDown, Activity, Fingerprint, ShieldCheck, Check, X, CreditCard, AlertTriangle, CheckCircle, Clock } from 'lucide-react';
 import { toast } from 'sonner';
-import { safeFetchJson } from '../../utils/safeFetchJson';
 import { parseUTC, utcToLocalInput, localInputToUTC } from '../../utils/dateFormat';
 import AppNavbar from '../../components/AppNavbar';
 import AppBreadcrumb from '../../components/AppBreadcrumb';
@@ -30,17 +29,11 @@ import EvidenceDashboard from './EvidenceDashboard';
 
 function ParticipantActionBanner({ token, onActionComplete }) {
   const [responding, setResponding] = useState(false);
-  const API_URL = process.env.REACT_APP_BACKEND_URL;
 
   const handleRespond = async (action) => {
     setResponding(true);
     try {
-      const { ok, data } = await safeFetchJson(`${API_URL}/api/invitations/${token}/respond`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action }),
-      });
-      if (!ok) throw new Error(data.detail || 'Erreur');
+      const { data } = await invitationAPI.respond(token, { action });
 
       if (data.requires_guarantee && data.checkout_url) {
         toast.info('Redirection vers la page de garantie...');
@@ -54,7 +47,7 @@ function ParticipantActionBanner({ token, onActionComplete }) {
       }
       onActionComplete();
     } catch (err) {
-      toast.error(err.message || 'Erreur');
+      toast.error(err.response?.data?.detail || err.message || 'Erreur');
     } finally {
       setResponding(false);
     }
@@ -77,17 +70,11 @@ function ParticipantActionBanner({ token, onActionComplete }) {
 
 function ParticipantGuaranteeBanner({ token, onActionComplete }) {
   const [processing, setProcessing] = useState(false);
-  const API_URL = process.env.REACT_APP_BACKEND_URL;
 
   const handleFinalize = async () => {
     setProcessing(true);
     try {
-      const { ok, data } = await safeFetchJson(`${API_URL}/api/invitations/${token}/respond`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'accept' }),
-      });
-      if (!ok) throw new Error(data.detail || 'Erreur');
+      const { data } = await invitationAPI.respond(token, { action: 'accept' });
 
       if (data.requires_guarantee && data.checkout_url) {
         toast.info('Redirection vers la page de garantie...');
@@ -101,7 +88,7 @@ function ParticipantGuaranteeBanner({ token, onActionComplete }) {
       }
       onActionComplete();
     } catch (err) {
-      toast.error(err.message || 'Erreur lors de la finalisation');
+      toast.error(err.response?.data?.detail || err.message || 'Erreur lors de la finalisation');
     } finally {
       setProcessing(false);
     }
@@ -110,16 +97,11 @@ function ParticipantGuaranteeBanner({ token, onActionComplete }) {
   const handleDecline = async () => {
     setProcessing(true);
     try {
-      const { ok, data } = await safeFetchJson(`${API_URL}/api/invitations/${token}/respond`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'decline' }),
-      });
-      if (!ok) throw new Error(data.detail || 'Erreur');
+      await invitationAPI.respond(token, { action: 'decline' });
       toast.success('Invitation refusée');
       onActionComplete();
     } catch (err) {
-      toast.error(err.message || 'Erreur');
+      toast.error(err.response?.data?.detail || err.message || 'Erreur');
     } finally {
       setProcessing(false);
     }
