@@ -109,9 +109,10 @@ function ImpactCard({ totalCharityCents }) {
 }
 
 // ── Action Required Section ──
-function ActionCard({ item, onRemind, onAccept, onDecline, onCancel, onDelete, now, onNavigate }) {
+function ActionCard({ item, onRemind, onAccept, onDecline, onCancel, onDelete, onGuarantee, now, onNavigate }) {
   const isParticipant = item.role === 'participant';
   const isOrgAlert = !isParticipant && item.action_required;
+  const needsOrgGuarantee = !isParticipant && item.needs_organizer_guarantee;
 
   // Block organizer cancel if appointment has started
   const actionStartDt = parseUTC(item.starts_at);
@@ -176,7 +177,16 @@ function ActionCard({ item, onRemind, onAccept, onDecline, onCancel, onDelete, n
 
       {/* CTAs — outside the Link to avoid nested <a> */}
       <div className="flex items-center gap-2 flex-wrap px-4 pb-3 pt-1">
-        {isParticipant && item.status === 'invited' ? (
+        {needsOrgGuarantee ? (
+          <>
+            <Button size="sm" className="h-11 md:h-8 text-xs flex-1 md:flex-none bg-amber-600 hover:bg-amber-700 text-white" onClick={() => onGuarantee(item)} data-testid={`guarantee-btn-${item.appointment_id}`}>
+              <CreditCard className="w-3.5 h-3.5 mr-1.5" /> Garantir le RDV
+            </Button>
+            <Button size="sm" variant="outline" className="h-11 md:h-8 text-xs flex-1 md:flex-none border-red-200 text-red-600 hover:bg-red-50" onClick={() => onDelete(item)} data-testid={`delete-action-${item.appointment_id}`}>
+              <Trash2 className="w-3.5 h-3.5 mr-1.5" /> Supprimer
+            </Button>
+          </>
+        ) : isParticipant && item.status === 'invited' ? (
           <>
             <Button size="sm" className="h-11 md:h-8 text-xs flex-1 md:flex-none bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => onAccept(item)} data-testid={`accept-btn-${item.appointment_id}`}>
               <Check className="w-3.5 h-3.5 mr-1.5" /> Accepter
@@ -283,7 +293,7 @@ function formatChangeSummary(mod) {
 }
 
 // ── Timeline Card (unified for organizer + participant) ──
-function TimelineCard({ item, isPast, onDelete, onRemind, onQuit, onDecline, now, fromTab, onNavigate, hasModification, modActionRequired, modificationData }) {
+function TimelineCard({ item, isPast, onDelete, onRemind, onQuit, onDecline, onGuarantee, now, fromTab, onNavigate, hasModification, modActionRequired, modificationData }) {
   const isParticipant = item.role === 'participant';
   const badge = getTemporalBadge(item, now);
   const isOngoing = badge.key === 'ongoing';
@@ -520,6 +530,17 @@ function TimelineCard({ item, isPast, onDelete, onRemind, onQuit, onDecline, now
 
       {/* Actions row */}
       <div className="flex items-center gap-2 px-4 pb-3 pt-1">
+        {/* Organizer guarantee CTA — priority over other actions */}
+        {item.needs_organizer_guarantee && !isParticipant && (
+          <Button
+            size="sm"
+            className="h-11 md:h-7 text-xs flex-1 md:flex-none bg-amber-600 hover:bg-amber-700 text-white"
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onGuarantee(item); }}
+            data-testid={`guarantee-timeline-btn-${item.appointment_id}`}
+          >
+            <CreditCard className="w-3.5 h-3.5 mr-1.5" /> Garantir le RDV
+          </Button>
+        )}
         <Link to={detailLink} state={navState} className="flex-1 md:flex-none" onClick={onNavigate}>
           <Button size="sm" variant="outline" className="h-11 md:h-7 text-xs w-full md:w-auto" data-testid={`view-details-${item.appointment_id}`}>
             <Eye className="w-3.5 h-3.5 mr-1.5" /> Voir détails
@@ -627,6 +648,27 @@ export default function OrganizerDashboard() {
     loadImportSettings().then(() => loadExternalEvents());
     loadPendingModifications();
   }, [currentWorkspace]);
+
+  // Handle Stripe return (guarantee_status=success in URL)
+  useEffect(() => {
+    const guaranteeStatus = searchParams.get('guarantee_status');
+    if (guaranteeStatus === 'success') {
+      toast.success('Garantie validée ! Votre engagement est maintenant actif.');
+      // Clean URL params
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('guarantee_status');
+      newParams.delete('session_id');
+      newParams.delete('dev_mode');
+      setSearchParams(newParams, { replace: true });
+      // Refresh timeline to reflect activation
+      setTimeout(() => loadTimeline(), 1500);
+    } else if (guaranteeStatus === 'cancelled') {
+      toast.error('Garantie annulée. Le rendez-vous reste en attente.');
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('guarantee_status');
+      setSearchParams(newParams, { replace: true });
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Dashboard polling: refresh timeline every 60s when page is visible
   useEffect(() => {
@@ -795,6 +837,23 @@ export default function OrganizerDashboard() {
     selectWorkspace(workspace);
     setWorkspaceDropdownOpen(false);
     setLoading(true);
+  };
+
+  const handleGuaranteeOrganizer = async (item) => {
+    try {
+      const { data } = await appointmentAPI.retryGuarantee(item.appointment_id);
+      if (data.checkout_url) {
+        toast.info('Redirection vers Stripe pour valider votre garantie...');
+        window.location.href = data.checkout_url;
+        return;
+      }
+      if (data.status === 'active' && data.activated) {
+        toast.success(data.message || 'Garantie validée ! Engagement activé.');
+        await loadTimeline();
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Erreur lors de la validation de la garantie');
+    }
   };
 
   // ── External Events / Calendar Import ──
@@ -1036,7 +1095,7 @@ export default function OrganizerDashboard() {
                   </div>
                   <div className="space-y-3">
                     {invItems.slice(0, 8).map(item => (
-                      <ActionCard key={`${item.role}-${item.appointment_id}`} item={item} onRemind={handleRemind} onAccept={handleAcceptInvitation} onDecline={handleDeclineInvitation} onCancel={handleCancelAppointment} onDelete={handleDeleteClick} now={now} onNavigate={saveScroll} />
+                      <ActionCard key={`${item.role}-${item.appointment_id}`} item={item} onRemind={handleRemind} onAccept={handleAcceptInvitation} onDecline={handleDeclineInvitation} onCancel={handleCancelAppointment} onDelete={handleDeleteClick} onGuarantee={handleGuaranteeOrganizer} now={now} onNavigate={saveScroll} />
                     ))}
                   </div>
                 </div>
@@ -1151,7 +1210,7 @@ export default function OrganizerDashboard() {
                   <div className="space-y-3">
                     {filteredUpcoming.map(merged =>
                       merged.type === 'timeline' ? (
-                        <TimelineCard key={`tl-${merged.data.appointment_id}`} item={merged.data} isPast={false} onDelete={handleDeleteClick} onRemind={handleRemind} onQuit={handleQuitParticipation} onDecline={handleDeclineInvitation} now={now} fromTab="upcoming" onNavigate={saveScroll} hasModification={modPendingAptIds.has(merged.data.appointment_id)} modActionRequired={modActionAptIds.has(merged.data.appointment_id)} modificationData={modDataByAptId[merged.data.appointment_id]} />
+                        <TimelineCard key={`tl-${merged.data.appointment_id}`} item={merged.data} isPast={false} onDelete={handleDeleteClick} onRemind={handleRemind} onQuit={handleQuitParticipation} onDecline={handleDeclineInvitation} onGuarantee={handleGuaranteeOrganizer} now={now} fromTab="upcoming" onNavigate={saveScroll} hasModification={modPendingAptIds.has(merged.data.appointment_id)} modActionRequired={modActionAptIds.has(merged.data.appointment_id)} modificationData={modDataByAptId[merged.data.appointment_id]} />
                       ) : (
                         <ExternalEventCard key={`ext-${merged.data.external_event_id}`} event={merged.data} />
                       )
@@ -1169,7 +1228,7 @@ export default function OrganizerDashboard() {
                 ) : (
                   <div className="space-y-3">
                     {filteredPast.slice(0, pastVisible).map(item => (
-                      <TimelineCard key={`past-${item.role}-${item.appointment_id}`} item={item} isPast={true} onDelete={handleDeleteClick} onRemind={handleRemind} onQuit={handleQuitParticipation} onDecline={handleDeclineInvitation} now={now} fromTab="past" onNavigate={saveScroll} hasModification={modPendingAptIds.has(item.appointment_id)} modActionRequired={modActionAptIds.has(item.appointment_id)} modificationData={modDataByAptId[item.appointment_id]} />
+                      <TimelineCard key={`past-${item.role}-${item.appointment_id}`} item={item} isPast={true} onDelete={handleDeleteClick} onRemind={handleRemind} onQuit={handleQuitParticipation} onDecline={handleDeclineInvitation} onGuarantee={handleGuaranteeOrganizer} now={now} fromTab="past" onNavigate={saveScroll} hasModification={modPendingAptIds.has(item.appointment_id)} modActionRequired={modActionAptIds.has(item.appointment_id)} modificationData={modDataByAptId[item.appointment_id]} />
                     ))}
                     {filteredPast.length > pastVisible && (
                       <div className="pt-4 text-center">

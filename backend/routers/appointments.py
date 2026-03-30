@@ -679,7 +679,7 @@ async def create_appointment(appointment: AppointmentCreate, request: Request):
                     penalty_currency=appointment.penalty_currency.lower(),
                     frontend_url=frontend_url,
                     invitation_token=organizer_invitation_token,
-                    return_url=f"/appointments/{appointment_id}"
+                    return_url="/dashboard"
                 )
                 if result.get('success'):
                     organizer_checkout_url = result['checkout_url']
@@ -927,7 +927,7 @@ async def retry_organizer_guarantee(appointment_id: str, request: Request):
             penalty_currency=appointment.get('penalty_currency', 'eur').lower(),
             frontend_url=frontend_url,
             invitation_token=org_p.get('invitation_token', ''),
-            return_url=f"/appointments/{appointment_id}"
+            return_url="/dashboard"
         )
 
         if result.get('success'):
@@ -1011,9 +1011,16 @@ async def get_my_timeline(request: Request):
 
             action_required = False
             org_alert_label = None
+            needs_organizer_guarantee = False
+
+            # P0: Organizer must guarantee FIRST — always flag as action_required
+            if apt.get("status") == "pending_organizer_guarantee" and not is_cancelled:
+                action_required = True
+                needs_organizer_guarantee = True
+                org_alert_label = "Votre garantie est requise pour activer ce rendez-vous"
 
             # Organizer action_required: < 50% guaranteed AND within 24h of cancellation deadline
-            if not is_ended and not is_cancelled and non_org_count > 0:
+            elif not is_ended and not is_cancelled and non_org_count > 0:
                 cancel_h = apt.get("cancellation_deadline_hours", 0)
                 start_dt = _parse_dt(apt.get("start_datetime", ""))
                 if start_dt:
@@ -1070,6 +1077,7 @@ async def get_my_timeline(request: Request):
                 "pending_label": pending_label,
                 "converted_from": apt.get("converted_from"),
                 "appointment_status": apt.get("status", "active"),
+                "needs_organizer_guarantee": needs_organizer_guarantee,
             })
 
     # ── 2. Fetch participant invitations ──
