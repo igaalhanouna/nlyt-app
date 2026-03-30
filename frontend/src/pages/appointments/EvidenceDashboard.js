@@ -178,15 +178,15 @@ function VideoEvidenceDetails({ facts }) {
  * Détermine le libellé produit selon le niveau de preuve.
  * Voir NLYT_PROOF_ARCHITECTURE.md section 5.C
  *
- * INVARIANT — Libellés produit :
- *   "Absent"                       → 0 evidence
- *   "Présence déclarée"            → NLYT check-in seul (manual_checkin, sans GPS close ni provider)
- *   "Présence confirmée"           → check-in + GPS close OU video_conference
- *   "Présence continue vérifiée"   → video_conference + durée ≥ 80% du RDV
+ * INVARIANT — Libellés produit (vocabulaire technique, non décisionnel) :
+ *   "Aucune preuve technique"       → 0 evidence
+ *   "Check-in enregistré"           → NLYT check-in seul (manual_checkin, sans GPS close ni provider)
+ *   "Signal technique détecté"      → check-in + GPS close OU video_conference
+ *   "Signal continu vérifié"        → video_conference + durée ≥ 80% du RDV
  */
 function getPresenceLabel(evidence, appointment) {
   if (!evidence || evidence.length === 0) {
-    return { label: 'Absent', bg: 'bg-slate-100', text: 'text-slate-500', icon: null };
+    return { label: 'Aucune preuve technique', bg: 'bg-slate-100', text: 'text-slate-500', icon: null };
   }
 
   const hasGpsClose = evidence.some(e => {
@@ -197,22 +197,22 @@ function getPresenceLabel(evidence, appointment) {
   const videoEv = evidence.filter(e => e.source === 'video_conference');
   const hasVideo = videoEv.length > 0;
 
-  // Check for "Présence continue vérifiée" — video with ≥80% duration
+  // Check for "Signal continu vérifié" — video with ≥80% duration
   if (hasVideo && appointment?.duration_minutes) {
     const targetSeconds = appointment.duration_minutes * 60 * 0.8;
     const longEnough = videoEv.some(e => (e.derived_facts?.duration_seconds || 0) >= targetSeconds);
     if (longEnough) {
-      return { label: 'Présence continue vérifiée', bg: 'bg-emerald-100', text: 'text-emerald-800' };
+      return { label: 'Signal continu vérifié', bg: 'bg-emerald-100', text: 'text-emerald-800' };
     }
   }
 
-  // "Présence confirmée" — GPS close, QR, or any video evidence
+  // "Signal technique détecté" — GPS close, QR, or any video evidence
   if (hasGpsClose || hasQr || hasVideo) {
-    return { label: 'Présence confirmée', bg: 'bg-emerald-100', text: 'text-emerald-700' };
+    return { label: 'Signal technique détecté', bg: 'bg-emerald-100', text: 'text-emerald-700' };
   }
 
-  // "Présence déclarée" — NLYT check-in only
-  return { label: 'Présence déclarée', bg: 'bg-sky-100', text: 'text-sky-700' };
+  // "Check-in enregistré" — NLYT check-in only
+  return { label: 'Check-in enregistré', bg: 'bg-sky-100', text: 'text-sky-700' };
 }
 
 export default function EvidenceDashboard({ participants, evidenceData, appointment }) {
@@ -228,12 +228,15 @@ export default function EvidenceDashboard({ participants, evidenceData, appointm
 
   return (
     <div className="bg-white rounded-lg border border-slate-200 p-6 mt-6" data-testid="evidence-dashboard">
-      <div className="flex items-center gap-2 mb-4">
+      <div className="flex items-center gap-2 mb-2">
         {isVideo ? <Monitor className="w-5 h-5 text-violet-700" /> : <ScanLine className="w-5 h-5 text-slate-700" />}
         <h2 className="text-base font-semibold text-slate-900">
           {isVideo ? 'Preuves de présence par participant' : 'Check-ins & Preuves'}
         </h2>
       </div>
+      <p className="text-xs text-slate-500 mb-4" data-testid="evidence-disclaimer">
+        Données techniques collectées automatiquement (GPS, QR, visio). Elles servent d'indication technique et ne remplacent pas la feuille de présence.
+      </p>
 
       <div className="space-y-3">
         {/* INVARIANT: Inclure TOUS les statuts acceptés, y compris organisateur (pas de !p.is_organizer) */}
