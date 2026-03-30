@@ -186,7 +186,7 @@ function VideoEvidenceDetails({ facts }) {
  */
 function getPresenceLabel(evidence, appointment) {
   if (!evidence || evidence.length === 0) {
-    return { label: 'Aucune preuve technique', bg: 'bg-slate-100', text: 'text-slate-500', icon: null };
+    return { label: 'Aucune preuve technique récupérée du provider', bg: 'bg-slate-100', text: 'text-slate-500', icon: null };
   }
 
   const hasGpsClose = evidence.some(e => {
@@ -235,7 +235,7 @@ export default function EvidenceDashboard({ participants, evidenceData, appointm
         </h2>
       </div>
       <p className="text-xs text-slate-500 mb-4" data-testid="evidence-disclaimer">
-        Données techniques collectées automatiquement (GPS, QR, visio). Elles servent d'indication technique et ne remplacent pas la feuille de présence.
+        Données techniques collectées automatiquement (GPS, QR, rapport de visio). Elles servent d'indication technique et ne remplacent pas la feuille de présence.
       </p>
 
       <div className="space-y-3">
