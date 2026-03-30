@@ -1,0 +1,65 @@
+{
+  "summary": "Iteration 161: Video Webhooks (Zoom & Teams) Feature Testing. All 15 tests passed. Zoom webhook handles CRC challenge correctly (plainToken + encryptedToken), meeting.ended with known meeting_id matches appointment and returns success, unknown meeting_id returns ignored/no_matching_appointment, idempotency via event_ts dedup works. Teams webhook handles validationToken (plain text response), callRecords notifications return success. Admin webhooks/status returns zoom/teams status with event counts (admin only, 403 for non-admin). Admin teams-subscribe requires admin. Scheduler includes graph_subscription_renewal_job (24h interval). Events stored in video_webhook_events collection with dedup.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "POST /api/webhooks/teams",
+        "issue": "Response 'processed' count returns len(notifications) regardless of dedup - doesn't decrement for skipped duplicates. Dedup works internally but response doesn't reflect it.",
+        "priority": "LOW"
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": {
+    "zoom_crc_challenge": "PASS - POST /api/webhooks/zoom with event=endpoint.url_validation returns plainToken + encryptedToken (correct HMAC-SHA256)",
+    "zoom_meeting_ended_matching": "PASS - POST /api/webhooks/zoom with event=meeting.ended and meeting_id=87194672478 matches appointment and returns success with appointment_id",
+    "zoom_meeting_ended_unknown": "PASS - POST /api/webhooks/zoom with unknown meeting_id returns ignored/no_matching_appointment",
+    "zoom_idempotency": "PASS - POST /api/webhooks/zoom is idempotent - 2nd call with same event_ts returns duplicate",
+    "teams_validation_token": "PASS - POST /api/webhooks/teams with ?validationToken=xxx returns token in plain text (status 200)",
+    "teams_callrecords": "PASS - POST /api/webhooks/teams with callRecords notification returns success",
+    "admin_webhooks_status_success": "PASS - GET /api/admin/webhooks/status returns zoom/teams status with event counts for admin",
+    "admin_webhooks_status_403": "PASS - GET /api/admin/webhooks/status returns 403 for non-admin",
+    "admin_webhooks_status_401": "PASS - GET /api/admin/webhooks/status returns 401 for unauthenticated",
+    "admin_teams_subscribe_403": "PASS - POST /api/admin/webhooks/teams-subscribe returns 403 for non-admin",
+    "admin_teams_subscribe_401": "PASS - POST /api/admin/webhooks/teams-subscribe returns 401 for unauthenticated",
+    "admin_teams_subscribe_admin": "PASS - POST /api/admin/webhooks/teams-subscribe is accessible by admin",
+    "scheduler_job": "PASS - scheduler.py includes graph_subscription_renewal_job with 24h interval",
+    "zoom_event_storage": "PASS - Zoom events stored in video_webhook_events collection (verified via dedup)",
+    "teams_event_storage": "PASS - Teams events stored in video_webhook_events collection (dedup works internally)"
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_video_webhooks_iter161.py",
+    "/app/test_reports/pytest/pytest_video_webhooks_iter161.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Zoom CRC challenge correctly uses HMAC-SHA256 with ZOOM_WEBHOOK_SECRET_TOKEN",
+    "Zoom signature verification is optional (allows testing without headers)",
+    "Zoom dedup uses event_ts or payload.object.uuid as event_id",
+    "Teams validation token correctly returns PlainTextResponse",
+    "Teams dedup uses notification id or resource as event_id",
+    "Admin routes properly use require_admin() guard",
+    "Scheduler job correctly imports renew_all_graph_subscriptions from video_webhooks",
+    "Background thread for attendance fetch uses daemon=True (won't block shutdown)"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_video_webhooks_iter161.py"
+  ],
+  "success_rate": {
+    "backend": "100% (15/15 tests passed)"
+  },
+  "test_credentials": {
+    "admin": "testuser_audit@nlyt.app / TestAudit123!",
+    "non_admin": "igaal@hotmail.com / Test123!",
+    "known_appointment": "external_meeting_id=87194672478, appointment_id=5fef7ecd-5a97-4ee7-9507-92837d7a4313"
+  },
+  "seed_data_creation": "Used existing appointment with external_meeting_id=87194672478 for testing",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Video webhooks feature fully implemented and tested. Zoom webhook handles CRC challenge, meeting.ended events with appointment matching, and idempotency. Teams webhook handles validation token and callRecords notifications. Admin can view webhook status at GET /api/admin/webhooks/status and create Graph subscriptions at POST /api/admin/webhooks/teams-subscribe. Scheduler includes graph_subscription_renewal_job running every 24h. Events stored in video_webhook_events collection with dedup. Minor note: Teams webhook 'processed' count doesn't decrement for duplicates (dedup works internally but response doesn't reflect it)."
+}

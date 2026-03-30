@@ -7,7 +7,9 @@ All routes require role == 'admin'.
 """
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
+from datetime import datetime, timezone
 import logging
+import os
 
 from middleware.auth_middleware import get_current_user
 from database import db
@@ -237,3 +239,61 @@ async def get_stale_payouts(request: Request):
     stale_payouts.sort(key=lambda x: x.get("updated_at", ""), reverse=False)
 
     return {"stale_payouts": stale_payouts, "count": len(stale_payouts)}
+
+
+# ── Video Webhook Management ─────────────────────────────────
+
+@router.post("/webhooks/teams-subscribe")
+async def create_teams_subscription(request: Request):
+    """Create a Microsoft Graph subscription for call records (admin only)."""
+    await require_admin(request)
+    from routers.video_webhooks import create_graph_subscription
+    result = create_graph_subscription()
+    if result.get("error"):
+        raise HTTPException(status_code=400, detail=result)
+    return result
+
+
+@router.get("/webhooks/status")
+async def get_webhook_status(request: Request):
+    """Get status of video webhook integrations (admin only)."""
+    await require_admin(request)
+    from datetime import timedelta
+
+    # Zoom webhook events (last 24h)
+    cutoff_24h = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
+    zoom_events = db.video_webhook_events.count_documents({
+        "provider": "zoom", "received_at": {"$gte": cutoff_24h}
+    })
+    zoom_processed = db.video_webhook_events.count_documents({
+        "provider": "zoom", "processed": True, "received_at": {"$gte": cutoff_24h}
+    })
+
+    # Teams webhook events (last 24h)
+    teams_events = db.video_webhook_events.count_documents({
+        "provider": "teams", "received_at": {"$gte": cutoff_24h}
+    })
+    teams_processed = db.video_webhook_events.count_documents({
+        "provider": "teams", "processed": True, "received_at": {"$gte": cutoff_24h}
+    })
+
+    # Graph subscriptions
+    graph_subs = list(db.graph_subscriptions.find({}, {"_id": 0}))
+
+    zoom_secret_configured = bool(os.environ.get("ZOOM_WEBHOOK_SECRET_TOKEN"))
+
+    return {
+        "zoom": {
+            "secret_configured": zoom_secret_configured,
+            "webhook_url": f"{os.environ.get('FRONTEND_URL', '')}/api/webhooks/zoom",
+            "events_24h": zoom_events,
+            "processed_24h": zoom_processed,
+        },
+        "teams": {
+            "client_configured": bool(os.environ.get("MICROSOFT_CLIENT_ID")),
+            "webhook_url": f"{os.environ.get('FRONTEND_URL', '')}/api/webhooks/teams",
+            "events_24h": teams_events,
+            "processed_24h": teams_processed,
+            "subscriptions": graph_subs,
+        },
+    }

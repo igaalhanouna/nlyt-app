@@ -13,7 +13,7 @@ if os.environ.get('STRIPE_API_KEY') == 'sk_test_emergent':
 
 load_dotenv()
 
-from routers import auth, workspaces, appointments, participants, contracts, calendar_routes, admin, webhooks, debug, invitations, user_settings, charity_associations, attendance_routes, checkin_routes, modification_routes, video_evidence_routes, proof_routes, wallet_routes, connect_routes, impact_routes, external_events_routes, financial_routes, declarative_routes, dispute_routes, notification_routes, oauth_routes, charity_payout_routes
+from routers import auth, workspaces, appointments, participants, contracts, calendar_routes, admin, webhooks, debug, invitations, user_settings, charity_associations, attendance_routes, checkin_routes, modification_routes, video_evidence_routes, proof_routes, wallet_routes, connect_routes, impact_routes, external_events_routes, financial_routes, declarative_routes, dispute_routes, notification_routes, oauth_routes, charity_payout_routes, video_webhooks
 from scheduler import start_scheduler, stop_scheduler
 from rate_limiter import limiter
 
@@ -65,6 +65,7 @@ app.include_router(declarative_routes.router, prefix="/api/attendance-sheets", t
 app.include_router(dispute_routes.router, prefix="/api/disputes", tags=["Disputes"])
 app.include_router(admin.router, prefix="/api/admin", tags=["Admin"])
 app.include_router(webhooks.router, prefix="/api/webhooks", tags=["Webhooks"])
+app.include_router(video_webhooks.router, prefix="/api/webhooks", tags=["Video Webhooks"])
 app.include_router(debug.router, prefix="/api/debug", tags=["Debug"])
 app.include_router(invitations.router, prefix="/api/invitations", tags=["Invitations"])
 app.include_router(user_settings.router, prefix="/api/user-settings", tags=["User Settings"])

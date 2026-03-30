@@ -153,6 +153,15 @@ async def stale_payout_detection_job():
         logger.error(f"[SCHEDULER] Stale payout detection job failed: {str(e)}")
 
 
+async def graph_subscription_renewal_job():
+    """Job to renew Microsoft Graph webhook subscriptions before expiry"""
+    try:
+        from routers.video_webhooks import renew_all_graph_subscriptions
+        renew_all_graph_subscriptions()
+    except Exception as e:
+        logger.error(f"[SCHEDULER] Graph subscription renewal job failed: {str(e)}")
+
+
 def start_scheduler():
     """Start the background scheduler"""
     # Job 1: Cancellation deadline reminders (every 5 minutes)
@@ -290,6 +299,15 @@ def start_scheduler():
         replace_existing=True
     )
 
+    # Job 15: Graph subscription renewal — renew Teams webhook subscriptions (every 24 hours)
+    scheduler.add_job(
+        graph_subscription_renewal_job,
+        trigger=IntervalTrigger(hours=24),
+        id='graph_subscription_renewal_job',
+        name='Renew Microsoft Graph webhook subscriptions',
+        replace_existing=True
+    )
+
     scheduler.start()
     logger.info("[SCHEDULER] Background scheduler started")
     logger.info("[SCHEDULER]    - Cancellation deadline reminders: every 5 minutes")
@@ -304,6 +322,7 @@ def start_scheduler():
     logger.info("[SCHEDULER]    - Ledger reconciliation: every 6 hours")
     logger.info("[SCHEDULER]    - Vote reminders (expiring proposals): every 15 minutes")
     logger.info("[SCHEDULER]    - Stale payout detection (>24h): every 6 hours")
+    logger.info("[SCHEDULER]    - Graph subscription renewal: every 24 hours")
 
 
 def stop_scheduler():
