@@ -160,3 +160,12 @@ Application SaaS (React/FastAPI/MongoDB) de gestion des presences avec garanties
 - BUG: La condition `pending_organizer_guarantee` ajoutee precedemment ne verifiait pas `is_ended`, causant l'affichage de RDV passes dans "Actions requises"
 - FIX: Ajout de `and not is_ended` a la condition (ligne 1017 de appointments.py)
 - Resultat: 10 → 4 items (6 RDV passes correctement reclasses dans l'historique)
+
+## Stale Payout Detection V1 (2026-03-30)
+- Job planifie toutes les 6h : scan payouts en `processing` > 24h, marquage → `stale`
+- Service: `services/stale_payout_detector.py` avec logs structures
+- Route admin: `GET /api/admin/stale-payouts` (403 pour non-admin, enrichi avec email utilisateur)
+- Page admin: `/admin/stale-payouts` avec etat vide, cartes STALE, montant, lien Stripe
+- Lien dans le dashboard admin (`AdminDashboard.js`)
+- Le webhook Stripe peut toujours ecraser stale → completed/failed
+- Tests: 15/15 PASS (iteration 160)
