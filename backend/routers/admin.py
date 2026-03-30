@@ -204,3 +204,36 @@ async def admin_update_user_role(request: Request, user_id: str, body: UpdateRol
 
     logger.info(f"[ADMIN] User {target['email']} role changed to {body.role} by {admin['email']}")
     return {"user_id": user_id, "email": target["email"], "role": body.role}
+
+
+# ── Stale Payouts ────────────────────────────────────────────
+
+@router.get("/stale-payouts")
+async def get_stale_payouts(request: Request):
+    """List all payouts currently in 'stale' or 'processing' > 24h status."""
+    await require_admin(request)
+
+    from datetime import datetime, timezone, timedelta
+    cutoff = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
+
+    stale_payouts = list(db.payouts.find(
+        {"$or": [
+            {"status": "stale"},
+            {"status": "processing", "updated_at": {"$lt": cutoff}},
+        ]},
+        {"_id": 0}
+    ))
+
+    # Enrich with user email
+    user_ids = list({p.get("user_id") for p in stale_payouts if p.get("user_id")})
+    user_map = {}
+    if user_ids:
+        users = db.users.find({"user_id": {"$in": user_ids}}, {"_id": 0, "user_id": 1, "email": 1})
+        user_map = {u["user_id"]: u["email"] for u in users}
+
+    for p in stale_payouts:
+        p["user_email"] = user_map.get(p.get("user_id"), None)
+
+    stale_payouts.sort(key=lambda x: x.get("updated_at", ""), reverse=False)
+
+    return {"stale_payouts": stale_payouts, "count": len(stale_payouts)}

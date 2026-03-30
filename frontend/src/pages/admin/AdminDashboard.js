@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Scale, Heart, Users, ArrowDownCircle } from 'lucide-react';
+import { Scale, Heart, Users, ArrowDownCircle, AlertTriangle } from 'lucide-react';
 import AppNavbar from '../../components/AppNavbar';
 import AppBreadcrumb from '../../components/AppBreadcrumb';
 
@@ -8,6 +8,7 @@ const SECTIONS = [
   { to: '/admin/arbitration', icon: Scale, title: 'Litiges & Arbitrage', desc: 'Litiges en cours, escalades et arbitrages', testId: 'admin-arbitration-link' },
   { to: '/admin/associations', icon: Heart, title: 'Associations', desc: 'Gestion des associations caritatives', testId: 'admin-associations-link' },
   { to: '/admin/payouts', icon: ArrowDownCircle, title: 'Reversements', desc: 'Virements manuels vers les associations', testId: 'admin-payouts-link' },
+  { to: '/admin/stale-payouts', icon: AlertTriangle, title: 'Payouts bloqués', desc: 'Payouts en processing depuis plus de 24h', testId: 'admin-stale-payouts-link' },
   { to: '/admin/users', icon: Users, title: 'Utilisateurs & Droits', desc: 'Gestion des roles et permissions', testId: 'admin-users-link' },
 ];
 

@@ -40,6 +40,7 @@ import AdminArbitrationDetail from './pages/admin/AdminArbitrationDetail';
 import AdminAssociations from './pages/admin/AdminAssociations';
 import AdminUsers from './pages/admin/AdminUsers';
 import AdminPayouts from './pages/admin/AdminPayouts';
+import AdminStalePayouts from './pages/admin/AdminStalePayouts';
 
 import Settings from './pages/settings/Settings';
 import Profile from './pages/settings/Profile';
@@ -107,6 +108,7 @@ function App() {
               <Route path="/admin/arbitration/:disputeId" element={<PrivateRoute><AdminArbitrationDetail /></PrivateRoute>} />
               <Route path="/admin/associations" element={<PrivateRoute><AdminAssociations /></PrivateRoute>} />
               <Route path="/admin/payouts" element={<PrivateRoute><AdminPayouts /></PrivateRoute>} />
+              <Route path="/admin/stale-payouts" element={<PrivateRoute><AdminStalePayouts /></PrivateRoute>} />
               <Route path="/admin/users" element={<PrivateRoute><AdminUsers /></PrivateRoute>} />
               
               <Route path="/settings" element={<PrivateRoute><Settings /></PrivateRoute>} />

@@ -144,6 +144,15 @@ async def calendar_retry_job():
         logger.error(f"[SCHEDULER] Calendar retry job failed: {str(e)}")
 
 
+async def stale_payout_detection_job():
+    """Job to detect payouts stuck in processing for more than 24h"""
+    try:
+        from services.stale_payout_detector import scan_stale_payouts
+        scan_stale_payouts()
+    except Exception as e:
+        logger.error(f"[SCHEDULER] Stale payout detection job failed: {str(e)}")
+
+
 def start_scheduler():
     """Start the background scheduler"""
     # Job 1: Cancellation deadline reminders (every 5 minutes)
@@ -272,6 +281,15 @@ def start_scheduler():
         replace_existing=True
     )
 
+    # Job 14: Stale payout detection — flag payouts stuck in processing > 24h (every 6 hours)
+    scheduler.add_job(
+        stale_payout_detection_job,
+        trigger=IntervalTrigger(hours=6),
+        id='stale_payout_detection_job',
+        name='Detect stale payouts stuck in processing > 24h',
+        replace_existing=True
+    )
+
     scheduler.start()
     logger.info("[SCHEDULER] Background scheduler started")
     logger.info("[SCHEDULER]    - Cancellation deadline reminders: every 5 minutes")
@@ -285,6 +303,7 @@ def start_scheduler():
     logger.info("[SCHEDULER]    - Contestation timeout (30 days): every 12 hours")
     logger.info("[SCHEDULER]    - Ledger reconciliation: every 6 hours")
     logger.info("[SCHEDULER]    - Vote reminders (expiring proposals): every 15 minutes")
+    logger.info("[SCHEDULER]    - Stale payout detection (>24h): every 6 hours")
 
 
 def stop_scheduler():
