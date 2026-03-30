@@ -104,7 +104,7 @@ export default function AppointmentHeader({
         <div className="space-y-2">
           {!checkinDone ? (
             isVideo && proofLink ? (
-              <a href={proofLink} className="block" data-testid="header-checkin-link">
+              <a href={proofLink} className="block" target="_blank" rel="noopener noreferrer" data-testid="header-checkin-link">
                 <Button className="w-full h-12 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-base gap-2">
                   <Shield className="w-4 h-4" />
                   Effectuer mon check-in
@@ -123,7 +123,7 @@ export default function AppointmentHeader({
                 <span className="text-sm font-medium text-emerald-700">Check-in effectué</span>
               </div>
               {isVideo && appointment.meeting_join_url && (
-                <a href={proofLink || appointment.meeting_join_url} target={proofLink ? '_self' : '_blank'} rel="noopener noreferrer" className="block">
+                <a href={proofLink || appointment.meeting_join_url} target="_blank" rel="noopener noreferrer" className="block">
                   <Button variant="outline" className="w-full h-11 border-blue-300 text-blue-700 hover:bg-blue-50 font-semibold gap-2" data-testid="join-meeting-btn">
                     <ArrowRight className="w-4 h-4" />
                     Rejoindre la réunion

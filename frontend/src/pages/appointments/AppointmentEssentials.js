@@ -51,7 +51,7 @@ export default function AppointmentEssentials({
               {appointment.meeting_join_url && (
                 <a
                   href={proofLink || appointment.meeting_join_url}
-                  target={proofLink ? '_self' : '_blank'}
+                  target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-800 font-medium mt-0.5"
                   data-testid="meeting-link"

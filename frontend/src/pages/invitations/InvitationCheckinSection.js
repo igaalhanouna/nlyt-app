@@ -187,6 +187,8 @@ export default function InvitationCheckinSection({
                       </p>
                       <a
                         href={`/proof/${appointment.appointment_id}?token=${token}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
                         className="inline-flex items-center gap-2 px-5 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 active:scale-[0.98] transition-all font-semibold text-sm"
                         data-testid="join-meeting-btn"
                       >
