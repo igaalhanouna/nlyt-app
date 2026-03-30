@@ -57,7 +57,9 @@ const AddressAutocomplete = ({
       
       if (!response.ok) throw new Error('API error');
       
-      const data = await response.json();
+      const text = await response.text();
+      let data;
+      try { data = JSON.parse(text); } catch { data = {}; }
       
       if (data.features && data.features.length > 0) {
         const formattedSuggestions = data.features.map((feature) => ({

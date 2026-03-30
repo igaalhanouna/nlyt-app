@@ -3,6 +3,7 @@ import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useWorkspace } from '../../contexts/WorkspaceContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { appointmentAPI, videoEvidenceAPI } from '../../services/api';
+import { safeFetchJson } from '../../utils/safeFetchJson';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
@@ -199,12 +200,11 @@ export default function AppointmentWizard() {
     const loadDefaults = async () => {
       try {
         // Fetch user appointment defaults
-        const defaultsResponse = await fetch(`${API_URL}/api/user-settings/me/appointment-defaults`, {
+        const { ok: defaultsOk, data: defaults } = await safeFetchJson(`${API_URL}/api/user-settings/me/appointment-defaults`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         
-        if (defaultsResponse.ok) {
-          const defaults = await defaultsResponse.json();
+        if (defaultsOk) {
           
           // Platform commission is a SYSTEM value from the server
           const serverPlatformPct = defaults.platform_commission_percent ?? 20;
@@ -230,22 +230,18 @@ export default function AppointmentWizard() {
         }
         
         // Fetch charity associations
-        const assocResponse = await fetch(`${API_URL}/api/charity-associations/`);
-        if (assocResponse.ok) {
-          const assocData = await assocResponse.json();
+        const { ok: assocOk, data: assocData } = await safeFetchJson(`${API_URL}/api/charity-associations/`);
+        if (assocOk) {
           setCharityAssociations(assocData.associations || []);
         }
 
         // Fetch default payment method for organizer guarantee
         try {
-          const pmResponse = await fetch(`${API_URL}/api/user-settings/me/payment-method`, {
+          const { ok: pmOk, data: pmData } = await safeFetchJson(`${API_URL}/api/user-settings/me/payment-method`, {
             headers: { 'Authorization': `Bearer ${token}` }
           });
-          if (pmResponse.ok) {
-            const pmData = await pmResponse.json();
-            if (pmData.has_payment_method) {
-              setOrgPaymentMethod(pmData.payment_method);
-            }
+          if (pmOk && pmData.has_payment_method) {
+            setOrgPaymentMethod(pmData.payment_method);
           }
         } catch { /* non-blocking */ }
       } catch (error) {

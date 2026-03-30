@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { parseUTC, localInputToUTC } from '../../utils/dateFormat';
 import { useAuth } from '../../contexts/AuthContext';
 import { invitationAPI } from '../../services/api';
+import { safeFetchJson } from '../../utils/safeFetchJson';
 
 // Sub-components
 import InvitationStatusBadge from './InvitationStatusBadge';
@@ -166,7 +167,9 @@ export default function InvitationPage() {
         try {
           const propRes = await fetch(`${API_URL}/api/modifications/active/${data.appointment.appointment_id}`);
           if (propRes.ok) {
-            const propData = await propRes.json();
+            const text = await propRes.text();
+            let propData;
+            try { propData = JSON.parse(text); } catch { propData = {}; }
             setActiveProposal(propData.proposal || null);
           }
         } catch {}
@@ -393,11 +396,8 @@ export default function InvitationPage() {
   const loadCheckinStatus = useCallback(async () => {
     if (!invitation?.appointment?.appointment_id) return;
     try {
-      const res = await fetch(`${API_URL}/api/checkin/status/${invitation.appointment.appointment_id}?invitation_token=${token}`);
-      if (res.ok) {
-        const data = await res.json();
-        setCheckinStatus(data);
-      }
+      const { ok, data } = await safeFetchJson(`${API_URL}/api/checkin/status/${invitation.appointment.appointment_id}?invitation_token=${token}`);
+      if (ok) setCheckinStatus(data);
     } catch (e) { /* silent */ }
   }, [invitation?.appointment?.appointment_id, token]);
 
@@ -431,16 +431,13 @@ export default function InvitationPage() {
         }
       }
 
-      const res = await fetch(`${API_URL}/api/checkin/manual`, {
+      const { ok, data } = await safeFetchJson(`${API_URL}/api/checkin/manual`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      const data = await res.json();
-      if (!res.ok) {
-        if (res.status === 409) toast.info('Check-in déjà effectué. Votre présence est enregistrée.');
-        else if (res.status === 400) toast.error(data.detail || 'Impossible d\'effectuer le check-in.');
-        else if (res.status === 404) toast.error(data.detail || 'Invitation introuvable.');
+      if (!ok) {
+        if (data.status === 409 || (data.detail && data.detail.includes('déjà'))) toast.info('Check-in déjà effectué. Votre présence est enregistrée.');
         else toast.error(data.detail || 'Erreur lors du check-in.');
       } else {
         toast.success('Présence enregistrée avec succès !');
@@ -455,15 +452,14 @@ export default function InvitationPage() {
 
   const handleShowQR = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/checkin/qr/${invitation.appointment.appointment_id}?invitation_token=${token}`);
-      if (res.ok) {
-        const data = await res.json();
+      const { ok, data } = await safeFetchJson(`${API_URL}/api/checkin/qr/${invitation.appointment.appointment_id}?invitation_token=${token}`);
+      if (ok) {
         setQrData(data);
         setShowQRDisplay(true);
         const interval = setInterval(async () => {
           try {
-            const r = await fetch(`${API_URL}/api/checkin/qr/${invitation.appointment.appointment_id}?invitation_token=${token}`);
-            if (r.ok) setQrData(await r.json());
+            const { ok: rOk, data: rData } = await safeFetchJson(`${API_URL}/api/checkin/qr/${invitation.appointment.appointment_id}?invitation_token=${token}`);
+            if (rOk) setQrData(rData);
           } catch (e) { /* ignore */ }
         }, (data.rotation_seconds || 60) * 1000);
         setQrRefreshInterval(interval);

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Button } from '../../components/ui/button';
+import { safeFetchJson } from '../../utils/safeFetchJson';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -15,8 +16,7 @@ export default function OAuthButtons({ loading: parentLoading }) {
   const handleMicrosoftLogin = async () => {
     setMsLoading(true);
     try {
-      const resp = await fetch(`${API_URL}/api/auth/microsoft/login`);
-      const data = await resp.json();
+      const { ok, data } = await safeFetchJson(`${API_URL}/api/auth/microsoft/login`);
       if (data.authorization_url) {
         window.location.href = data.authorization_url;
       } else {

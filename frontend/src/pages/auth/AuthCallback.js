@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'sonner';
+import { safeFetchJson } from '../../utils/safeFetchJson';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -29,13 +30,12 @@ export default function AuthCallback() {
 
         if (sessionIdMatch) {
           const sessionId = sessionIdMatch[1];
-          const resp = await fetch(`${API_URL}/api/auth/google/callback`, {
+          const { ok: gOk, data } = await safeFetchJson(`${API_URL}/api/auth/google/callback`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ session_id: sessionId }),
           });
-          const data = await resp.json();
-          if (!resp.ok) throw new Error(data.detail || 'Erreur Google OAuth');
+          if (!gOk) throw new Error(data.detail || 'Erreur Google OAuth');
 
           loginWithToken(data.access_token, data.user);
           toast.success(data.is_new_account ? 'Compte créé avec Google' : 'Connexion avec Google réussie');
@@ -46,13 +46,12 @@ export default function AuthCallback() {
         // Check for Microsoft code in query params
         const code = searchParams.get('code');
         if (code) {
-          const resp = await fetch(`${API_URL}/api/auth/microsoft/callback`, {
+          const { ok: msOk, data } = await safeFetchJson(`${API_URL}/api/auth/microsoft/callback`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ code }),
           });
-          const data = await resp.json();
-          if (!resp.ok) throw new Error(data.detail || 'Erreur Microsoft OAuth');
+          if (!msOk) throw new Error(data.detail || 'Erreur Microsoft OAuth');
 
           loginWithToken(data.access_token, data.user);
           toast.success(data.is_new_account ? 'Compte créé avec Microsoft' : 'Connexion avec Microsoft réussie');

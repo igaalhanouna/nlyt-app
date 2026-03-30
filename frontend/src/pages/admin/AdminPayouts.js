@@ -6,6 +6,7 @@ import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { ArrowDownCircle, Building2, Clock, ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
+import { safeFetchJson } from '../../utils/safeFetchJson';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -213,18 +214,12 @@ export default function AdminPayouts() {
 
   const fetchData = useCallback(async () => {
     try {
-      const [dashResp, payoutsResp] = await Promise.all([
-        fetch(`${API_URL}/api/admin/payouts/dashboard`, { headers }),
-        fetch(`${API_URL}/api/admin/payouts?limit=100`, { headers }),
+      const [dashResult, payoutsResult] = await Promise.all([
+        safeFetchJson(`${API_URL}/api/admin/payouts/dashboard`, { headers }),
+        safeFetchJson(`${API_URL}/api/admin/payouts?limit=100`, { headers }),
       ]);
-      if (dashResp.ok) {
-        const d = await dashResp.json();
-        setDashboard(d.associations || []);
-      }
-      if (payoutsResp.ok) {
-        const p = await payoutsResp.json();
-        setPayouts(p.payouts || []);
-      }
+      if (dashResult.ok) setDashboard(dashResult.data.associations || []);
+      if (payoutsResult.ok) setPayouts(payoutsResult.data.payouts || []);
     } catch {
       toast.error('Erreur de chargement');
     } finally {
@@ -237,11 +232,10 @@ export default function AdminPayouts() {
   const handleCreatePayout = async (body) => {
     setSaving(true);
     try {
-      const resp = await fetch(`${API_URL}/api/admin/payouts`, {
+      const { ok, data } = await safeFetchJson(`${API_URL}/api/admin/payouts`, {
         method: 'POST', headers, body: JSON.stringify(body),
       });
-      const data = await resp.json();
-      if (!resp.ok) throw new Error(data.detail || 'Erreur');
+      if (!ok) throw new Error(data.detail || 'Erreur');
       toast.success(`Reversement de ${formatCents(body.amount_cents)} enregistre`);
       setPayoutTarget(null);
       fetchData();

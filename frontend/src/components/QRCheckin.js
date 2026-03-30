@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Camera, X, Keyboard } from 'lucide-react';
+import { safeFetchJson } from '../utils/safeFetchJson';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL || '';
 
@@ -56,7 +57,7 @@ export default function QRCheckin({ appointmentId, invitationToken, onSuccess, o
     setError(null);
 
     try {
-      const res = await fetch(`${API_URL}/api/checkin/qr/verify`, {
+      const { ok, data } = await safeFetchJson(`${API_URL}/api/checkin/qr/verify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -64,9 +65,8 @@ export default function QRCheckin({ appointmentId, invitationToken, onSuccess, o
           invitation_token: invitationToken,
         }),
       });
-      const data = await res.json();
 
-      if (!res.ok) {
+      if (!ok) {
         setError(data.detail || 'Erreur de vérification');
         if (mode === 'camera') setMode('manual');
       } else {

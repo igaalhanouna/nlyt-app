@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { User, Clock, Euro, Heart, Save, Loader2, Check, Settings } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'sonner';
+import { safeFetchJson } from '../../utils/safeFetchJson';
 import SettingsPageLayout from '../../components/SettingsPageLayout';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL || '';
@@ -42,12 +43,11 @@ export default function Profile() {
 
   const fetchUserSettings = async () => {
     try {
-      const response = await fetch(`${API_URL}/api/user-settings/me`, {
+      const { ok, data } = await safeFetchJson(`${API_URL}/api/user-settings/me`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       
-      if (response.ok) {
-        const data = await response.json();
+      if (ok) {
         const defaults = data.appointment_defaults || {};
         
         setProfileData({
@@ -66,14 +66,11 @@ export default function Profile() {
       }
       
       // Fetch system platform commission
-      const defaultsResponse = await fetch(`${API_URL}/api/user-settings/me/appointment-defaults`, {
+      const { ok: dOk, data: defaultsData } = await safeFetchJson(`${API_URL}/api/user-settings/me/appointment-defaults`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      if (defaultsResponse.ok) {
-        const defaultsData = await defaultsResponse.json();
-        if (defaultsData.platform_commission_percent !== undefined) {
-          setSystemPlatformPercent(defaultsData.platform_commission_percent);
-        }
+      if (dOk && defaultsData.platform_commission_percent !== undefined) {
+        setSystemPlatformPercent(defaultsData.platform_commission_percent);
       }
     } catch (error) {
       console.error('Error fetching settings:', error);
@@ -85,11 +82,8 @@ export default function Profile() {
 
   const fetchAssociations = async () => {
     try {
-      const response = await fetch(`${API_URL}/api/charity-associations/`);
-      if (response.ok) {
-        const data = await response.json();
-        setAssociations(data.associations || []);
-      }
+      const { ok, data } = await safeFetchJson(`${API_URL}/api/charity-associations/`);
+      if (ok) setAssociations(data.associations || []);
     } catch (error) {
       console.error('Error fetching associations:', error);
     }
@@ -103,7 +97,7 @@ export default function Profile() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const response = await fetch(`${API_URL}/api/user-settings/me`, {
+      const { ok, data } = await safeFetchJson(`${API_URL}/api/user-settings/me`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -125,12 +119,11 @@ export default function Profile() {
         })
       });
 
-      if (response.ok) {
+      if (ok) {
         toast.success('Paramètres enregistrés avec succès');
         setHasChanges(false);
       } else {
-        const error = await response.json();
-        toast.error(error.detail || 'Erreur lors de la sauvegarde');
+        toast.error(data.detail || 'Erreur lors de la sauvegarde');
       }
     } catch (error) {
       console.error('Error saving settings:', error);

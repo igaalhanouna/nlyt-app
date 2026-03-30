@@ -5,6 +5,7 @@ import { Input } from '../../components/ui/input';
 import { Button } from '../../components/ui/button';
 import { Shield, ShieldCheck, Search, Mail } from 'lucide-react';
 import { toast } from 'sonner';
+import { safeFetchJson } from '../../utils/safeFetchJson';
 import { useAuth } from '../../contexts/AuthContext';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -22,9 +23,8 @@ export default function AdminUsers() {
 
   const fetchUsers = useCallback(async () => {
     try {
-      const resp = await fetch(`${API_URL}/api/admin/users`, { headers });
-      if (!resp.ok) throw new Error('Erreur chargement');
-      const data = await resp.json();
+      const { ok, data } = await safeFetchJson(`${API_URL}/api/admin/users`, { headers });
+      if (!ok) throw new Error('Erreur chargement');
       setUsers(data.users || []);
     } catch (err) {
       toast.error('Impossible de charger les utilisateurs');
@@ -41,11 +41,10 @@ export default function AdminUsers() {
     if (!window.confirm(`Voulez-vous ${action} ${u.email} ?`)) return;
 
     try {
-      const resp = await fetch(`${API_URL}/api/admin/users/${u.user_id}/role`, {
+      const { ok, data } = await safeFetchJson(`${API_URL}/api/admin/users/${u.user_id}/role`, {
         method: 'PATCH', headers, body: JSON.stringify({ role: newRole }),
       });
-      const data = await resp.json();
-      if (!resp.ok) throw new Error(data.detail || 'Erreur');
+      if (!ok) throw new Error(data.detail || 'Erreur');
       toast.success(`${u.email} est maintenant ${newRole}`);
       fetchUsers();
     } catch (err) {

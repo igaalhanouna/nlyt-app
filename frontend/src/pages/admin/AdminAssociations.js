@@ -6,6 +6,7 @@ import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Plus, Pencil, X, ExternalLink, Globe, Mail, Building2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { safeFetchJson } from '../../utils/safeFetchJson';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -110,9 +111,8 @@ export default function AdminAssociations() {
 
   const fetchAssociations = useCallback(async () => {
     try {
-      const resp = await fetch(`${API_URL}/api/charity-associations/admin/list`, { headers });
-      if (!resp.ok) throw new Error('Erreur chargement');
-      const data = await resp.json();
+      const { ok, data } = await safeFetchJson(`${API_URL}/api/charity-associations/admin/list`, { headers });
+      if (!ok) throw new Error('Erreur chargement');
       setAssociations(data.associations || []);
     } catch (err) {
       toast.error('Impossible de charger les associations');
@@ -126,9 +126,8 @@ export default function AdminAssociations() {
   const handleCreate = async (formData) => {
     setSaving(true);
     try {
-      const resp = await fetch(`${API_URL}/api/charity-associations/admin/create`, { method: 'POST', headers, body: JSON.stringify(formData) });
-      const data = await resp.json();
-      if (!resp.ok) throw new Error(data.detail || 'Erreur');
+      const { ok, data } = await safeFetchJson(`${API_URL}/api/charity-associations/admin/create`, { method: 'POST', headers, body: JSON.stringify(formData) });
+      if (!ok) throw new Error(data.detail || 'Erreur');
       toast.success(`${data.name} ajoutée`);
       setShowForm(false);
       fetchAssociations();
@@ -142,9 +141,8 @@ export default function AdminAssociations() {
   const handleUpdate = async (formData) => {
     setSaving(true);
     try {
-      const resp = await fetch(`${API_URL}/api/charity-associations/admin/${editAssoc.association_id}`, { method: 'PUT', headers, body: JSON.stringify(formData) });
-      const data = await resp.json();
-      if (!resp.ok) throw new Error(data.detail || 'Erreur');
+      const { ok, data } = await safeFetchJson(`${API_URL}/api/charity-associations/admin/${editAssoc.association_id}`, { method: 'PUT', headers, body: JSON.stringify(formData) });
+      if (!ok) throw new Error(data.detail || 'Erreur');
       toast.success(`${data.name} modifiée`);
       setEditAssoc(null);
       fetchAssociations();
@@ -157,9 +155,8 @@ export default function AdminAssociations() {
 
   const handleToggle = async (assoc) => {
     try {
-      const resp = await fetch(`${API_URL}/api/charity-associations/admin/${assoc.association_id}/toggle`, { method: 'PATCH', headers });
-      const data = await resp.json();
-      if (!resp.ok) throw new Error(data.detail || 'Erreur');
+      const { ok, data } = await safeFetchJson(`${API_URL}/api/charity-associations/admin/${assoc.association_id}/toggle`, { method: 'PATCH', headers });
+      if (!ok) throw new Error(data.detail || 'Erreur');
       toast.success(data.message);
       fetchAssociations();
     } catch (err) {
