@@ -123,12 +123,13 @@ def build_tech_dossier(appointment_id: str, target_participant_id: str) -> dict:
     # Build declarations index: what did others declare about each participant?
     decl_about_pid = {}
     for sheet in all_sheets:
+        submitter = sheet["submitted_by_participant_id"]
         for decl in sheet.get("declarations", []):
-            target = decl.get("participant_id")
-            if target:
+            target = decl.get("target_participant_id") or decl.get("participant_id")
+            if target and not decl.get("is_self_declaration"):
                 decl_about_pid.setdefault(target, []).append({
-                    "declared_by": sheet["submitted_by_participant_id"],
-                    "declared_status": decl.get("status"),
+                    "declared_by": submitter,
+                    "declared_status": decl.get("declared_status") or decl.get("status"),
                 })
 
     participant_dossiers = []
@@ -190,22 +191,22 @@ def build_tech_dossier(appointment_id: str, target_participant_id: str) -> dict:
                 }
                 break
 
-        # Proof session summary (best)
-        proof_session_data = None
-        if p_sessions:
-            best = max(p_sessions, key=lambda s: s.get("score", 0))
-            proof_session_data = {
-                "checked_in_at": best.get("checked_in_at"),
-                "checked_out_at": best.get("checked_out_at"),
-                "heartbeat_count": best.get("heartbeat_count", 0),
-                "active_duration_seconds": best.get("active_duration_seconds", 0),
-                "score": best.get("score"),
-                "proof_level": best.get("proof_level"),
-            }
+        # All proof sessions (not just best — arbitrator needs the full picture)
+        proof_sessions_list = []
+        for ps in p_sessions:
+            proof_sessions_list.append({
+                "checked_in_at": ps.get("checked_in_at"),
+                "checked_out_at": ps.get("checked_out_at"),
+                "heartbeat_count": ps.get("heartbeat_count", 0),
+                "active_duration_seconds": ps.get("active_duration_seconds", 0),
+                "score": ps.get("score"),
+                "proof_level": ps.get("proof_level"),
+                "suggested_status": ps.get("suggested_status"),
+            })
 
         # Declared position about this participant (by others)
-        declared_present = sum(1 for d in p_declarations if d["declared_status"] in ("present", "late"))
-        declared_absent = sum(1 for d in p_declarations if d["declared_status"] == "absent")
+        declared_present = sum(1 for d in p_declarations if d["declared_status"] in ("present", "late", "present_on_time", "present_late"))
+        declared_absent = sum(1 for d in p_declarations if d["declared_status"] in ("absent", "no_show"))
 
         participant_dossiers.append({
             "participant_id": pid,
@@ -218,7 +219,7 @@ def build_tech_dossier(appointment_id: str, target_participant_id: str) -> dict:
             "checkin": checkin_data,
             "gps": gps_data,
             "qr": qr_data,
-            "proof_session": proof_session_data,
+            "proof_sessions": proof_sessions_list,
             "attendance_record": {
                 "outcome": p_record.get("outcome") if p_record else None,
                 "decision_basis": p_record.get("decision_basis") if p_record else None,

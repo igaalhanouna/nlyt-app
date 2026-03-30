@@ -630,11 +630,17 @@ function ParticipantDossierCard({ p, durationMinutes }) {
   const hasCheckin = !!p.checkin;
   const hasGps = !!p.gps;
   const hasQr = !!p.qr;
-  const hasAnyEvidence = hasVideo || hasCheckin || hasGps || hasQr || p.evidence_count > 0;
+  const hasProofSessions = p.proof_sessions?.length > 0;
+  const hasAnyEvidence = hasVideo || hasCheckin || hasGps || hasQr || hasProofSessions || p.evidence_count > 0;
 
   // Total video duration
   const totalVideoSeconds = hasVideo ? p.video_sessions.reduce((acc, s) => acc + (s.duration_seconds || 0), 0) : 0;
   const videoPct = pctOfRdv(totalVideoSeconds, durationMinutes);
+
+  // Total proof session active duration
+  const totalProofSeconds = hasProofSessions ? p.proof_sessions.reduce((acc, s) => acc + (s.active_duration_seconds || 0), 0) : 0;
+  const totalProofHeartbeats = hasProofSessions ? p.proof_sessions.reduce((acc, s) => acc + (s.heartbeat_count || 0), 0) : 0;
+  const bestScore = hasProofSessions ? Math.max(...p.proof_sessions.map(s => s.score || 0)) : 0;
 
   // Role label
   const roleLabel = p.is_organizer ? 'Organisateur' : 'Participant';
@@ -644,7 +650,7 @@ function ParticipantDossierCard({ p, durationMinutes }) {
   const declPresent = p.declarations_about?.declared_present || 0;
   const declAbsent = p.declarations_about?.declared_absent || 0;
 
-  // Signal badge
+  // Signal badge — factoring in both evidence_items AND proof_sessions
   let signalBadge;
   if (!hasAnyEvidence) {
     signalBadge = { label: 'Aucune trace', bg: 'bg-slate-100', text: 'text-slate-500', Icon: WifiOff };
@@ -652,6 +658,10 @@ function ParticipantDossierCard({ p, durationMinutes }) {
     signalBadge = { label: `Signal fort (${videoPct}%)`, bg: 'bg-emerald-50', text: 'text-emerald-700', Icon: Wifi };
   } else if (hasVideo || hasGps || hasQr) {
     signalBadge = { label: 'Signal partiel', bg: 'bg-amber-50', text: 'text-amber-700', Icon: Wifi };
+  } else if (hasProofSessions && bestScore >= 50) {
+    signalBadge = { label: `NLYT score ${bestScore}`, bg: 'bg-sky-50', text: 'text-sky-700', Icon: Monitor };
+  } else if (hasProofSessions) {
+    signalBadge = { label: `NLYT faible (${bestScore})`, bg: 'bg-amber-50', text: 'text-amber-600', Icon: Monitor };
   } else {
     signalBadge = { label: 'Check-in seul', bg: 'bg-sky-50', text: 'text-sky-700', Icon: Monitor };
   }
@@ -728,10 +738,49 @@ function ParticipantDossierCard({ p, durationMinutes }) {
             <span className="text-slate-600">Check-in : <span className="font-mono font-medium">{formatTime(p.checkin.timestamp)}</span></span>
             {p.checkin.temporal_detail && <span className="text-slate-400">({p.checkin.temporal_detail})</span>}
           </div>
-        ) : (
+        ) : !hasProofSessions && (
           <div className="flex items-center gap-1.5 text-xs text-slate-400">
             <UserCheck className="w-3.5 h-3.5" />
             <span>Check-in : —</span>
+          </div>
+        )}
+
+        {/* NLYT Proof Sessions */}
+        {hasProofSessions ? (
+          <div data-testid={`evidence-nlyt-${p.participant_id}`}>
+            <div className="flex items-center gap-1.5 text-xs text-slate-500 mb-1">
+              <Monitor className="w-3.5 h-3.5" />
+              <span className="font-medium">Sessions NLYT</span>
+              <span className="text-slate-400">· {p.proof_sessions.length} session{p.proof_sessions.length > 1 ? 's' : ''}</span>
+            </div>
+            {p.proof_sessions.map((s, i) => (
+              <div key={i} className="flex items-center gap-2 text-xs ml-5 py-0.5">
+                <LogIn className="w-3 h-3 text-sky-500" />
+                <span className="text-slate-700 font-mono">{formatTime(s.checked_in_at)}</span>
+                <span className="text-slate-300">→</span>
+                <LogOut className="w-3 h-3 text-slate-400" />
+                <span className="text-slate-700 font-mono">{formatTime(s.checked_out_at)}</span>
+                <span className="text-slate-400">({formatDuration(s.active_duration_seconds)} actif)</span>
+                <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                  s.score >= 50 ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'
+                }`}>
+                  {s.score}/100
+                </span>
+                <span className="text-[10px] text-slate-400">{s.heartbeat_count} hb</span>
+              </div>
+            ))}
+            <div className="flex items-center gap-3 text-xs ml-5 pt-1 text-slate-500 font-medium">
+              <span>Total actif : {formatDuration(totalProofSeconds)}</span>
+              <span className="text-slate-400">·</span>
+              <span>{totalProofHeartbeats} heartbeats</span>
+              <span className="text-slate-400">·</span>
+              <span>Meilleur score : {bestScore}/100</span>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center gap-1.5 text-xs text-slate-400">
+            <Monitor className="w-3.5 h-3.5" />
+            <span>Sessions NLYT : —</span>
           </div>
         )}
 
@@ -777,14 +826,15 @@ function IncoherenceSummary({ dossiers }) {
 
   for (const p of dossiers) {
     const name = `${p.first_name || ''}`.trim() || 'Un participant';
-    const hasAnySignal = p.video_sessions?.length > 0 || p.checkin || p.gps || p.qr;
+    const hasAnySignal = p.video_sessions?.length > 0 || p.checkin || p.gps || p.qr || p.proof_sessions?.length > 0;
     const declAbsent = p.declarations_about?.declared_absent || 0;
     const declPresent = p.declarations_about?.declared_present || 0;
 
     // Signal technique present mais declare absent par d'autres
     if (hasAnySignal && declAbsent > 0) {
       const totalSec = (p.video_sessions || []).reduce((a, s) => a + (s.duration_seconds || 0), 0);
-      const detail = totalSec > 0 ? ` (${Math.round(totalSec / 60)} min de visio)` : '';
+      const proofSec = (p.proof_sessions || []).reduce((a, s) => a + (s.active_duration_seconds || 0), 0);
+      const detail = totalSec > 0 ? ` (${Math.round(totalSec / 60)} min de visio)` : proofSec > 0 ? ` (${Math.round(proofSec / 60)} min actif NLYT)` : '';
       flags.push({
         type: 'contradiction',
         text: `${name} a une trace technique${detail}, mais est declare absent par ${declAbsent} participant${declAbsent > 1 ? 's' : ''}.`,
