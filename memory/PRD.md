@@ -112,6 +112,14 @@ Application SaaS (React/FastAPI/MongoDB) de gestion des presences avec garanties
   - Depuis invitations.py (flow invitation): pas de return_url → /invitation/{token} preserve
 - Frontend: AppointmentDetail.js detecte ?guarantee_status=success, nettoie l'URL, attend 2s, verifie activation, affiche toast
 
+## ActionCard UX Overhaul (2026-03-30)
+- Carte cliquable: zone contenu (titre, date, lieu) wrappee dans <Link> vers /appointments/{id}
+- Icone corbeille: ajoutee pour organisateur (via handleDeleteClick existant), absente pour participant
+- Bouton Quitter: ajout pour participants ayant deja accepte (status != invited/pending_guarantee)
+- Bouton 'Voir details' supprime (carte elle-meme cliquable)
+- Tous les CTA existants preserves (Accept, Refuse, Relancer, Annuler, Finaliser)
+- Alignement complet avec le pattern TimelineCard
+
 ## Test Results - Iteration 155 (2026-03-30)
 - FLUX1 (suppression carte sans auto-recovery): PASS
 - FLUX2 (creation RDV sans carte → Stripe redirect): PASS
