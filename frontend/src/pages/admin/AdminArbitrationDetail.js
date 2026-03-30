@@ -13,10 +13,10 @@ import {
 
 // ── Human-readable wording maps ──
 
-const POSITION_HUMAN = {
-  confirmed_present: 'Il etait present',
-  confirmed_absent: 'Il etait absent',
-  confirmed_late_penalized: 'Il etait en retard',
+const POSITION_STATUS = {
+  confirmed_present: 'present',
+  confirmed_absent: 'absent',
+  confirmed_late_penalized: 'en retard',
 };
 
 const OUTCOME_OPTIONS = [
@@ -156,7 +156,9 @@ export default function AdminArbitrationDetail() {
           <div className="flex items-stretch gap-3">
             <PositionCard
               role="Organisateur"
-              name={dispute.organizer_name}
+              declarantName={dispute.organizer_name}
+              subjectName={dispute.target_name}
+              isSelfDeclaration={dispute.organizer_name === dispute.target_name}
               position={dispute.organizer_position}
               positionAt={dispute.organizer_position_at}
             />
@@ -165,7 +167,9 @@ export default function AdminArbitrationDetail() {
             </div>
             <PositionCard
               role="Participant"
-              name={dispute.target_name}
+              declarantName={dispute.counterpart_name || '?'}
+              subjectName={dispute.target_name}
+              isSelfDeclaration={false}
               position={dispute.participant_position}
               positionAt={dispute.participant_position_at}
             />
@@ -373,19 +377,30 @@ function CertaintyBadge({ config, label }) {
 
 // ── Zone 2: Position Card ──
 
-function PositionCard({ role, name, position, positionAt }) {
+function PositionCard({ role, declarantName, subjectName, isSelfDeclaration, position, positionAt }) {
   const isPresent = position === 'confirmed_present';
   const isAbsent = position === 'confirmed_absent';
   const colors = isPresent ? 'bg-emerald-50 border-emerald-200' : isAbsent ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-200';
   const textColor = isPresent ? 'text-emerald-700' : isAbsent ? 'text-red-700' : 'text-amber-700';
 
+  const statusLabel = POSITION_STATUS[position];
+
+  // Build the explicit phrase: "[QUI parle] dit que [QUI est évalué] était [STATUT]"
+  let phrase;
+  if (!statusLabel) {
+    phrase = 'Position non soumise';
+  } else if (isSelfDeclaration) {
+    phrase = `Selon ${declarantName}, il/elle etait ${statusLabel}`;
+  } else {
+    phrase = `Selon ${declarantName}, ${subjectName} etait ${statusLabel}`;
+  }
+
   return (
     <div className={`flex-1 rounded-lg border p-4 ${colors}`} data-testid={`position-${role.toLowerCase()}`}>
       <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">{role}</p>
-      <p className="text-sm font-medium text-slate-800 mt-1">{name || '—'}</p>
-      <p className="text-xs text-slate-400 mt-0.5">dit :</p>
-      <p className={`text-sm font-bold mt-0.5 ${textColor}`}>
-        {POSITION_HUMAN[position] || 'Position non soumise'}
+      <p className="text-sm font-medium text-slate-800 mt-1">{declarantName || '—'}</p>
+      <p className={`text-sm font-bold mt-2 ${textColor}`}>
+        {phrase}
       </p>
       {positionAt && (
         <p className="text-[10px] text-slate-400 mt-1.5">
@@ -871,7 +886,10 @@ function buildDisagreementPhrase(dispute) {
   const par = dispute.participant_position;
   if (!org || !par) return null;
   if (org === par) return 'Les deux parties sont d\'accord.';
-  const orgSays = org === 'confirmed_absent' ? 'absent' : org === 'confirmed_present' ? 'present' : 'en retard';
-  const parSays = par === 'confirmed_present' ? 'present' : par === 'confirmed_absent' ? 'absent' : 'en retard';
-  return `Desaccord : l'organisateur estime que le participant etait ${orgSays}, le participant affirme qu'il etait ${parSays}.`;
+  const orgName = dispute.organizer_name || 'L\'organisateur';
+  const cpName = dispute.counterpart_name || 'Le participant';
+  const targetName = dispute.target_name || 'la cible';
+  const orgSays = POSITION_STATUS[org] || '?';
+  const parSays = POSITION_STATUS[par] || '?';
+  return `Desaccord : ${orgName} dit que ${targetName} etait ${orgSays}. ${cpName} dit que ${targetName} etait ${parSays}.`;
 }

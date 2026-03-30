@@ -489,10 +489,31 @@ def get_dispute_detail_for_admin(dispute_id: str) -> dict:
 
     org_p = db.participants.find_one(
         {"appointment_id": apt_id, "is_organizer": True},
-        {"_id": 0, "first_name": 1, "last_name": 1, "email": 1}
+        {"_id": 0, "participant_id": 1, "first_name": 1, "last_name": 1, "email": 1}
     )
     if org_p:
         dispute["organizer_name"] = f"{org_p.get('first_name', '')} {org_p.get('last_name', '')}".strip()
+
+    # Counterpart name: the OTHER party (the one who is not the target)
+    # If target is the organizer → counterpart is the first non-org participant
+    # If target is a participant → counterpart is the organizer
+    if target_p and org_p:
+        target_is_org = (dispute.get("target_participant_id") == org_p.get("participant_id")) if org_p.get("participant_id") else False
+    else:
+        target_is_org = False
+
+    if target_is_org:
+        # Target is the organizer → counterpart = first accepted non-org participant
+        cp = db.participants.find_one(
+            {"appointment_id": apt_id, "is_organizer": {"$ne": True},
+             "status": {"$in": ["accepted", "accepted_pending_guarantee", "accepted_guaranteed"]}},
+            {"_id": 0, "first_name": 1, "last_name": 1}
+        )
+        if cp:
+            dispute["counterpart_name"] = f"{cp.get('first_name', '')} {cp.get('last_name', '')}".strip()
+    else:
+        # Target is a participant → counterpart = organizer
+        dispute["counterpart_name"] = dispute.get("organizer_name", "")
 
     # Tech dossier
     tech_dossier = build_tech_dossier(apt_id, target_pid)
