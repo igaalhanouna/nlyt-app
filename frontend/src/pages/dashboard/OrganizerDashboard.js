@@ -109,7 +109,7 @@ function ImpactCard({ totalCharityCents }) {
 }
 
 // ── Action Required Section ──
-function ActionCard({ item, onRemind, onAccept, onDecline, onCancel, now, onNavigate }) {
+function ActionCard({ item, onRemind, onAccept, onDecline, onCancel, onDelete, now, onNavigate }) {
   const isParticipant = item.role === 'participant';
   const isOrgAlert = !isParticipant && item.action_required;
 
@@ -117,71 +117,77 @@ function ActionCard({ item, onRemind, onAccept, onDecline, onCancel, now, onNavi
   const actionStartDt = parseUTC(item.starts_at);
   const isActionStarted = actionStartDt && now >= actionStartDt;
 
+  const detailLink = `/appointments/${item.appointment_id}`;
+  const navState = { fromTab: 'action_required' };
+
   return (
-    <div className="bg-white border border-red-100 rounded-lg p-4" data-testid={`action-card-${item.appointment_id}`}>
-      {/* Role label */}
-      <div className="flex items-center gap-2 mb-2">
-        <span className={`text-[11px] font-medium ${isParticipant ? 'text-blue-600' : 'text-slate-500'}`} data-testid={`role-label-${item.appointment_id}`}>
-          {isParticipant ? `Invitation de ${item.counterparty_name}` : 'Créé par vous'}
-        </span>
-        {item.pending_label && (
-          <span className={`ml-auto text-xs font-semibold ${isParticipant ? 'text-blue-600' : 'text-amber-600'}`}>{item.pending_label}</span>
-        )}
-      </div>
-
-      {/* Title */}
-      <p className="font-semibold text-base text-slate-900 mb-2">{item.title}</p>
-
-      {/* Metadata grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5 text-xs text-slate-600 mb-3">
-        <span className="flex items-center gap-1.5">
-          <Calendar className="w-3.5 h-3.5 text-slate-400" />
-          {formatDateTimeCompactFr(item.starts_at)}
-        </span>
-        <span className="flex items-center gap-1.5">
-          <Clock className="w-3.5 h-3.5 text-slate-400" />
-          {item.duration_minutes} min
-        </span>
-        <span className="flex items-center gap-1.5">
-          {item.appointment_type === 'physical'
-            ? <><MapPin className="w-3.5 h-3.5 text-slate-400" /> {item.location_display_name || item.location || 'Physique'}</>
-            : <><Video className="w-3.5 h-3.5 text-slate-400" /> {item.meeting_provider || 'Visioconférence'}</>
-          }
-        </span>
-        {item.penalty_amount > 0 && (
-          <span className="flex items-center gap-1.5">
-            <CreditCard className="w-3.5 h-3.5 text-slate-400" />
-            Garantie : {fmtEuro(item.penalty_amount)}
+    <div className="bg-white border border-red-100 rounded-lg transition-all hover:border-red-200 hover:shadow-sm" data-testid={`action-card-${item.appointment_id}`}>
+      {/* Clickable content area — navigates to detail */}
+      <Link to={detailLink} state={navState} className="block p-4 pb-2" onClick={onNavigate}>
+        {/* Role label */}
+        <div className="flex items-center gap-2 mb-2">
+          <span className={`text-[11px] font-medium ${isParticipant ? 'text-blue-600' : 'text-slate-500'}`} data-testid={`role-label-${item.appointment_id}`}>
+            {isParticipant ? `Invitation de ${item.counterparty_name}` : 'Créé par vous'}
           </span>
-        )}
-      </div>
-
-      {/* Engagement rules */}
-      {(item.tolerated_delay_minutes > 0 || item.cancellation_deadline_hours > 0) && (
-        <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-slate-500 mb-3 pb-3 border-b border-slate-100">
-          {item.tolerated_delay_minutes > 0 && (
-            <span>Tolérance retard : {item.tolerated_delay_minutes} min</span>
-          )}
-          {item.cancellation_deadline_hours > 0 && (
-            <span>Annulation possible jusqu'à {item.cancellation_deadline_hours}h avant</span>
+          {item.pending_label && (
+            <span className={`ml-auto text-xs font-semibold ${isParticipant ? 'text-blue-600' : 'text-amber-600'}`}>{item.pending_label}</span>
           )}
         </div>
-      )}
 
-      {/* CTAs */}
-      <div className="flex items-center gap-2 flex-wrap">
+        {/* Title */}
+        <p className="font-semibold text-sm leading-tight text-slate-900 mb-2.5">{item.title}</p>
+
+        {/* Metadata grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5 text-xs text-slate-600 mb-3">
+          <span className="flex items-center gap-1.5">
+            <Calendar className="w-3.5 h-3.5 text-slate-400" />
+            {formatDateTimeCompactFr(item.starts_at)}
+          </span>
+          <span className="flex items-center gap-1.5">
+            <Clock className="w-3.5 h-3.5 text-slate-400" />
+            {item.duration_minutes} min
+          </span>
+          <span className="flex items-center gap-1.5">
+            {item.appointment_type === 'physical'
+              ? <><MapPin className="w-3.5 h-3.5 text-slate-400" /> {item.location_display_name || item.location || 'Physique'}</>
+              : <><Video className="w-3.5 h-3.5 text-slate-400" /> {item.meeting_provider || 'Visioconférence'}</>
+            }
+          </span>
+          {item.penalty_amount > 0 && (
+            <span className="flex items-center gap-1.5">
+              <CreditCard className="w-3.5 h-3.5 text-slate-400" />
+              Garantie : {fmtEuro(item.penalty_amount)}
+            </span>
+          )}
+        </div>
+
+        {/* Engagement rules */}
+        {(item.tolerated_delay_minutes > 0 || item.cancellation_deadline_hours > 0) && (
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-slate-500 mb-3 pb-3 border-b border-slate-100">
+            {item.tolerated_delay_minutes > 0 && (
+              <span>Tolérance retard : {item.tolerated_delay_minutes} min</span>
+            )}
+            {item.cancellation_deadline_hours > 0 && (
+              <span>Annulation possible jusqu'à {item.cancellation_deadline_hours}h avant</span>
+            )}
+          </div>
+        )}
+      </Link>
+
+      {/* CTAs — outside the Link to avoid nested <a> */}
+      <div className="flex items-center gap-2 flex-wrap px-4 pb-3 pt-1">
         {isParticipant && item.status === 'invited' ? (
           <>
             <Button size="sm" className="h-11 md:h-8 text-xs flex-1 md:flex-none bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => onAccept(item)} data-testid={`accept-btn-${item.appointment_id}`}>
               <Check className="w-3.5 h-3.5 mr-1.5" /> Accepter
             </Button>
-            <Button size="sm" variant="outline" className="h-11 md:h-8 text-xs flex-1 md:flex-none border-slate-200 text-slate-600" onClick={() => onDecline(item)} data-testid={`decline-btn-${item.appointment_id}`}>
+            <Button size="sm" variant="outline" className="h-11 md:h-8 text-xs flex-1 md:flex-none border-red-200 text-red-600 hover:bg-red-50" onClick={() => onDecline(item)} data-testid={`decline-btn-${item.appointment_id}`}>
               <X className="w-3.5 h-3.5 mr-1.5" /> Refuser
             </Button>
           </>
         ) : isParticipant && item.participant_status === 'accepted_pending_guarantee' ? (
           <>
-            <Link to={`/appointments/${item.appointment_id}`} state={{ fromTab: 'action_required' }} className="flex-1 md:flex-none" onClick={onNavigate}>
+            <Link to={detailLink} state={navState} className="flex-1 md:flex-none" onClick={onNavigate}>
               <Button size="sm" className="h-11 md:h-8 text-xs w-full bg-amber-600 hover:bg-amber-700 text-white" data-testid={`finalize-guarantee-btn-${item.appointment_id}`}>
                 <CreditCard className="w-3.5 h-3.5 mr-1.5" /> Finaliser ma garantie
               </Button>
@@ -206,11 +212,30 @@ function ActionCard({ item, onRemind, onAccept, onDecline, onCancel, now, onNavi
             <Bell className="w-3.5 h-3.5 mr-1.5" /> Relancer
           </Button>
         )}
-        <Link to={`/appointments/${item.appointment_id}`} state={{ fromTab: 'action_required' }} className="flex-1 md:flex-none" onClick={onNavigate}>
-          <Button size="sm" variant="ghost" className="h-11 md:h-8 text-xs w-full" data-testid={`view-action-${item.appointment_id}`}>
-            <Eye className="w-3.5 h-3.5 mr-1.5" /> Voir détails
+
+        {/* Delete/Trash icon for organizer — aligned with TimelineCard */}
+        {!isParticipant && (
+          <button
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDelete(item); }}
+            className="ml-auto flex items-center justify-center w-11 h-11 md:w-auto md:h-auto md:p-1.5 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-lg md:rounded transition-colors"
+            title="Supprimer"
+            data-testid={`delete-action-${item.appointment_id}`}
+          >
+            <Trash2 className="w-4 h-4 md:w-3.5 md:h-3.5" />
+          </button>
+        )}
+        {/* Quit action for participant — aligned with TimelineCard */}
+        {isParticipant && item.status !== 'invited' && item.participant_status !== 'accepted_pending_guarantee' && !isActionStarted && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-11 md:h-8 text-xs flex-1 md:flex-none border-red-200 text-red-600 hover:bg-red-50 ml-auto"
+            onClick={() => onDecline(item)}
+            data-testid={`quit-action-${item.appointment_id}`}
+          >
+            <LogOut className="w-3.5 h-3.5 mr-1.5" /> Quitter
           </Button>
-        </Link>
+        )}
       </div>
     </div>
   );
@@ -1026,7 +1051,7 @@ export default function OrganizerDashboard() {
                   </div>
                   <div className="space-y-3">
                     {invItems.slice(0, 8).map(item => (
-                      <ActionCard key={`${item.role}-${item.appointment_id}`} item={item} onRemind={handleRemind} onAccept={handleAcceptInvitation} onDecline={handleDeclineInvitation} onCancel={handleCancelAppointment} now={now} onNavigate={saveScroll} />
+                      <ActionCard key={`${item.role}-${item.appointment_id}`} item={item} onRemind={handleRemind} onAccept={handleAcceptInvitation} onDecline={handleDeclineInvitation} onCancel={handleCancelAppointment} onDelete={handleDeleteClick} now={now} onNavigate={saveScroll} />
                     ))}
                   </div>
                 </div>
