@@ -642,7 +642,7 @@ export default function InvitationPage() {
         )}
 
         {/* Check-in Section */}
-        {!isAppointmentUnavailable && (
+        {['accepted', 'accepted_guaranteed', 'accepted_pending_guarantee'].includes(responseStatus) && (
           <InvitationCheckinSection
             appointment={appointment}
             participant={participant}
