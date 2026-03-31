@@ -31,19 +31,6 @@ async def lifespan(app: FastAPI):
         {"email": "igaal@nlyt.io"},
         {"$set": {"role": "admin"}},
     )
-
-    # === ONE-TIME RESET — TO BE REMOVED AFTER FIRST DEPLOY ===
-    logger.warning("[RESET] Wiping all data except igaal@nlyt.io")
-    admin_user = db.users.find_one({"email": "igaal@nlyt.io"})
-    if admin_user:
-        db.users.delete_many({"email": {"$ne": "igaal@nlyt.io"}})
-        for col_name in db.list_collection_names():
-            if col_name != "users":
-                db[col_name].drop()
-        logger.warning("[RESET] Done. Only igaal@nlyt.io (admin) remains.")
-    else:
-        logger.warning("[RESET] igaal@nlyt.io not found — reset aborted.")
-    # === END ONE-TIME RESET ===
     yield
     # Shutdown
     stop_scheduler()
