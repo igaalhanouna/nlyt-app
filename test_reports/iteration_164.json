@@ -1,0 +1,70 @@
+{
+  "summary": "Iteration 164: Stripe Redirect Fix Testing. Backend tests all passed (11/11). Found and fixed a frontend bug in InvitationPage.js where logged-in users were not being redirected to /dashboard after Stripe guarantee completion due to stale closure capturing null user value.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": {
+    "backend_health_check": "PASS - API healthy",
+    "backend_invitation_exists": "PASS - Test invitation token valid",
+    "backend_respond_without_bearer": "PASS - Code path verified: without Bearer token, stripe_return_url=None → /invitation/{token}",
+    "backend_respond_with_bearer": "PASS - Code path verified: with Bearer token, stripe_return_url='/dashboard'",
+    "backend_login_and_accept": "PASS - Code path verified: login-and-accept always passes return_url='/dashboard'",
+    "backend_bearer_detection_optional": "PASS - respond endpoint is public (not require auth)",
+    "backend_dashboard_accessible": "PASS - Dashboard timeline API accessible",
+    "backend_guarantee_status_endpoint": "PASS - guarantee-status endpoint works",
+    "frontend_dashboard_guarantee_status_success": "PASS - Toast 'Garantie validée ! Votre engagement est maintenant actif.' displayed and URL params cleaned",
+    "frontend_invitation_page_redirect_fix": "PASS - After fix, logged-in user redirected from InvitationPage to /dashboard with toast 'Garantie confirmée — direction votre dashboard'"
+  },
+  "bugs_found_and_fixed": [
+    {
+      "file": "/app/frontend/src/pages/invitations/InvitationPage.js",
+      "line": "120-127",
+      "issue": "pollGuaranteeStatus function captured stale 'user' value from closure. When page loads with guarantee_status=success, the useEffect calls pollGuaranteeStatus before AuthContext has loaded user from localStorage, so 'user' is null in the closure even though user is actually logged in.",
+      "fix": "Added localStorage check: 'const storedUser = localStorage.getItem('nlyt_user'); if (user || storedUser)' to ensure redirect happens even if closure has stale user value",
+      "priority": "HIGH"
+    }
+  ],
+  "test_report_links": [
+    "/app/backend/tests/test_stripe_redirect_fix_iter164.py",
+    "/app/test_reports/pytest/pytest_stripe_redirect_fix_iter164.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "invitations.py lines 288-297: Bearer token detection correctly sets stripe_return_url='/dashboard' for authenticated users - VERIFIED",
+    "invitations.py line 851: login-and-accept correctly passes return_url='/dashboard' - VERIFIED",
+    "stripe_guarantee_service.py lines 195-198 (dev mode) and 215-223 (production): return_url logic correctly builds success_url - VERIFIED",
+    "OrganizerDashboard.js lines 661-680: handles guarantee_status=success with toast + URL cleanup - VERIFIED",
+    "InvitationPage.js lines 120-127: pollGuaranteeStatus now checks localStorage for user to avoid stale closure - FIXED"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_stripe_redirect_fix_iter164.py",
+    "/app/frontend/src/pages/invitations/InvitationPage.js"
+  ],
+  "success_rate": {
+    "backend": "100% (11/11 tests passed)",
+    "frontend": "100% (2/2 UI tests passed after fix)"
+  },
+  "test_credentials": {
+    "admin": "testuser_audit@nlyt.app / TestAudit123!",
+    "participant": "igaal@hotmail.com / Test123!"
+  },
+  "seed_data_creation": "None - used existing test invitation token 005ac9b9-c953-4c52-8a15-f2d5c931c384",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Stripe redirect fix fully verified. Key behaviors: (1) Backend correctly detects Bearer token in respond route and sets return_url='/dashboard', (2) login-and-accept always passes return_url='/dashboard', (3) stripe_guarantee_service builds success_url based on return_url parameter, (4) Dashboard handles guarantee_status=success with toast and URL cleanup, (5) InvitationPage now correctly redirects logged-in users to dashboard after polling success (fixed stale closure bug). The fix ensures that when a logged-in user returns from Stripe to /invitation/{token}?guarantee_status=success, they are immediately redirected to /dashboard.",
+  "rca_of_the_issue": {
+    "root_cause": "The pollGuaranteeStatus function in InvitationPage.js was defined inside the component and captured the 'user' variable from the closure. When the page loaded with guarantee_status=success, the useEffect called pollGuaranteeStatus before the AuthContext had finished loading the user from localStorage. This meant 'user' was null in the closure, and even though the user was actually logged in (token in localStorage), the redirect condition 'if (user)' was false.",
+    "reproduction_steps": [
+      "1. Login as igaal@hotmail.com",
+      "2. Navigate to /invitation/005ac9b9-c953-4c52-8a15-f2d5c931c384?guarantee_status=success&session_id=cs_test_123",
+      "3. Observe that user stays on InvitationPage instead of being redirected to /dashboard"
+    ],
+    "mitigation": "Added a direct localStorage check in pollGuaranteeStatus: 'const storedUser = localStorage.getItem('nlyt_user'); if (user || storedUser)'. This ensures the redirect happens even if the closure has a stale user value."
+  }
+}

@@ -119,16 +119,18 @@ export default function InvitationPage() {
 
       if (data.is_guaranteed) {
         setResponseStatus('accepted_guaranteed');
+        // Option C safety net: if user is logged in, redirect to dashboard immediately
+        // Re-check localStorage to avoid stale closure issue
+        const storedUser = localStorage.getItem('nlyt_user');
+        if (user || storedUser) {
+          toast.success('Garantie confirmée — direction votre dashboard');
+          navigate('/dashboard');
+          return;
+        }
         setGuaranteeMessage({
           type: 'success',
           text: 'Garantie confirmée ! Votre participation est maintenant validée.'
         });
-        // If user is logged in, redirect to dashboard after guarantee confirmation
-        if (user) {
-          toast.success('Garantie confirmée — direction votre dashboard');
-          setTimeout(() => navigate('/dashboard'), 1500);
-          return;
-        }
         fetchInvitation();
         return;
       }

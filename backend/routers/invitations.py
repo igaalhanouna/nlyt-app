@@ -278,9 +278,23 @@ async def respond_to_invitation(request: Request, token: str, response: Invitati
     - If penalty_amount = 0: Directly accepts without Stripe
     
     For decline: Directly declines
+    
+    If the caller sends a valid Bearer token (authenticated user in the app),
+    Stripe will redirect back to /dashboard instead of /invitation/{token}.
     """
     if response.action not in ["accept", "decline"]:
         raise HTTPException(status_code=400, detail="Action invalide. Utilisez 'accept' ou 'decline'.")
+    
+    # ── Detect authenticated context (Option A) ──
+    # If the request comes from a logged-in user in the app, Stripe should
+    # redirect back to /dashboard, not to /invitation/{token}.
+    stripe_return_url = None
+    auth_header = request.headers.get("authorization", "")
+    if auth_header.startswith("Bearer "):
+        from utils.jwt_utils import verify_token
+        payload = verify_token(auth_header.split(" ", 1)[1])
+        if payload and payload.get("user_id"):
+            stripe_return_url = "/dashboard"
     
     # Find participant by token
     participant = db.participants.find_one(
@@ -390,7 +404,8 @@ async def respond_to_invitation(request: Request, token: str, response: Invitati
                 penalty_amount=float(penalty_amount),
                 penalty_currency=appointment.get('penalty_currency', 'eur'),
                 frontend_url=frontend_url,
-                invitation_token=token
+                invitation_token=token,
+                return_url=stripe_return_url
             )
             
             if not result.get('success'):
@@ -832,7 +847,8 @@ async def login_and_accept(request: Request, token: str, body: LoginAndAcceptReq
                 penalty_amount=float(penalty_amount),
                 penalty_currency=appointment.get('penalty_currency', 'eur'),
                 frontend_url=frontend_url,
-                invitation_token=token
+                invitation_token=token,
+                return_url="/dashboard"
             )
 
             if not result.get('success'):
