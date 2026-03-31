@@ -42,6 +42,15 @@ Application SaaS (React/FastAPI/MongoDB) de gestion des presences avec garanties
 
 ## Completed Features (Latest)
 
+### Fix Annulation Participant — Statut Métier Préservé (2026-03-30)
+- BUG CRITIQUE: `release_guarantee()` écrasait le statut métier `cancelled_by_participant` par `guarantee_released`
+- FIX BACKEND: `release_guarantee()` ne touche plus au statut participant si celui-ci est terminal (cancelled_by_participant, declined)
+- FIX BACKEND: Timeline organisateur exclut les participants annulés/refusés des compteurs actifs + affiche "Participation annulée par [Nom]"
+- FIX BACKEND: Timeline participant affiche "Vous avez annulé votre participation" + classement en historique
+- FIX FRONTEND: `guarantee_released` traité comme alias de `cancelled_by_participant` dans 7 composants (OrganizerDashboard, ParticipantsSection, ParticipantManagement, InvitationStatusBadge, InvitationResponseSection, InvitationCardHeader, InvitationPage)
+- MIGRATION: 3 participants historiques corrigés (guarantee_released → cancelled_by_participant)
+- Tests: 13/13 PASS (iteration 163)
+
 ### Wording Ponctualite & Accents Fix (2026-03-30)
 - Remplacement "present" par "present a l'heure" sur tout le frontend
 - Correction accents manquants dans AttendanceSheetPage.js ("Present(e) a l'heure" -> "Present(e) a l'heure" avec accents)
@@ -115,6 +124,7 @@ Application SaaS (React/FastAPI/MongoDB) de gestion des presences avec garanties
 - ObjectId exclusion from all MongoDB responses
 - GUARANTEE RULE: No guarantee without Stripe verification
 - pm_dev_ payment methods rejected with real Stripe key
+- BUSINESS STATUS RULE: Le statut participant métier (cancelled_by_participant, declined) ne doit JAMAIS être écrasé par un statut financier (guarantee_released). release_guarantee() vérifie le statut avant d'écrire.
 
 ## Upcoming Tasks (P1)
 - Configurer le webhook Stripe en production
