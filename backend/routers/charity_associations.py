@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 from typing import Optional
 from database import db
 from middleware.auth_middleware import get_current_user
+from utils.permissions import require_permission
 from rate_limiter import limiter
 
 router = APIRouter()
@@ -142,7 +143,7 @@ def _validate_iban(iban: str) -> str:
 @limiter.limit("30/minute")
 async def admin_list_associations(request: Request):
     """Admin: list ALL associations (including inactive)."""
-    await get_current_user(request)
+    await require_permission(request, "admin:associations")
     associations = list(db.charity_associations.find(
         {},
         {"_id": 0}
@@ -154,7 +155,7 @@ async def admin_list_associations(request: Request):
 @limiter.limit("10/minute")
 async def admin_create_association(request: Request, body: AssociationCreate):
     """Admin: create a new association."""
-    user = await get_current_user(request)
+    user = await require_permission(request, "admin:associations")
     now = datetime.now(timezone.utc).isoformat()
 
     # Generate a slug-based ID
@@ -211,7 +212,7 @@ async def admin_create_association(request: Request, body: AssociationCreate):
 @limiter.limit("10/minute")
 async def admin_update_association(request: Request, association_id: str, body: AssociationUpdate):
     """Admin: update an association."""
-    user = await get_current_user(request)
+    user = await require_permission(request, "admin:associations")
 
     existing = db.charity_associations.find_one({"association_id": association_id})
     if not existing:
@@ -256,7 +257,7 @@ async def admin_update_association(request: Request, association_id: str, body: 
 @limiter.limit("10/minute")
 async def admin_toggle_association(request: Request, association_id: str):
     """Admin: activate/deactivate an association."""
-    user = await get_current_user(request)
+    user = await require_permission(request, "admin:associations")
 
     existing = db.charity_associations.find_one({"association_id": association_id}, {"_id": 0})
     if not existing:

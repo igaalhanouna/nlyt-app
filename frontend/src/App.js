@@ -4,6 +4,8 @@ import { Toaster } from './components/ui/sonner';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { WorkspaceProvider } from './contexts/WorkspaceContext';
 
+import PermissionGuard from './components/PermissionGuard';
+
 import LandingPage from './pages/LandingPage';
 import SignIn from './pages/auth/SignIn';
 import SignUp from './pages/auth/SignUp';
@@ -104,12 +106,12 @@ function App() {
               
               <Route path="/admin" element={<PrivateRoute><AdminDashboard /></PrivateRoute>} />
               <Route path="/admin/review" element={<Navigate to="/admin" replace />} />
-              <Route path="/admin/arbitration" element={<PrivateRoute><AdminArbitrationList /></PrivateRoute>} />
-              <Route path="/admin/arbitration/:disputeId" element={<PrivateRoute><AdminArbitrationDetail /></PrivateRoute>} />
-              <Route path="/admin/associations" element={<PrivateRoute><AdminAssociations /></PrivateRoute>} />
-              <Route path="/admin/payouts" element={<PrivateRoute><AdminPayouts /></PrivateRoute>} />
-              <Route path="/admin/stale-payouts" element={<PrivateRoute><AdminStalePayouts /></PrivateRoute>} />
-              <Route path="/admin/users" element={<PrivateRoute><AdminUsers /></PrivateRoute>} />
+              <Route path="/admin/arbitration" element={<PrivateRoute><PermissionGuard permission="admin:arbitration"><AdminArbitrationList /></PermissionGuard></PrivateRoute>} />
+              <Route path="/admin/arbitration/:disputeId" element={<PrivateRoute><PermissionGuard permission="admin:arbitration"><AdminArbitrationDetail /></PermissionGuard></PrivateRoute>} />
+              <Route path="/admin/associations" element={<PrivateRoute><PermissionGuard permission="admin:associations"><AdminAssociations /></PermissionGuard></PrivateRoute>} />
+              <Route path="/admin/payouts" element={<PrivateRoute><PermissionGuard permission="admin:payouts"><AdminPayouts /></PermissionGuard></PrivateRoute>} />
+              <Route path="/admin/stale-payouts" element={<PrivateRoute><PermissionGuard permission="admin:stale-payouts"><AdminStalePayouts /></PermissionGuard></PrivateRoute>} />
+              <Route path="/admin/users" element={<PrivateRoute><PermissionGuard permission="admin:users"><AdminUsers /></PermissionGuard></PrivateRoute>} />
               
               <Route path="/settings" element={<PrivateRoute><Settings /></PrivateRoute>} />
               <Route path="/settings/profile" element={<PrivateRoute><Profile /></PrivateRoute>} />

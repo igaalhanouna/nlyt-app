@@ -18,6 +18,7 @@ from typing import Optional
 
 from database import db
 from routers.admin import require_admin
+from utils.permissions import require_permission
 from services.wallet_service import debit_charity_payout, get_wallet, create_wallet
 
 router = APIRouter()
@@ -38,7 +39,7 @@ class CreatePayoutBody(BaseModel):
 @router.get("/payouts/dashboard")
 async def payouts_dashboard(request: Request):
     """List active associations with their charity wallet balances and last payout."""
-    await require_admin(request)
+    await require_permission(request, "admin:payouts")
 
     associations = list(db.charity_associations.find(
         {"is_active": True},
@@ -82,7 +83,7 @@ async def payouts_dashboard(request: Request):
 @router.get("/payouts")
 async def list_payouts(request: Request, association_id: Optional[str] = None, limit: int = 50, skip: int = 0):
     """List payouts, optionally filtered by association."""
-    await require_admin(request)
+    await require_permission(request, "admin:payouts")
 
     query = {}
     if association_id:
@@ -128,7 +129,7 @@ async def create_payout(request: Request, body: CreatePayoutBody):
     - Wallet is debited atomically
     - Payout record created with full audit trail
     """
-    admin = await require_admin(request)
+    admin = await require_permission(request, "admin:payouts")
 
     # 1. Validate association
     assoc = db.charity_associations.find_one(

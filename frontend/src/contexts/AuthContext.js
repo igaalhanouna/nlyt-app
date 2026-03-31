@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { authAPI } from '../services/api';
+import { hasPermission, hasAnyAdminPermission } from '../utils/permissions';
 
 const AuthContext = createContext();
 
@@ -69,6 +70,13 @@ export function AuthProvider({ children }) {
   // Get token from localStorage
   const token = localStorage.getItem('nlyt_token');
 
+  const canAccess = (permission) => {
+    if (!user) return false;
+    return hasPermission(user.role || 'user', permission);
+  };
+
+  const isAnyAdmin = user ? hasAnyAdminPermission(user.role || 'user') : false;
+
   const value = {
     user,
     token,
@@ -77,6 +85,8 @@ export function AuthProvider({ children }) {
     loginWithToken,
     register,
     logout,
+    canAccess,
+    isAnyAdmin,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

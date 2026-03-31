@@ -5,6 +5,7 @@ import { Button } from './ui/button';
 import { Settings, LogOut, Menu, X, AlertTriangle, TrendingUp, ClipboardCheck, CalendarDays, LayoutDashboard, Scale, FileCheck, Shield } from 'lucide-react';
 import { attendanceAPI, appointmentAPI, notificationAPI } from '../services/api';
 import api from '../services/api';
+import { hasAnyAdminPermission } from '../utils/permissions';
 
 export default function AppNavbar() {
   const { logout, user } = useAuth();
@@ -100,6 +101,7 @@ export default function AppNavbar() {
   };
 
   const isAdmin = user?.role === 'admin';
+  const showAdminLink = isAdmin || hasAnyAdminPermission(user?.role || 'user');
 
   const linkClass = (path) =>
     `text-sm font-medium transition-colors ${
@@ -173,7 +175,7 @@ export default function AppNavbar() {
                 Parametres
               </span>
             </Link>
-            {isAdmin && (
+            {showAdminLink && (
               <Link to="/admin" className={linkClass('/admin')} data-testid="navbar-admin-link">
                 Admin
               </Link>
@@ -270,7 +272,7 @@ export default function AppNavbar() {
                   </span>
                 )}
               </Link>
-              {isAdmin && (
+              {showAdminLink && (
                 <Link to="/admin" className={mobileLinkClass('/admin')} data-testid="mobile-nav-admin">
                   <Shield className="w-4.5 h-4.5" />
                   Admin

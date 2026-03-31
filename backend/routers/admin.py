@@ -1,9 +1,8 @@
 """
-Admin Arbitration Routes — NLYT V1
+Admin Routes — NLYT V1
 
-Provides the admin dashboard for escalated dispute arbitration.
-The admin rules within strict system rules — they do not decide freely.
-All routes require role == 'admin'.
+Provides admin endpoints for arbitration, user management, payouts, and webhooks.
+Routes are protected by granular permissions via utils/permissions.py.
 """
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
@@ -12,19 +11,17 @@ import logging
 import os
 
 from middleware.auth_middleware import get_current_user
+from utils.permissions import require_permission, ALL_ROLES
 from database import db
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-# ── Admin guard ──────────────────────────────────────────────
+# ── Admin guard (kept for backward compat + routes that need full admin) ──
 
 async def require_admin(request: Request) -> dict:
-    user = await get_current_user(request)
-    if user.get("role") != "admin":
-        raise HTTPException(status_code=403, detail="Acces reserve aux administrateurs")
-    return user
+    return await require_permission(request, "admin:users")
 
 
 # ── Models ───────────────────────────────────────────────────
@@ -39,7 +36,7 @@ class ArbitrationResolveBody(BaseModel):
 @router.get("/arbitration")
 async def list_disputes_for_admin(request: Request, filter: str = "escalated"):
     """List disputes for admin arbitration, filtered by category."""
-    await require_admin(request)
+    await require_permission(request, "admin:arbitration")
 
     from services.admin_arbitration_service import get_disputes_for_admin
     disputes = get_disputes_for_admin(filter)
@@ -49,7 +46,7 @@ async def list_disputes_for_admin(request: Request, filter: str = "escalated"):
 @router.get("/arbitration/stats")
 async def get_arbitration_stats(request: Request):
     """Get KPI stats for the admin arbitration dashboard."""
-    await require_admin(request)
+    await require_permission(request, "admin:arbitration")
 
     from services.admin_arbitration_service import get_arbitration_stats
     return get_arbitration_stats()
@@ -58,7 +55,7 @@ async def get_arbitration_stats(request: Request):
 @router.get("/arbitration/{dispute_id}")
 async def get_dispute_for_arbitration(dispute_id: str, request: Request):
     """Get full detail of an escalated dispute for admin arbitration."""
-    await require_admin(request)
+    await require_permission(request, "admin:arbitration")
 
     from services.admin_arbitration_service import get_dispute_detail_for_admin
     detail = get_dispute_detail_for_admin(dispute_id)
@@ -76,7 +73,7 @@ async def resolve_escalated_dispute(dispute_id: str, body: ArbitrationResolveBod
     - Contradiction → examine and rule
     - Always requires a written note for traceability
     """
-    user = await require_admin(request)
+    user = await require_permission(request, "admin:arbitration")
 
     valid_outcomes = ("on_time", "no_show", "late_penalized")
     if body.final_outcome not in valid_outcomes:
@@ -148,8 +145,6 @@ async def get_stripe_events(limit: int = 50, request: Request = None):
 
 # ── User Management ──────────────────────────────────────────
 
-VALID_ROLES = ["user", "admin"]
-
 
 class UpdateRoleBody(BaseModel):
     role: str
@@ -185,11 +180,11 @@ async def admin_list_users(request: Request):
 
 @router.patch("/users/{user_id}/role")
 async def admin_update_user_role(request: Request, user_id: str, body: UpdateRoleBody):
-    """Change a user's role (admin/user)."""
+    """Change a user's role."""
     admin = await require_admin(request)
 
-    if body.role not in VALID_ROLES:
-        raise HTTPException(status_code=400, detail=f"Role invalide. Valeurs acceptees: {VALID_ROLES}")
+    if body.role not in ALL_ROLES:
+        raise HTTPException(status_code=400, detail=f"Role invalide. Valeurs acceptees: {ALL_ROLES}")
 
     target = db.users.find_one({"user_id": user_id}, {"_id": 0, "user_id": 1, "email": 1})
     if not target:
@@ -213,7 +208,7 @@ async def admin_update_user_role(request: Request, user_id: str, body: UpdateRol
 @router.get("/stale-payouts")
 async def get_stale_payouts(request: Request):
     """List all payouts currently in 'stale' or 'processing' > 24h status."""
-    await require_admin(request)
+    await require_permission(request, "admin:stale-payouts")
 
     from datetime import datetime, timezone, timedelta
     cutoff = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()

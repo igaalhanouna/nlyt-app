@@ -3,16 +3,19 @@ import { Link } from 'react-router-dom';
 import { Scale, Heart, Users, ArrowDownCircle, AlertTriangle } from 'lucide-react';
 import AppNavbar from '../../components/AppNavbar';
 import AppBreadcrumb from '../../components/AppBreadcrumb';
+import { useAuth } from '../../contexts/AuthContext';
 
 const SECTIONS = [
-  { to: '/admin/arbitration', icon: Scale, title: 'Litiges & Arbitrage', desc: 'Litiges en cours, escalades et arbitrages', testId: 'admin-arbitration-link' },
-  { to: '/admin/associations', icon: Heart, title: 'Associations', desc: 'Gestion des associations caritatives', testId: 'admin-associations-link' },
-  { to: '/admin/payouts', icon: ArrowDownCircle, title: 'Reversements', desc: 'Virements manuels vers les associations', testId: 'admin-payouts-link' },
-  { to: '/admin/stale-payouts', icon: AlertTriangle, title: 'Payouts bloqués', desc: 'Payouts en processing depuis plus de 24h', testId: 'admin-stale-payouts-link' },
-  { to: '/admin/users', icon: Users, title: 'Utilisateurs & Droits', desc: 'Gestion des roles et permissions', testId: 'admin-users-link' },
+  { to: '/admin/arbitration', icon: Scale, title: 'Litiges & Arbitrage', desc: 'Litiges en cours, escalades et arbitrages', testId: 'admin-arbitration-link', permission: 'admin:arbitration' },
+  { to: '/admin/associations', icon: Heart, title: 'Associations', desc: 'Gestion des associations caritatives', testId: 'admin-associations-link', permission: 'admin:associations' },
+  { to: '/admin/payouts', icon: ArrowDownCircle, title: 'Reversements', desc: 'Virements manuels vers les associations', testId: 'admin-payouts-link', permission: 'admin:payouts' },
+  { to: '/admin/stale-payouts', icon: AlertTriangle, title: 'Payouts bloques', desc: 'Payouts en processing depuis plus de 24h', testId: 'admin-stale-payouts-link', permission: 'admin:stale-payouts' },
+  { to: '/admin/users', icon: Users, title: 'Utilisateurs & Droits', desc: 'Gestion des roles et permissions', testId: 'admin-users-link', permission: 'admin:users' },
 ];
 
 export default function AdminDashboard() {
+  const { canAccess } = useAuth();
+  const visibleSections = SECTIONS.filter(s => canAccess(s.permission));
   return (
     <div className="min-h-screen bg-background">
       <AppNavbar />
@@ -26,7 +29,7 @@ export default function AdminDashboard() {
         <p className="text-sm text-slate-500 mb-8">Gestion de la plateforme NLYT</p>
 
         <div className="grid md:grid-cols-3 gap-4">
-          {SECTIONS.map(({ to, icon: Icon, title, desc, testId }) => (
+          {visibleSections.map(({ to, icon: Icon, title, desc, testId }) => (
             <Link
               key={to}
               to={to}

@@ -470,11 +470,9 @@ async def submit_evidence(dispute_id: str, body: EvidenceSubmissionBody, request
 
 @router.post("/{dispute_id}/resolve")
 async def resolve_dispute_endpoint(dispute_id: str, body: ResolveDisputeBody, request: Request):
-    """Resolve a dispute (admin/platform only)."""
-    user = await get_current_user(request)
-
-    if user.get('role') != 'admin':
-        raise HTTPException(status_code=403, detail="Seul un administrateur peut arbitrer un litige")
+    """Resolve a dispute (admin/arbitrator only)."""
+    from utils.permissions import require_permission
+    await require_permission(request, "admin:arbitration")
 
     from services.declarative_service import resolve_dispute
     result = resolve_dispute(dispute_id, body.final_outcome, body.resolution_note, resolved_by="platform")
