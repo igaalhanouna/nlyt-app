@@ -432,13 +432,9 @@ export default function AppointmentDetail() {
       // Calendar sync — loaded for the current viewer (backend uses viewer's own connections)
       calendarAPI.getSyncStatus(id).then(res => setSyncStatus(res.data)).catch(() => {});
 
-      // Organizer-only loads
-      if (viewerIsOrganizer) {
-        videoEvidenceAPI.getLogs(id).then(res => setVideoIngestionLogs(res.data?.logs || [])).catch(() => {});
-      }
-
-      // Video evidence — both roles can see results
-      if (viewerIsOrganizer || data.appointment_type === 'video') {
+      // Video evidence & logs — both roles can see
+      videoEvidenceAPI.getLogs(id).then(res => setVideoIngestionLogs(res.data?.logs || [])).catch(() => {});
+      if (apt.appointment_type === 'video') {
         videoEvidenceAPI.get(id).then(res => setVideoEvidence(res.data)).catch(() => {});
       }
     } catch { toast.error('Erreur lors du chargement'); }

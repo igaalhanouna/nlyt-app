@@ -38,6 +38,24 @@ from services.meeting_provider_service import (
 router = APIRouter()
 
 
+def _is_accepted_participant(appointment_id: str, user_id: str) -> bool:
+    """Check if user is an accepted participant of the appointment."""
+    ACCEPTED = ["accepted", "accepted_pending_guarantee", "accepted_guaranteed", "guaranteed"]
+    p = db.participants.find_one(
+        {"appointment_id": appointment_id, "user_id": user_id, "status": {"$in": ACCEPTED}},
+        {"_id": 0, "participant_id": 1},
+    )
+    return p is not None
+
+
+def _require_organizer_or_participant(appointment: dict, user: dict):
+    """Raise 403 if user is neither organizer nor accepted participant."""
+    if appointment.get("organizer_id") == user["user_id"]:
+        return
+    if _is_accepted_participant(appointment["appointment_id"], user["user_id"]):
+        return
+    raise HTTPException(status_code=403, detail="Accès réservé à l'organisateur ou aux participants")
+
 
 class VideoIngestionRequest(BaseModel):
     provider: str
@@ -64,11 +82,7 @@ async def ingest_video_evidence(
     if not appointment:
         raise HTTPException(status_code=404, detail="Rendez-vous introuvable")
 
-    if appointment.get("organizer_id") != user["user_id"]:
-        raise HTTPException(
-            status_code=403,
-            detail="Seul l'organisateur peut ingérer les preuves vidéo",
-        )
+    _require_organizer_or_participant(appointment, user)
 
     # Store meeting_join_url if provided
     if body.meeting_join_url and not appointment.get("meeting_join_url"):
@@ -148,8 +162,7 @@ async def fetch_attendance(appointment_id: str, request: Request):
     )
     if not appointment:
         raise HTTPException(status_code=404, detail="Rendez-vous introuvable")
-    if appointment.get("organizer_id") != user["user_id"]:
-        raise HTTPException(status_code=403, detail="Seul l'organisateur peut récupérer les présences")
+    _require_organizer_or_participant(appointment, user)
 
     result = fetch_attendance_for_appointment(appointment_id)
     if result.get("error"):
@@ -195,8 +208,7 @@ async def ingest_file(
     )
     if not appointment:
         raise HTTPException(status_code=404, detail="Rendez-vous introuvable")
-    if appointment.get("organizer_id") != user["user_id"]:
-        raise HTTPException(status_code=403, detail="Seul l'organisateur peut importer les preuves")
+    _require_organizer_or_participant(appointment, user)
 
     content = await file.read()
     filename = (file.filename or "").lower()
@@ -472,7 +484,9 @@ async def get_video_evidence(appointment_id: str, request: Request):
         {"_id": 0},
     )
     if not membership:
-        raise HTTPException(status_code=403, detail="Accès refusé")
+        # Fallback: check if user is organizer or accepted participant
+        if appointment.get("organizer_id") != user["user_id"] and not _is_accepted_participant(appointment_id, user["user_id"]):
+            raise HTTPException(status_code=403, detail="Accès refusé")
 
     return get_video_evidence_for_appointment(appointment_id)
 
@@ -488,8 +502,7 @@ async def get_ingestion_logs(appointment_id: str, request: Request):
     if not appointment:
         raise HTTPException(status_code=404, detail="Rendez-vous introuvable")
 
-    if appointment.get("organizer_id") != user["user_id"]:
-        raise HTTPException(status_code=403, detail="Accès réservé à l'organisateur")
+    _require_organizer_or_participant(appointment, user)
 
     logs = list(
         db.video_ingestion_logs.find(
@@ -516,8 +529,7 @@ async def get_single_ingestion_log(
     if not appointment:
         raise HTTPException(status_code=404, detail="Rendez-vous introuvable")
 
-    if appointment.get("organizer_id") != user["user_id"]:
-        raise HTTPException(status_code=403, detail="Accès réservé à l'organisateur")
+    _require_organizer_or_participant(appointment, user)
 
     log = get_ingestion_log(ingestion_log_id)
     if not log:
