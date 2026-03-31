@@ -512,6 +512,14 @@ function TimelineCard({ item, isPast, onDelete, onRemind, onQuit, onDecline, onG
           </div>
         )}
 
+        {/* Cancellation banner for organizer */}
+        {!isParticipant && item.cancelled_participants_label && (
+          <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-orange-50 border border-orange-200 rounded-md mb-1" data-testid={`cancelled-banner-${item.appointment_id}`}>
+            <Ban className="w-3.5 h-3.5 text-orange-500 flex-shrink-0" />
+            <span className="text-xs font-medium text-orange-700">{item.cancelled_participants_label}</span>
+          </div>
+        )}
+
         {/* Financial badge for past items */}
         {isPast && item.financial_badge && (
           <div className={`flex items-center gap-1.5 text-xs font-medium mt-1 mb-1 ${

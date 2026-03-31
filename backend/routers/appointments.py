@@ -1052,16 +1052,16 @@ async def get_my_timeline(request: Request):
             if not pending_label and pending > 0 and not is_ended:
                 pending_label = f"En attente de réponse ({pending})"
 
-            # Add cancellation info if any participant cancelled
-            if cancelled_non_org and not is_ended:
+            # Build cancellation label (separate field for clean frontend display)
+            cancelled_participants_label = None
+            if cancelled_non_org:
                 cancel_names = [f"{p.get('first_name', '')} {p.get('last_name', '')}".strip() for p in cancelled_non_org]
                 cancel_names = [n for n in cancel_names if n]
                 if len(cancelled_non_org) == 1 and cancel_names:
-                    cancel_msg = f"Participation annulée par {cancel_names[0]}"
+                    cancelled_participants_label = f"{cancel_names[0]} a annulé sa participation"
                 else:
                     c = len(cancelled_non_org)
-                    cancel_msg = f"{c} participation{'s' if c > 1 else ''} annulée{'s' if c > 1 else ''}"
-                pending_label = f"{pending_label} · {cancel_msg}" if pending_label else cancel_msg
+                    cancelled_participants_label = f"{c} participant{'s' if c > 1 else ''} {'ont' if c > 1 else 'a'} annulé leur participation"
 
             items.append({
                 "appointment_id": apt["appointment_id"],
@@ -1089,6 +1089,7 @@ async def get_my_timeline(request: Request):
                 "pending_count": pending,
                 "actions": actions,
                 "pending_label": pending_label,
+                "cancelled_participants_label": cancelled_participants_label,
                 "converted_from": apt.get("converted_from"),
                 "appointment_status": apt.get("status", "active"),
                 "needs_organizer_guarantee": needs_organizer_guarantee,
