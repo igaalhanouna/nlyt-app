@@ -25,6 +25,12 @@ async def lifespan(app: FastAPI):
     # Ensure all database indexes
     from database import ensure_indexes
     ensure_indexes()
+    # Seed: ensure igaal@nlyt.io is admin if the account exists
+    from database import db
+    db.users.update_one(
+        {"email": "igaal@nlyt.io"},
+        {"$set": {"role": "admin"}},
+    )
     yield
     # Shutdown
     stop_scheduler()
