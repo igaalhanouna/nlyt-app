@@ -86,7 +86,7 @@ export default function LandingPage() {
               </div>
               <div>
                 <p className="text-base font-semibold text-white mb-1">Créez un engagement</p>
-                <p className="text-sm text-slate-400">Définissez les conditions : horaire, durée, montant de l'engagement. En 2 minutes.</p>
+                <p className="text-sm text-slate-400">Définissez les conditions : horaire, montant de l'engagement, retard admis et association aidée. En 2 minutes.</p>
               </div>
             </div>
             <div className="flex gap-4 sm:gap-6 items-start">
