@@ -42,6 +42,13 @@ Application SaaS (React/FastAPI/MongoDB) de gestion des presences avec garanties
 
 ## Completed Features (Latest)
 
+### Fix Redirection Post-Stripe pour Participants Connectés (2026-03-31)
+- BUG: Un user connecté qui ajoutait sa carte via Stripe était renvoyé vers /invitation/{token} au lieu de /dashboard
+- CAUSE RACINE: La route `respond` n'envoyait jamais `return_url` à `create_guarantee_session`, et `login-and-accept` non plus
+- FIX BACKEND (Option A): Détection optionnelle du Bearer token dans `respond` → si authentifié, `return_url="/dashboard"`. Route `login-and-accept` passe toujours `return_url="/dashboard"`.
+- FIX FRONTEND (Option C): `pollGuaranteeStatus` dans InvitationPage redirige immédiatement vers /dashboard si user connecté (avec check localStorage pour éviter closure stale)
+- Tests: 13/13 PASS (iteration 164)
+
 ### Fix Annulation Participant — Statut Métier Préservé (2026-03-30)
 - BUG CRITIQUE: `release_guarantee()` écrasait le statut métier `cancelled_by_participant` par `guarantee_released`
 - FIX BACKEND: `release_guarantee()` ne touche plus au statut participant si celui-ci est terminal (cancelled_by_participant, declined)
