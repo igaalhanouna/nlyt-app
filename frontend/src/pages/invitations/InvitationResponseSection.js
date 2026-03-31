@@ -162,18 +162,19 @@ export default function InvitationResponseSection({
             </p>
           )}
         </div>
-      ) : responseStatus === 'cancelled_by_participant' ? (
+      ) : responseStatus === 'cancelled_by_participant' || responseStatus === 'guarantee_released' ? (
         <div className="text-center py-4">
           <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <Ban className="w-8 h-8 text-orange-600" />
           </div>
-          <h3 className="text-xl font-semibold text-orange-800 mb-2">Participation annulée</h3>
-          <p className="text-slate-600">Votre participation a bien été annulée. L'organisateur en sera informé.</p>
+          <h3 className="text-xl font-semibold text-orange-800 mb-2">Vous avez annulé votre participation</h3>
+          <p className="text-slate-600">L'organisateur en a été informé.</p>
           {participant.cancelled_at && (
             <p className="text-xs text-slate-400 mt-2">
               Annulé le {formatActionDateFr(participant.cancelled_at)}
             </p>
           )}
+          <p className="text-xs text-slate-400 mt-1">Garantie libérée — aucune pénalité</p>
         </div>
       ) : (
         <div>

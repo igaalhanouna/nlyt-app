@@ -46,7 +46,8 @@ function getParticipantStatusBadge(status) {
     case 'accepted_guaranteed': return { label: 'Confirmé', className: 'bg-emerald-100 text-emerald-800' };
     case 'accepted_pending_guarantee': return { label: 'Garantie en attente', className: 'bg-amber-100 text-amber-800' };
     case 'declined': return { label: 'Refusé', className: 'bg-red-100 text-red-800' };
-    case 'cancelled_by_participant': return { label: 'Annulé', className: 'bg-red-100 text-red-800' };
+    case 'cancelled_by_participant':
+    case 'guarantee_released': return { label: 'Participation annulée', className: 'bg-orange-100 text-orange-800' };
     default: return { label: status, className: 'bg-slate-100 text-slate-600' };
   }
 }

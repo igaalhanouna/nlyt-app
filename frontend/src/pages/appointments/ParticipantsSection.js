@@ -16,7 +16,8 @@ const getStatusBadge = (status, participant) => {
     accepted_pending_guarantee: { bg: 'bg-amber-100 text-amber-800', icon: <CreditCard className="w-2.5 h-2.5 sm:w-3 sm:h-3" />, label: 'Garantie en cours' },
     accepted: { bg: 'bg-emerald-100 text-emerald-800', icon: <Check className="w-2.5 h-2.5 sm:w-3 sm:h-3" />, label: 'Accepté' },
     declined: { bg: 'bg-red-100 text-red-800', icon: <X className="w-2.5 h-2.5 sm:w-3 sm:h-3" />, label: 'Refusé' },
-    cancelled_by_participant: { bg: 'bg-orange-100 text-orange-800', icon: <Ban className="w-2.5 h-2.5 sm:w-3 sm:h-3" />, label: 'Annulé' },
+    cancelled_by_participant: { bg: 'bg-orange-100 text-orange-800', icon: <Ban className="w-2.5 h-2.5 sm:w-3 sm:h-3" />, label: 'Participation annulée' },
+    guarantee_released: { bg: 'bg-orange-100 text-orange-800', icon: <Ban className="w-2.5 h-2.5 sm:w-3 sm:h-3" />, label: 'Participation annulée' },
   };
   const b = badges[status] || { bg: 'bg-blue-100 text-blue-800', icon: <Clock className="w-2.5 h-2.5 sm:w-3 sm:h-3" />, label: 'Invité' };
   return <span className={`inline-flex items-center gap-1 px-2 py-0.5 ${b.bg} rounded-full text-[10px] sm:text-xs font-medium`}>{b.icon} {b.label}</span>;

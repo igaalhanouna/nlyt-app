@@ -36,9 +36,10 @@ export default function InvitationStatusBadge({ status, guaranteeRevalidation })
         </span>
       );
     case 'cancelled_by_participant':
+    case 'guarantee_released':
       return (
         <span className="inline-flex items-center gap-1 px-3 py-1 bg-orange-100 text-orange-800 rounded-full text-sm font-medium" data-testid="status-badge-cancelled">
-          <Ban className="w-4 h-4" /> Annulé
+          <Ban className="w-4 h-4" /> Participation annulée
         </span>
       );
     default:

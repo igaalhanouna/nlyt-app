@@ -746,11 +746,17 @@ class StripeGuaranteeService:
             }}
         )
         
-        # Update participant status
-        db.participants.update_one(
+        # Update participant status — but preserve terminal business statuses
+        TERMINAL_BUSINESS_STATUSES = {"cancelled_by_participant", "declined"}
+        participant_doc = db.participants.find_one(
             {"guarantee_id": guarantee_id},
-            {"$set": {"status": "guarantee_released"}}
+            {"_id": 0, "status": 1}
         )
+        if participant_doc and participant_doc.get("status") not in TERMINAL_BUSINESS_STATUSES:
+            db.participants.update_one(
+                {"guarantee_id": guarantee_id},
+                {"$set": {"status": "guarantee_released"}}
+            )
         
         return {"success": True, "message": "Guarantee released"}
     

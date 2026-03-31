@@ -6,7 +6,7 @@ export default function InvitationCardHeader({ organizer, responseStatus, status
       responseStatus === 'accepted' || responseStatus === 'accepted_guaranteed' ? 'bg-green-500' :
       responseStatus === 'accepted_pending_guarantee' ? 'bg-amber-500' :
       responseStatus === 'declined' ? 'bg-red-500' :
-      responseStatus === 'cancelled_by_participant' ? 'bg-orange-500' :
+      responseStatus === 'cancelled_by_participant' || responseStatus === 'guarantee_released' ? 'bg-orange-500' :
       'bg-slate-800'
     } text-white`}>
       <div className="flex items-center justify-between">

@@ -83,7 +83,8 @@ export default function ParticipantManagement() {
       accepted_guaranteed: { label: 'Garanti', icon: ShieldCheck, className: 'bg-emerald-100 text-emerald-800' },
       accepted_pending_guarantee: { label: 'Garantie en cours', icon: CreditCard, className: 'bg-amber-100 text-amber-800' },
       declined: { label: 'Refusé', icon: XCircle, className: 'bg-rose-100 text-rose-800' },
-      cancelled_by_participant: { label: 'Annulé', icon: XCircle, className: 'bg-orange-100 text-orange-800' },
+      cancelled_by_participant: { label: 'Participation annulée', icon: XCircle, className: 'bg-orange-100 text-orange-800' },
+      guarantee_released: { label: 'Participation annulée', icon: XCircle, className: 'bg-orange-100 text-orange-800' },
     };
 
     const config = statusConfig[status] || statusConfig.invited;

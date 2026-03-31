@@ -159,7 +159,7 @@ export default function InvitationPage() {
         setGuaranteeRevalidation(null);
       }
 
-      if (['accepted', 'accepted_guaranteed', 'accepted_pending_guarantee', 'declined', 'cancelled_by_participant'].includes(data.participant.status)) {
+      if (['accepted', 'accepted_guaranteed', 'accepted_pending_guarantee', 'declined', 'cancelled_by_participant', 'guarantee_released'].includes(data.participant.status)) {
         setResponseStatus(data.participant.status);
       }
 

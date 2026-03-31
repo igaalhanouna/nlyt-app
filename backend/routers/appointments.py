@@ -983,11 +983,14 @@ async def get_my_timeline(request: Request):
                  "last_name": 1, "status": 1, "invitation_token": 1, "is_organizer": 1}
             ))
             non_org_parts = [p for p in participants if not p.get("is_organizer")]
+            INACTIVE_PARTICIPANT_STATUSES = {"declined", "cancelled_by_participant", "guarantee_released"}
+            active_non_org = [p for p in non_org_parts if p.get("status") not in INACTIVE_PARTICIPANT_STATUSES]
+            cancelled_non_org = [p for p in non_org_parts if p.get("status") in ("cancelled_by_participant", "guarantee_released")]
             accepted = sum(1 for p in participants if p.get("status") in ("accepted", "accepted_guaranteed"))
-            guaranteed = sum(1 for p in non_org_parts if p.get("status") == "accepted_guaranteed")
+            guaranteed = sum(1 for p in active_non_org if p.get("status") == "accepted_guaranteed")
             pending = sum(1 for p in participants if p.get("status") in ("invited", "accepted_pending_guarantee"))
             total = len(participants)
-            non_org_count = len(non_org_parts)
+            non_org_count = len(active_non_org)
 
             # Counterparty: list participant names (max 2 + "et X autres")
             names = []
@@ -1048,6 +1051,17 @@ async def get_my_timeline(request: Request):
             pending_label = org_alert_label
             if not pending_label and pending > 0 and not is_ended:
                 pending_label = f"En attente de réponse ({pending})"
+
+            # Add cancellation info if any participant cancelled
+            if cancelled_non_org and not is_ended:
+                cancel_names = [f"{p.get('first_name', '')} {p.get('last_name', '')}".strip() for p in cancelled_non_org]
+                cancel_names = [n for n in cancel_names if n]
+                if len(cancelled_non_org) == 1 and cancel_names:
+                    cancel_msg = f"Participation annulée par {cancel_names[0]}"
+                else:
+                    c = len(cancelled_non_org)
+                    cancel_msg = f"{c} participation{'s' if c > 1 else ''} annulée{'s' if c > 1 else ''}"
+                pending_label = f"{pending_label} · {cancel_msg}" if pending_label else cancel_msg
 
             items.append({
                 "appointment_id": apt["appointment_id"],
@@ -1141,6 +1155,8 @@ async def get_my_timeline(request: Request):
             pending_label = "Votre réponse est attendue"
         elif p_status == "accepted_pending_guarantee" and not is_ended:
             pending_label = "Garantie en attente"
+        elif p_status in ("cancelled_by_participant", "guarantee_released"):
+            pending_label = "Vous avez annulé votre participation"
 
         items.append({
             "appointment_id": apt_id,
@@ -1182,7 +1198,7 @@ async def get_my_timeline(request: Request):
         if i["appointment_status"] == "cancelled":
             return True
         # Declined/cancelled participations → historique
-        if i.get("participant_status") in ("declined", "cancelled_by_participant"):
+        if i.get("participant_status") in ("declined", "cancelled_by_participant", "guarantee_released"):
             return True
         # Use end_time (start + duration) as the real boundary
         start_dt = _parse_dt(i.get("sort_date", ""))
@@ -1444,6 +1460,8 @@ async def list_appointments(workspace_id: str = None, skip: int = 0, limit: int 
             status = p.get('status', 'invited')
             if status in ('accepted', 'accepted_pending_guarantee', 'accepted_guaranteed'):
                 status_summary['accepted'] += 1
+            elif status == 'guarantee_released':
+                status_summary['cancelled_by_participant'] += 1 if p.get('cancelled_at') else 0
             elif status in status_summary:
                 status_summary[status] += 1
             else:

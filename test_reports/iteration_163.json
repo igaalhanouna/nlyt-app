@@ -1,0 +1,56 @@
+{
+  "summary": "Iteration 163: Cancelled Participant Status Fix Testing. All backend and frontend tests passed. The fix correctly handles the scenario where a participant cancels after accepting and guaranteeing - the business status 'cancelled_by_participant' is now preserved and not overwritten by 'guarantee_released'.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": {
+    "backend_timeline_counters_exclude_cancelled": "PASS - Timeline API correctly excludes cancelled participants from accepted/guaranteed/pending counters",
+    "backend_organizer_sees_cancellation_label": "PASS - Organizer timeline shows 'Participation annulée par [Nom]' for cancelled participants",
+    "backend_participant_sees_cancellation_label": "PASS - Participant timeline shows 'Vous avez annulé votre participation' for cancelled items",
+    "backend_cancelled_in_past_bucket": "PASS - Cancelled participations are correctly placed in 'past' bucket (historique)",
+    "backend_no_action_buttons_for_cancelled": "PASS - Cancelled participants have no 'quit', 'remind', 'accept', or 'decline' actions",
+    "backend_guarantee_released_is_terminal": "PASS - guarantee_released status is treated as terminal (placed in past, no actions)",
+    "frontend_organizer_dashboard": "PASS - Dashboard loads correctly with 46 timeline cards, 'Participation annulée' badges visible",
+    "frontend_past_tab_cancelled_badges": "PASS - Past tab shows 3 'Participation annulée' badges and 4 'Annulé' badges",
+    "frontend_participant_dashboard": "PASS - Participant dashboard shows cancelled items with correct labels",
+    "frontend_appointment_detail_badge": "PASS - Appointment detail page shows 'Participation annulée' badge for cancelled participant in ParticipantsSection"
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_cancelled_participant_fix_iter163.py",
+    "/app/test_reports/pytest/pytest_cancelled_participant_fix_iter163.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "stripe_guarantee_service.py lines 749-760: release_guarantee() correctly preserves terminal business statuses (cancelled_by_participant, declined) - VERIFIED",
+    "appointments.py lines 985-990: organizer timeline uses active_non_org which excludes cancelled/declined/guarantee_released - VERIFIED",
+    "appointments.py lines 1047-1063: organizer timeline adds 'Participation annulée par [Nom]' label - VERIFIED",
+    "appointments.py lines 1141-1146: participant timeline adds 'Vous avez annulé votre participation' label - VERIFIED",
+    "appointments.py line 1185: guarantee_released added to _is_past_item terminal statuses - VERIFIED",
+    "OrganizerDashboard.js lines 42-52: getParticipantStatusBadge handles guarantee_released as 'Participation annulée' - VERIFIED",
+    "ParticipantsSection.js lines 14-20: badges include guarantee_released → 'Participation annulée' - VERIFIED",
+    "InvitationStatusBadge.js lines 38-43: guarantee_released case renders 'Participation annulée' - VERIFIED",
+    "InvitationResponseSection.js lines 165-178: cancelled/guarantee_released shows 'Vous avez annulé votre participation' + 'Garantie libérée' - VERIFIED"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_cancelled_participant_fix_iter163.py"
+  ],
+  "success_rate": {
+    "backend": "100% (9/9 tests passed)",
+    "frontend": "100% (4/4 UI tests passed)"
+  },
+  "test_credentials": {
+    "admin": "testuser_audit@nlyt.app / TestAudit123!",
+    "participant1": "igaal.hanouna@gmail.com / OrgTest123!",
+    "participant2": "igaal@hotmail.com / Test123!"
+  },
+  "seed_data_creation": "None - used existing data with cancelled participants",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Cancelled participant status fix fully verified. Key behaviors: (1) release_guarantee() preserves terminal business statuses, (2) cancelled participants excluded from timeline counters, (3) explicit French labels for cancelled state, (4) guarantee_released treated as alias for cancellation in all frontend mappings. The fix ensures that when a participant cancels after accepting and guaranteeing, the organizer sees 'Participation annulée' (not 'Non sécurisé' or 'Invité') and the participant sees 'Vous avez annulé votre participation' (not raw 'guarantee_released')."
+}
