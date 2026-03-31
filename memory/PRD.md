@@ -42,6 +42,17 @@ Application SaaS (React/FastAPI/MongoDB) de gestion des presences avec garanties
 
 ## Completed Features (Latest)
 
+### RBAC — Système de Rôles et Permissions (2026-03-31)
+- 5 rôles: admin, arbitrator, payer, accreditor, user
+- Mapping centralisé dans `utils/permissions.py` (backend) et `utils/permissions.js` (frontend)
+- Backend: `require_permission()` remplace `require_admin()` sur toutes les routes admin granulaires
+- Frontend: `PermissionGuard` composant route guard + `canAccess()` dans AuthContext
+- Page `/admin/users` avec dropdown de rôle (5 valeurs) et compteurs par rôle
+- Menu admin conditionnel (visible seulement si au moins une permission admin)
+- AdminDashboard filtre les sections selon les permissions du rôle
+- Migration: 121 users existants mis à jour avec role='user'
+- Tests: 23/23 PASS (iteration 165)
+
 ### Fix Redirection Post-Stripe pour Participants Connectés (2026-03-31)
 - BUG: Un user connecté qui ajoutait sa carte via Stripe était renvoyé vers /invitation/{token} au lieu de /dashboard
 - CAUSE RACINE: La route `respond` n'envoyait jamais `return_url` à `create_guarantee_session`, et `login-and-accept` non plus
