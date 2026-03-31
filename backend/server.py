@@ -32,18 +32,18 @@ async def lifespan(app: FastAPI):
         {"$set": {"role": "admin"}},
     )
 
-    # One-time full DB reset (controlled by env variable)
-    if os.environ.get("RESET_PRODUCTION_DB") == "true":
-        logger.warning("[RESET] RESET_PRODUCTION_DB=true detected — wiping all data except igaal@nlyt.io")
-        admin_user = db.users.find_one({"email": "igaal@nlyt.io"}, {"_id": 1, "user_id": 1})
-        if admin_user:
-            db.users.delete_many({"email": {"$ne": "igaal@nlyt.io"}})
-            for col_name in db.list_collection_names():
-                if col_name != "users":
-                    db[col_name].drop()
-            logger.warning(f"[RESET] Done. Only igaal@nlyt.io (admin) remains.")
-        else:
-            logger.warning("[RESET] igaal@nlyt.io not found — reset aborted.")
+    # === ONE-TIME RESET — TO BE REMOVED AFTER FIRST DEPLOY ===
+    logger.warning("[RESET] Wiping all data except igaal@nlyt.io")
+    admin_user = db.users.find_one({"email": "igaal@nlyt.io"})
+    if admin_user:
+        db.users.delete_many({"email": {"$ne": "igaal@nlyt.io"}})
+        for col_name in db.list_collection_names():
+            if col_name != "users":
+                db[col_name].drop()
+        logger.warning("[RESET] Done. Only igaal@nlyt.io (admin) remains.")
+    else:
+        logger.warning("[RESET] igaal@nlyt.io not found — reset aborted.")
+    # === END ONE-TIME RESET ===
     yield
     # Shutdown
     stop_scheduler()
