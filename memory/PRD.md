@@ -42,6 +42,16 @@ Application SaaS (React/FastAPI/MongoDB) de gestion des presences avec garanties
 
 ## Completed Features (Latest)
 
+### Harmonisation Droits Video Organisateur/Participant (2026-03-31)
+- Backend: helper _is_accepted_participant + _require_organizer_or_participant dans video_evidence_routes.py
+- 6 endpoints ouverts aux participants acceptes: ingest, fetch-attendance, ingest-file, GET evidence, logs, log/{id}
+- create-meeting reste organisateur uniquement
+- GET evidence: fallback participant si pas membre workspace
+- Frontend: fix bug data.appointment_type → apt.appointment_type dans AppointmentDetail.js
+- Frontend: videoIngestionLogs charge pour tous les roles (plus seulement organisateur)
+- VideoEvidencePanel: boutons "Recuperer les presences" et "Import manuel" visibles pour les participants
+- Tests: 12/12 PASS (iteration 166)
+
 ### RBAC — Système de Rôles et Permissions (2026-03-31)
 - 5 rôles: admin, arbitrator, payer, accreditor, user
 - Mapping centralisé dans `utils/permissions.py` (backend) et `utils/permissions.js` (frontend)
@@ -149,7 +159,6 @@ Application SaaS (React/FastAPI/MongoDB) de gestion des presences avec garanties
 - Test reel Zoom/Teams avec vrais tokens
 
 ## Future Tasks (P2)
-- Harmonisation droits Organisateur/Participant pour preuves video
 - Charity Payouts V2 (Automatisation via Stripe Connect)
 - Webhooks temps reel Zoom/Teams en production
 - Notification email/push lors de la creation d'un litige
