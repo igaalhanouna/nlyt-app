@@ -42,14 +42,9 @@ class AuthService:
         hashed_password = hash_password(password)
         
         DEFAULT_MESSAGE = (
-            "J'utilise NLYT pour perdre le moins de temps possible et m'organiser efficacement.\n\n"
-            "En vous demandant une garantie, je veux vous faire comprendre qu'un rendez-vous non honoré "
-            "représente une perte de temps et d'argent pour moi.\n\n"
-            "De façon symétrique, en cas d'absence ou de retard de ma part, je m'impose à moi-même "
-            "les mêmes règles de pénalités que je vous soumets.\n\n"
-            "Comme vous pourrez le constater, en cas d'absence ou de retard, une partie de ces sommes "
-            "ira sous forme de don à l'association ci-dessous.\n\n"
-            "Merci de votre compréhension."
+            "J'utilise NLYT pour m'organiser efficacement et respecter le temps de chacun.\n"
+            "Une garantie permet de responsabiliser notre engagement mutuel : en cas d'absence "
+            "ou de retard, les mêmes règles s'appliquent pour tous, avec une part reversée à une association."
         )
 
         user = {
