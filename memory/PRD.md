@@ -42,6 +42,16 @@ Application SaaS (React/FastAPI/MongoDB) de gestion des presences avec garanties
 
 ## Completed Features (Latest)
 
+### Bouton "NLYT me" en Vue Planning/Agenda (2026-04-01)
+- Ajout du bouton "NLYT me" (pill noir + Zap) sur les événements externes dans les 3 vues de l'Agenda
+- Vue Mois (detail panel) + Vue Jour (sidebar) : bouton dans EventRow pour events source !== 'nlyt'
+- Vue Semaine (time grid) : popover au clic sur un event externe avec titre, heure et bouton "NLYT me"
+- Même flow métier que le dashboard : externalEventsAPI.prefill() → navigate /appointments/create
+- State loading (spinner) pour éviter les double-clics
+- Gestion 409 (événement déjà converti) cohérente avec le dashboard
+- Events NLYT non affectés (clic → détail RDV, chevron, pas de bouton NLYT me)
+- Tests: 15/15 PASS (iteration 167)
+
 ### Harmonisation Droits Video Organisateur/Participant (2026-03-31)
 - Backend: helper _is_accepted_participant + _require_organizer_or_participant dans video_evidence_routes.py
 - 6 endpoints ouverts aux participants acceptes: ingest, fetch-attendance, ingest-file, GET evidence, logs, log/{id}
