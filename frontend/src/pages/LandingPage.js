@@ -55,7 +55,7 @@ export default function LandingPage() {
               N<span className="text-white/60">·</span>L<span className="text-white/60">·</span>Y<span className="text-white/60">·</span>T
             </p>
             <p className="text-xs tracking-[0.3em] uppercase text-slate-500 font-medium">
-              Créateur d'engagements solidaires
+              Créateur de ponctualité par engagements solidaires
             </p>
           </div>
           <h1 className="text-4xl sm:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.05] mb-4 sm:mb-8" data-testid="hero-title">
