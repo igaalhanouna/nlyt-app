@@ -227,7 +227,9 @@ export default function AppointmentWizard() {
             affected_compensation_percent: participantPct,
             charity_percent: charityPct,
             charity_association_id: defaults.default_charity_association_id || '',
-            platform_commission_percent: serverPlatformPct
+            platform_commission_percent: serverPlatformPct,
+            // Default message — only if no external event prefill and description is empty
+            description: (!fromExternalData && !prev.description && defaults.default_message) ? defaults.default_message : prev.description,
           }));
         }
         

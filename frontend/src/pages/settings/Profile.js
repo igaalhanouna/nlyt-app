@@ -3,7 +3,7 @@ import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
-import { User, Clock, Euro, Heart, Save, Loader2, Check, Settings } from 'lucide-react';
+import { User, Clock, Euro, Heart, Save, Loader2, Check, Settings, MessageSquare } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'sonner';
 import { safeFetchJson } from '../../utils/safeFetchJson';
@@ -61,7 +61,8 @@ export default function Profile() {
           default_penalty_currency: defaults.default_penalty_currency ?? 'eur',
           default_participant_percent: defaults.default_participant_percent ?? 70,
           default_charity_percent: defaults.default_charity_percent ?? 0,
-          default_charity_association_id: defaults.default_charity_association_id || ''
+          default_charity_association_id: defaults.default_charity_association_id || '',
+          default_message: defaults.default_message || ''
         });
       }
       
@@ -114,7 +115,8 @@ export default function Profile() {
             default_penalty_currency: profileData.default_penalty_currency,
             default_participant_percent: parseFloat(profileData.default_participant_percent),
             default_charity_percent: parseFloat(profileData.default_charity_percent),
-            default_charity_association_id: profileData.default_charity_association_id || null
+            default_charity_association_id: profileData.default_charity_association_id || null,
+            default_message: profileData.default_message || null
           }
         })
       });
@@ -405,6 +407,28 @@ export default function Profile() {
                   </span>
                 </div>
               </div>
+          </div>
+
+          {/* Message par défaut */}
+          <div>
+            <h3 className="text-md font-medium text-slate-800 mb-4 flex items-center gap-2">
+              <MessageSquare className="w-4 h-4 text-slate-500" />
+              Message par défaut
+            </h3>
+            <div className="max-w-md">
+              <Label htmlFor="default_message">Message pour les participants</Label>
+              <textarea
+                id="default_message"
+                data-testid="profile-default-message"
+                value={profileData.default_message}
+                onChange={(e) => handleInputChange('default_message', e.target.value)}
+                placeholder="Ce message sera pré-rempli dans le champ message lors de la création d'un engagement..."
+                maxLength={2000}
+                rows={3}
+                className="mt-1 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent resize-y"
+              />
+              <p className="text-xs text-slate-400 mt-1 text-right">{(profileData.default_message || '').length} / 2000</p>
+            </div>
           </div>
 
           {/* Association caritative */}

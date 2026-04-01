@@ -37,6 +37,9 @@ class AppointmentDefaults(BaseModel):
     # Charity association
     default_charity_association_id: Optional[str] = Field(None, description="Association caritative par défaut")
 
+    # Default message
+    default_message: Optional[str] = Field(None, max_length=2000, description="Message par défaut pour les participants")
+
 
 class UserSettingsUpdate(BaseModel):
     """Update user settings including appointment defaults"""
@@ -71,7 +74,8 @@ async def get_user_settings(user: dict = Depends(get_current_user)):
             "default_penalty_currency": "eur",
             "default_participant_percent": 70.0,
             "default_charity_percent": 0.0,
-            "default_charity_association_id": None
+            "default_charity_association_id": None,
+            "default_message": None
         }
     
     return user_data
@@ -184,6 +188,7 @@ async def get_appointment_defaults(user: dict = Depends(get_current_user)):
         "default_participant_percent": defaults.get("default_participant_percent", 70.0),
         "default_charity_percent": defaults.get("default_charity_percent", 0.0),
         "default_charity_association_id": defaults.get("default_charity_association_id"),
+        "default_message": defaults.get("default_message"),
         "platform_commission_percent": PLATFORM_COMMISSION_PERCENT,
         "has_custom_defaults": bool(defaults)
     }
