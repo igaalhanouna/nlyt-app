@@ -18,6 +18,7 @@ export default function AdminUsers() {
   const [search, setSearch] = useState('');
   const [changingRole, setChangingRole] = useState(null);
   const [deleting, setDeleting] = useState(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
 
   const token = localStorage.getItem('nlyt_token');
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
@@ -57,7 +58,11 @@ export default function AdminUsers() {
   };
 
   const handleDeleteUser = async (u) => {
-    if (!window.confirm(`Êtes-vous sûr de vouloir effacer ${u.email} définitivement ?`)) return;
+    if (confirmDeleteId !== u.user_id) {
+      setConfirmDeleteId(u.user_id);
+      return;
+    }
+    setConfirmDeleteId(null);
     setDeleting(u.user_id);
     try {
       const { ok, data } = await safeFetchJson(`${API_URL}/api/admin/users/${u.user_id}`, {
@@ -172,15 +177,36 @@ export default function AdminUsers() {
                           </select>
                           <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
                         </div>
-                        <button
-                          onClick={() => handleDeleteUser(u)}
-                          disabled={deleting === u.user_id}
-                          className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors disabled:opacity-50"
-                          title="Supprimer cet utilisateur"
-                          data-testid={`delete-user-${u.user_id}`}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        {confirmDeleteId === u.user_id ? (
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs text-red-600 font-medium">Supprimer ?</span>
+                            <button
+                              onClick={() => handleDeleteUser(u)}
+                              disabled={deleting === u.user_id}
+                              className="px-2 py-1 text-xs font-bold text-white bg-red-600 rounded hover:bg-red-700 transition-colors disabled:opacity-50"
+                              data-testid={`confirm-delete-${u.user_id}`}
+                            >
+                              Oui
+                            </button>
+                            <button
+                              onClick={() => setConfirmDeleteId(null)}
+                              className="px-2 py-1 text-xs font-medium text-slate-600 bg-slate-100 rounded hover:bg-slate-200 transition-colors"
+                              data-testid={`cancel-delete-${u.user_id}`}
+                            >
+                              Non
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => handleDeleteUser(u)}
+                            disabled={deleting === u.user_id}
+                            className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors disabled:opacity-50"
+                            title="Supprimer cet utilisateur"
+                            data-testid={`delete-user-${u.user_id}`}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </>
                     )}
                   </div>
