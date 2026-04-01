@@ -42,6 +42,14 @@ Application SaaS (React/FastAPI/MongoDB) de gestion des presences avec garanties
 
 ## Completed Features (Latest)
 
+### Hook useCalendarAutoSync — Centralisation Auto-Sync (2026-04-01)
+- Extraction du code duplique (Dashboard + Agenda) dans /hooks/useCalendarAutoSync.js
+- Interval 2 min, guards anti-double (syncInProgressRef, syncingRef, document.hidden)
+- Pause quand onglet inactif (document.visibilitychange), sync immediate au retour si >60s
+- Retourne { lastAutoCheckAt } pour l'indicateur UX CalendarSyncPanel
+- Suppression du code duplique dans OrganizerDashboard.js et AgendaPage.js
+- Tests: 24/24 PASS (iteration 168)
+
 ### Bouton "NLYT me" en Vue Planning/Agenda (2026-04-01)
 - Ajout du bouton "NLYT me" (pill noir + Zap) sur les événements externes dans les 3 vues de l'Agenda
 - Vue Mois (detail panel) + Vue Jour (sidebar) : bouton dans EventRow pour events source !== 'nlyt'
