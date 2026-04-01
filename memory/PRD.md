@@ -42,6 +42,15 @@ Application SaaS (React/FastAPI/MongoDB) de gestion des presences avec garanties
 
 ## Completed Features (Latest)
 
+### Message par Defaut dans les Parametres (2026-04-01)
+- Backend: champ default_message (Optional[str], max 2000) dans AppointmentDefaults
+- Sauvegardé dans users.appointment_defaults via PUT /api/user-settings/me
+- Retourné dans GET /api/user-settings/me/appointment-defaults
+- Frontend Settings: textarea dans /settings/profile avec compteur X/2000
+- Frontend Wizard: pre-remplissage description si !fromExternalData && !prev.description
+- Priorité: NLYT me > description existante > default_message > vide
+- Tests: 13/13 PASS (iteration 171)
+
 ### Logique Feuilles de Presence — Cibles Pertinentes (2026-04-01)
 - Prévention: initialize_declarative_phase exclut les cibles non-self en statut terminal
 - Statuts terminaux: cancelled_by_participant, declined, guarantee_released (frozenset)
