@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import AppNavbar from '../../components/AppNavbar';
 import CalendarSyncPanel from '../dashboard/CalendarSyncPanel';
 import { useScrollRestore } from '../../hooks/useScrollRestore';
+import { useCalendarAutoSync } from '../../hooks/useCalendarAutoSync';
 import { formatDateTimeCompactFr } from '../../utils/dateFormat';
 
 const DAYS_FR = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
@@ -191,7 +192,6 @@ export default function AgendaPage() {
 
   const [importSettings, setImportSettings] = useState(null);
   const [syncing, setSyncing] = useState(false);
-  const [lastAutoCheckAt, setLastAutoCheckAt] = useState(null);
   const settingChangeRef = useRef(false);
   const [nlytMeLoading, setNlytMeLoading] = useState(null);
 
@@ -274,38 +274,28 @@ export default function AgendaPage() {
 
   useEffect(() => { loadImportSettings().then(() => fetchAllEvents()); }, [loadImportSettings, fetchAllEvents]);
 
-  // ── Auto-refresh: 2-minute interval for enabled providers (aligned with Dashboard) ──
-  const syncIntervalRef = useRef(null);
-  const syncInProgressRef = useRef(false);
-  const syncingRef = useRef(false);
-  useEffect(() => { syncingRef.current = syncing; }, [syncing]);
+  // ── Auto-refresh: centralized hook ──
+  const autoSyncCallback = useCallback(async () => {
+    await externalEventsAPI.sync(true);
+    const [settingsRes, eventsRes] = await Promise.all([
+      externalEventsAPI.getImportSettings(),
+      externalEventsAPI.list(),
+    ]);
+    setImportSettings(settingsRes.data);
+    const extItems = ((eventsRes.data || {}).events || []).map(ev => ({
+      id: ev.event_id || ev.external_event_id || Math.random().toString(36),
+      title: ev.title || '(Sans titre)', start: ev.start_datetime || ev.start,
+      duration: ev.duration_minutes || (ev.end_datetime && ev.start_datetime ? Math.max(1, Math.round((new Date(ev.end_datetime) - new Date(ev.start_datetime)) / 60000)) : 60),
+      source: ev.provider || 'google', type: null, role: null, status: null, appointmentId: null,
+    }));
+    setEvents(prev => [...prev.filter(e => e.source === 'nlyt'), ...extItems]);
+  }, []);
 
-  useEffect(() => {
-    if (syncIntervalRef.current) { clearInterval(syncIntervalRef.current); syncIntervalRef.current = null; }
-    if (!hasAnyProviderEnabled) return;
-    syncIntervalRef.current = setInterval(async () => {
-      if (syncInProgressRef.current || syncingRef.current) return;
-      syncInProgressRef.current = true;
-      try {
-        await externalEventsAPI.sync(true);
-        const [settingsRes, eventsRes] = await Promise.all([
-          externalEventsAPI.getImportSettings(),
-          externalEventsAPI.list(),
-        ]);
-        setImportSettings(settingsRes.data);
-        const extItems = ((eventsRes.data || {}).events || []).map(ev => ({
-          id: ev.event_id || ev.external_event_id || Math.random().toString(36),
-          title: ev.title || '(Sans titre)', start: ev.start_datetime || ev.start,
-          duration: ev.duration_minutes || (ev.end_datetime && ev.start_datetime ? Math.max(1, Math.round((new Date(ev.end_datetime) - new Date(ev.start_datetime)) / 60000)) : 60),
-          source: ev.provider || 'google', type: null, role: null, status: null, appointmentId: null,
-        }));
-        setEvents(prev => [...prev.filter(e => e.source === 'nlyt'), ...extItems]);
-        setLastAutoCheckAt(new Date().toISOString());
-      } catch { /* silent */ }
-      finally { syncInProgressRef.current = false; }
-    }, 120_000);
-    return () => { if (syncIntervalRef.current) { clearInterval(syncIntervalRef.current); syncIntervalRef.current = null; } };
-  }, [hasAnyProviderEnabled]);
+  const { lastAutoCheckAt } = useCalendarAutoSync({
+    enabled: hasAnyProviderEnabled,
+    syncing,
+    onSync: autoSyncCallback,
+  });
 
   const eventsByDay = useMemo(() => {
     const map = {};

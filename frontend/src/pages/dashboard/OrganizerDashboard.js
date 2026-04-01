@@ -17,6 +17,7 @@ import { formatDateTimeCompactFr, parseUTC } from '../../utils/dateFormat';
 import AppNavbar from '../../components/AppNavbar';
 import CalendarSyncPanel from './CalendarSyncPanel';
 import ExternalEventCard from './ExternalEventCard';
+import { useCalendarAutoSync } from '../../hooks/useCalendarAutoSync';
 import { useScrollRestore } from '../../hooks/useScrollRestore';
 
 // ── Helpers ──
@@ -649,7 +650,6 @@ export default function OrganizerDashboard() {
   const [importSettings, setImportSettings] = useState(null);
   const [externalEvents, setExternalEvents] = useState([]);
   const [syncing, setSyncing] = useState(false);
-  const [lastAutoCheckAt, setLastAutoCheckAt] = useState(null);
 
   useEffect(() => {
     loadTimeline();
@@ -913,39 +913,22 @@ export default function OrganizerDashboard() {
     return Object.values(providers).some(p => p.import_enabled);
   }, [importSettings]);
 
-  const syncIntervalRef = useRef(null);
-  const syncInProgressRef = useRef(false);
-  const syncingRef = useRef(false);
-  useEffect(() => { syncingRef.current = syncing; }, [syncing]);
+  // ── Auto-refresh: centralized hook ──
+  const autoSyncCallback = useCallback(async () => {
+    await externalEventsAPI.sync(true);
+    const [settingsRes, eventsRes] = await Promise.all([
+      externalEventsAPI.getImportSettings(),
+      externalEventsAPI.list(),
+    ]);
+    setImportSettings(settingsRes.data);
+    setExternalEvents(eventsRes.data?.events || []);
+  }, []);
 
-  useEffect(() => {
-    if (syncIntervalRef.current) {
-      clearInterval(syncIntervalRef.current);
-      syncIntervalRef.current = null;
-    }
-    if (!hasAnyProviderEnabled) return;
-    syncIntervalRef.current = setInterval(async () => {
-      if (syncInProgressRef.current || syncingRef.current) return;
-      syncInProgressRef.current = true;
-      try {
-        await externalEventsAPI.sync(true);
-        const [settingsRes, eventsRes] = await Promise.all([
-          externalEventsAPI.getImportSettings(),
-          externalEventsAPI.list(),
-        ]);
-        setImportSettings(settingsRes.data);
-        setExternalEvents(eventsRes.data?.events || []);
-        setLastAutoCheckAt(new Date().toISOString());
-      } catch { /* silent */ }
-      finally { syncInProgressRef.current = false; }
-    }, 120_000);
-    return () => {
-      if (syncIntervalRef.current) {
-        clearInterval(syncIntervalRef.current);
-        syncIntervalRef.current = null;
-      }
-    };
-  }, [hasAnyProviderEnabled]);
+  const { lastAutoCheckAt } = useCalendarAutoSync({
+    enabled: hasAnyProviderEnabled,
+    syncing,
+    onSync: autoSyncCallback,
+  });
 
   const now = useMemo(() => new Date(), [loading]); // eslint-disable-line react-hooks/exhaustive-deps
 
