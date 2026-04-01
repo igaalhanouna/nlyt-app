@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, CalendarDays, Clock, MapPin, Video, Users, User, Loader2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CalendarDays, Clock, MapPin, Video, Users, User, Loader2, Zap, X as XIcon } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { appointmentAPI, externalEventsAPI } from '../../services/api';
+import { toast } from 'sonner';
 import AppNavbar from '../../components/AppNavbar';
 import CalendarSyncPanel from '../dashboard/CalendarSyncPanel';
 import { useScrollRestore } from '../../hooks/useScrollRestore';
+import { formatDateTimeCompactFr } from '../../utils/dateFormat';
 
 const DAYS_FR = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 const DAYS_FR_FULL = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
@@ -46,10 +48,12 @@ function getWeekDays(refDate) {
 }
 
 // ── Shared event row (used in month detail + day view) ──
-function EventRow({ ev, onEventClick }) {
+function EventRow({ ev, onEventClick, onNlytMe, nlytMeLoading }) {
   const style = SOURCE_STYLES[ev.source] || SOURCE_STYLES.google;
   const isNlyt = ev.source === 'nlyt';
+  const isExternal = !isNlyt;
   const isCancelled = ev.status === 'cancelled';
+  const isLoading = nlytMeLoading === ev.id;
   return (
     <div
       onClick={() => onEventClick(ev)}
@@ -72,37 +76,94 @@ function EventRow({ ev, onEventClick }) {
         </div>
       </div>
       {isNlyt && !isCancelled && <ChevronRight className="w-4 h-4 text-slate-300 flex-shrink-0 mt-1" />}
+      {isExternal && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onNlytMe(ev); }}
+          disabled={isLoading}
+          className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-900 text-white border border-slate-900 rounded-full text-[11px] font-bold hover:bg-slate-700 active:scale-[0.96] transition-all disabled:opacity-60 flex-shrink-0 mt-0.5"
+          data-testid={`nlyt-me-btn-${ev.id}`}
+          title="Garantir ce rendez-vous avec NLYT"
+        >
+          {isLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Zap className="w-3 h-3" />}
+          NLYT me
+        </button>
+      )}
     </div>
   );
 }
 
 // ── Time grid event block (week + day views) ──
-function TimeGridEvent({ ev, onEventClick, slim = false }) {
+function TimeGridEvent({ ev, onEventClick, onNlytMe, nlytMeLoading, slim = false }) {
   const style = SOURCE_STYLES[ev.source] || SOURCE_STYLES.google;
   const isNlyt = ev.source === 'nlyt';
+  const isExternal = !isNlyt;
   const isCancelled = ev.status === 'cancelled';
+  const isLoading = nlytMeLoading === ev.id;
+  const [showPopover, setShowPopover] = useState(false);
+  const popoverRef = useRef(null);
   const d = new Date(ev.start);
   const startMin = d.getHours() * 60 + d.getMinutes();
   const topMin = startMin - START_HOUR * 60;
   const top = Math.max(0, (topMin / 60) * HOUR_HEIGHT);
   const height = Math.max(20, (Math.min(ev.duration || 60, (END_HOUR - START_HOUR) * 60 - topMin) / 60) * HOUR_HEIGHT);
 
+  // Close popover on outside click
+  useEffect(() => {
+    if (!showPopover) return;
+    const handler = (e) => { if (popoverRef.current && !popoverRef.current.contains(e.target)) setShowPopover(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showPopover]);
+
+  const handleClick = (e) => {
+    e.stopPropagation();
+    if (isNlyt) { onEventClick(ev); }
+    else { setShowPopover(!showPopover); }
+  };
+
   return (
     <div
-      onClick={() => onEventClick(ev)}
+      onClick={handleClick}
       data-testid={`agenda-event-${ev.id}`}
-      className={`absolute left-0.5 right-0.5 rounded-md px-1.5 py-1 overflow-hidden border transition-opacity
-        ${isNlyt ? 'cursor-pointer hover:opacity-90' : 'cursor-default'}
+      className={`absolute left-0.5 right-0.5 rounded-md px-1.5 py-1 overflow-visible border transition-opacity
+        ${isNlyt ? 'cursor-pointer hover:opacity-90' : 'cursor-pointer hover:opacity-90'}
         ${isCancelled ? 'opacity-40' : ''}
         ${isNlyt ? 'bg-slate-900 border-slate-800 text-white' : ev.source === 'google' ? 'bg-blue-50 border-[#4285F4]/30 text-[#1a56db]' : 'bg-sky-50 border-[#0078D4]/30 text-[#0056a3]'}
       `}
-      style={{ top: `${top}px`, height: `${height}px`, zIndex: isNlyt ? 10 : 5 }}
+      style={{ top: `${top}px`, height: `${height}px`, zIndex: showPopover ? 50 : isNlyt ? 10 : 5 }}
+      ref={popoverRef}
     >
       <p className={`text-[10px] font-semibold truncate leading-tight ${slim ? '' : 'mb-0.5'}`}>{ev.title}</p>
       {!slim && height > 30 && (
         <p className={`text-[9px] truncate ${isNlyt ? 'text-white/70' : 'opacity-60'}`}>
           {formatTime(ev.start)} · {formatDuration(ev.duration)}
         </p>
+      )}
+      {/* Popover for external events */}
+      {isExternal && showPopover && (
+        <div
+          className="absolute left-1/2 -translate-x-1/2 top-full mt-1 w-52 bg-white rounded-lg shadow-lg border border-slate-200 p-3 z-[60]"
+          data-testid={`nlyt-me-popover-${ev.id}`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-semibold text-slate-900 truncate pr-2">{ev.title}</p>
+            <button onClick={(e) => { e.stopPropagation(); setShowPopover(false); }} className="text-slate-400 hover:text-slate-600 flex-shrink-0">
+              <XIcon className="w-3.5 h-3.5" />
+            </button>
+          </div>
+          <p className="text-[11px] text-slate-500 mb-2.5">{formatTime(ev.start)} · {formatDuration(ev.duration)}</p>
+          <button
+            onClick={(e) => { e.stopPropagation(); onNlytMe(ev); setShowPopover(false); }}
+            disabled={isLoading}
+            className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-slate-900 text-white rounded-full text-[11px] font-bold hover:bg-slate-700 active:scale-[0.96] transition-all disabled:opacity-60"
+            data-testid={`nlyt-me-btn-${ev.id}`}
+            title="Garantir ce rendez-vous avec NLYT"
+          >
+            {isLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Zap className="w-3 h-3" />}
+            NLYT me
+          </button>
+        </div>
       )}
     </div>
   );
@@ -132,6 +193,7 @@ export default function AgendaPage() {
   const [syncing, setSyncing] = useState(false);
   const [lastAutoCheckAt, setLastAutoCheckAt] = useState(null);
   const settingChangeRef = useRef(false);
+  const [nlytMeLoading, setNlytMeLoading] = useState(null);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -275,6 +337,24 @@ export default function AgendaPage() {
     }
   };
 
+  const handleNlytMe = async (ev) => {
+    if (nlytMeLoading) return;
+    setNlytMeLoading(ev.id);
+    try {
+      const res = await externalEventsAPI.prefill(ev.id);
+      sessionStorage.setItem('agenda_ui_state', JSON.stringify({ currentDate: currentDate.toISOString(), selectedDay, viewMode }));
+      navigate('/appointments/create', { state: { fromExternal: res.data } });
+    } catch (err) {
+      if (err.response?.status === 409) {
+        toast.error('Cet événement a déjà été converti en engagement NLYT');
+      } else {
+        toast.error(err.response?.data?.detail || 'Impossible de charger les données de l\'événement');
+      }
+    } finally {
+      setNlytMeLoading(null);
+    }
+  };
+
   // ── Navigation (view-aware) ──
   const goPrev = () => {
     setSelectedDay(null);
@@ -404,7 +484,7 @@ export default function AgendaPage() {
                     {selectedEvents.length === 0 ? (
                       <div className="px-4 py-8 text-center"><p className="text-sm text-slate-400">Aucun événement ce jour</p></div>
                     ) : (
-                      <div className="divide-y divide-slate-50">{selectedEvents.map(ev => <EventRow key={ev.id} ev={ev} onEventClick={handleEventClick} />)}</div>
+                      <div className="divide-y divide-slate-50">{selectedEvents.map(ev => <EventRow key={ev.id} ev={ev} onEventClick={handleEventClick} onNlytMe={handleNlytMe} nlytMeLoading={nlytMeLoading} />)}</div>
                     )}
                   </div>
                 )}
@@ -450,7 +530,7 @@ export default function AgendaPage() {
                         style={{ cursor: 'pointer' }}
                       >
                         {hours.map(h => <div key={h} style={{ height: HOUR_HEIGHT }} className="border-b border-slate-50" />)}
-                        {dayEvs.map(ev => <TimeGridEvent key={ev.id} ev={ev} onEventClick={handleEventClick} slim />)}
+                        {dayEvs.map(ev => <TimeGridEvent key={ev.id} ev={ev} onEventClick={handleEventClick} onNlytMe={handleNlytMe} nlytMeLoading={nlytMeLoading} slim />)}
                       </div>
                     );
                   })}
@@ -473,7 +553,7 @@ export default function AgendaPage() {
                     </div>
                     <div className="relative">
                       {hours.map(h => <div key={h} style={{ height: HOUR_HEIGHT }} className="border-b border-slate-50" />)}
-                      {dayViewEvents.map(ev => <TimeGridEvent key={ev.id} ev={ev} onEventClick={handleEventClick} />)}
+                      {dayViewEvents.map(ev => <TimeGridEvent key={ev.id} ev={ev} onEventClick={handleEventClick} onNlytMe={handleNlytMe} nlytMeLoading={nlytMeLoading} />)}
                     </div>
                   </div>
                 </div>
@@ -487,7 +567,7 @@ export default function AgendaPage() {
                   {dayViewEvents.length === 0 ? (
                     <div className="px-4 py-8 text-center"><p className="text-sm text-slate-400">Aucun événement ce jour</p></div>
                   ) : (
-                    <div className="divide-y divide-slate-50">{dayViewEvents.map(ev => <EventRow key={ev.id} ev={ev} onEventClick={handleEventClick} />)}</div>
+                    <div className="divide-y divide-slate-50">{dayViewEvents.map(ev => <EventRow key={ev.id} ev={ev} onEventClick={handleEventClick} onNlytMe={handleNlytMe} nlytMeLoading={nlytMeLoading} />)}</div>
                   )}
                 </div>
               </div>
