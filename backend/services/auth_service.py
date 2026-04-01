@@ -41,6 +41,17 @@ class AuthService:
         user_id = str(uuid.uuid4())
         hashed_password = hash_password(password)
         
+        DEFAULT_MESSAGE = (
+            "J'utilise NLYT pour perdre le moins de temps possible et m'organiser efficacement.\n\n"
+            "En vous demandant une garantie, je veux vous faire comprendre qu'un rendez-vous non honoré "
+            "représente une perte de temps et d'argent pour moi.\n\n"
+            "De façon symétrique, en cas d'absence ou de retard de ma part, je m'impose à moi-même "
+            "les mêmes règles de pénalités que je vous soumets.\n\n"
+            "Comme vous pourrez le constater, en cas d'absence ou de retard, une partie de ces sommes "
+            "ira sous forme de don à l'association ci-dessous.\n\n"
+            "Merci de votre compréhension."
+        )
+
         user = {
             "user_id": user_id,
             "email": email,
@@ -52,7 +63,10 @@ class AuthService:
             "last_verification_email_sent": now_utc().isoformat(),
             "verification_email_sent_count": 1,
             "created_at": now_utc().isoformat(),
-            "updated_at": now_utc().isoformat()
+            "updated_at": now_utc().isoformat(),
+            "appointment_defaults": {
+                "default_message": DEFAULT_MESSAGE
+            }
         }
         
         try:

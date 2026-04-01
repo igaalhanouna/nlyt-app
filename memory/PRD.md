@@ -42,6 +42,12 @@ Application SaaS (React/FastAPI/MongoDB) de gestion des presences avec garanties
 
 ## Completed Features (Latest)
 
+### Message par Defaut a la Creation de Compte (2026-04-01)
+- Inscription: appointment_defaults.default_message initialise avec le texte NLYT standard (535 chars)
+- Texte multi-lignes avec \n preserves
+- Utilisateurs existants: pas d'ecrasement (fallback None dans get_user_settings)
+- Tests: registration verifie + DB + cleanup
+
 ### Message par Defaut dans les Parametres (2026-04-01)
 - Backend: champ default_message (Optional[str], max 2000) dans AppointmentDefaults
 - Sauvegardé dans users.appointment_defaults via PUT /api/user-settings/me
