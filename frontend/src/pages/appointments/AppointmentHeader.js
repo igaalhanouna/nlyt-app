@@ -76,7 +76,7 @@ export default function AppointmentHeader({
         </span>
         {appointment.description && (
           <div className="mt-2.5 px-3 py-2 bg-slate-50 border border-slate-100 rounded-lg" data-testid="appointment-description">
-            <p className="text-xs font-bold text-slate-900 mb-1">Message de l'organisateur</p>
+            <p className="text-sm font-medium text-slate-900 mb-1">Message de l'organisateur</p>
             <p className="text-sm text-slate-700 whitespace-pre-wrap">{appointment.description}</p>
           </div>
         )}
