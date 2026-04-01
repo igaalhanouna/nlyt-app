@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import AppNavbar from '../../components/AppNavbar';
 import AppBreadcrumb from '../../components/AppBreadcrumb';
 import { Input } from '../../components/ui/input';
-import { Search, Mail, ChevronDown } from 'lucide-react';
+import { Search, Mail, ChevronDown, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { safeFetchJson } from '../../utils/safeFetchJson';
 import { useAuth } from '../../contexts/AuthContext';
@@ -17,6 +17,7 @@ export default function AdminUsers() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [changingRole, setChangingRole] = useState(null);
+  const [deleting, setDeleting] = useState(null);
 
   const token = localStorage.getItem('nlyt_token');
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
@@ -52,6 +53,23 @@ export default function AdminUsers() {
       toast.error(err.message);
     } finally {
       setChangingRole(null);
+    }
+  };
+
+  const handleDeleteUser = async (u) => {
+    if (!window.confirm(`Êtes-vous sûr de vouloir effacer ${u.email} définitivement ?`)) return;
+    setDeleting(u.user_id);
+    try {
+      const { ok, data } = await safeFetchJson(`${API_URL}/api/admin/users/${u.user_id}`, {
+        method: 'DELETE', headers,
+      });
+      if (!ok) throw new Error(data.detail || 'Erreur');
+      toast.success(`${u.email} supprimé`);
+      fetchUsers();
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setDeleting(null);
     }
   };
 
@@ -135,24 +153,35 @@ export default function AdminUsers() {
                       <span>{(u.providers || []).map((p) => PROVIDER_LABELS[p] || p).join(', ')}</span>
                     </div>
                   </div>
-                  <div className="flex-shrink-0">
+                  <div className="flex items-center gap-2 flex-shrink-0">
                     {isSelf ? (
                       <span className="text-xs text-slate-400 italic">Votre compte</span>
                     ) : (
-                      <div className="relative">
-                        <select
-                          value={role}
-                          onChange={(e) => handleRoleChange(u, e.target.value)}
-                          disabled={changingRole === u.user_id}
-                          className="appearance-none bg-white border border-slate-200 rounded-md pl-3 pr-8 py-1.5 text-sm font-medium text-slate-700 cursor-pointer hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-1 disabled:opacity-50"
-                          data-testid={`role-select-${u.user_id}`}
+                      <>
+                        <div className="relative">
+                          <select
+                            value={role}
+                            onChange={(e) => handleRoleChange(u, e.target.value)}
+                            disabled={changingRole === u.user_id}
+                            className="appearance-none bg-white border border-slate-200 rounded-md pl-3 pr-8 py-1.5 text-sm font-medium text-slate-700 cursor-pointer hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-1 disabled:opacity-50"
+                            data-testid={`role-select-${u.user_id}`}
+                          >
+                            {ALL_ROLES.map(r => (
+                              <option key={r} value={r}>{ROLE_LABELS[r]}</option>
+                            ))}
+                          </select>
+                          <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+                        </div>
+                        <button
+                          onClick={() => handleDeleteUser(u)}
+                          disabled={deleting === u.user_id}
+                          className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors disabled:opacity-50"
+                          title="Supprimer cet utilisateur"
+                          data-testid={`delete-user-${u.user_id}`}
                         >
-                          {ALL_ROLES.map(r => (
-                            <option key={r} value={r}>{ROLE_LABELS[r]}</option>
-                          ))}
-                        </select>
-                        <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
-                      </div>
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </>
                     )}
                   </div>
                 </div>

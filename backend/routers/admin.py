@@ -203,6 +203,24 @@ async def admin_update_user_role(request: Request, user_id: str, body: UpdateRol
     return {"user_id": user_id, "email": target["email"], "role": body.role}
 
 
+@router.delete("/users/{user_id}")
+async def admin_delete_user(request: Request, user_id: str):
+    """Delete a user permanently."""
+    admin = await require_admin(request)
+
+    target = db.users.find_one({"user_id": user_id}, {"_id": 0, "user_id": 1, "email": 1})
+    if not target:
+        raise HTTPException(status_code=404, detail="Utilisateur introuvable")
+
+    if target["user_id"] == admin["user_id"]:
+        raise HTTPException(status_code=400, detail="Vous ne pouvez pas supprimer votre propre compte")
+
+    db.users.delete_one({"user_id": user_id})
+
+    logger.info(f"[ADMIN] User {target['email']} deleted by {admin['email']}")
+    return {"message": f"Utilisateur {target['email']} supprimé définitivement"}
+
+
 # ── Stale Payouts ────────────────────────────────────────────
 
 @router.get("/stale-payouts")
