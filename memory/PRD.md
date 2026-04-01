@@ -42,6 +42,15 @@ Application SaaS (React/FastAPI/MongoDB) de gestion des presences avec garanties
 
 ## Completed Features (Latest)
 
+### Logique Feuilles de Presence — Cibles Pertinentes (2026-04-01)
+- Prévention: initialize_declarative_phase exclut les cibles non-self en statut terminal
+- Statuts terminaux: cancelled_by_participant, declined, guarantee_released (frozenset)
+- Auto-déclaration seule sans cible non-self pertinente → sheet non créée
+- Si 0 sheets créées → declarative_phase = "not_needed"
+- Filtrage rétroactif: GET /pending exclut les sheets dont toutes les cibles non-self sont terminales
+- Aucune modification frontend nécessaire
+- Tests: 14/14 PASS (iteration 170)
+
 ### Champ Description / Message pour les Participants (2026-04-01)
 - Backend: ajout description: Optional[str] (max 2000) dans AppointmentCreate
 - Stocké en DB, modifiable via PATCH (déjà dans la whitelist)
