@@ -42,6 +42,16 @@ Application SaaS (React/FastAPI/MongoDB) de gestion des presences avec garanties
 
 ## Completed Features (Latest)
 
+### Champ Description / Message pour les Participants (2026-04-01)
+- Backend: ajout description: Optional[str] (max 2000) dans AppointmentCreate
+- Stocké en DB, modifiable via PATCH (déjà dans la whitelist)
+- Prefill: description récupérée depuis external_events lors du flow "NLYT me"
+- Outlook adapter: body.content (full text) remplace bodyPreview (tronqué 255 chars)
+- Calendar sync: automatique via _build_event_data (Google description, Outlook body.content)
+- Frontend wizard: textarea "Message pour les participants" + compteur X/2000 + récap
+- Frontend détail: affichage conditionnel dans AppointmentHeader (data-testid=appointment-description)
+- Tests: 14/14 PASS (iteration 169)
+
 ### Hook useCalendarAutoSync — Centralisation Auto-Sync (2026-04-01)
 - Extraction du code duplique (Dashboard + Agenda) dans /hooks/useCalendarAutoSync.js
 - Interval 2 min, guards anti-double (syncInProgressRef, syncingRef, document.hidden)
