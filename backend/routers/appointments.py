@@ -511,6 +511,7 @@ async def create_appointment(appointment: AppointmentCreate, request: Request):
         "workspace_id": appointment.workspace_id,
         "organizer_id": user['user_id'],
         "title": appointment.title,
+        "description": appointment.description or "",
         "appointment_type": appointment.appointment_type,
         "location": appointment.location,
         "location_latitude": appointment.location_latitude,

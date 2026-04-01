@@ -67,6 +67,7 @@ export default function AppointmentWizard() {
   
   const [formData, setFormData] = useState({
     title: '',
+    description: '',
     appointment_type: 'physical',
     location: '',
     location_latitude: null,
@@ -107,6 +108,7 @@ export default function AppointmentWizard() {
     setFormData(prev => ({
       ...prev,
       title: p.title || prev.title,
+      description: p.description || prev.description,
       appointment_type: p.appointment_type || prev.appointment_type,
       location: p.location || prev.location,
       meeting_provider: p.meeting_provider || prev.meeting_provider,
@@ -600,6 +602,21 @@ export default function AppointmentWizard() {
           placeholder="Ex: Consultation client, Réunion d'équipe..."
           className="mt-1"
         />
+      </div>
+
+      <div>
+        <Label htmlFor="description">Message pour les participants</Label>
+        <textarea
+          id="description"
+          data-testid="appointment-description-input"
+          value={formData.description}
+          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+          placeholder="Informations utiles, consignes, contexte..."
+          maxLength={2000}
+          rows={3}
+          className="mt-1 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent resize-y"
+        />
+        <p className="text-xs text-slate-400 mt-1 text-right">{formData.description.length} / 2000</p>
       </div>
 
       <div>
@@ -1264,6 +1281,12 @@ export default function AppointmentWizard() {
                   <span className="text-slate-600">Titre:</span>
                   <span className="font-medium text-slate-900">{formData.title}</span>
                 </div>
+                {formData.description && (
+                  <div>
+                    <span className="text-slate-600">Message:</span>
+                    <p className="mt-1 text-sm text-slate-800 bg-slate-50 rounded-md p-2 whitespace-pre-wrap">{formData.description}</p>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span className="text-slate-600">Type:</span>
                   <span className="font-medium text-slate-900">{formData.appointment_type === 'physical' ? 'Physique' : 'Visioconférence'}</span>

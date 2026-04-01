@@ -352,6 +352,7 @@ def get_prefill_data(user_id: str, external_event_id: str) -> dict:
     return {
         "prefill": {
             "title": event.get("title", ""),
+            "description": event.get("description", ""),
             "appointment_type": appointment_type,
             "location": event.get("location") or "",
             "meeting_provider": meeting_provider,

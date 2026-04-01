@@ -152,6 +152,7 @@ class AppointmentCreate(BaseModel):
     participants: Optional[List[ParticipantInput]] = []
     event_reminders: Optional[EventRemindersConfig] = None
     from_external_event_id: Optional[str] = None
+    description: Optional[str] = Field(default=None, max_length=2000)
 
     @field_validator('meeting_provider', mode='before')
     @classmethod

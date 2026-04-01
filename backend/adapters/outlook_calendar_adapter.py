@@ -276,7 +276,7 @@ class OutlookCalendarAdapter:
                 '$filter': f"start/dateTime ge '{time_min}' and end/dateTime le '{time_max}'",
                 '$orderby': 'start/dateTime',
                 '$top': 50,
-                '$select': 'id,subject,start,end,isCancelled,isAllDay,location,bodyPreview,organizer,attendees,onlineMeeting,onlineMeetingUrl',
+                '$select': 'id,subject,start,end,isCancelled,isAllDay,location,body,organizer,attendees,onlineMeeting,onlineMeetingUrl',
             }
             resp = requests.get(
                 f'{GRAPH_API}/me/events',
@@ -349,13 +349,25 @@ class OutlookCalendarAdapter:
                         'response_status': response,
                     })
 
+                # Extract description from body (full text, may be HTML)
+                body_raw = item.get('body', {})
+                description = ''
+                if isinstance(body_raw, dict):
+                    content = body_raw.get('content', '')
+                    if body_raw.get('contentType') == 'html' and content:
+                        import re
+                        description = re.sub(r'<[^>]+>', '', content).strip()
+                        description = re.sub(r'\n{3,}', '\n\n', description)
+                    else:
+                        description = content.strip() if content else ''
+
                 events.append({
                     'event_id': item['id'],
                     'title': item.get('subject', '(Sans titre)'),
                     'start': start_dt,
                     'end': end_dt,
                     'location': location,
-                    'description': item.get('bodyPreview'),
+                    'description': description or None,
                     'organizer': organizer,
                     'attendees': attendees,
                     'conference_url': conference_url,
