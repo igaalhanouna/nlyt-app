@@ -21,6 +21,13 @@ SHEET_REMINDER_HOURS = 24
 DISPUTE_DEADLINE_DAYS = 7
 MIN_TIERS_EXPRESSED = 2
 
+# Statuts de participants considérés comme terminaux / hors-jeu.
+# Un participant dans l'un de ces statuts ne constitue plus une cible
+# pertinente pour une feuille de présence.
+TERMINAL_PARTICIPANT_STATUSES = frozenset({
+    'cancelled_by_participant', 'declined', 'guarantee_released',
+})
+
 
 # ═══════════════════════════════════════════════════════════════════
 # Phase initialization
@@ -95,17 +102,28 @@ def initialize_declarative_phase(appointment_id: str):
             continue
 
         # Targets = participants in manual_review, excluding self
-        targets = [
-            {"target_participant_id": r['participant_id'],
-             "target_user_id": _get_user_id(r['participant_id']),
-             "declared_status": None,
-             "is_self_declaration": False}
-            for r in review_records
-            if r['participant_id'] != p_pid
-        ]
+        targets = []
+        for r in review_records:
+            if r['participant_id'] == p_pid:
+                continue
+            # Skip targets whose participant status is terminal
+            tp = db.participants.find_one(
+                {"participant_id": r['participant_id']},
+                {"_id": 0, "status": 1}
+            )
+            if tp and tp.get('status') in TERMINAL_PARTICIPANT_STATUSES:
+                continue
+            targets.append({
+                "target_participant_id": r['participant_id'],
+                "target_user_id": _get_user_id(r['participant_id']),
+                "declared_status": None,
+                "is_self_declaration": False,
+            })
 
         # Self-declaration: if THIS participant is in manual_review, add themselves
-        if p_pid in review_pids:
+        # BUT only if there are already relevant non-self targets.
+        # Self-declaration alone doesn't resolve a real dispute.
+        if p_pid in review_pids and targets:
             targets.append({
                 "target_participant_id": p_pid,
                 "target_user_id": p_user_id or '',
@@ -128,6 +146,16 @@ def initialize_declarative_phase(appointment_id: str):
             "deadline": deadline.isoformat(),
         })
         sheets_created += 1
+
+    # If no sheets were created (all targets were terminal), phase is not needed
+    if sheets_created == 0:
+        db.appointments.update_one(
+            {"appointment_id": appointment_id},
+            {"$set": {"declarative_phase": "not_needed"}}
+        )
+        logger.info(f"[DECLARATIVE] No relevant targets for {appointment_id}. "
+                     f"All non-self targets are in terminal status. Phase set to not_needed.")
+        return
 
     db.appointments.update_one(
         {"appointment_id": appointment_id},

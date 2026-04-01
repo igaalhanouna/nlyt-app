@@ -55,6 +55,30 @@ async def get_pending_sheets(request: Request):
         if not targets:
             continue
 
+        # Retroactive filter: exclude sheets where ALL non-self targets are terminal
+        TERMINAL_STATUSES = {'cancelled_by_participant', 'declined', 'guarantee_released'}
+        non_self_targets = [t for t in targets if not t.get('is_self_declaration')]
+        if non_self_targets:
+            # Check each non-self target's current participant status
+            target_pids = [t['target_participant_id'] for t in non_self_targets]
+            target_participants = {
+                tp['participant_id']: tp
+                for tp in db.participants.find(
+                    {"participant_id": {"$in": target_pids}},
+                    {"_id": 0, "participant_id": 1, "status": 1}
+                )
+            }
+            relevant_non_self = [
+                t for t in non_self_targets
+                if target_participants.get(t['target_participant_id'], {}).get('status') not in TERMINAL_STATUSES
+            ]
+            if not relevant_non_self:
+                # All non-self targets are terminal → sheet no longer useful
+                continue
+        else:
+            # Only self-declarations remain → no dispute to resolve
+            continue
+
         # Enrich target names
         for t in targets:
             if t.get('is_self_declaration'):

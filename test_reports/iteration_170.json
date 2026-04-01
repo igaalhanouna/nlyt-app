@@ -1,0 +1,59 @@
+{
+  "summary": "Iteration 170: Cancelled Participants Attendance Sheets Bug Fix - All tests PASS. The fix correctly prevents attendance sheets from being created/shown when all participants have cancelled. Backend: (1) TERMINAL_PARTICIPANT_STATUSES frozenset contains exactly {cancelled_by_participant, declined, guarantee_released}, (2) initialize_declarative_phase filters out terminal targets and sets phase='not_needed' when 0 sheets created, (3) Self-declaration alone doesn't generate sheets, (4) GET /api/attendance-sheets/pending retroactively filters sheets with all terminal non-self targets. Frontend: /presences page loads correctly, displays sheets when present, and has proper empty state handling.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": {
+    "backend": {
+      "test_terminal_statuses_constant_exists": "PASS - TERMINAL_PARTICIPANT_STATUSES = frozenset({cancelled_by_participant, declined, guarantee_released})",
+      "test_all_participants_terminal_no_sheets_created": "PASS - When all participants in manual_review have terminal status, 0 sheets created, phase = not_needed",
+      "test_at_least_one_active_participant_sheets_created": "PASS - When at least one participant is active, sheets created normally, phase = collecting",
+      "test_self_declaration_alone_no_sheet": "PASS - Self-declaration alone (no relevant non-self targets) does NOT generate a sheet",
+      "test_guarantee_released_is_terminal": "PASS - guarantee_released status is treated as terminal",
+      "test_pending_excludes_sheets_with_all_terminal_targets": "PASS - GET /pending excludes sheets where all non-self targets are terminal",
+      "test_pending_includes_sheets_with_active_targets": "PASS - GET /pending includes sheets with at least one active non-self target",
+      "test_pending_excludes_self_declaration_only_sheets": "PASS - GET /pending excludes sheets with only self-declarations",
+      "test_mixed_terminal_and_active_only_active_as_targets": "PASS - Mixed scenario: only active participants appear as targets"
+    },
+    "frontend": {
+      "presences_page_loads": "PASS - /presences page loads without errors",
+      "presences_title_displayed": "PASS - 'Feuilles de presence' title displayed",
+      "presences_pending_count_badge": "PASS - '3 a remplir' badge displayed when sheets exist",
+      "presences_sheet_cards": "PASS - Sheet cards displayed with title, date, location, participants count, deadline",
+      "presences_empty_state_element": "PASS - data-testid='presences-empty' element exists for empty state handling"
+    }
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_cancelled_participants_sheets_iter170.py",
+    "/app/test_reports/pytest/pytest_cancelled_participants_sheets_iter170.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "declarative_service.py L27-29: TERMINAL_PARTICIPANT_STATUSES correctly defined as frozenset with 3 statuses",
+    "declarative_service.py L109-115: Terminal target filtering correctly implemented - checks participant status before adding to targets",
+    "declarative_service.py L126: Self-declaration only added if 'targets' list is non-empty (has relevant non-self targets)",
+    "declarative_service.py L151-158: Guard for 0 sheets created correctly sets phase to 'not_needed'",
+    "declarative_routes.py L59-80: Retroactive filtering correctly excludes sheets with all terminal non-self targets",
+    "PresencesPage.js L56-60: Empty state correctly handled with data-testid='presences-empty'"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_cancelled_participants_sheets_iter170.py"
+  ],
+  "success_rate": {
+    "backend": "100% (9/9 tests passed)",
+    "frontend": "100% (5/5 checks passed)"
+  },
+  "test_credentials": {
+    "admin_organizer": "testuser_audit@nlyt.app / TestAudit123!"
+  },
+  "seed_data_creation": "Test data created and cleaned up during backend tests (prefixed with TEST_ITER170_)",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Bug fix for cancelled participants attendance sheets fully tested and working. Key implementation points: (1) TERMINAL_PARTICIPANT_STATUSES frozenset at L27-29 in declarative_service.py, (2) Prevention logic in initialize_declarative_phase at L109-158, (3) Retroactive filtering in GET /pending at L59-80 in declarative_routes.py. The fix ensures that when all participants have cancelled (status in {cancelled_by_participant, declined, guarantee_released}), no attendance sheet is created or shown to the organizer."
+}
