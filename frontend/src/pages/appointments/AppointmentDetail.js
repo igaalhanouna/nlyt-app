@@ -872,6 +872,14 @@ export default function AppointmentDetail() {
           guaranteedCount={guaranteedCount} canEdit={(isOrganizer || viewerCanPropose) && canEdit} onEdit={(isOrganizer || viewerCanPropose) ? handleOpenProposalForm : undefined}
         />
 
+        {/* Message de l'organisateur — sous les essentiels (date, lieu) */}
+        {appointment.description && (
+          <div className="mb-4 px-3 py-2 bg-slate-50 border border-slate-100 rounded-lg" data-testid="appointment-description">
+            <p className="text-sm font-medium text-slate-900 mb-1">Message de l'organisateur</p>
+            <p className="text-sm text-slate-700 whitespace-pre-wrap">{appointment.description}</p>
+          </div>
+        )}
+
         {/* #3 — Actions (calendrier, annuler) — available for both roles */}
         <SecondaryActions
           appointment={appointment} isCancelled={isCancelled}

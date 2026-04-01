@@ -74,12 +74,6 @@ export default function AppointmentHeader({
         <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_STYLES[appointment.status] || 'bg-slate-100 text-slate-600'}`} data-testid="appointment-status-badge">
           {STATUS_LABELS[appointment.status] || appointment.status}
         </span>
-        {appointment.description && (
-          <div className="mt-2.5 px-3 py-2 bg-slate-50 border border-slate-100 rounded-lg" data-testid="appointment-description">
-            <p className="text-sm font-medium text-slate-900 mb-1">Message de l'organisateur</p>
-            <p className="text-sm text-slate-700 whitespace-pre-wrap">{appointment.description}</p>
-          </div>
-        )}
       </div>
 
       {/* Pending guarantee banner (organizer only) */}
