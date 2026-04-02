@@ -42,6 +42,14 @@ Application SaaS (React/FastAPI/MongoDB) de gestion des presences avec garanties
 
 ## Completed Features (Latest)
 
+### Refonte Wording "Ce qui a ete declare" (2026-04-02)
+- Toutes les declarations suivent le pattern "X declare Y status" ou "X se declare status"
+- Plus aucun statut isole (Absent, Present) sans contexte
+- Roles affiches en ligne (organisateur) au lieu de badges separes
+- Positions du litige: "{Nom} (organisateur) maintient {Cible} {status}" / "{Cible} se maintient {status}"
+- Badge "Vous" conserve comme indicateur discret, mais jamais utilise dans la phrase
+- Noms utilises partout pour coherence (pas de "Vous" dans le texte des phrases)
+
 ### Refonte Section "Ce qui a ete declare" dans /decisions (2026-04-02)
 - Backend: _get_anonymized_summary enrichi avec target_self_declaration, is_organizer, contradiction_level, summary_phrase
 - Frontend DecisionDetailPage.js: nouveau composant DeclarationSection avec:
