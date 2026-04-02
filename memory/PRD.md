@@ -13,6 +13,19 @@ Application SaaS (React/FastAPI/MongoDB) de gestion des presences avec garanties
 
 ## Completed Features (Latest Session - 2026-04-02/03)
 
+### Audit Produit Global + QA Angles Morts (2026-04-04)
+- Audit exhaustif du code source : cartographie complete des flux, transitions, interactions inter-modules
+- 11 angles morts testes, 5 failles identifiees et corrigees :
+  - BS-1 (CRITIQUE) : Review timeout auto-waivait les participants en litige actif → guard ajoute
+  - BS-2 (MAJEUR) : Reconciliation ignorait credit_available_direct → formule corrigee
+  - BS-3 (MAJEUR) : Phase analyzing bloquee sans recovery → detection + retry auto (30 min)
+  - BS-4 (MOYEN) : Reclassification apres immediate_release silencieusement ignoree → cancel_distribution accepte completed
+  - BS-6 (PRODUIT) : Observateurs voyaient les litiges non concernes → filtrage par role dans /disputes/mine
+- 7 tests confirmes robustes : CAS idempotence, guard auto-litige, capture released, Cas A, dispute sans deadline
+- Score final QA : 12/12 OK post-corrections
+- Rapport complet : /app/backend/AUDIT_RAPPORT_V51.md
+- Tests : /app/backend/tests/qa_blind_spots.py
+
 ### V5.1: Phase Declarative Reservee aux Garantis (2026-04-03)
 - Seuls les participants `accepted_guaranteed` en `manual_review` entrent dans la phase declarative
 - Participants non-garantis auto-resolus en `waived` (decision_source: `non_guaranteed_auto_waived`)

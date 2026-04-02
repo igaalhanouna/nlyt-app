@@ -1007,13 +1007,10 @@ def resolve_dispute(dispute_id: str, final_outcome: str, resolution_note: str, r
         logger.warning(f"[NOTIF] Failed to notify decision rendered: {e}")
 
     # Apply to attendance record
-    previous_outcome = None
     existing_record = db.attendance_records.find_one(
         {"appointment_id": dispute['appointment_id'], "participant_id": dispute['target_participant_id']},
         {"_id": 0, "outcome": 1}
     )
-    if existing_record:
-        previous_outcome = existing_record.get("outcome")
 
     db.attendance_records.update_one(
         {"appointment_id": dispute['appointment_id'], "participant_id": dispute['target_participant_id']},
