@@ -27,8 +27,9 @@ async def get_pending_sheets(request: Request):
 
     # Fallback: also find sheets linked by participant_id (auto-linkage may not have run yet)
     if not sheets:
+        user_email = user.get('email', '')
         my_pids = [p["participant_id"] for p in db.participants.find(
-            {"user_id": user_id},
+            {"$or": [{"user_id": user_id}, {"email": user_email}]},
             {"_id": 0, "participant_id": 1}
         )]
         if my_pids:
@@ -144,13 +145,61 @@ class SubmitSheetBody(BaseModel):
 
 @router.get("/{appointment_id}")
 async def get_my_sheet(appointment_id: str, request: Request):
-    """Get current user's attendance sheet for this appointment."""
-    user = await get_current_user(request)
+    """Get current user's attendance sheet for this appointment.
 
+    Security model:
+      1. Fast path  — sheet.submitted_by_user_id == JWT user_id  → OK
+      2. Fallback   — lookup participant records for this user (by user_id
+         OR verified JWT email) scoped to this appointment, then match
+         sheet.submitted_by_participant_id.  Covers the micro race-condition
+         right after login before auto-linkage updates the sheet.
+      3. No match   → 404 (no sheet exists for this user on this appointment)
+
+    No external parameter (participant_id, etc.) is accepted from the client.
+    All identity data comes exclusively from the signed JWT.
+    """
+    user = await get_current_user(request)
+    user_id = user['user_id']
+    user_email = user.get('email', '')
+
+    # ── Fast path: direct lookup by user_id ──────────────────────
     sheet = db.attendance_sheets.find_one(
-        {"appointment_id": appointment_id, "submitted_by_user_id": user['user_id']},
+        {"appointment_id": appointment_id, "submitted_by_user_id": user_id},
         {"_id": 0}
     )
+
+    # ── Secure fallback by participant_id ────────────────────────
+    if not sheet:
+        # Find MY participant record(s) for THIS appointment only.
+        # Identity source: user_id + email, both from the signed JWT.
+        my_participants = list(db.participants.find(
+            {
+                "appointment_id": appointment_id,
+                "$or": [{"user_id": user_id}, {"email": user_email}],
+            },
+            {"_id": 0, "participant_id": 1}
+        ))
+        if my_participants:
+            my_pids = [p["participant_id"] for p in my_participants]
+            sheet = db.attendance_sheets.find_one(
+                {
+                    "appointment_id": appointment_id,
+                    "submitted_by_participant_id": {"$in": my_pids},
+                },
+                {"_id": 0}
+            )
+            if sheet:
+                # Heal linkage so the fast path works next time
+                if sheet.get("submitted_by_user_id") != user_id:
+                    db.attendance_sheets.update_one(
+                        {"sheet_id": sheet["sheet_id"]},
+                        {"$set": {"submitted_by_user_id": user_id}}
+                    )
+                    logger.info(
+                        f"[SHEET-FALLBACK] Healed linkage for sheet "
+                        f"{sheet['sheet_id']} → user {user_id} ({user_email})"
+                    )
+
     if not sheet:
         raise HTTPException(status_code=404, detail="Aucune feuille de presence trouvee")
 
