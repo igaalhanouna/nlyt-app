@@ -25,6 +25,25 @@ async def get_pending_sheets(request: Request):
         {"_id": 0}
     ))
 
+    # Fallback: also find sheets linked by participant_id (auto-linkage may not have run yet)
+    if not sheets:
+        my_pids = [p["participant_id"] for p in db.participants.find(
+            {"user_id": user_id},
+            {"_id": 0, "participant_id": 1}
+        )]
+        if my_pids:
+            sheets = list(db.attendance_sheets.find(
+                {"submitted_by_participant_id": {"$in": my_pids}},
+                {"_id": 0}
+            ))
+            # Fix linkage for future lookups
+            for s in sheets:
+                if s.get("submitted_by_user_id") != user_id:
+                    db.attendance_sheets.update_one(
+                        {"sheet_id": s["sheet_id"]},
+                        {"$set": {"submitted_by_user_id": user_id}}
+                    )
+
     if not sheets:
         return {"pending_sheets": [], "count": 0}
 
