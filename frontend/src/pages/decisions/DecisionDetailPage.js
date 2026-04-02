@@ -13,6 +13,7 @@ const OUTCOME_CFG = {
   on_time: { label: (name) => `Presence validee de ${name}`, sub: (name) => `Aucune penalite appliquee a ${name}`, Icon: CheckCircle, color: 'emerald' },
   no_show: { label: (name) => `Absence confirmee de ${name}`, sub: (name) => `Penalite appliquee a ${name}`, Icon: UserX, color: 'red' },
   late_penalized: { label: (name) => `Retard confirme de ${name}`, sub: (name) => `Penalite partielle appliquee a ${name}`, Icon: Timer, color: 'amber' },
+  waived: { label: (name) => `Classe sans suite pour ${name}`, sub: () => `Aucune penalite — information insuffisante`, Icon: Shield, color: 'slate' },
 };
 
 const STATUS_LABELS = {
@@ -20,6 +21,7 @@ const STATUS_LABELS = {
   agreed_present: 'Accord mutuel — Present',
   agreed_absent: 'Accord mutuel — Absent',
   agreed_late_penalized: 'Accord mutuel — Retard',
+  waived: 'Classe sans suite',
 };
 
 const OPENED_REASON_LABELS = {
@@ -28,11 +30,15 @@ const OPENED_REASON_LABELS = {
   collusion_signal: 'Les declarants sont aussi les beneficiaires financiers.',
   declarative_disagreement: 'Les declarations des participants ne concordent pas.',
   small_group_disagreement: 'Desaccord entre les participants du groupe.',
+  unanimous_absence: 'Les declarations convergent vers une absence.',
+  single_negative_signal: 'Un participant a signale une absence.',
+  negative_tech_with_no_declarations: 'Aucune declaration mais un signal technique negatif.',
+  no_declarations_received: 'Aucune declaration de presence recue.',
 };
 
-const BORDER = { emerald: 'border-emerald-300', red: 'border-red-300', amber: 'border-amber-300' };
-const BG = { emerald: 'bg-emerald-50', red: 'bg-red-50', amber: 'bg-amber-50' };
-const TEXT = { emerald: 'text-emerald-800', red: 'text-red-800', amber: 'text-amber-800' };
+const BORDER = { emerald: 'border-emerald-300', red: 'border-red-300', amber: 'border-amber-300', slate: 'border-slate-300' };
+const BG = { emerald: 'bg-emerald-50', red: 'bg-red-50', amber: 'bg-amber-50', slate: 'bg-slate-50' };
+const TEXT = { emerald: 'text-emerald-800', red: 'text-red-800', amber: 'text-amber-800', slate: 'text-slate-700' };
 
 function formatTime(isoStr) {
   if (!isoStr) return null;
@@ -359,6 +365,7 @@ const OUTCOME_PHRASES = {
   on_time: 'presence confirmee',
   no_show: 'absence confirmee',
   late_penalized: 'retard confirme',
+  waived: 'classe sans suite (information insuffisante)',
 };
 
 function DeclarationSection({ ds, data, outcome }) {
@@ -517,11 +524,13 @@ function FinancialSection({ fc, outcome, targetName, ds, data }) {
     ? orgDeclarant.first_name
     : (data.my_role === 'participant' ? (data.other_party_name || 'l\'organisateur') : 'l\'organisateur');
 
-  if (outcome === 'on_time') {
+  if (outcome === 'on_time' || outcome === 'waived') {
     return (
       <section className="rounded-xl border border-slate-200 bg-white p-5 mb-5" data-testid="decision-financial-bloc">
         <h3 className="text-sm font-bold text-slate-700 mb-3">Detail financier</h3>
-        <p className="text-sm text-emerald-700">Aucun prelevement. La garantie de {name} a ete liberee.</p>
+        <p className={`text-sm ${outcome === 'waived' ? 'text-slate-600' : 'text-emerald-700'}`}>
+          Aucun prelevement. La garantie de {name} a ete liberee.
+        </p>
       </section>
     );
   }

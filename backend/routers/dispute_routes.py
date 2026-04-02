@@ -373,7 +373,7 @@ async def list_my_decisions(request: Request):
         penalty_cents = int(penalty * 100)
         comp_cents = penalty_cents - int(penalty_cents * comm_pct / 100) - int(penalty_cents * charity_pct / 100)
 
-        if final_outcome == 'on_time' or d['status'] == 'agreed_present':
+        if final_outcome == 'on_time' or d['status'] == 'agreed_present' or final_outcome == 'waived':
             d['financial_impact'] = {'type': 'neutral', 'label': 'Aucune penalite', 'amount': 0}
         elif is_target:
             d['financial_impact'] = {

@@ -12,25 +12,23 @@ const POSITION_LABELS = {
 
 const STATUS_BADGES = {
   escalated: { label: 'Escalade', cls: 'bg-red-100 text-red-700' },
-  awaiting_positions: { label: 'Positions en cours', cls: 'bg-amber-100 text-amber-700' },
-  resolved: { label: 'Resolu', cls: 'bg-emerald-100 text-emerald-700' },
-  agreed_present: { label: 'Accord: Present', cls: 'bg-blue-100 text-blue-700' },
-  agreed_absent: { label: 'Accord: Absent', cls: 'bg-blue-100 text-blue-700' },
-  agreed_late_penalized: { label: 'Accord: Retard', cls: 'bg-blue-100 text-blue-700' },
+  awaiting_positions: { label: 'En attente des parties', cls: 'bg-amber-100 text-amber-700' },
+  resolved: { label: 'Clos — Arbitrage', cls: 'bg-emerald-100 text-emerald-700' },
+  agreed_present: { label: 'Clos — Accord mutuel', cls: 'bg-emerald-100 text-emerald-700' },
+  agreed_absent: { label: 'Clos — Accord mutuel', cls: 'bg-emerald-100 text-emerald-700' },
+  agreed_late_penalized: { label: 'Clos — Accord mutuel', cls: 'bg-emerald-100 text-emerald-700' },
 };
 
 const FILTERS = [
-  { key: 'escalated', label: 'En attente d\'arbitrage', statKey: 'escalated_pending', color: 'red' },
-  { key: 'awaiting', label: 'Positions en cours', statKey: 'awaiting_positions', color: 'amber' },
-  { key: 'resolved', label: 'Resolus (total)', statKey: 'total_resolved', color: 'emerald' },
-  { key: 'agreed', label: 'Accords mutuels', statKey: 'total_agreed_by_parties', color: 'blue' },
+  { key: 'escalated', label: 'A arbitrer', statKey: 'escalated_pending', color: 'red' },
+  { key: 'awaiting', label: 'En attente des parties', statKey: 'awaiting_positions', color: 'amber' },
+  { key: 'closed', label: 'Clos', statKey: 'total_closed', color: 'emerald' },
 ];
 
 const EMPTY_MESSAGES = {
   escalated: { title: 'Aucun litige en attente', sub: 'Tous les litiges escalades ont ete traites' },
   awaiting: { title: 'Aucun litige en attente de positions', sub: 'Toutes les parties ont soumis leurs positions' },
-  resolved: { title: 'Aucun litige resolu', sub: 'Les litiges resolus apparaitront ici' },
-  agreed: { title: 'Aucun accord mutuel', sub: 'Les accords entre parties apparaitront ici' },
+  closed: { title: 'Aucun litige clos', sub: 'Les litiges resolus apparaitront ici' },
 };
 
 function groupByAppointment(disputes) {

@@ -426,8 +426,7 @@ def compute_system_analysis(dispute: dict, tech_dossier: dict, declaration_summa
 FILTER_QUERIES = {
     "escalated": {"status": "escalated"},
     "awaiting": {"status": "awaiting_positions"},
-    "resolved": {"status": "resolved"},
-    "agreed": {"status": {"$in": ["agreed_present", "agreed_absent", "agreed_late_penalized"]}},
+    "closed": {"status": {"$in": ["resolved", "agreed_present", "agreed_absent", "agreed_late_penalized"]}},
 }
 
 
@@ -501,11 +500,11 @@ def _enrich_dispute_for_list(d: dict) -> dict:
     status = d.get("status", "")
     STATUS_LABELS = {
         "escalated": "Escalade",
-        "awaiting_positions": "Positions en cours",
-        "resolved": "Resolu",
-        "agreed_present": "Accord: Present",
-        "agreed_absent": "Accord: Absent",
-        "agreed_late_penalized": "Accord: Retard",
+        "awaiting_positions": "En attente des parties",
+        "resolved": "Clos",
+        "agreed_present": "Clos — Accord mutuel",
+        "agreed_absent": "Clos — Accord mutuel",
+        "agreed_late_penalized": "Clos — Accord mutuel",
     }
     d["status_label"] = STATUS_LABELS.get(status, status)
 
@@ -513,7 +512,7 @@ def _enrich_dispute_for_list(d: dict) -> dict:
     resolution = d.get("resolution") or {}
     final_outcome = resolution.get("final_outcome", "")
     if status in ("resolved", "agreed_present", "agreed_absent", "agreed_late_penalized"):
-        if final_outcome == "on_time" or status == "agreed_present":
+        if final_outcome in ("on_time", "waived") or status == "agreed_present":
             d["financial_summary"] = "Aucune penalite"
         else:
             # Look up appointment penalty
@@ -661,15 +660,13 @@ def get_dispute_detail_for_admin(dispute_id: str) -> dict:
 def get_arbitration_stats() -> dict:
     """KPI stats for the admin dashboard."""
     escalated = db.declarative_disputes.count_documents({"status": "escalated"})
-    total_resolved = db.declarative_disputes.count_documents({"status": "resolved"})
-    total_agreed = db.declarative_disputes.count_documents(
-        {"status": {"$in": ["agreed_present", "agreed_absent", "agreed_late_penalized"]}}
-    )
     awaiting = db.declarative_disputes.count_documents({"status": "awaiting_positions"})
+    closed = db.declarative_disputes.count_documents(
+        {"status": {"$in": ["resolved", "agreed_present", "agreed_absent", "agreed_late_penalized"]}}
+    )
 
     return {
         "escalated_pending": escalated,
-        "total_resolved": total_resolved,
-        "total_agreed_by_parties": total_agreed,
         "awaiting_positions": awaiting,
+        "total_closed": closed,
     }

@@ -11,6 +11,7 @@ const OUTCOME_CFG = {
   on_time: { label: 'Presence validee', className: 'bg-emerald-100 text-emerald-700', Icon: Shield },
   no_show: { label: 'Absence confirmee', className: 'bg-red-100 text-red-700', Icon: Flame },
   late_penalized: { label: 'Retard confirme', className: 'bg-amber-100 text-amber-700', Icon: Clock },
+  waived: { label: 'Classe sans suite', className: 'bg-slate-100 text-slate-600', Icon: Shield },
 };
 
 const FI_STYLES = {
