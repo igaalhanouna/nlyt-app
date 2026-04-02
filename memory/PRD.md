@@ -13,6 +13,14 @@ Application SaaS (React/FastAPI/MongoDB) de gestion des presences avec garanties
 
 ## Completed Features (Latest Session - 2026-04-02/03)
 
+### Phase 1 Pre-Production — Equite & UX (2026-04-04)
+- Notifications escalade/decision pour participants sans compte : email avec CTA "creer mon compte" (3 etapes couvertes)
+- Parcours register → redirect litige : route /register alias, propagation redirect param SignUp↔SignIn↔OAuth, auto-linkage participant/dispute au login
+- Granularite scheduler : declarative deadline 5min (was 15), dispute escalation 15min (was 6h)
+- Auto-linkage orphan participants/disputes : fonction _auto_link_user_to_participants au login email+OAuth
+- Tests : 24/24 backend (notifications 12/12, audit 12/12) + 5/5 frontend
+- Fichiers modifies : notification_service.py, email_service.py, auth_service.py, oauth_routes.py, scheduler.py, App.js, SignIn.js, SignUp.js, OAuthButtons.js, AuthCallback.js
+
 ### Notification Email Litige — Equite d'information (2026-04-04)
 - Email automatique envoye des l'ouverture d'un litige a TOUTES les parties
 - 3 cas couverts :
