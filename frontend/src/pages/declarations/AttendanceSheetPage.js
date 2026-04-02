@@ -205,7 +205,7 @@ export default function AttendanceSheetPage() {
 
               <div className="space-y-3">
                 {sheet?.declarations?.map((d) => {
-                  const status = d.declared_status;
+                  const status = selections[d.target_participant_id] || d.declared_status;
                   const display = STATUS_DISPLAY[status] || STATUS_DISPLAY.unknown;
                   const StatusIcon = display.icon;
                   return (
