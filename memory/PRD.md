@@ -11,7 +11,15 @@ Application SaaS (React/FastAPI/MongoDB) de gestion des presences avec garanties
 - **Video**: Zoom, Microsoft Teams (OAuth)
 - **Auth**: Email/password + Google OAuth + Microsoft OAuth (common tenant)
 
-## Completed Features (Latest Session - 2026-04-02)
+## Completed Features (Latest Session - 2026-04-02/03)
+
+### V5.1: Phase Declarative Reservee aux Garantis (2026-04-03)
+- Seuls les participants `accepted_guaranteed` en `manual_review` entrent dans la phase declarative
+- Participants non-garantis auto-resolus en `waived` (decision_source: `non_guaranteed_auto_waived`)
+- Si < 2 participants garantis restants, `declarative_phase = not_needed`, aucune feuille creee
+- Participants auto-waived exclus des createurs de feuilles
+- Garanties: pas de pending sheet, pas de litige, pas d'arbitrage admin, pas de penalite
+- Tests: 24/24 PASS (iteration 177) — 6 nouveaux tests V5.1 (Tests 12-17)
 
 ### Refonte Moteur Declaratif V5 + Migration
 - Auto-litiges elimines (guard target_user_id != organizer_user_id)
@@ -65,6 +73,7 @@ Application SaaS (React/FastAPI/MongoDB) de gestion des presences avec garanties
 
 ## Data Integrity Rules
 - V5: unknown = neutre, absence de preuve != preuve negative, auto-litige interdit
+- V5.1: seuls les `accepted_guaranteed` entrent en phase declarative, les autres sont `waived` immediatement
 - Notifications: auto-cleanup des dispute_update pour litiges resolus/inexistants
 
 ## Upcoming Tasks (P1)
