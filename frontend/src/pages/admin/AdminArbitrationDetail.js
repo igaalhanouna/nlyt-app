@@ -153,29 +153,50 @@ export default function AdminArbitrationDetail() {
         {/* ════════ ZONE 2 — Ce que disent les parties ════════ */}
         <section className="rounded-xl border border-slate-200 bg-white p-5 mb-5" data-testid="positions-bloc">
           <h3 className="text-sm font-bold text-slate-700 mb-4">Ce que disent les parties</h3>
-          <div className="flex items-stretch gap-3">
-            <PositionCard
-              role="Organisateur"
-              declarantName={dispute.organizer_name}
-              subjectName={dispute.target_name}
-              isSelfDeclaration={dispute.organizer_name === dispute.target_name}
-              position={dispute.organizer_position}
-              positionAt={dispute.organizer_position_at}
-            />
-            <div className="flex items-center px-2">
-              <span className="text-xs font-bold text-slate-300">VS</span>
+          {dispute.target_is_organizer ? (
+            /* Cible = Organisateur: une seule carte, pas de "vs" */
+            <div>
+              <PositionCard
+                role="Organisateur / Cible"
+                declarantName={dispute.organizer_name}
+                subjectName={dispute.target_name}
+                isSelfDeclaration={true}
+                position={dispute.organizer_position || dispute.participant_position}
+                positionAt={dispute.organizer_position_at || dispute.participant_position_at}
+              />
+              <p className="text-xs text-slate-400 mt-3 italic">
+                {dispute.target_name} est a la fois l'organisateur et la cible de ce litige.
+                Le desaccord provient des declarations des autres participants.
+              </p>
             </div>
-            <PositionCard
-              role="Participant"
-              declarantName={dispute.counterpart_name || '?'}
-              subjectName={dispute.target_name}
-              isSelfDeclaration={false}
-              position={dispute.participant_position}
-              positionAt={dispute.participant_position_at}
-            />
-          </div>
-          {disagreementPhrase && (
-            <p className="text-xs text-slate-500 mt-3 italic" data-testid="disagreement-phrase">{disagreementPhrase}</p>
+          ) : (
+            /* Cas normal: Organisateur vs Cible */
+            <>
+              <div className="flex items-stretch gap-3">
+                <PositionCard
+                  role="Organisateur"
+                  declarantName={dispute.organizer_name}
+                  subjectName={dispute.target_name}
+                  isSelfDeclaration={dispute.organizer_name === dispute.target_name}
+                  position={dispute.organizer_position}
+                  positionAt={dispute.organizer_position_at}
+                />
+                <div className="flex items-center px-2">
+                  <span className="text-xs font-bold text-slate-300">VS</span>
+                </div>
+                <PositionCard
+                  role="Participant"
+                  declarantName={dispute.counterpart_name || dispute.target_name}
+                  subjectName={dispute.target_name}
+                  isSelfDeclaration={true}
+                  position={dispute.participant_position}
+                  positionAt={dispute.participant_position_at}
+                />
+              </div>
+              {disagreementPhrase && (
+                <p className="text-xs text-slate-500 mt-3 italic" data-testid="disagreement-phrase">{disagreementPhrase}</p>
+              )}
+            </>
           )}
         </section>
 
@@ -886,12 +907,13 @@ function IncoherenceSummary({ dossiers }) {
 }
 
 function buildDisagreementPhrase(dispute) {
+  if (dispute.target_is_organizer) return null;
   const org = dispute.organizer_position;
   const par = dispute.participant_position;
   if (!org || !par) return null;
   if (org === par) return 'Les deux parties sont d\'accord.';
   const orgName = dispute.organizer_name || 'L\'organisateur';
-  const cpName = dispute.counterpart_name || 'Le participant';
+  const cpName = dispute.counterpart_name || dispute.target_name || 'Le participant';
   const targetName = dispute.target_name || 'la cible';
   const orgSays = POSITION_STATUS[org] || '?';
   const parSays = POSITION_STATUS[par] || '?';

@@ -605,21 +605,19 @@ def get_dispute_detail_for_admin(dispute_id: str) -> dict:
     # Counterpart name: the person facing the organizer in the dispute.
     # Rule:
     #   - If target IS a participant → counterpart = target (they face the organizer)
-    #   - If target IS the organizer → counterpart = first accepted non-org participant
+    #   - If target IS the organizer → NO counterpart (the org is judging themselves,
+    #     the dispute was opened by declarative disagreement among other participants,
+    #     not by a specific opposing party)
     if target_p and org_p:
         target_is_org = (dispute.get("target_participant_id") == org_p.get("participant_id")) if org_p.get("participant_id") else False
     else:
         target_is_org = False
 
+    dispute["target_is_organizer"] = target_is_org
+
     if target_is_org:
-        # Target is the organizer → counterpart = first accepted non-org participant
-        cp = db.participants.find_one(
-            {"appointment_id": apt_id, "is_organizer": {"$ne": True},
-             "status": {"$in": ["accepted", "accepted_pending_guarantee", "accepted_guaranteed"]}},
-            {"_id": 0, "first_name": 1, "last_name": 1}
-        )
-        if cp:
-            dispute["counterpart_name"] = f"{cp.get('first_name', '')} {cp.get('last_name', '')}".strip()
+        # Target is the organizer → no counterpart party
+        dispute["counterpart_name"] = None
     else:
         # Target is a participant → counterpart = target (the person facing the org)
         dispute["counterpart_name"] = dispute.get("target_name", "")
