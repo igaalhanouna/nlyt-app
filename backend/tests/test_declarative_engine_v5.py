@@ -1,23 +1,14 @@
 """
-Tests for Declarative Engine V5 — Presumption of Presence & Auto-Litige Guard
+Tests for Declarative Engine V5 / V5.1
 
-Covers all 11 test cases requested:
-  Small Groups (< 3 participants):
-    1. All unknown + no neg tech → waived
-    2. All unknown + neg tech → dispute
-    3. Unanimous present → on_time
-    4. Contradictory declarations → dispute
+V5 — Presumption of Presence & Auto-Litige Guard (Tests 1-11)
+V5.1 — Guaranteed-Only Declarative Phase (Tests 12-17)
 
-  Large Groups (>= 3 participants):
-    5. 0 expressed + no neg tech → waived
-    6. 1 positive + no neg tech → waived
-    7. 1 absent → dispute
-    8. >=2 unanimous present → on_time
-    9. >=2 unanimous absent → existing logic (no_show or dispute)
-    10. Disagreement → dispute
-
-  Auto-litige:
-    11. target_user_id == organizer_user_id → waived, no dispute
+V5.1 Rule:
+  - Only `accepted_guaranteed` participants in manual_review enter the declarative phase.
+  - Non-guaranteed participants are auto-resolved to `waived` immediately.
+  - If < 2 guaranteed participants remain, declarative_phase = `not_needed`.
+  - Auto-waived participants: no pending sheet, no dispute, no penalty, no admin noise.
 """
 import sys
 import os
@@ -25,7 +16,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 import uuid
 import pytest
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock, call
 from services.declarative_service import (
     _run_small_group_analysis,
     _run_large_group_analysis,
@@ -33,6 +24,7 @@ from services.declarative_service import (
     open_dispute,
     _apply_declarative_outcome,
     _check_unanimity,
+    initialize_declarative_phase,
 )
 
 
@@ -461,3 +453,277 @@ class TestCheckUnanimity:
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "--tb=short"])
+
+
+# ═══════════════════════════════════════════════════════════════════
+# V5.1 TESTS: GUARANTEED-ONLY DECLARATIVE PHASE (Tests 12-17)
+# ═══════════════════════════════════════════════════════════════════
+
+class TestGuaranteedOnlyPhase:
+    """Tests 12-17: Only accepted_guaranteed participants enter declarative phase."""
+
+    def _build_mock_db(self, appointment, participants_list, review_records):
+        """Helper to build a mock DB for initialize_declarative_phase tests."""
+        mock_db = MagicMock()
+
+        # appointments.find_one returns appointment
+        mock_db.appointments.find_one.return_value = appointment
+
+        # participants.find returns all participants
+        mock_db.participants.find.return_value = iter(participants_list)
+
+        # attendance_records.find returns review records
+        mock_db.attendance_records.find.return_value = iter(review_records)
+
+        # participants.find_one: return participant by participant_id
+        def find_one_participant(query, projection=None):
+            pid = query.get("participant_id")
+            for p in participants_list:
+                if p.get("participant_id") == pid:
+                    return p
+            return None
+        mock_db.participants.find_one.side_effect = find_one_participant
+
+        # attendance_sheets.find_one returns None (no existing sheet)
+        mock_db.attendance_sheets.find_one.return_value = None
+
+        # Mock update_one and insert_one
+        mock_db.appointments.update_one.return_value = MagicMock(modified_count=1)
+        mock_db.attendance_records.update_one.return_value = MagicMock(modified_count=1)
+        mock_db.attendance_sheets.insert_one.return_value = None
+
+        return mock_db
+
+    def test_12_all_guaranteed_normal_flow(self):
+        """Test 12: All participants are accepted_guaranteed → normal flow, sheets created."""
+        apt_id = str(uuid.uuid4())
+        org_id = str(uuid.uuid4())
+        pid1, pid2 = str(uuid.uuid4()), str(uuid.uuid4())
+        uid1, uid2 = str(uuid.uuid4()), str(uuid.uuid4())
+
+        appointment = {"appointment_id": apt_id, "organizer_id": org_id}
+        participants = [
+            {"participant_id": pid1, "user_id": uid1, "status": "accepted_guaranteed"},
+            {"participant_id": pid2, "user_id": uid2, "status": "accepted_guaranteed"},
+        ]
+        review_records = [
+            {"participant_id": pid1, "appointment_id": apt_id, "review_required": True, "outcome": "manual_review"},
+            {"participant_id": pid2, "appointment_id": apt_id, "review_required": True, "outcome": "manual_review"},
+        ]
+
+        mock_db = self._build_mock_db(appointment, participants, review_records)
+
+        with patch('services.declarative_service.db', mock_db):
+            initialize_declarative_phase(apt_id)
+
+        # Phase should be set to "collecting"
+        phase_update_calls = mock_db.appointments.update_one.call_args_list
+        phase_set = phase_update_calls[-1][0][1]["$set"]
+        assert phase_set.get("declarative_phase") == "collecting"
+
+        # No attendance_records should be auto-waived
+        waive_calls = [
+            c for c in mock_db.attendance_records.update_one.call_args_list
+            if c[0][1].get("$set", {}).get("decision_source") == "non_guaranteed_auto_waived"
+        ]
+        assert len(waive_calls) == 0
+
+        # Sheets should be created
+        assert mock_db.attendance_sheets.insert_one.call_count >= 1
+        print("TEST 12 PASS: All guaranteed → normal flow, sheets created")
+
+    def test_13_mix_guaranteed_and_non_guaranteed(self):
+        """Test 13: 2 guaranteed + 1 non-guaranteed → non-guaranteed waived, sheets for guaranteed only."""
+        apt_id = str(uuid.uuid4())
+        org_id = str(uuid.uuid4())
+        pid1, pid2, pid3 = str(uuid.uuid4()), str(uuid.uuid4()), str(uuid.uuid4())
+        uid1, uid2, uid3 = str(uuid.uuid4()), str(uuid.uuid4()), str(uuid.uuid4())
+
+        appointment = {"appointment_id": apt_id, "organizer_id": org_id}
+        participants = [
+            {"participant_id": pid1, "user_id": uid1, "status": "accepted_guaranteed"},
+            {"participant_id": pid2, "user_id": uid2, "status": "accepted_guaranteed"},
+            {"participant_id": pid3, "user_id": uid3, "status": "accepted_pending_guarantee"},
+        ]
+        review_records = [
+            {"participant_id": pid1, "appointment_id": apt_id, "review_required": True, "outcome": "manual_review"},
+            {"participant_id": pid2, "appointment_id": apt_id, "review_required": True, "outcome": "manual_review"},
+            {"participant_id": pid3, "appointment_id": apt_id, "review_required": True, "outcome": "manual_review"},
+        ]
+
+        mock_db = self._build_mock_db(appointment, participants, review_records)
+
+        with patch('services.declarative_service.db', mock_db):
+            initialize_declarative_phase(apt_id)
+
+        # pid3 (non-guaranteed) should be auto-waived
+        waive_calls = [
+            c for c in mock_db.attendance_records.update_one.call_args_list
+            if c[0][1].get("$set", {}).get("decision_source") == "non_guaranteed_auto_waived"
+        ]
+        assert len(waive_calls) == 1
+        waived_filter = waive_calls[0][0][0]
+        assert waived_filter["participant_id"] == pid3
+
+        # Phase should be collecting (2 guaranteed remain)
+        phase_update_calls = mock_db.appointments.update_one.call_args_list
+        phase_set = phase_update_calls[-1][0][1]["$set"]
+        assert phase_set.get("declarative_phase") == "collecting"
+
+        # Sheets should be created (for guaranteed participants only)
+        assert mock_db.attendance_sheets.insert_one.call_count >= 1
+        print("TEST 13 PASS: Mix guaranteed/non-guaranteed → non-guaranteed waived, sheets for guaranteed")
+
+    def test_14_one_guaranteed_rest_non_guaranteed_not_needed(self):
+        """Test 14: 1 guaranteed + 2 non-guaranteed → all non-guaranteed waived, phase = not_needed."""
+        apt_id = str(uuid.uuid4())
+        org_id = str(uuid.uuid4())
+        pid1, pid2, pid3 = str(uuid.uuid4()), str(uuid.uuid4()), str(uuid.uuid4())
+        uid1, uid2, uid3 = str(uuid.uuid4()), str(uuid.uuid4()), str(uuid.uuid4())
+
+        appointment = {"appointment_id": apt_id, "organizer_id": org_id}
+        participants = [
+            {"participant_id": pid1, "user_id": uid1, "status": "accepted_guaranteed"},
+            {"participant_id": pid2, "user_id": uid2, "status": "accepted_pending_guarantee"},
+            {"participant_id": pid3, "user_id": uid3, "status": "accepted"},
+        ]
+        review_records = [
+            {"participant_id": pid1, "appointment_id": apt_id, "review_required": True, "outcome": "manual_review"},
+            {"participant_id": pid2, "appointment_id": apt_id, "review_required": True, "outcome": "manual_review"},
+            {"participant_id": pid3, "appointment_id": apt_id, "review_required": True, "outcome": "manual_review"},
+        ]
+
+        mock_db = self._build_mock_db(appointment, participants, review_records)
+
+        with patch('services.declarative_service.db', mock_db):
+            initialize_declarative_phase(apt_id)
+
+        # pid2 and pid3 should be auto-waived
+        waive_calls = [
+            c for c in mock_db.attendance_records.update_one.call_args_list
+            if c[0][1].get("$set", {}).get("decision_source") == "non_guaranteed_auto_waived"
+        ]
+        assert len(waive_calls) == 2
+
+        # Phase should be not_needed (only 1 guaranteed)
+        phase_update_calls = mock_db.appointments.update_one.call_args_list
+        phase_set = phase_update_calls[-1][0][1]["$set"]
+        assert phase_set.get("declarative_phase") == "not_needed"
+
+        # No sheets should be created
+        assert mock_db.attendance_sheets.insert_one.call_count == 0
+        print("TEST 14 PASS: 1 guaranteed + 2 non-guaranteed → not_needed, no sheets")
+
+    def test_15_zero_guaranteed_all_waived_not_needed(self):
+        """Test 15: 0 guaranteed (all non-guaranteed) → all waived, phase = not_needed."""
+        apt_id = str(uuid.uuid4())
+        org_id = str(uuid.uuid4())
+        pid1, pid2 = str(uuid.uuid4()), str(uuid.uuid4())
+        uid1, uid2 = str(uuid.uuid4()), str(uuid.uuid4())
+
+        appointment = {"appointment_id": apt_id, "organizer_id": org_id}
+        participants = [
+            {"participant_id": pid1, "user_id": uid1, "status": "accepted"},
+            {"participant_id": pid2, "user_id": uid2, "status": "accepted_pending_guarantee"},
+        ]
+        review_records = [
+            {"participant_id": pid1, "appointment_id": apt_id, "review_required": True, "outcome": "manual_review"},
+            {"participant_id": pid2, "appointment_id": apt_id, "review_required": True, "outcome": "manual_review"},
+        ]
+
+        mock_db = self._build_mock_db(appointment, participants, review_records)
+
+        with patch('services.declarative_service.db', mock_db):
+            initialize_declarative_phase(apt_id)
+
+        # Both should be auto-waived
+        waive_calls = [
+            c for c in mock_db.attendance_records.update_one.call_args_list
+            if c[0][1].get("$set", {}).get("decision_source") == "non_guaranteed_auto_waived"
+        ]
+        assert len(waive_calls) == 2
+
+        # Phase should be not_needed
+        phase_update_calls = mock_db.appointments.update_one.call_args_list
+        phase_set = phase_update_calls[-1][0][1]["$set"]
+        assert phase_set.get("declarative_phase") == "not_needed"
+
+        # No sheets created
+        assert mock_db.attendance_sheets.insert_one.call_count == 0
+        print("TEST 15 PASS: 0 guaranteed → all waived, not_needed, no sheets")
+
+    def test_16_waived_outcome_fields_correct(self):
+        """Test 16: Verify the exact fields set on auto-waived attendance records."""
+        apt_id = str(uuid.uuid4())
+        org_id = str(uuid.uuid4())
+        pid1, pid2 = str(uuid.uuid4()), str(uuid.uuid4())
+        uid1, uid2 = str(uuid.uuid4()), str(uuid.uuid4())
+
+        appointment = {"appointment_id": apt_id, "organizer_id": org_id}
+        participants = [
+            {"participant_id": pid1, "user_id": uid1, "status": "accepted_guaranteed"},
+            {"participant_id": pid2, "user_id": uid2, "status": "accepted_pending_guarantee"},
+        ]
+        review_records = [
+            {"participant_id": pid1, "appointment_id": apt_id, "review_required": True, "outcome": "manual_review"},
+            {"participant_id": pid2, "appointment_id": apt_id, "review_required": True, "outcome": "manual_review"},
+        ]
+
+        mock_db = self._build_mock_db(appointment, participants, review_records)
+
+        with patch('services.declarative_service.db', mock_db):
+            initialize_declarative_phase(apt_id)
+
+        # Find the waive call for pid2
+        waive_calls = [
+            c for c in mock_db.attendance_records.update_one.call_args_list
+            if c[0][1].get("$set", {}).get("decision_source") == "non_guaranteed_auto_waived"
+        ]
+        assert len(waive_calls) == 1
+        waived_set = waive_calls[0][0][1]["$set"]
+
+        # Verify all required fields
+        assert waived_set["outcome"] == "waived"
+        assert waived_set["review_required"] is False
+        assert waived_set["decision_source"] == "non_guaranteed_auto_waived"
+        assert waived_set["confidence_level"] == "HIGH"
+        assert waived_set["decided_by"] == "engine_guard"
+        assert "decided_at" in waived_set
+        print("TEST 16 PASS: Auto-waived fields correct (outcome, review_required, decision_source, etc.)")
+
+    def test_17_non_guaranteed_excluded_from_sheet_creators(self):
+        """Test 17: Auto-waived participant should NOT have a sheet created for them."""
+        apt_id = str(uuid.uuid4())
+        org_id = str(uuid.uuid4())
+        pid1, pid2, pid3 = str(uuid.uuid4()), str(uuid.uuid4()), str(uuid.uuid4())
+        uid1, uid2, uid3 = str(uuid.uuid4()), str(uuid.uuid4()), str(uuid.uuid4())
+
+        appointment = {"appointment_id": apt_id, "organizer_id": org_id}
+        participants = [
+            {"participant_id": pid1, "user_id": uid1, "status": "accepted_guaranteed"},
+            {"participant_id": pid2, "user_id": uid2, "status": "accepted_guaranteed"},
+            {"participant_id": pid3, "user_id": uid3, "status": "accepted_pending_guarantee"},
+        ]
+        review_records = [
+            {"participant_id": pid1, "appointment_id": apt_id, "review_required": True, "outcome": "manual_review"},
+            {"participant_id": pid2, "appointment_id": apt_id, "review_required": True, "outcome": "manual_review"},
+            {"participant_id": pid3, "appointment_id": apt_id, "review_required": True, "outcome": "manual_review"},
+        ]
+
+        mock_db = self._build_mock_db(appointment, participants, review_records)
+
+        with patch('services.declarative_service.db', mock_db):
+            initialize_declarative_phase(apt_id)
+
+        # Check that sheets were created only for uid1 and uid2, NOT uid3
+        created_sheets = mock_db.attendance_sheets.insert_one.call_args_list
+        for sheet_call in created_sheets:
+            sheet_data = sheet_call[0][0]
+            assert sheet_data["submitted_by_user_id"] != uid3, \
+                f"Sheet was created for non-guaranteed user {uid3}"
+            # Also verify that pid3 is NOT a target in any sheet
+            for decl in sheet_data.get("declarations", []):
+                assert decl["target_participant_id"] != pid3, \
+                    f"Non-guaranteed participant {pid3} appears as target in sheet"
+
+        print("TEST 17 PASS: Non-guaranteed participant excluded from sheets (both as creator and target)")

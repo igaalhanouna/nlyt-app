@@ -41,8 +41,9 @@ def initialize_declarative_phase(appointment_id: str):
     Called after evaluate_appointment() when manual_review records exist.
     Creates pending attendance sheets for each participant.
 
-    V4 Trustless: ALWAYS creates sheets, even for < 3 participants.
-    No bypass, no direct escalation. Every manual_review goes through Presences first.
+    V5.1: Only `accepted_guaranteed` participants enter the declarative phase.
+    Non-guaranteed participants in manual_review are auto-resolved to `waived`.
+    If fewer than 2 guaranteed participants remain, phase = `not_needed`.
     Targeted participants also get a self-declaration target.
     """
     appointment = db.appointments.find_one({"appointment_id": appointment_id}, {"_id": 0})
@@ -50,11 +51,6 @@ def initialize_declarative_phase(appointment_id: str):
         return
 
     # ── Idempotency guard ──────────────────────────────────────────
-    # If the declarative phase has already been initialized (collecting, analyzing,
-    # disputed, resolved), a re-entry must be blocked to prevent overwriting
-    # an in-flight or completed phase back to "collecting".
-    # Only 'not_needed' (no review records found previously) and absent/None
-    # (never initialized) are safe entry points.
     current_phase = appointment.get('declarative_phase')
     if current_phase and current_phase not in ('not_needed',):
         logger.warning(
@@ -84,6 +80,61 @@ def initialize_declarative_phase(appointment_id: str):
             {"$set": {"declarative_phase": "not_needed"}}
         )
         return
+
+    # ── V5.1: Filter to guaranteed participants only ───────────────
+    # Non-guaranteed participants in manual_review are immediately
+    # auto-resolved to `waived`. They will NOT generate pending sheets,
+    # feed disputes, appear in admin arbitration, or trigger penalties.
+    guaranteed_review_records = []
+    auto_waived_pids = set()
+
+    for r in review_records:
+        pid = r['participant_id']
+        p_doc = db.participants.find_one(
+            {"participant_id": pid},
+            {"_id": 0, "status": 1}
+        )
+        if p_doc and p_doc.get('status') == 'accepted_guaranteed':
+            guaranteed_review_records.append(r)
+        else:
+            auto_waived_pids.add(pid)
+            db.attendance_records.update_one(
+                {"appointment_id": appointment_id, "participant_id": pid},
+                {"$set": {
+                    "outcome": "waived",
+                    "review_required": False,
+                    "decision_source": "non_guaranteed_auto_waived",
+                    "confidence_level": "HIGH",
+                    "decided_by": "engine_guard",
+                    "decided_at": now_utc().isoformat(),
+                }}
+            )
+            logger.info(
+                f"[DECLARATIVE][GUARD] Non-guaranteed participant {pid} "
+                f"auto-resolved to waived (status: {p_doc.get('status') if p_doc else 'unknown'})"
+            )
+
+    # If fewer than 2 guaranteed participants remain, skip declarative phase
+    if len(guaranteed_review_records) < 2:
+        db.appointments.update_one(
+            {"appointment_id": appointment_id},
+            {"$set": {"declarative_phase": "not_needed"}}
+        )
+        logger.info(
+            f"[DECLARATIVE] Only {len(guaranteed_review_records)} guaranteed participant(s) "
+            f"in manual_review for {appointment_id}. Phase set to not_needed. "
+            f"Auto-waived: {len(auto_waived_pids)}"
+        )
+        return
+
+    # Replace review_records with guaranteed-only set
+    review_records = guaranteed_review_records
+
+    # Exclude auto-waived participants from sheet creators
+    active_participants = [
+        p for p in active_participants
+        if p.get('participant_id') not in auto_waived_pids
+    ]
 
     review_pids = {r['participant_id'] for r in review_records}
     deadline = now_utc() + timedelta(hours=SHEET_DEADLINE_HOURS)

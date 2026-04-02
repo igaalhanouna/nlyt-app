@@ -1,0 +1,84 @@
+{
+  "summary": "V5.1 Guaranteed-Only Declarative Phase testing complete. All 24 unit tests pass (Tests 1-11 V5, Tests 12-17 V5.1). All 5 API endpoints return 200. No runtime errors after backend restart.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "N/A",
+        "issue": "bcrypt passlib warning on startup (non-blocking, known compatibility issue)"
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_declarative_engine_v5.py"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "V5.1 implementation is correct: initialize_declarative_phase filters to accepted_guaranteed only",
+    "Non-guaranteed participants auto-resolved to waived with decision_source='non_guaranteed_auto_waived'",
+    "If < 2 guaranteed participants remain, phase = not_needed (correct threshold)",
+    "Auto-waived participants excluded from sheet creators (line 134-137)",
+    "All 6 new V5.1 tests (12-17) verify the guaranteed-only filtering logic"
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100% (24/24 unit tests + 5/5 API tests)",
+    "frontend": "N/A (backend-only testing requested)"
+  },
+  "test_credentials": "Admin: testuser_audit@nlyt.app / TestAudit123!",
+  "seed_data_creation": "None - used existing test data",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "V5.1 Guaranteed-Only Declarative Phase fully tested. Unit tests cover all 24 scenarios (V5 Tests 1-11, V5.1 Tests 12-17). API endpoints verified: /api/health, /api/auth/login, /api/attendance-sheets/pending, /api/disputes/mine, /api/notifications/counts. No regressions found.",
+  "tests_executed": {
+    "unit_tests": {
+      "file": "/app/backend/tests/test_declarative_engine_v5.py",
+      "total": 24,
+      "passed": 24,
+      "failed": 0,
+      "coverage": [
+        "Test 1: Small group - all unknown + no neg tech → waived",
+        "Test 2: Small group - all unknown + neg tech → dispute",
+        "Test 3: Small group - unanimous present → on_time",
+        "Test 4: Small group - contradictory declarations → dispute",
+        "Test 4b: Small group - unanimous absent → dispute",
+        "Test 5: Large group - 0 expressed + no neg tech → waived",
+        "Test 6: Large group - 1 positive + no neg tech → waived",
+        "Test 7: Large group - 1 absent → dispute",
+        "Test 8: Large group - >=2 unanimous present → on_time",
+        "Test 9: Large group - >=2 unanimous absent → existing logic",
+        "Test 9b: Large group - >=2 unanimous absent + contradiction → dispute",
+        "Test 10: Large group - disagreement → dispute",
+        "Test 11: Auto-litige guard - target == organizer → waived, no dispute",
+        "_check_unanimity: zero expressed",
+        "_check_unanimity: single expressed",
+        "_check_unanimity: two unanimous",
+        "_check_unanimity: two disagreement",
+        "_check_unanimity: excludes self-declaration",
+        "Test 12: All guaranteed → normal flow, sheets created",
+        "Test 13: Mix guaranteed/non-guaranteed → non-guaranteed waived",
+        "Test 14: 1 guaranteed + 2 non-guaranteed → not_needed",
+        "Test 15: 0 guaranteed → all waived, not_needed",
+        "Test 16: Auto-waived fields correct",
+        "Test 17: Non-guaranteed excluded from sheets"
+      ]
+    },
+    "api_tests": {
+      "total": 5,
+      "passed": 5,
+      "failed": 0,
+      "endpoints": [
+        {"endpoint": "GET /api/health", "status": 200},
+        {"endpoint": "POST /api/auth/login", "status": 200},
+        {"endpoint": "GET /api/attendance-sheets/pending", "status": 200},
+        {"endpoint": "GET /api/disputes/mine", "status": 200},
+        {"endpoint": "GET /api/notifications/counts", "status": 200}
+      ]
+    }
+  }
+}
