@@ -987,15 +987,17 @@ async def get_my_timeline(request: Request):
             INACTIVE_PARTICIPANT_STATUSES = {"declined", "cancelled_by_participant", "guarantee_released"}
             active_non_org = [p for p in non_org_parts if p.get("status") not in INACTIVE_PARTICIPANT_STATUSES]
             cancelled_non_org = [p for p in non_org_parts if p.get("status") in ("cancelled_by_participant", "guarantee_released")]
-            accepted = sum(1 for p in participants if p.get("status") in ("accepted", "accepted_guaranteed"))
+            declined_non_org = [p for p in non_org_parts if p.get("status") == "declined"]
+            # Counts scoped to non-org participants only (organizer doesn't "confirm" themselves)
+            accepted_non_org = sum(1 for p in non_org_parts if p.get("status") in ("accepted", "accepted_guaranteed"))
             guaranteed = sum(1 for p in active_non_org if p.get("status") == "accepted_guaranteed")
-            pending = sum(1 for p in participants if p.get("status") in ("invited", "accepted_pending_guarantee"))
-            total = len(participants)
+            pending = sum(1 for p in non_org_parts if p.get("status") in ("invited", "accepted_pending_guarantee"))
+            total_non_org = len(non_org_parts)
             non_org_count = len(active_non_org)
 
-            # Counterparty: list participant names (max 2 + "et X autres")
+            # Counterparty: only active non-org participants (organizer must never see themselves)
             names = []
-            for p in participants:
+            for p in active_non_org:
                 n = f"{p.get('first_name', '')} {p.get('last_name', '')}".strip()
                 if n:
                     names.append(n)
@@ -1053,16 +1055,41 @@ async def get_my_timeline(request: Request):
             if not pending_label and pending > 0 and not is_ended:
                 pending_label = f"En attente de réponse ({pending})"
 
-            # Build cancellation label (separate field for clean frontend display)
+            # Build inactive participants label (covers declined + cancelled + guarantee_released)
             cancelled_participants_label = None
-            if cancelled_non_org:
-                cancel_names = [f"{p.get('first_name', '')} {p.get('last_name', '')}".strip() for p in cancelled_non_org]
-                cancel_names = [n for n in cancel_names if n]
-                if len(cancelled_non_org) == 1 and cancel_names:
-                    cancelled_participants_label = f"{cancel_names[0]} a annulé sa participation"
+            all_inactive = cancelled_non_org + declined_non_org
+            if all_inactive:
+                n_declined = len(declined_non_org)
+                n_cancelled = len(cancelled_non_org)
+                if non_org_count == 0 and total_non_org > 0:
+                    # ALL non-org participants are inactive
+                    if n_declined > 0 and n_cancelled > 0:
+                        cancelled_participants_label = "Tous les participants ont annulé ou décliné"
+                    elif n_declined > 0:
+                        cancelled_participants_label = "Tous les participants ont décliné"
+                    else:
+                        cancelled_participants_label = "Tous les participants ont annulé"
                 else:
-                    c = len(cancelled_non_org)
-                    cancelled_participants_label = f"{c} participant{'s' if c > 1 else ''} {'ont' if c > 1 else 'a'} annulé leur participation"
+                    # Some inactive, some still active — individual labels
+                    parts = []
+                    if n_cancelled > 0:
+                        cancel_names = [f"{p.get('first_name', '')} {p.get('last_name', '')}".strip() for p in cancelled_non_org]
+                        cancel_names = [n for n in cancel_names if n]
+                        if n_cancelled == 1 and cancel_names:
+                            parts.append(f"{cancel_names[0]} a annulé sa participation")
+                        else:
+                            parts.append(f"{n_cancelled} participant{'s' if n_cancelled > 1 else ''} {'ont' if n_cancelled > 1 else 'a'} annulé")
+                    if n_declined > 0:
+                        decl_names = [f"{p.get('first_name', '')} {p.get('last_name', '')}".strip() for p in declined_non_org]
+                        decl_names = [n for n in decl_names if n]
+                        if n_declined == 1 and decl_names:
+                            parts.append(f"{decl_names[0]} a décliné l'invitation")
+                        else:
+                            parts.append(f"{n_declined} participant{'s' if n_declined > 1 else ''} {'ont' if n_declined > 1 else 'a'} décliné")
+                    cancelled_participants_label = " · ".join(parts)
+
+            # Flag: no active participants remaining
+            no_active_participants = (non_org_count == 0 and total_non_org > 0)
 
             items.append({
                 "appointment_id": apt["appointment_id"],
@@ -1084,13 +1111,14 @@ async def get_my_timeline(request: Request):
                 "penalty_currency": apt.get("penalty_currency", "EUR"),
                 "tolerated_delay_minutes": apt.get("tolerated_delay_minutes", 0),
                 "cancellation_deadline_hours": apt.get("cancellation_deadline_hours", 0),
-                "participants_count": total,
-                "accepted_count": accepted,
+                "participants_count": total_non_org,
+                "accepted_count": accepted_non_org,
                 "guaranteed_count": guaranteed,
                 "pending_count": pending,
                 "actions": actions,
                 "pending_label": pending_label,
                 "cancelled_participants_label": cancelled_participants_label,
+                "no_active_participants": no_active_participants,
                 "converted_from": apt.get("converted_from"),
                 "appointment_status": apt.get("status", "active"),
                 "needs_organizer_guarantee": needs_organizer_guarantee,

@@ -1,0 +1,70 @@
+{
+  "summary": "UX Timeline Cards improvements testing complete. All 4 targeted UX improvements verified: 1) 'Sans participant' badge displays correctly, 2) Progress bar hidden when no_active_participants=true, 3) Inactive banner shows 'Tous les participants ont décliné', 4) Counterparty shows 'Aucun participant' for declined-only RDVs. Backend unit tests: 24/24 passed. API tests: all buckets return valid data.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_declarative_engine_v5.py",
+    "/app/test_reports/pytest/pytest_declarative_v5.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Backend correctly computes counterparty_name='Aucun participant' when all non-org participants are inactive",
+    "participants_count and accepted_count now correctly exclude organizer (non-org only)",
+    "cancelled_participants_label correctly covers 'declined' status with label 'Tous les participants ont décliné'",
+    "no_active_participants boolean flag correctly set to true when all non-org participants are inactive",
+    "Frontend TimelineCard correctly hides progress bar when no_active_participants=true (line 495)",
+    "Frontend correctly displays 'Sans participant' badge with data-testid (line 386)",
+    "Frontend correctly displays inactive banner with data-testid (line 537)"
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100% (24/24 unit tests + API buckets verified)",
+    "frontend": "100% (all 4 UX improvements verified)"
+  },
+  "test_credentials": "Admin: testuser_audit@nlyt.app / TestAudit123!",
+  "seed_data_creation": "None - used existing test RDV af64f9b4-0835-42b9-a0a0-51a3b461e85d ('Test refus')",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "UX Timeline Cards improvements fully tested. Test RDV 'Test refus' (af64f9b4-0835-42b9-a0a0-51a3b461e85d) has 1 participant with status 'declined'. API returns: counterparty_name='Aucun participant', participants_count=1, accepted_count=0, no_active_participants=true, cancelled_participants_label='Tous les participants ont décliné'. Frontend displays: 'Sans participant' badge, inactive banner, no progress bar. 30 other cards still show progress bars correctly (no regression).",
+  "tests_executed": {
+    "unit_tests": {
+      "file": "/app/backend/tests/test_declarative_engine_v5.py",
+      "total": 24,
+      "passed": 24,
+      "failed": 0
+    },
+    "api_tests": {
+      "endpoint": "GET /api/appointments/my-timeline",
+      "status": 200,
+      "verified_fields": [
+        "counterparty_name='Aucun participant'",
+        "participants_count=1 (non-org only)",
+        "accepted_count=0",
+        "no_active_participants=true",
+        "cancelled_participants_label='Tous les participants ont décliné'"
+      ],
+      "buckets_verified": {
+        "action_required": 1,
+        "upcoming": 40,
+        "past": 151,
+        "total": 192
+      }
+    },
+    "frontend_tests": {
+      "test_rdv": "af64f9b4-0835-42b9-a0a0-51a3b461e85d ('Test refus')",
+      "verified_elements": [
+        "data-testid='no-participants-badge-af64f9b4-0835-42b9-a0a0-51a3b461e85d' visible with text 'Sans participant'",
+        "data-testid='inactive-banner-af64f9b4-0835-42b9-a0a0-51a3b461e85d' visible with text 'Tous les participants ont décliné'",
+        "No progress bar in card (no 'X/Y confirmés' text)",
+        "30 other cards still show progress bars (regression test passed)"
+      ]
+    }
+  }
+}

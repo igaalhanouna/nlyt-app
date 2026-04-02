@@ -10,7 +10,7 @@ import {
   Trash2, Check, X, Clock, Building2, ChevronDown, Plus, Ban,
   ShieldCheck, CreditCard, History, Play, AlertTriangle, Bell,
   Flame, Shield, Euro, Eye, Heart,
-  UserCheck, Mail, ChevronRight, CheckCircle, LogOut, FileEdit, Search
+  UserCheck, Mail, ChevronRight, CheckCircle, LogOut, FileEdit, Search, UserX
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDateTimeCompactFr, parseUTC } from '../../utils/dateFormat';
@@ -381,6 +381,13 @@ function TimelineCard({ item, isPast, onDelete, onRemind, onQuit, onDecline, onG
                 {riskCfg.label}
               </span>
             )}
+            {/* Secondary badge: no active participants */}
+            {!isParticipant && item.no_active_participants && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium rounded-full border bg-slate-50 border-slate-300 text-slate-500" data-testid={`no-participants-badge-${item.appointment_id}`}>
+                <UserX className="w-3 h-3" />
+                Sans participant
+              </span>
+            )}
             {isParticipant && pBadge ? (
               <span className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${pBadge.className}`}>
                 {pBadge.label}
@@ -485,7 +492,7 @@ function TimelineCard({ item, isPast, onDelete, onRemind, onQuit, onDecline, onG
         )}
 
         {/* Row 4: Participants + Progress (organizer) or Engagement signal (participant) */}
-        {!isParticipant && total > 0 && (
+        {!isParticipant && total > 0 && !item.no_active_participants && (
           <div className="space-y-2 mb-1">
             <div className="flex items-center justify-between text-xs">
               <span className="text-slate-600 flex items-center gap-1.5">
@@ -521,11 +528,20 @@ function TimelineCard({ item, isPast, onDelete, onRemind, onQuit, onDecline, onG
           </div>
         )}
 
-        {/* Cancellation banner for organizer */}
+        {/* Inactive participants banner for organizer (declined + cancelled) */}
         {!isParticipant && item.cancelled_participants_label && (
-          <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-orange-50 border border-orange-200 rounded-md mb-1" data-testid={`cancelled-banner-${item.appointment_id}`}>
-            <Ban className="w-3.5 h-3.5 text-orange-500 flex-shrink-0" />
-            <span className="text-xs font-medium text-orange-700">{item.cancelled_participants_label}</span>
+          <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md mb-1 ${
+            item.no_active_participants
+              ? 'bg-slate-100 border border-slate-200'
+              : 'bg-orange-50 border border-orange-200'
+          }`} data-testid={`inactive-banner-${item.appointment_id}`}>
+            {item.no_active_participants
+              ? <UserX className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+              : <Ban className="w-3.5 h-3.5 text-orange-500 flex-shrink-0" />
+            }
+            <span className={`text-xs font-medium ${
+              item.no_active_participants ? 'text-slate-500' : 'text-orange-700'
+            }`}>{item.cancelled_participants_label}</span>
           </div>
         )}
 
