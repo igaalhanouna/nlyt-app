@@ -42,6 +42,17 @@ Application SaaS (React/FastAPI/MongoDB) de gestion des presences avec garanties
 
 ## Completed Features (Latest)
 
+### Refonte Section "Ce qui a ete declare" dans /decisions (2026-04-02)
+- Backend: _get_anonymized_summary enrichi avec target_self_declaration, is_organizer, contradiction_level, summary_phrase
+- Frontend DecisionDetailPage.js: nouveau composant DeclarationSection avec:
+  - Resume de contradiction (badge + phrase contextuelle)
+  - Auto-declaration de la cible affichee en premier avec badge "Cible du litige"
+  - Role de chaque declarant (Organisateur/Participant)
+  - Positions confirmees pendant le litige (organizer_position / participant_position)
+  - Raison d'ouverture du litige
+  - Phrase de liaison vers la decision finale
+- Tests: 33/33 PASS (iteration 173)
+
 ### Transparence Preuves /decisions + Regroupement /arbitration (2026-04-02)
 - Backend: build_evidence_summary_for_target() dans admin_arbitration_service.py
 - API GET /api/disputes/{id} enrichi avec tech_evidence_summary (video, gps, nlyt, checkin, qr)
