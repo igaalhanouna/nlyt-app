@@ -171,39 +171,7 @@ export default function DecisionDetailPage() {
 
         {/* F. Financial breakdown */}
         {fc.penalty_amount != null && (
-          <section className="rounded-xl border border-slate-200 bg-white p-5 mb-5" data-testid="decision-financial-bloc">
-            <h3 className="text-sm font-bold text-slate-700 mb-3">Detail financier</h3>
-            {outcome === 'on_time' ? (
-              <p className="text-sm text-emerald-700">Aucun prelevement. La garantie a ete liberee.</p>
-            ) : fc.penalty_amount > 0 ? (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-slate-600">Montant preleve</span>
-                  <span className="font-bold text-red-700">{fc.penalty_amount.toFixed(0)} {(fc.penalty_currency || 'eur').toUpperCase()}</span>
-                </div>
-                {fc.compensation_amount > 0 && (
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-600">Verse a l'organisateur</span>
-                    <span className="font-medium text-slate-800">{fc.compensation_amount.toFixed(0)} {(fc.penalty_currency || 'eur').toUpperCase()}</span>
-                  </div>
-                )}
-                {fc.platform_amount > 0 && (
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-600">Commission plateforme ({fc.platform_commission_percent}%)</span>
-                    <span className="font-medium text-slate-500">{fc.platform_amount.toFixed(0)} {(fc.penalty_currency || 'eur').toUpperCase()}</span>
-                  </div>
-                )}
-                {fc.charity_amount > 0 && (
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-600">Reversement association ({fc.charity_percent}%)</span>
-                    <span className="font-medium text-slate-500">{fc.charity_amount.toFixed(0)} {(fc.penalty_currency || 'eur').toUpperCase()}</span>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <p className="text-sm text-slate-500">Aucune garantie financiere configuree.</p>
-            )}
-          </section>
+          <FinancialSection fc={fc} outcome={outcome} targetName={targetName} ds={ds} data={data} />
         )}
 
         {/* G. Final status */}
@@ -531,5 +499,69 @@ function DeclarantPhrase({ phrase, status, badge, badgeCls, testId }) {
         </span>
       )}
     </div>
+  );
+}
+
+
+/* ═══════════════════════════════════════════════════════════
+   Bloc "Detail financier" — Noms explicites partout
+   ═══════════════════════════════════════════════════════════ */
+
+function FinancialSection({ fc, outcome, targetName, ds, data }) {
+  const cur = (fc.penalty_currency || 'eur').toUpperCase();
+  const name = targetName || 'Le participant';
+
+  // Resolve organizer name for "received by" line
+  const orgDeclarant = (ds.declarants || []).find(d => d.is_organizer);
+  const orgName = orgDeclarant
+    ? orgDeclarant.first_name
+    : (data.my_role === 'participant' ? (data.other_party_name || 'l\'organisateur') : 'l\'organisateur');
+
+  if (outcome === 'on_time') {
+    return (
+      <section className="rounded-xl border border-slate-200 bg-white p-5 mb-5" data-testid="decision-financial-bloc">
+        <h3 className="text-sm font-bold text-slate-700 mb-3">Detail financier</h3>
+        <p className="text-sm text-emerald-700">Aucun prelevement. La garantie de {name} a ete liberee.</p>
+      </section>
+    );
+  }
+
+  if (!fc.penalty_amount || fc.penalty_amount <= 0) {
+    return (
+      <section className="rounded-xl border border-slate-200 bg-white p-5 mb-5" data-testid="decision-financial-bloc">
+        <h3 className="text-sm font-bold text-slate-700 mb-3">Detail financier</h3>
+        <p className="text-sm text-slate-500">Aucune garantie financiere configuree pour ce rendez-vous.</p>
+      </section>
+    );
+  }
+
+  return (
+    <section className="rounded-xl border border-slate-200 bg-white p-5 mb-5" data-testid="decision-financial-bloc">
+      <h3 className="text-sm font-bold text-slate-700 mb-3">Detail financier</h3>
+      <div className="space-y-2.5">
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-slate-700">Montant preleve a {name}</span>
+          <span className="font-bold text-red-700">{fc.penalty_amount.toFixed(0)} {cur}</span>
+        </div>
+        {fc.compensation_amount > 0 && (
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-slate-700">Montant recu par {orgName} (organisateur)</span>
+            <span className="font-medium text-emerald-700">{fc.compensation_amount.toFixed(0)} {cur}</span>
+          </div>
+        )}
+        {fc.platform_amount > 0 && (
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-slate-700">Commission NLYT ({fc.platform_commission_percent}%)</span>
+            <span className="font-medium text-slate-500">{fc.platform_amount.toFixed(0)} {cur}</span>
+          </div>
+        )}
+        {fc.charity_amount > 0 && (
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-slate-700">Montant reverse a l'association ({fc.charity_percent}%)</span>
+            <span className="font-medium text-slate-500">{fc.charity_amount.toFixed(0)} {cur}</span>
+          </div>
+        )}
+      </div>
+    </section>
   );
 }

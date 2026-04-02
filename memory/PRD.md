@@ -42,6 +42,15 @@ Application SaaS (React/FastAPI/MongoDB) de gestion des presences avec garanties
 
 ## Completed Features (Latest)
 
+### Refonte Wording Detail Financier /decisions (2026-04-02)
+- "Montant preleve" → "Montant preleve a {Nom}" (qui paie = explicite)
+- "Verse a l'organisateur" → "Montant recu par {Nom} (organisateur)" (qui recoit = explicite)
+- "Commission plateforme" → "Commission NLYT"
+- "Reversement association" → "Montant reverse a l'association"
+- Lignes a montant zero non affichees
+- Cas on_time: "Aucun prelevement. La garantie de {Nom} a ete liberee."
+- Tests: 20/20 PASS (iteration 174, regression-safe - screenshot verifie)
+
 ### Harmonisation Wording Arbitration (2026-04-02)
 - AdminArbitrationList.js: positions affichees en phrases completes "{Name} (org.) maintient {Target} {status}"
 - AdminArbitrationDetail.js: 4 zones corrigees:
