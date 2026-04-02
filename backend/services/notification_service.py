@@ -72,8 +72,55 @@ def was_email_sent(user_id: str, event_type: str, reference_id: str) -> bool:
     return doc.get("email_sent", False) if doc else False
 
 
+RESOLVED_DISPUTE_STATUSES = frozenset({
+    "resolved", "agreed_present", "agreed_absent", "agreed_late_penalized",
+})
+
+
+def _cleanup_resolved_dispute_notifications(user_id: str):
+    """Auto-mark dispute notifications as read when their dispute is resolved or missing.
+    Self-healing: runs on each count fetch, only queries DB when there ARE unread dispute notifs.
+    """
+    unread = list(db.user_notifications.find(
+        {"user_id": user_id, "event_type": "dispute_update", "is_read": False},
+        {"_id": 0, "reference_id": 1}
+    ))
+    if not unread:
+        return
+
+    ref_ids = list({n["reference_id"] for n in unread})
+
+    # Find which disputes are still active (not resolved)
+    active = set()
+    for d in db.declarative_disputes.find(
+        {"dispute_id": {"$in": ref_ids},
+         "status": {"$nin": list(RESOLVED_DISPUTE_STATUSES)}},
+        {"_id": 0, "dispute_id": 1}
+    ):
+        active.add(d["dispute_id"])
+
+    # All ref_ids NOT in active set → stale (resolved or missing)
+    stale_ids = [rid for rid in ref_ids if rid not in active]
+
+    if stale_ids:
+        result = db.user_notifications.update_many(
+            {"user_id": user_id, "event_type": "dispute_update",
+             "reference_id": {"$in": stale_ids}, "is_read": False},
+            {"$set": {"is_read": True, "read_at": now_utc().isoformat()}}
+        )
+        if result.modified_count > 0:
+            logger.info(
+                f"[NOTIF][CLEANUP] Auto-marked {result.modified_count} stale dispute "
+                f"notifications as read for {user_id}"
+            )
+
+
 def get_unread_counts(user_id: str) -> dict:
-    """Return unread notification counts grouped by event_type."""
+    """Return unread notification counts grouped by event_type.
+    Auto-cleans stale dispute notifications before counting.
+    """
+    _cleanup_resolved_dispute_notifications(user_id)
+
     pipeline = [
         {"$match": {"user_id": user_id, "is_read": False}},
         {"$group": {"_id": "$event_type", "count": {"$sum": 1}}},

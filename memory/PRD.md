@@ -20,22 +20,24 @@ Application SaaS (React/FastAPI/MongoDB) de gestion des presences avec garanties
 - Migration: 48 litiges resolus, 23 RDV liberes
 - Tests: 27/27 PASS (iteration 175)
 
-### Fix Critique: waived dans /decisions (P1)
-- `waived` ajoute dans OUTCOME_CFG frontend: "Classe sans suite" style gris neutre
-- DecisionDetailPage: label "Classe sans suite pour {name}", sous-titre "Aucune penalite — information insuffisante"
-- FinancialSection: waived = "Aucun prelevement. La garantie a ete liberee."
-- Backend: financial_impact.type='neutral' pour waived (dispute_routes.py)
-- Backend: financial_summary='Aucune penalite' pour waived (admin_arbitration_service.py)
-- OPENED_REASON_LABELS enrichi avec les raisons V5
+### Fix waived dans /decisions (P1 Critique)
+- waived affiche "Classe sans suite" style gris neutre
+- Impact financier: "Aucune penalite" (et non "Debite de X")
+- OUTCOME_CFG, STATUS_LABELS, OUTCOME_PHRASES, OPENED_REASON_LABELS enrichis
+- Backend: financial_impact.type='neutral' pour waived
 - Tests: 30/30 PASS (iteration 176)
 
 ### Simplification Categories Admin (P2)
-- Fusion "Resolus" + "Accords mutuels" en "Clos" (1 seul filtre)
-- Renommage "Positions en cours" en "En attente des parties"
-- 3 KPI au lieu de 4: "A arbitrer" / "En attente des parties" / "Clos"
-- Sous-indicateur: "Clos — Accord mutuel" vs "Clos — Arbitrage"
-- Backend: FILTER_QUERIES closed + get_arbitration_stats total_closed
+- 3 KPI: "A arbitrer" / "En attente des parties" / "Clos"
+- Fusion "Resolus" + "Accords mutuels" en "Clos" avec sous-indicateur
 - Tests: 30/30 PASS (iteration 176)
+
+### Fix Badge Litiges (compteur bloque)
+- Root cause: notifications dispute_update pour litiges resolus restaient is_read=false
+- Fix: auto-nettoyage self-healing dans get_unread_counts() via _cleanup_resolved_dispute_notifications()
+- Logique: avant chaque comptage, verifie si les litiges references sont resolus ou inexistants → mark as read
+- Resultat: badge passe de 5 a 0 immediatement, se met a jour pour chaque user a la prochaine connexion
+- Fichier modifie: notification_service.py
 
 ## Categorisation Produit (Modele Cible Valide)
 
@@ -53,7 +55,7 @@ Application SaaS (React/FastAPI/MongoDB) de gestion des presences avec garanties
 | En attente des parties | awaiting_positions | Informatif |
 | Clos | resolved + agreed_* | Historique |
 
-### Outcomes supportes dans /decisions
+### Outcomes dans /decisions
 | Outcome | Label | Style | Impact financier |
 |---|---|---|---|
 | on_time | Presence validee | vert | Aucune penalite |
@@ -62,9 +64,8 @@ Application SaaS (React/FastAPI/MongoDB) de gestion des presences avec garanties
 | waived | Classe sans suite | gris | Aucune penalite |
 
 ## Data Integrity Rules
-- Participant documents MUST have valid user_id when user exists
-- ObjectId exclusion from all MongoDB responses
 - V5: unknown = neutre, absence de preuve != preuve negative, auto-litige interdit
+- Notifications: auto-cleanup des dispute_update pour litiges resolus/inexistants
 
 ## Upcoming Tasks (P1)
 - Test reel Zoom/Teams avec vrais tokens
