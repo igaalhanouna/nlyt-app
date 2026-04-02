@@ -6,7 +6,7 @@ import { formatDateTimeFr } from '../../utils/dateFormat';
 import {
   ArrowLeft, CheckCircle, UserX, Timer, Clock, Video, MapPin,
   Shield, XCircle, UserCheck, Eye, Navigation, QrCode, Monitor,
-  LogIn, LogOut, AlertTriangle,
+  LogIn, LogOut, AlertTriangle, User,
 } from 'lucide-react';
 
 const OUTCOME_CFG = {
@@ -140,43 +140,11 @@ export default function DecisionDetailPage() {
         <TechEvidenceSection tes={tes} targetName={targetName} appointmentType={data.appointment_type} />
 
         {/* D. Ce qui a ete declare */}
-        <section className="rounded-xl border border-slate-200 bg-white p-5 mb-5" data-testid="decision-declarations-bloc">
-          <h3 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
-            <Eye className="w-4 h-4" /> Ce qui a ete declare
-          </h3>
-          <div className="flex items-center gap-4 text-sm mb-3">
-            <span className="text-emerald-700 font-medium">{ds.declared_present_count || 0} present</span>
-            <span className="text-red-700 font-medium">{ds.declared_absent_count || 0} absent</span>
-          </div>
-          {(ds.declarants || []).length > 0 ? (
-            <div className="space-y-1.5">
-              {ds.declarants.map((dec, i) => (
-                <div key={i} className="flex items-center gap-2 text-sm">
-                  {dec.declared_status === 'absent' ? (
-                    <UserX className="w-3.5 h-3.5 text-red-500" />
-                  ) : (
-                    <UserCheck className="w-3.5 h-3.5 text-emerald-500" />
-                  )}
-                  <span className="text-slate-600">{dec.first_name || 'Participant'}</span>
-                  <span className={`text-xs font-medium ${dec.declared_status === 'absent' ? 'text-red-600' : 'text-emerald-600'}`}>
-                    {dec.declared_status === 'absent' ? 'Absent' : dec.declared_status === 'present_late' ? 'Present en retard' : 'Present a l\'heure'}
-                  </span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-xs text-slate-400">Aucune declaration de tiers</p>
-          )}
-
-          {data.opened_reason && (
-            <div className="mt-3 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg" data-testid="opened-reason">
-              <p className="text-xs text-amber-800 flex items-center gap-1.5">
-                <AlertTriangle className="w-3 h-3 flex-shrink-0" />
-                {OPENED_REASON_LABELS[data.opened_reason] || `Raison : ${data.opened_reason.replace(/_/g, ' ')}`}
-              </p>
-            </div>
-          )}
-        </section>
+        <DeclarationSection
+          ds={ds}
+          data={data}
+          outcome={outcome}
+        />
 
         {/* E. Pieces jointes (enrichi) */}
         {data.evidence_submissions_count > 0 && (
@@ -400,6 +368,166 @@ function EvidenceRow({ icon: IconCmp, iconColor, label, testId, children }) {
         <span className="font-medium text-slate-700">{label}</span>
       </div>
       <div className="ml-5">{children}</div>
+    </div>
+  );
+}
+
+
+/* ═══════════════════════════════════════════════════════════
+   Bloc "Ce qui a ete declare" — Vue par participant enrichie
+   ═══════════════════════════════════════════════════════════ */
+
+const DECL_STATUS = {
+  present_on_time: 'Present a l\'heure',
+  present_late: 'Present en retard',
+  absent: 'Absent',
+  unknown: 'Non renseigne',
+};
+
+const POSITION_LABELS = {
+  confirmed_present: 'Maintient : Present',
+  confirmed_absent: 'Maintient : Absent',
+  confirmed_late_penalized: 'Maintient : Retard',
+};
+
+const CONTRADICTION_CFG = {
+  unanimous_present: { label: 'Accord', cls: 'bg-emerald-50 border-emerald-200 text-emerald-800', icon: CheckCircle, iconCls: 'text-emerald-500' },
+  unanimous_absent: { label: 'Accord', cls: 'bg-red-50 border-red-200 text-red-800', icon: XCircle, iconCls: 'text-red-500' },
+  majority_present: { label: 'Majorite', cls: 'bg-blue-50 border-blue-200 text-blue-800', icon: Eye, iconCls: 'text-blue-500' },
+  majority_absent: { label: 'Majorite', cls: 'bg-amber-50 border-amber-200 text-amber-800', icon: Eye, iconCls: 'text-amber-500' },
+  disagreement: { label: 'Desaccord', cls: 'bg-amber-50 border-amber-200 text-amber-800', icon: AlertTriangle, iconCls: 'text-amber-500' },
+  contradiction_with_proof: { label: 'Contradiction', cls: 'bg-red-50 border-red-200 text-red-800', icon: AlertTriangle, iconCls: 'text-red-500' },
+  no_declarations: { label: 'Aucune declaration', cls: 'bg-slate-50 border-slate-200 text-slate-600', icon: Eye, iconCls: 'text-slate-400' },
+};
+
+const OUTCOME_PHRASES = {
+  on_time: 'presence confirmee',
+  no_show: 'absence confirmee',
+  late_penalized: 'retard confirme',
+};
+
+function DeclarationSection({ ds, data, outcome }) {
+  const level = ds.contradiction_level || 'no_declarations';
+  const cfg = CONTRADICTION_CFG[level] || CONTRADICTION_CFG.no_declarations;
+  const CIcon = cfg.icon;
+  const selfDecl = ds.target_self_declaration;
+  const targetName = ds.target_name || data.target_name || 'Le participant';
+  const orgPos = data.organizer_position;
+  const partPos = data.participant_position;
+  const hasPositions = orgPos || partPos;
+  const otherName = data.other_party_name || '';
+
+  return (
+    <section className="rounded-xl border border-slate-200 bg-white p-5 mb-5" data-testid="decision-declarations-bloc">
+      <h3 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
+        <Eye className="w-4 h-4" /> Ce qui a ete declare
+      </h3>
+
+      {/* Résumé de synthèse */}
+      {ds.summary_phrase && (
+        <div className={`flex items-start gap-2 px-3 py-2.5 rounded-lg border mb-4 ${cfg.cls}`} data-testid="contradiction-summary">
+          <CIcon className={`w-4 h-4 flex-shrink-0 mt-0.5 ${cfg.iconCls}`} />
+          <div>
+            <span className="text-[10px] font-bold uppercase tracking-wide opacity-70">{cfg.label}</span>
+            <p className="text-sm leading-snug">{ds.summary_phrase}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Déclarations par participant */}
+      <div className="space-y-2.5" data-testid="declarations-by-participant">
+        {/* Cible en premier — sa propre déclaration */}
+        {selfDecl && (
+          <DeclarantRow
+            name={targetName}
+            roleLabel="Cible du litige"
+            declaredStatus={selfDecl}
+            isSelf
+            testId="self-declaration"
+          />
+        )}
+
+        {/* Déclarations de tiers */}
+        {(ds.declarants || []).map((dec, i) => (
+          <DeclarantRow
+            key={i}
+            name={dec.first_name || 'Participant'}
+            roleLabel={dec.is_organizer ? 'Organisateur' : ''}
+            declaredStatus={dec.declared_status}
+            isMe={dec.is_me}
+            testId={`declarant-${i}`}
+          />
+        ))}
+
+        {!selfDecl && (ds.declarants || []).length === 0 && (
+          <p className="text-xs text-slate-400" data-testid="no-declarations">Aucune declaration enregistree</p>
+        )}
+      </div>
+
+      {/* Positions confirmées pendant le litige */}
+      {hasPositions && (
+        <div className="mt-4 pt-3 border-t border-slate-100" data-testid="dispute-positions">
+          <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-2">Positions pendant le litige</p>
+          <div className="space-y-1.5">
+            {orgPos && (
+              <div className="flex items-center gap-2 text-xs" data-testid="org-position">
+                <Shield className="w-3 h-3 text-slate-400" />
+                <span className="text-slate-500">Organisateur{otherName && data.my_role === 'participant' ? ` (${otherName})` : data.my_role === 'organizer' ? ' (Vous)' : ''}</span>
+                <span className={`font-medium ${orgPos === 'confirmed_absent' ? 'text-red-600' : orgPos === 'confirmed_present' ? 'text-emerald-600' : 'text-amber-600'}`}>
+                  {POSITION_LABELS[orgPos] || orgPos}
+                </span>
+              </div>
+            )}
+            {partPos && (
+              <div className="flex items-center gap-2 text-xs" data-testid="part-position">
+                <User className="w-3 h-3 text-slate-400" />
+                <span className="text-slate-500">Participant{data.my_role === 'organizer' && otherName ? ` (${otherName})` : data.my_role === 'participant' ? ' (Vous)' : ''}</span>
+                <span className={`font-medium ${partPos === 'confirmed_absent' ? 'text-red-600' : partPos === 'confirmed_present' ? 'text-emerald-600' : 'text-amber-600'}`}>
+                  {POSITION_LABELS[partPos] || partPos}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Raison d'ouverture */}
+      {data.opened_reason && (
+        <div className="mt-3 px-3 py-2 bg-amber-50/60 border border-amber-200/60 rounded-lg" data-testid="opened-reason">
+          <p className="text-xs text-amber-700 flex items-center gap-1.5">
+            <AlertTriangle className="w-3 h-3 flex-shrink-0" />
+            {OPENED_REASON_LABELS[data.opened_reason] || `Raison : ${data.opened_reason.replace(/_/g, ' ')}`}
+          </p>
+        </div>
+      )}
+
+      {/* Phrase de liaison vers la décision */}
+      {data.status && OUTCOME_PHRASES[outcome] && (
+        <p className="mt-3 text-xs text-slate-500 italic" data-testid="decision-link-phrase">
+          Sur la base des preuves et declarations, la decision a ete : {OUTCOME_PHRASES[outcome]}.
+        </p>
+      )}
+    </section>
+  );
+}
+
+function DeclarantRow({ name, roleLabel, declaredStatus, isSelf, isMe, testId }) {
+  const statusLabel = DECL_STATUS[declaredStatus] || declaredStatus;
+  const isAbsent = declaredStatus === 'absent';
+  const StatusIcon = isAbsent ? UserX : UserCheck;
+  const statusColor = isAbsent ? 'text-red-600' : 'text-emerald-600';
+  const iconColor = isAbsent ? 'text-red-500' : 'text-emerald-500';
+
+  return (
+    <div className="flex items-center gap-2 text-sm" data-testid={testId}>
+      <StatusIcon className={`w-3.5 h-3.5 flex-shrink-0 ${iconColor}`} />
+      <span className="text-slate-700 font-medium">{name}</span>
+      {roleLabel && <span className="text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">{roleLabel}</span>}
+      {isMe && <span className="text-[10px] font-medium text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">Vous</span>}
+      <span className="text-slate-300 mx-0.5">:</span>
+      <span className={`text-xs font-medium ${statusColor}`}>
+        {isSelf ? `Se declare ${statusLabel.toLowerCase()}` : statusLabel}
+      </span>
     </div>
   );
 }

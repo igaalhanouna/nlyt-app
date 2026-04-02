@@ -46,7 +46,7 @@ POSITION_LABELS = {
 
 
 def _get_anonymized_summary(appointment_id: str, target_pid: str, viewer_user_id: str = None) -> dict:
-    """Build declaration summary with declarant first names and is_me flag."""
+    """Build enriched declaration summary: per-participant view, self-declaration, roles, contradiction level."""
     sheets = list(db.attendance_sheets.find(
         {"appointment_id": appointment_id, "status": "submitted"},
         {"_id": 0}
@@ -56,37 +56,84 @@ def _get_anonymized_summary(appointment_id: str, target_pid: str, viewer_user_id
     present_count = 0
     unknown_count = 0
     declarants = []
+    target_self_declaration = None
 
     for s in sheets:
         submitter_pid = s.get('submitted_by_participant_id')
-        if submitter_pid == target_pid:
-            continue
         submitter_uid = s.get('submitted_by_user_id', '')
-        for d in s.get('declarations', []):
-            if d['target_participant_id'] == target_pid:
-                status = d.get('declared_status', 'unknown')
-                if status == 'absent':
-                    absent_count += 1
-                elif status in ('present_on_time', 'present_late'):
-                    present_count += 1
-                else:
-                    unknown_count += 1
 
-                submitter = db.participants.find_one(
-                    {"participant_id": submitter_pid},
-                    {"_id": 0, "first_name": 1}
-                )
-                first_name = (submitter.get('first_name') or '').strip() if submitter else ''
-                declarants.append({
-                    "first_name": first_name or "Un participant",
-                    "declared_status": status,
-                    "is_me": (viewer_user_id is not None and submitter_uid == viewer_user_id),
-                })
+        submitter_doc = db.participants.find_one(
+            {"participant_id": submitter_pid},
+            {"_id": 0, "first_name": 1, "is_organizer": 1}
+        )
+        first_name = (submitter_doc.get('first_name') or '').strip() if submitter_doc else ''
+        is_organizer = bool(submitter_doc.get('is_organizer')) if submitter_doc else False
+
+        for d in s.get('declarations', []):
+            if d['target_participant_id'] != target_pid:
+                continue
+
+            status = d.get('declared_status', 'unknown')
+
+            # Target's own self-declaration
+            if submitter_pid == target_pid:
+                target_self_declaration = status
+                continue
+
+            # Third-party declaration about the target
+            if status == 'absent':
+                absent_count += 1
+            elif status in ('present_on_time', 'present_late'):
+                present_count += 1
+            else:
+                unknown_count += 1
+
+            declarants.append({
+                "first_name": first_name or "Un participant",
+                "declared_status": status,
+                "is_me": (viewer_user_id is not None and submitter_uid == viewer_user_id),
+                "is_organizer": is_organizer,
+            })
 
     has_tech = db.evidence_items.count_documents({
         "participant_id": target_pid,
         "appointment_id": appointment_id
     }) > 0
+
+    # Contradiction level
+    total_third = absent_count + present_count + unknown_count
+    if total_third == 0:
+        contradiction_level = "no_declarations"
+    elif absent_count == 0 and unknown_count == 0:
+        contradiction_level = "unanimous_present"
+    elif present_count == 0 and unknown_count == 0:
+        if has_tech and target_self_declaration in ('present_on_time', 'present_late'):
+            contradiction_level = "contradiction_with_proof"
+        else:
+            contradiction_level = "unanimous_absent"
+    elif absent_count > present_count:
+        contradiction_level = "majority_absent"
+    elif present_count > absent_count:
+        contradiction_level = "majority_present"
+    else:
+        contradiction_level = "disagreement"
+
+    # Summary phrase
+    target_doc = db.participants.find_one(
+        {"participant_id": target_pid},
+        {"_id": 0, "first_name": 1}
+    )
+    target_name = (target_doc.get('first_name') or 'Le participant').strip() if target_doc else 'Le participant'
+
+    summary_phrases = {
+        "no_declarations": f"Aucune declaration de tiers sur {target_name}.",
+        "unanimous_present": f"Tous les participants confirment la presence de {target_name}.",
+        "unanimous_absent": f"Tous les participants declarent {target_name} absent.",
+        "majority_present": f"Majorite des participants declarent {target_name} present ({present_count} present / {absent_count} absent).",
+        "majority_absent": f"Majorite des participants declarent {target_name} absent ({absent_count} absent / {present_count} present).",
+        "disagreement": f"Desaccord entre les participants sur la presence de {target_name}.",
+        "contradiction_with_proof": f"{target_name} est declare absent mais une trace technique a ete detectee.",
+    }
 
     return {
         "declared_absent_count": absent_count,
@@ -94,6 +141,10 @@ def _get_anonymized_summary(appointment_id: str, target_pid: str, viewer_user_id
         "unknown_count": unknown_count,
         "has_tech_evidence": has_tech,
         "declarants": declarants,
+        "target_self_declaration": target_self_declaration,
+        "target_name": target_name,
+        "contradiction_level": contradiction_level,
+        "summary_phrase": summary_phrases.get(contradiction_level, ""),
     }
 
 
