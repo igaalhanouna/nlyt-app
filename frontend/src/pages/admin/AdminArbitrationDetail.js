@@ -247,7 +247,7 @@ export default function AdminArbitrationDetail() {
 
         {/* ════════ ZONE 4 — Decision (active) or Resolution (read-only) ════════ */}
         {isReadOnly ? (
-          <ResolutionReadOnly resolution={resolution} fc={dispute.financial_context} targetName={dispute.target_name} status={dispute.status} />
+          <ResolutionReadOnly resolution={resolution} targetName={dispute.target_name} status={dispute.status} />
         ) : (
           <section className="rounded-xl border-2 border-slate-900 bg-white p-6" data-testid="arbitration-action-bloc">
             <h3 className="text-base font-bold text-slate-900 mb-1">Votre decision</h3>
@@ -278,11 +278,6 @@ export default function AdminArbitrationDetail() {
               })}
             </div>
 
-            {/* Dynamic financial consequences */}
-            {selectedOutcome && dispute.financial_context && (
-              <FinancialPreview outcome={selectedOutcome} fc={dispute.financial_context} targetName={dispute.target_name} />
-            )}
-
             {/* Note */}
             <textarea
               value={note}
@@ -304,6 +299,16 @@ export default function AdminArbitrationDetail() {
               </Button>
             </div>
           </section>
+        )}
+
+        {/* ════════ ZONE 5 — Detail financier (bloc separe) ════════ */}
+        {dispute.financial_context && (
+          <FinancialPreview
+            outcome={isReadOnly ? (resolution?.final_outcome || selectedOutcome) : selectedOutcome}
+            fc={dispute.financial_context}
+            targetName={dispute.target_name}
+            organizerName={dispute.organizer_name}
+          />
         )}
       </div>
     </>
@@ -428,15 +433,25 @@ function WitnessSummaryBadge({ ds }) {
 
 // ── Zone 4: Financial Preview ──
 
-function FinancialPreview({ outcome, fc, targetName }) {
+function FinancialPreview({ outcome, fc, targetName, organizerName }) {
   const name = targetName || 'Le participant';
+  const orgName = organizerName || 'l\'organisateur';
   const cur = (fc.penalty_currency || 'eur').toUpperCase();
   const penalty = fc.penalty_amount || 0;
 
+  if (!outcome) {
+    return (
+      <div className="rounded-xl border border-slate-200 bg-white p-5 mt-5" data-testid="financial-preview">
+        <h3 className="text-sm font-bold text-slate-700 mb-2">Detail financier</h3>
+        <p className="text-sm text-slate-400">Selectionnez un verdict pour voir les consequences financieres.</p>
+      </div>
+    );
+  }
+
   if (outcome === 'on_time') {
     return (
-      <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-4 mb-5" data-testid="financial-preview">
-        <p className="text-sm font-semibold text-emerald-800 mb-1">Consequences financieres</p>
+      <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-5 mt-5" data-testid="financial-preview">
+        <h3 className="text-sm font-bold text-emerald-800 mb-2">Detail financier</h3>
         <p className="text-sm text-emerald-700">Aucun prelevement. La garantie de {name} sera liberee.</p>
       </div>
     );
@@ -444,9 +459,9 @@ function FinancialPreview({ outcome, fc, targetName }) {
 
   if (penalty === 0) {
     return (
-      <div className="rounded-lg bg-slate-50 border border-slate-200 p-4 mb-5" data-testid="financial-preview">
-        <p className="text-sm font-semibold text-slate-700 mb-1">Consequences financieres</p>
-        <p className="text-sm text-slate-500">Aucune garantie configuree pour ce rendez-vous.</p>
+      <div className="rounded-xl border border-slate-200 bg-white p-5 mt-5" data-testid="financial-preview">
+        <h3 className="text-sm font-bold text-slate-700 mb-2">Detail financier</h3>
+        <p className="text-sm text-slate-500">Aucune garantie financiere configuree pour ce rendez-vous.</p>
       </div>
     );
   }
@@ -457,37 +472,33 @@ function FinancialPreview({ outcome, fc, targetName }) {
   const isPartial = outcome === 'late_penalized';
 
   return (
-    <div className="rounded-lg bg-red-50 border border-red-200 p-4 mb-5" data-testid="financial-preview">
-      <p className="text-sm font-semibold text-red-800 mb-2">
-        Consequences financieres{isPartial ? ' (retard)' : ''}
-      </p>
-      <div className="space-y-1.5">
+    <div className="rounded-xl border border-red-200 bg-red-50 p-5 mt-5" data-testid="financial-preview">
+      <h3 className="text-sm font-bold text-red-800 mb-3">
+        Detail financier{isPartial ? ' (retard)' : ''}
+      </h3>
+      <div className="space-y-2">
         <div className="flex items-center justify-between text-sm">
-          <span className="text-slate-600">{name} paiera</span>
+          <span className="text-slate-700">Montant preleve a {name}</span>
           <span className="font-bold text-red-700">{penalty.toFixed(0)} {cur}</span>
         </div>
         {compensation > 0 && (
           <div className="flex items-center justify-between text-sm">
-            <span className="text-slate-600">Verse a l'organisateur</span>
-            <span className="font-medium text-slate-800">{compensation.toFixed(0)} {cur}</span>
+            <span className="text-slate-700">Montant recu par {orgName} (organisateur)</span>
+            <span className="font-medium text-emerald-700">{compensation.toFixed(0)} {cur}</span>
           </div>
         )}
         {platform > 0 && (
           <div className="flex items-center justify-between text-sm">
-            <span className="text-slate-600">Commission plateforme ({fc.platform_commission_percent}%)</span>
+            <span className="text-slate-700">Commission NLYT ({fc.platform_commission_percent}%)</span>
             <span className="font-medium text-slate-500">{platform.toFixed(0)} {cur}</span>
           </div>
         )}
         {charity > 0 && (
           <div className="flex items-center justify-between text-sm">
-            <span className="text-slate-600">Reversement association ({fc.charity_percent}%)</span>
+            <span className="text-slate-700">Montant reverse a l'association ({fc.charity_percent}%)</span>
             <span className="font-medium text-slate-500">{charity.toFixed(0)} {cur}</span>
           </div>
         )}
-        <div className="border-t border-red-200 mt-2 pt-2 flex items-center justify-between text-xs text-slate-400">
-          <span>Total</span>
-          <span>{penalty.toFixed(0)} {cur}</span>
-        </div>
       </div>
     </div>
   );
@@ -510,7 +521,7 @@ const STATUS_LABELS_RESOLVED = {
   agreed_late_penalized: 'Accord mutuel : Retard',
 };
 
-function ResolutionReadOnly({ resolution, fc, targetName, status }) {
+function ResolutionReadOnly({ resolution, targetName, status }) {
   const outcome = resolution?.final_outcome;
   const note = resolution?.resolution_note || '';
   const resolvedAt = resolution?.resolved_at;
@@ -550,11 +561,6 @@ function ResolutionReadOnly({ resolution, fc, targetName, status }) {
           <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Justification</p>
           <p className="text-sm text-slate-700">{note}</p>
         </div>
-      )}
-
-      {/* Financial impact */}
-      {fc && (
-        <FinancialPreview outcome={outcome} fc={fc} targetName={name} />
       )}
     </section>
   );
