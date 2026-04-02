@@ -310,3 +310,168 @@ async def get_webhook_status(request: Request):
             "subscriptions": graph_subs,
         },
     }
+
+
+
+# ═══════════════════════════════════════════════════════════════════
+# Scheduler Health Monitoring
+# ═══════════════════════════════════════════════════════════════════
+
+def _format_interval(seconds: int) -> str:
+    if seconds >= 86400:
+        return f"{seconds // 86400}j"
+    if seconds >= 3600:
+        return f"{seconds // 3600}h"
+    return f"{seconds // 60}min"
+
+
+@router.get("/scheduler-health")
+async def scheduler_health(request: Request):
+    """
+    Scheduler health dashboard — admin only.
+
+    Returns per-job status and a global summary for quick diagnosis.
+
+    Health logic:
+      ok      — last run succeeded, no anomaly
+      warning — never executed, or lock held > 80% of TTL
+      error   — last run failed
+    """
+    await require_admin(request)
+
+    from scheduler import scheduler as apscheduler, JOB_REGISTRY
+    from services.distributed_lock import INSTANCE_ID
+
+    now = datetime.now(timezone.utc)
+
+    # Fetch all execution histories and active locks in bulk
+    histories = {
+        h["job_id"]: h
+        for h in db.scheduler_job_history.find({}, {"_id": 0})
+    }
+    active_locks = {
+        lk["job_id"]: lk
+        for lk in db.scheduler_locks.find(
+            {"expires_at": {"$gt": now}},
+            {"_id": 0}
+        )
+    }
+
+    # Build next_run map from APScheduler
+    next_runs = {}
+    for job in apscheduler.get_jobs():
+        # job.id is like "attendance_evaluation_job", strip the "_job" suffix
+        jid = job.id.removesuffix("_job")
+        if job.next_run_time:
+            next_runs[jid] = job.next_run_time.isoformat()
+
+    jobs = []
+    counts = {"ok": 0, "warning": 0, "error": 0}
+
+    for job_id, meta in JOB_REGISTRY.items():
+        hist = histories.get(job_id)
+        lock = active_locks.get(job_id)
+        ttl = meta["ttl_seconds"]
+
+        # ── Determine current state ─────────────────────────
+        if lock:
+            current_state = "running"
+            locked_at = lock.get("locked_at")
+            expires_at = lock.get("expires_at")
+
+            # Check if lock is stale (held > 80% of TTL)
+            if locked_at:
+                elapsed = (now - locked_at.replace(tzinfo=timezone.utc) if locked_at.tzinfo is None else now - locked_at).total_seconds()
+                lock_stale = elapsed > ttl * 0.8
+            else:
+                lock_stale = False
+
+            ttl_remaining_raw = (
+                (expires_at.replace(tzinfo=timezone.utc) if expires_at.tzinfo is None else expires_at) - now
+            ).total_seconds() if expires_at else 0
+            ttl_remaining = max(0, int(ttl_remaining_raw))
+
+            lock_info = {
+                "locked_by": lock.get("locked_by"),
+                "ttl_remaining_seconds": int(ttl_remaining),
+                "stale": lock_stale,
+            }
+        else:
+            current_state = "idle"
+            lock_info = None
+            lock_stale = False
+
+        # ── Determine health status ─────────────────────────
+        if hist is None:
+            health_status = "warning"
+            health_reason = "Jamais execute depuis le demarrage"
+        elif hist.get("current_status") == "error":
+            health_status = "error"
+            health_reason = hist.get("last_error", "Erreur inconnue")
+        elif lock_stale:
+            health_status = "warning"
+            health_reason = f"Lock tenu depuis plus de {int(ttl * 0.8)}s (TTL={ttl}s)"
+        else:
+            health_status = "ok"
+            health_reason = None
+
+        counts[health_status] += 1
+
+        # ── Build last_run info ─────────────────────────────
+        last_run = None
+        if hist and hist.get("last_completed_at"):
+            completed_at = hist["last_completed_at"]
+            if completed_at.tzinfo is None:
+                completed_at = completed_at.replace(tzinfo=timezone.utc)
+            ago_seconds = int((now - completed_at).total_seconds())
+            last_run = {
+                "at": completed_at.isoformat(),
+                "ago_seconds": ago_seconds,
+                "duration_ms": hist.get("last_duration_ms", 0),
+                "result": hist.get("current_status", "unknown"),
+            }
+
+        # ── Build job entry ─────────────────────────────────
+        jobs.append({
+            "job_id": job_id,
+            "name": meta["name"],
+            "interval": _format_interval(meta["interval_seconds"]),
+            "interval_seconds": meta["interval_seconds"],
+            "ttl_seconds": ttl,
+            "health_status": health_status,
+            "health_reason": health_reason,
+            "current_state": current_state,
+            "last_run": last_run,
+            "next_run": next_runs.get(job_id),
+            "lock": lock_info,
+            "stats": {
+                "total_runs": hist.get("total_runs", 0) if hist else 0,
+                "successful_runs": hist.get("successful_runs", 0) if hist else 0,
+                "failed_runs": hist.get("failed_runs", 0) if hist else 0,
+            },
+        })
+
+    # Sort: errors first, then warnings, then ok
+    priority = {"error": 0, "warning": 1, "ok": 2}
+    jobs.sort(key=lambda j: (priority.get(j["health_status"], 3), j["job_id"]))
+
+    total = len(JOB_REGISTRY)
+    if counts["error"] > 0:
+        global_status = "error"
+    elif counts["warning"] > 0:
+        global_status = "warning"
+    else:
+        global_status = "ok"
+
+    return {
+        "global_status": global_status,
+        "instance_id": INSTANCE_ID,
+        "checked_at": now.isoformat(),
+        "summary": {
+            "total_jobs": total,
+            "ok": counts["ok"],
+            "warning": counts["warning"],
+            "error": counts["error"],
+        },
+        "jobs": jobs,
+    }
