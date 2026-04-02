@@ -116,6 +116,27 @@ def initialize_declarative_phase(appointment_id: str):
 
     # If fewer than 2 guaranteed participants remain, skip declarative phase
     if len(guaranteed_review_records) < 2:
+        # Also waive the remaining guaranteed participants — no sheets will ever
+        # be created for them, so leaving them in manual_review would create
+        # phantom "review pending" badges in the financial UI.
+        for r in guaranteed_review_records:
+            pid = r['participant_id']
+            db.attendance_records.update_one(
+                {"appointment_id": appointment_id, "participant_id": pid},
+                {"$set": {
+                    "outcome": "waived",
+                    "review_required": False,
+                    "decision_source": "insufficient_guaranteed_participants",
+                    "confidence_level": "HIGH",
+                    "decided_by": "engine_guard",
+                    "decided_at": now_utc().isoformat(),
+                }}
+            )
+            logger.info(
+                f"[DECLARATIVE][GUARD] Remaining guaranteed participant {pid} "
+                f"auto-resolved to waived (< 2 guaranteed for declarative phase)"
+            )
+
         db.appointments.update_one(
             {"appointment_id": appointment_id},
             {"$set": {"declarative_phase": "not_needed"}}

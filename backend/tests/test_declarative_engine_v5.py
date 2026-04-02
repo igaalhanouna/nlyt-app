@@ -575,7 +575,7 @@ class TestGuaranteedOnlyPhase:
         print("TEST 13 PASS: Mix guaranteed/non-guaranteed → non-guaranteed waived, sheets for guaranteed")
 
     def test_14_one_guaranteed_rest_non_guaranteed_not_needed(self):
-        """Test 14: 1 guaranteed + 2 non-guaranteed → all non-guaranteed waived, phase = not_needed."""
+        """Test 14: 1 guaranteed + 2 non-guaranteed → all waived (including remaining guaranteed), phase = not_needed."""
         apt_id = str(uuid.uuid4())
         org_id = str(uuid.uuid4())
         pid1, pid2, pid3 = str(uuid.uuid4()), str(uuid.uuid4()), str(uuid.uuid4())
@@ -598,21 +598,28 @@ class TestGuaranteedOnlyPhase:
         with patch('services.declarative_service.db', mock_db):
             initialize_declarative_phase(apt_id)
 
-        # pid2 and pid3 should be auto-waived
-        waive_calls = [
+        # pid2 and pid3 should be auto-waived (non-guaranteed)
+        non_g_waive_calls = [
             c for c in mock_db.attendance_records.update_one.call_args_list
             if c[0][1].get("$set", {}).get("decision_source") == "non_guaranteed_auto_waived"
         ]
-        assert len(waive_calls) == 2
+        assert len(non_g_waive_calls) == 2
 
-        # Phase should be not_needed (only 1 guaranteed)
+        # pid1 (guaranteed, but alone) should ALSO be waived with different source
+        remaining_waive_calls = [
+            c for c in mock_db.attendance_records.update_one.call_args_list
+            if c[0][1].get("$set", {}).get("decision_source") == "insufficient_guaranteed_participants"
+        ]
+        assert len(remaining_waive_calls) == 1
+
+        # Phase should be not_needed
         phase_update_calls = mock_db.appointments.update_one.call_args_list
         phase_set = phase_update_calls[-1][0][1]["$set"]
         assert phase_set.get("declarative_phase") == "not_needed"
 
         # No sheets should be created
         assert mock_db.attendance_sheets.insert_one.call_count == 0
-        print("TEST 14 PASS: 1 guaranteed + 2 non-guaranteed → not_needed, no sheets")
+        print("TEST 14 PASS: 1 guaranteed + 2 non-guaranteed → all waived, not_needed")
 
     def test_15_zero_guaranteed_all_waived_not_needed(self):
         """Test 15: 0 guaranteed (all non-guaranteed) → all waived, phase = not_needed."""
@@ -653,7 +660,7 @@ class TestGuaranteedOnlyPhase:
         print("TEST 15 PASS: 0 guaranteed → all waived, not_needed, no sheets")
 
     def test_16_waived_outcome_fields_correct(self):
-        """Test 16: Verify the exact fields set on auto-waived attendance records."""
+        """Test 16: Verify the exact fields set on auto-waived attendance records (both non-guaranteed and remaining guaranteed)."""
         apt_id = str(uuid.uuid4())
         org_id = str(uuid.uuid4())
         pid1, pid2 = str(uuid.uuid4()), str(uuid.uuid4())
@@ -674,22 +681,33 @@ class TestGuaranteedOnlyPhase:
         with patch('services.declarative_service.db', mock_db):
             initialize_declarative_phase(apt_id)
 
-        # Find the waive call for pid2
-        waive_calls = [
+        # Find the waive call for pid2 (non-guaranteed)
+        non_g_calls = [
             c for c in mock_db.attendance_records.update_one.call_args_list
             if c[0][1].get("$set", {}).get("decision_source") == "non_guaranteed_auto_waived"
         ]
-        assert len(waive_calls) == 1
-        waived_set = waive_calls[0][0][1]["$set"]
+        assert len(non_g_calls) == 1
+        waived_set = non_g_calls[0][0][1]["$set"]
 
-        # Verify all required fields
+        # Verify all required fields for non-guaranteed
         assert waived_set["outcome"] == "waived"
         assert waived_set["review_required"] is False
         assert waived_set["decision_source"] == "non_guaranteed_auto_waived"
         assert waived_set["confidence_level"] == "HIGH"
         assert waived_set["decided_by"] == "engine_guard"
         assert "decided_at" in waived_set
-        print("TEST 16 PASS: Auto-waived fields correct (outcome, review_required, decision_source, etc.)")
+
+        # Find the waive call for pid1 (remaining guaranteed, < 2)
+        remaining_calls = [
+            c for c in mock_db.attendance_records.update_one.call_args_list
+            if c[0][1].get("$set", {}).get("decision_source") == "insufficient_guaranteed_participants"
+        ]
+        assert len(remaining_calls) == 1
+        remaining_set = remaining_calls[0][0][1]["$set"]
+        assert remaining_set["outcome"] == "waived"
+        assert remaining_set["review_required"] is False
+
+        print("TEST 16 PASS: Auto-waived fields correct for both non-guaranteed and remaining guaranteed")
 
     def test_17_non_guaranteed_excluded_from_sheet_creators(self):
         """Test 17: Auto-waived participant should NOT have a sheet created for them."""

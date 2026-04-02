@@ -692,8 +692,11 @@ def test_D3_organizer_only_guaranteed():
     non_g_waived = sum(1 for r in s["records"]
                        if r["outcome"] == "waived" and r.get("decision_source") == "non_guaranteed_auto_waived")
     checks.append(("2 non-garantis waived", non_g_waived == 2))
-    checks.append(("org toujours manual_review",
-                    any(r["participant_id"] == pids[0] and r["outcome"] == "manual_review" for r in s["records"])))
+    # Remaining guaranteed org should ALSO be waived (insufficient participants)
+    org_rec = next((r for r in s["records"] if r["participant_id"] == pids[0]), None)
+    checks.append(("org waived (insufficient participants)",
+                    org_rec and org_rec.get("outcome") == "waived" and
+                    org_rec.get("decision_source") == "insufficient_guaranteed_participants"))
 
     all_ok = all(c[1] for c in checks)
     details = "; ".join(f"{c[0]}={'OK' if c[1] else 'FAIL'}" for c in checks)

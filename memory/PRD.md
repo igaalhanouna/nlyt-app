@@ -19,7 +19,8 @@ Application SaaS (React/FastAPI/MongoDB) de gestion des presences avec garanties
 - Si < 2 participants garantis restants, `declarative_phase = not_needed`, aucune feuille creee
 - Participants auto-waived exclus des createurs de feuilles
 - Garanties: pas de pending sheet, pas de litige, pas d'arbitrage admin, pas de penalite
-- Tests: 24/24 PASS (iteration 177) — 6 nouveaux tests V5.1 (Tests 12-17)
+- Fix: participants garantis restants (< 2) aussi waived (decision_source: `insufficient_guaranteed_participants`) pour eviter badges financiers fantomes
+- Tests: 24/24 unit PASS + 32/32 QA PASS + recette UI 5 scenarios PASS (iterations 177-179)
 
 ### UX Timeline Cards — Visibilite des participants inactifs (2026-04-03)
 - Banniere explicite: "Tous les participants ont decline" / "ont annule" / "ont annule ou decline"

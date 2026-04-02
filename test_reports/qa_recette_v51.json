@@ -193,7 +193,7 @@
       "title": "Org seul garanti → not_needed",
       "category": "Edge case",
       "status": "OK",
-      "details": "phase == not_needed=OK; 2 non-garantis waived=OK; org toujours manual_review=OK",
+      "details": "phase == not_needed=OK; 2 non-garantis waived=OK; org waived (insufficient participants)=OK",
       "severity": "N/A"
     },
     {
