@@ -1,0 +1,264 @@
+{
+  "summary": "32/32 scénarios OK (100.0%)",
+  "total": 32,
+  "ok": 32,
+  "ko": 0,
+  "results": [
+    {
+      "id": "A1",
+      "title": "Org garanti + Part garanti",
+      "category": "Fondamental",
+      "status": "OK",
+      "details": "phase == collecting=OK; sheets créées=OK; tous les records toujours manual_review=OK",
+      "severity": "N/A"
+    },
+    {
+      "id": "A2",
+      "title": "Org garanti + Part non-garanti",
+      "category": "Fondamental",
+      "status": "OK",
+      "details": "phase == not_needed=OK; 0 sheets=OK; non-garanti waived=OK; decision_source correct=OK",
+      "severity": "N/A"
+    },
+    {
+      "id": "A3",
+      "title": "Org non-garanti + Part garanti",
+      "category": "Fondamental",
+      "status": "OK",
+      "details": "phase == not_needed=OK; 0 sheets=OK; org waived=OK",
+      "severity": "N/A"
+    },
+    {
+      "id": "A4",
+      "title": "0 garanti",
+      "category": "Fondamental",
+      "status": "OK",
+      "details": "phase == not_needed=OK; 0 sheets=OK; tous waived=OK; 0 disputes=OK",
+      "severity": "N/A"
+    },
+    {
+      "id": "A5",
+      "title": "3 part, 2 garantis",
+      "category": "Fondamental",
+      "status": "OK",
+      "details": "phase == collecting=OK; sheets >= 1=OK; non-garanti waived=OK; non-garanti PAS cible=OK; non-garanti PAS auteur=OK",
+      "severity": "N/A"
+    },
+    {
+      "id": "A6",
+      "title": "3 part, 1 seul garanti",
+      "category": "Fondamental",
+      "status": "OK",
+      "details": "phase == not_needed=OK; 0 sheets=OK; 2 non-garantis waived=OK; 0 disputes=OK",
+      "severity": "N/A"
+    },
+    {
+      "id": "A7",
+      "title": "Tous garantis (4)",
+      "category": "Fondamental",
+      "status": "OK",
+      "details": "phase == collecting=OK; sheets == 4=OK; 0 waived=OK",
+      "severity": "N/A"
+    },
+    {
+      "id": "A8",
+      "title": "Aucun garanti (3)",
+      "category": "Fondamental",
+      "status": "OK",
+      "details": "phase == not_needed=OK; tous waived (3)=OK; 0 sheets=OK",
+      "severity": "N/A"
+    },
+    {
+      "id": "B1",
+      "title": "Tous présents → on_time",
+      "category": "Comportemental",
+      "status": "OK",
+      "details": "phase == resolved=OK; records on_time=OK; 0 disputes=OK",
+      "severity": "N/A"
+    },
+    {
+      "id": "B2",
+      "title": "1 absent → dispute",
+      "category": "Comportemental",
+      "status": "OK",
+      "details": "phase == disputed=OK; disputes >= 1=OK; dispute cible le bon PID=OK",
+      "severity": "N/A"
+    },
+    {
+      "id": "B3",
+      "title": "Plusieurs absents",
+      "category": "Comportemental",
+      "status": "OK",
+      "details": "phase == disputed ou resolved=OK; disputes ou résolutions pour absents=OK",
+      "severity": "N/A"
+    },
+    {
+      "id": "B4",
+      "title": "Tous absents → disputes",
+      "category": "Comportemental",
+      "status": "OK",
+      "details": "phase == disputed=OK; disputes créées=OK",
+      "severity": "N/A"
+    },
+    {
+      "id": "B5",
+      "title": "Déclarations cohérentes (4) → resolved",
+      "category": "Comportemental",
+      "status": "OK",
+      "details": "phase == resolved=OK; tous on_time (4)=OK; 0 disputes=OK",
+      "severity": "N/A"
+    },
+    {
+      "id": "B6",
+      "title": "Contradictions → disputes",
+      "category": "Comportemental",
+      "status": "OK",
+      "details": "phase == disputed=OK; disputes >= 1=OK",
+      "severity": "N/A"
+    },
+    {
+      "id": "B7",
+      "title": "Personne ne remplit → collecting",
+      "category": "Comportemental",
+      "status": "OK",
+      "details": "phase == collecting=OK; sheets toutes pending=OK; 0 disputes=OK",
+      "severity": "N/A"
+    },
+    {
+      "id": "B8",
+      "title": "Tous unknown → waived (V5 presumption)",
+      "category": "Comportemental",
+      "status": "OK",
+      "details": "phase == resolved=OK; tous waived=OK; 0 disputes=OK",
+      "severity": "N/A"
+    },
+    {
+      "id": "C1",
+      "title": "Non-garanti PAS de pending sheet",
+      "category": "V5.1",
+      "status": "OK",
+      "details": "non-garanti n'a PAS de sheet=OK",
+      "severity": "N/A"
+    },
+    {
+      "id": "C2",
+      "title": "Non-garanti PAS cible dans sheets",
+      "category": "V5.1",
+      "status": "OK",
+      "details": "non-garanti PAS cible=OK",
+      "severity": "N/A"
+    },
+    {
+      "id": "C3",
+      "title": "Non-garanti PAS de dispute après analyse",
+      "category": "V5.1",
+      "status": "OK",
+      "details": "non-garanti PAS dans disputes=OK; non-garanti toujours waived=OK",
+      "severity": "N/A"
+    },
+    {
+      "id": "C4",
+      "title": "Champs exacts du record auto-waived",
+      "category": "V5.1",
+      "status": "OK",
+      "details": "outcome == waived=OK; review_required == False=OK; decision_source == non_guaranteed_auto_waived=OK; confidence_level == HIGH=OK; decided_by == engine_guard=OK; decided_at present=OK",
+      "severity": "N/A"
+    },
+    {
+      "id": "C5",
+      "title": "Non-garanti PAS en arbitrage admin",
+      "category": "V5.1",
+      "status": "OK",
+      "details": "0 disputes admin=OK; plus en manual_review=OK",
+      "severity": "N/A"
+    },
+    {
+      "id": "D1",
+      "title": "1 seul garanti MR → not_needed",
+      "category": "Edge case",
+      "status": "OK",
+      "details": "phase == not_needed=OK; 0 sheets=OK",
+      "severity": "N/A"
+    },
+    {
+      "id": "D2",
+      "title": "0 garanti, 5 MR → all waived",
+      "category": "Edge case",
+      "status": "OK",
+      "details": "phase == not_needed=OK; 5 waived=OK; 0 sheets=OK",
+      "severity": "N/A"
+    },
+    {
+      "id": "D3",
+      "title": "Org seul garanti → not_needed",
+      "category": "Edge case",
+      "status": "OK",
+      "details": "phase == not_needed=OK; 2 non-garantis waived=OK; org toujours manual_review=OK",
+      "severity": "N/A"
+    },
+    {
+      "id": "D4",
+      "title": "Double init → idempotent",
+      "category": "Edge case",
+      "status": "OK",
+      "details": "sheets pas dupliquées=OK; sheets_before > 0=OK",
+      "severity": "N/A"
+    },
+    {
+      "id": "D5",
+      "title": "Rerun après resolved → bloqué",
+      "category": "Edge case",
+      "status": "OK",
+      "details": "phase toujours resolved=OK; sheets pas recréées=OK",
+      "severity": "N/A"
+    },
+    {
+      "id": "D6",
+      "title": "< 2 garantis post-filtre → rien",
+      "category": "Edge case",
+      "status": "OK",
+      "details": "phase == not_needed=OK; 0 sheets=OK; 3 non-garantis waived=OK",
+      "severity": "N/A"
+    },
+    {
+      "id": "D7",
+      "title": "Contradictions totales (large group)",
+      "category": "Edge case",
+      "status": "OK",
+      "details": "phase == disputed ou resolved=OK; disputes ou analyses créées=OK",
+      "severity": "N/A"
+    },
+    {
+      "id": "D8",
+      "title": "Mix MR + on_time → seuls MR en sheets",
+      "category": "Edge case",
+      "status": "OK",
+      "details": "phase == collecting=OK; on_time participant PAS cible=OK; sheets créées pour MR=OK",
+      "severity": "N/A"
+    },
+    {
+      "id": "D9",
+      "title": "Participant sans record → safe",
+      "category": "Edge case",
+      "status": "OK",
+      "details": "phase == not_needed=OK; pas de crash=OK",
+      "severity": "N/A"
+    },
+    {
+      "id": "D10",
+      "title": "Part garanti annulé → pas cible",
+      "category": "Edge case",
+      "status": "OK",
+      "details": "phase == collecting=OK; cancelled participant PAS cible=OK",
+      "severity": "N/A"
+    },
+    {
+      "id": "D11",
+      "title": "Anti auto-litige → waived",
+      "category": "Edge case",
+      "status": "OK",
+      "details": "0 auto-litiges org=OK; org waived (auto-litige guard)=OK",
+      "severity": "N/A"
+    }
+  ]
+}
