@@ -5,7 +5,8 @@ import AppNavbar from '../../components/AppNavbar';
 import { formatDateTimeFr } from '../../utils/dateFormat';
 import {
   ArrowLeft, CheckCircle, UserX, Timer, Clock, Video, MapPin,
-  Shield, XCircle, UserCheck, Eye,
+  Shield, XCircle, UserCheck, Eye, Navigation, QrCode, Monitor,
+  LogIn, LogOut, AlertTriangle,
 } from 'lucide-react';
 
 const OUTCOME_CFG = {
@@ -21,9 +22,30 @@ const STATUS_LABELS = {
   agreed_late_penalized: 'Accord mutuel — Retard',
 };
 
+const OPENED_REASON_LABELS = {
+  contestant_contradiction: 'Le participant conteste et a lui-meme rempli sa feuille de presence.',
+  tech_signal_contradiction: 'Un signal technique contredit les declarations.',
+  collusion_signal: 'Les declarants sont aussi les beneficiaires financiers.',
+  declarative_disagreement: 'Les declarations des participants ne concordent pas.',
+  small_group_disagreement: 'Desaccord entre les participants du groupe.',
+};
+
 const BORDER = { emerald: 'border-emerald-300', red: 'border-red-300', amber: 'border-amber-300' };
 const BG = { emerald: 'bg-emerald-50', red: 'bg-red-50', amber: 'bg-amber-50' };
 const TEXT = { emerald: 'text-emerald-800', red: 'text-red-800', amber: 'text-amber-800' };
+
+function formatTime(isoStr) {
+  if (!isoStr) return null;
+  try { return new Date(isoStr).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }); }
+  catch { return null; }
+}
+
+function formatDuration(seconds) {
+  if (!seconds && seconds !== 0) return null;
+  const m = Math.round(seconds / 60);
+  if (m < 1) return `${seconds}s`;
+  return `${m} min`;
+}
 
 export default function DecisionDetailPage() {
   const { disputeId } = useParams();
@@ -36,7 +58,6 @@ export default function DecisionDetailPage() {
       try {
         const res = await disputeAPI.get(disputeId);
         setData(res.data);
-        // Mark decision notification as read
         notificationAPI.markRead('decision', disputeId).catch(() => {});
       } catch (e) {
         console.error(e);
@@ -63,6 +84,7 @@ export default function DecisionDetailPage() {
   const outcomeSub = typeof cfg.sub === 'function' ? cfg.sub(targetName) : cfg.sub;
   const fc = data.financial_context || {};
   const ds = data.declaration_summary || {};
+  const tes = data.tech_evidence_summary || {};
 
   return (
     <>
@@ -88,7 +110,7 @@ export default function DecisionDetailPage() {
           </p>
         </div>
 
-        {/* C. Decision finale */}
+        {/* B. Decision finale */}
         <section className={`rounded-xl border-2 ${BORDER[cfg.color]} ${BG[cfg.color]} p-5 mb-5`} data-testid="decision-outcome-bloc">
           <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Decision finale</span>
           <span className="text-[11px] text-slate-400 ml-2">
@@ -114,7 +136,72 @@ export default function DecisionDetailPage() {
           )}
         </section>
 
-        {/* D. Financial breakdown */}
+        {/* C. Preuves factuelles (NOUVEAU) */}
+        <TechEvidenceSection tes={tes} targetName={targetName} appointmentType={data.appointment_type} />
+
+        {/* D. Ce qui a ete declare */}
+        <section className="rounded-xl border border-slate-200 bg-white p-5 mb-5" data-testid="decision-declarations-bloc">
+          <h3 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
+            <Eye className="w-4 h-4" /> Ce qui a ete declare
+          </h3>
+          <div className="flex items-center gap-4 text-sm mb-3">
+            <span className="text-emerald-700 font-medium">{ds.declared_present_count || 0} present</span>
+            <span className="text-red-700 font-medium">{ds.declared_absent_count || 0} absent</span>
+          </div>
+          {(ds.declarants || []).length > 0 ? (
+            <div className="space-y-1.5">
+              {ds.declarants.map((dec, i) => (
+                <div key={i} className="flex items-center gap-2 text-sm">
+                  {dec.declared_status === 'absent' ? (
+                    <UserX className="w-3.5 h-3.5 text-red-500" />
+                  ) : (
+                    <UserCheck className="w-3.5 h-3.5 text-emerald-500" />
+                  )}
+                  <span className="text-slate-600">{dec.first_name || 'Participant'}</span>
+                  <span className={`text-xs font-medium ${dec.declared_status === 'absent' ? 'text-red-600' : 'text-emerald-600'}`}>
+                    {dec.declared_status === 'absent' ? 'Absent' : dec.declared_status === 'present_late' ? 'Present en retard' : 'Present a l\'heure'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-slate-400">Aucune declaration de tiers</p>
+          )}
+
+          {data.opened_reason && (
+            <div className="mt-3 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg" data-testid="opened-reason">
+              <p className="text-xs text-amber-800 flex items-center gap-1.5">
+                <AlertTriangle className="w-3 h-3 flex-shrink-0" />
+                {OPENED_REASON_LABELS[data.opened_reason] || `Raison : ${data.opened_reason.replace(/_/g, ' ')}`}
+              </p>
+            </div>
+          )}
+        </section>
+
+        {/* E. Pieces jointes (enrichi) */}
+        {data.evidence_submissions_count > 0 && (
+          <section className="rounded-xl border border-slate-200 bg-white p-5 mb-5" data-testid="decision-evidence-bloc">
+            <h3 className="text-sm font-bold text-slate-700 mb-2 flex items-center gap-2">
+              <Shield className="w-4 h-4" /> Pieces jointes au dossier
+            </h3>
+            {(data.evidence_submissions || []).length > 0 ? (
+              <div className="space-y-1.5">
+                {data.evidence_submissions.map((ev, i) => (
+                  <div key={ev.submission_id || i} className="flex items-center gap-2 text-sm text-slate-600">
+                    <div className="w-1.5 h-1.5 rounded-full bg-slate-300 flex-shrink-0" />
+                    <span className="capitalize">{(ev.evidence_type || 'document').replace(/_/g, ' ')}</span>
+                    {ev.submitted_at && <span className="text-xs text-slate-400">— {new Date(ev.submitted_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</span>}
+                    {ev.is_mine && <span className="text-[10px] font-medium text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">Vous</span>}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-slate-500">{data.evidence_submissions_count} piece{data.evidence_submissions_count > 1 ? 's' : ''} jointe{data.evidence_submissions_count > 1 ? 's' : ''} au dossier</p>
+            )}
+          </section>
+        )}
+
+        {/* F. Financial breakdown */}
         {fc.penalty_amount != null && (
           <section className="rounded-xl border border-slate-200 bg-white p-5 mb-5" data-testid="decision-financial-bloc">
             <h3 className="text-sm font-bold text-slate-700 mb-3">Detail financier</h3>
@@ -151,47 +238,7 @@ export default function DecisionDetailPage() {
           </section>
         )}
 
-        {/* B. Dispute summary — What was declared */}
-        <section className="rounded-xl border border-slate-200 bg-white p-5 mb-5" data-testid="decision-declarations-bloc">
-          <h3 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
-            <Eye className="w-4 h-4" /> Ce qui a ete declare
-          </h3>
-          <div className="flex items-center gap-4 text-sm mb-3">
-            <span className="text-emerald-700 font-medium">{ds.declared_present_count || 0} present</span>
-            <span className="text-red-700 font-medium">{ds.declared_absent_count || 0} absent</span>
-          </div>
-          {(ds.declarants || []).length > 0 ? (
-            <div className="space-y-1.5">
-              {ds.declarants.map((dec, i) => (
-                <div key={i} className="flex items-center gap-2 text-sm">
-                  {dec.declared_status === 'absent' ? (
-                    <UserX className="w-3.5 h-3.5 text-red-500" />
-                  ) : (
-                    <UserCheck className="w-3.5 h-3.5 text-emerald-500" />
-                  )}
-                  <span className="text-slate-600">{dec.first_name || 'Participant'}</span>
-                  <span className={`text-xs font-medium ${dec.declared_status === 'absent' ? 'text-red-600' : 'text-emerald-600'}`}>
-                    {dec.declared_status === 'absent' ? 'Absent' : dec.declared_status === 'present_late' ? 'Présent en retard' : 'Présent à l\'heure'}
-                  </span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-xs text-slate-400">Aucune declaration de tiers</p>
-          )}
-        </section>
-
-        {/* Proof summary (light) */}
-        {data.evidence_submissions_count > 0 && (
-          <section className="rounded-xl border border-slate-200 bg-white p-5 mb-5" data-testid="decision-evidence-bloc">
-            <h3 className="text-sm font-bold text-slate-700 mb-2 flex items-center gap-2">
-              <Shield className="w-4 h-4" /> Preuves utilisees
-            </h3>
-            <p className="text-sm text-slate-500">{data.evidence_submissions_count} piece{data.evidence_submissions_count > 1 ? 's' : ''} jointe{data.evidence_submissions_count > 1 ? 's' : ''} au dossier</p>
-          </section>
-        )}
-
-        {/* E. Final status */}
+        {/* G. Final status */}
         <div className="text-center py-4">
           <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-slate-100 text-sm font-medium text-slate-600" data-testid="decision-status">
             <Clock className="w-4 h-4" />
@@ -200,5 +247,159 @@ export default function DecisionDetailPage() {
         </div>
       </div>
     </>
+  );
+}
+
+
+/* ═══════════════════════════════════════════════════════════
+   Bloc "Preuves factuelles" — Transparence sans surcharge
+   ═══════════════════════════════════════════════════════════ */
+
+function TechEvidenceSection({ tes, targetName, appointmentType }) {
+  if (!tes || Object.keys(tes).length === 0) return null;
+
+  const { video, gps, checkin, qr, nlyt, has_any_evidence } = tes;
+  const name = targetName || 'Le participant';
+
+  return (
+    <section className="rounded-xl border border-slate-200 bg-white p-5 mb-5" data-testid="decision-tech-evidence-bloc">
+      <h3 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
+        <Monitor className="w-4 h-4" /> Preuves factuelles
+      </h3>
+      <p className="text-xs text-slate-400 mb-4">
+        Donnees techniques enregistrees par le systeme pour {name}.
+      </p>
+
+      {!has_any_evidence ? (
+        <div className="flex items-center gap-2 px-3 py-3 bg-red-50 border border-red-200 rounded-lg" data-testid="no-evidence-banner">
+          <XCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
+          <p className="text-sm text-red-700">Aucune preuve de presence enregistree pour {name}.</p>
+        </div>
+      ) : (
+        <div className="space-y-3" data-testid="evidence-list">
+          {/* Video */}
+          {video?.has_data && (
+            <EvidenceRow
+              icon={Video}
+              iconColor="text-blue-500"
+              label="Visioconference"
+              testId="evidence-video"
+            >
+              {video.sessions.map((s, i) => (
+                <div key={i} className="flex items-center gap-2 text-xs text-slate-600 mt-1">
+                  <LogIn className="w-3 h-3 text-emerald-500" />
+                  <span className="font-mono">{formatTime(s.joined_at) || '?'}</span>
+                  <span className="text-slate-300">-</span>
+                  <LogOut className="w-3 h-3 text-red-400" />
+                  <span className="font-mono">{formatTime(s.left_at) || '?'}</span>
+                  <span className="text-slate-400">({formatDuration(s.duration_seconds) || '?'})</span>
+                  {s.provider && <span className="text-[10px] text-slate-400 capitalize">{s.provider}</span>}
+                </div>
+              ))}
+              {video.total_duration_seconds > 0 && (
+                <p className="text-xs text-slate-500 font-medium mt-1.5">
+                  Total : {formatDuration(video.total_duration_seconds)}
+                  {video.total_pct_of_rdv != null && <span className="text-slate-400"> ({video.total_pct_of_rdv}% du RDV)</span>}
+                </p>
+              )}
+            </EvidenceRow>
+          )}
+
+          {/* GPS */}
+          {gps?.has_data && (
+            <EvidenceRow
+              icon={Navigation}
+              iconColor="text-teal-500"
+              label="Localisation GPS"
+              testId="evidence-gps"
+            >
+              <p className="text-xs text-slate-600 mt-1">
+                {gps.within_radius ? (
+                  <span className="text-emerald-600 font-medium">
+                    A {gps.distance_meters != null ? `${Math.round(gps.distance_meters)}m` : '?'} du lieu (dans le perimetre)
+                  </span>
+                ) : (
+                  <span className="text-red-600 font-medium">
+                    Hors perimetre ({gps.distance_meters != null ? `${Math.round(gps.distance_meters)}m` : '?'})
+                  </span>
+                )}
+              </p>
+              {gps.geographic_detail && (
+                <p className="text-[11px] text-slate-400 mt-0.5">{gps.geographic_detail}</p>
+              )}
+            </EvidenceRow>
+          )}
+
+          {/* NLYT Proof */}
+          {nlyt?.has_data && (
+            <EvidenceRow
+              icon={Monitor}
+              iconColor="text-sky-500"
+              label="Preuve NLYT"
+              testId="evidence-nlyt"
+            >
+              <div className="flex items-center gap-3 text-xs text-slate-600 mt-1">
+                <span>Score : <strong className={nlyt.best_score >= 50 ? 'text-emerald-600' : 'text-amber-600'}>{nlyt.best_score}/100</strong></span>
+                {nlyt.total_active_seconds > 0 && (
+                  <span>Duree active : <strong>{formatDuration(nlyt.total_active_seconds)}</strong></span>
+                )}
+                {nlyt.session_count > 1 && (
+                  <span className="text-slate-400">{nlyt.session_count} sessions</span>
+                )}
+              </div>
+            </EvidenceRow>
+          )}
+
+          {/* Check-in */}
+          {checkin?.has_data && (
+            <EvidenceRow
+              icon={UserCheck}
+              iconColor="text-sky-500"
+              label="Check-in"
+              testId="evidence-checkin"
+            >
+              <p className="text-xs text-slate-600 mt-1">
+                Heure : <span className="font-mono font-medium">{formatTime(checkin.timestamp) || '?'}</span>
+                {checkin.temporal_detail && <span className="text-slate-400 ml-2">({checkin.temporal_detail})</span>}
+              </p>
+            </EvidenceRow>
+          )}
+
+          {/* QR */}
+          {qr?.has_data && (
+            <EvidenceRow
+              icon={QrCode}
+              iconColor="text-violet-500"
+              label="QR Code"
+              testId="evidence-qr"
+            >
+              <p className="text-xs text-slate-600 mt-1">
+                Scanne a <span className="font-mono font-medium">{formatTime(qr.timestamp) || '?'}</span>
+              </p>
+            </EvidenceRow>
+          )}
+
+          {/* Aucun signal pour les types absents */}
+          {!video?.has_data && !gps?.has_data && !nlyt?.has_data && !checkin?.has_data && !qr?.has_data && (
+            <div className="flex items-center gap-2 text-xs text-slate-400" data-testid="no-evidence-line">
+              <XCircle className="w-3.5 h-3.5" />
+              <span>Aucune preuve technique enregistree</span>
+            </div>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function EvidenceRow({ icon: IconCmp, iconColor, label, testId, children }) {
+  return (
+    <div className="pl-1" data-testid={testId}>
+      <div className="flex items-center gap-1.5 text-xs">
+        <IconCmp className={`w-3.5 h-3.5 ${iconColor}`} />
+        <span className="font-medium text-slate-700">{label}</span>
+      </div>
+      <div className="ml-5">{children}</div>
+    </div>
   );
 }

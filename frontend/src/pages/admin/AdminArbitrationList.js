@@ -2,10 +2,10 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { adminAPI } from '../../services/api';
 import AppNavbar from '../../components/AppNavbar';
-import { Shield, Clock, CheckCircle, XCircle, Scale, ChevronRight, Video, MapPin } from 'lucide-react';
+import { Shield, Clock, CheckCircle, XCircle, Scale, ChevronRight, Video, MapPin, Calendar, User } from 'lucide-react';
 
 const POSITION_LABELS = {
-  confirmed_present: 'Présent à l\'heure',
+  confirmed_present: 'Present a l\'heure',
   confirmed_absent: 'Absent',
   confirmed_late_penalized: 'Retard penalise',
 };
@@ -33,6 +33,26 @@ const EMPTY_MESSAGES = {
   agreed: { title: 'Aucun accord mutuel', sub: 'Les accords entre parties apparaitront ici' },
 };
 
+function groupByAppointment(disputes) {
+  const map = new Map();
+  for (const d of disputes) {
+    const aptId = d.appointment_id;
+    if (!map.has(aptId)) {
+      map.set(aptId, {
+        appointment_id: aptId,
+        appointment_title: d.appointment_title || 'Rendez-vous',
+        appointment_date: d.appointment_date || '',
+        appointment_type: d.appointment_type || '',
+        appointment_location: d.appointment_location || '',
+        appointment_meeting_provider: d.appointment_meeting_provider || '',
+        disputes: [],
+      });
+    }
+    map.get(aptId).disputes.push(d);
+  }
+  return Array.from(map.values());
+}
+
 function AgeIndicator({ daysAgo, hoursAgo }) {
   if (daysAgo == null && hoursAgo == null) return null;
   const urgent = daysAgo >= 3;
@@ -57,7 +77,6 @@ export default function AdminArbitrationList() {
   const [activeFilter, setActiveFilter] = useState('escalated');
   const [filterLoading, setFilterLoading] = useState(false);
 
-  // Initial load: stats + default filter
   useEffect(() => {
     const init = async () => {
       try {
@@ -76,9 +95,8 @@ export default function AdminArbitrationList() {
     init();
   }, []);
 
-  // Filter change handler
   const handleFilterClick = useCallback(async (filterKey) => {
-    if (filterKey === activeFilter) return; // Already selected
+    if (filterKey === activeFilter) return;
     setActiveFilter(filterKey);
     setFilterLoading(true);
     try {
@@ -102,6 +120,7 @@ export default function AdminArbitrationList() {
     );
   }
 
+  const groups = groupByAppointment(disputes);
   const emptyMsg = EMPTY_MESSAGES[activeFilter] || EMPTY_MESSAGES.escalated;
 
   return (
@@ -141,21 +160,23 @@ export default function AdminArbitrationList() {
           <p className="text-sm font-medium text-slate-700">
             {FILTERS.find(f => f.key === activeFilter)?.label}
           </p>
-          <span className="text-xs text-slate-400">({disputes.length})</span>
+          <span className="text-xs text-slate-400">
+            ({groups.length} RDV{groups.length > 1 ? 's' : ''}, {disputes.length} litige{disputes.length > 1 ? 's' : ''})
+          </span>
           {filterLoading && <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-slate-400" />}
         </div>
 
-        {/* Dispute list */}
-        {disputes.length === 0 ? (
+        {/* Grouped dispute list */}
+        {groups.length === 0 ? (
           <div className="text-center py-16 bg-white border border-slate-200 rounded-xl" data-testid="no-disputes">
             <CheckCircle className="w-12 h-12 text-emerald-400 mx-auto mb-3" />
             <p className="text-lg font-medium text-slate-700">{emptyMsg.title}</p>
             <p className="text-sm text-slate-400 mt-1">{emptyMsg.sub}</p>
           </div>
         ) : (
-          <div className="space-y-3" data-testid="dispute-list">
-            {disputes.map((d) => (
-              <DisputeCard key={d.dispute_id} d={d} />
+          <div className="space-y-4" data-testid="dispute-list">
+            {groups.map((group) => (
+              <AppointmentArbitrationCard key={group.appointment_id} group={group} activeFilter={activeFilter} />
             ))}
           </div>
         )}
@@ -164,78 +185,123 @@ export default function AdminArbitrationList() {
   );
 }
 
-function DisputeCard({ d }) {
+function AppointmentArbitrationCard({ group, activeFilter }) {
+  const { disputes } = group;
+  const isPhysical = group.appointment_type === 'physical';
+  const locationLabel = isPhysical
+    ? (group.appointment_location || 'Physique')
+    : (group.appointment_meeting_provider || 'Visioconference');
+  const LocationIcon = isPhysical ? MapPin : Video;
+
+  return (
+    <div
+      className="rounded-xl border border-slate-200 bg-white overflow-hidden"
+      data-testid={`arbitration-group-${group.appointment_id}`}
+    >
+      {/* Header: appointment context */}
+      <div className="px-5 pt-4 pb-3 border-b border-slate-100">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1.5">
+              <h3 className="text-sm font-semibold text-slate-900 truncate">{group.appointment_title}</h3>
+              {disputes.length > 1 && (
+                <span className="px-1.5 py-0.5 rounded-md bg-slate-100 text-[10px] font-bold text-slate-500">
+                  {disputes.length} litiges
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-3 text-xs text-slate-500">
+              <span className="flex items-center gap-1">
+                <Calendar className="w-3 h-3" />
+                {group.appointment_date
+                  ? new Date(group.appointment_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+                  : ''}
+              </span>
+              <span className="flex items-center gap-1">
+                <LocationIcon className="w-3 h-3" />
+                {locationLabel}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Dispute sub-rows */}
+      <div className="divide-y divide-slate-50">
+        {disputes.map((d) => (
+          <DisputeSubRow key={d.dispute_id} d={d} activeFilter={activeFilter} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function DisputeSubRow({ d, activeFilter }) {
   const statusBadge = STATUS_BADGES[d.status];
 
   return (
     <Link
       to={`/admin/arbitration/${d.dispute_id}`}
-      className="block bg-white border border-slate-200 rounded-xl p-5 transition-all hover:border-slate-400 hover:shadow-sm cursor-pointer"
+      className="flex items-center gap-3 px-5 py-3.5 hover:bg-slate-50/50 transition-colors"
       data-testid={`dispute-card-${d.dispute_id}`}
     >
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap mb-1.5">
-            <h3 className="text-sm font-semibold text-slate-900 truncate">{d.appointment_title || 'Rendez-vous'}</h3>
-            {statusBadge && (
-              <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold ${statusBadge.cls}`} data-testid="status-badge">
-                {statusBadge.label}
-              </span>
-            )}
-            {d.status === 'escalated' && <AgeIndicator daysAgo={d.escalated_days_ago} hoursAgo={d.escalated_hours_ago} />}
-          </div>
+      {/* Avatar placeholder */}
+      <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center flex-shrink-0">
+        <User className="w-4 h-4 text-slate-400" />
+      </div>
 
-          <p className="text-xs text-slate-500 mb-2 flex items-center gap-2 flex-wrap">
-            {d.appointment_type === 'video' ? (
-              <span className="inline-flex items-center gap-1"><Video className="w-3 h-3" />{d.appointment_meeting_provider || 'Visio'}</span>
-            ) : (
-              <span className="inline-flex items-center gap-1"><MapPin className="w-3 h-3" />{d.appointment_location || 'Physique'}</span>
-            )}
-            <span>{d.appointment_date ? new Date(d.appointment_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) : ''}</span>
-          </p>
-
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-xs font-medium text-slate-600">Cible : {d.target_name || 'Inconnu'}</span>
-            {d.has_admissible_proof ? (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-700" data-testid="proof-badge-yes">
-                <Shield className="w-3 h-3" /> Preuve detectee
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-red-100 text-red-700" data-testid="proof-badge-no">
-                <XCircle className="w-3 h-3" /> Aucune preuve
-              </span>
-            )}
-          </div>
-
-          <div className="flex items-center gap-4 text-xs">
-            <span className="text-slate-500">
-              Organisateur : <strong className="text-slate-700">{POSITION_LABELS[d.positions?.organizer] || '—'}</strong>
+      {/* Main content */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap mb-1">
+          <span className="text-sm font-medium text-slate-700 truncate">
+            Cible : {d.target_name || 'Inconnu'}
+          </span>
+          {statusBadge && (
+            <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${statusBadge.cls}`} data-testid="status-badge">
+              {statusBadge.label}
             </span>
-            <span className="text-slate-400">vs</span>
-            <span className="text-slate-500">
-              Participant : <strong className="text-slate-700">{POSITION_LABELS[d.positions?.participant] || '—'}</strong>
+          )}
+          {d.status === 'escalated' && <AgeIndicator daysAgo={d.escalated_days_ago} hoursAgo={d.escalated_hours_ago} />}
+          {d.has_admissible_proof ? (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-700" data-testid="proof-badge-yes">
+              <Shield className="w-2.5 h-2.5" /> Preuve
             </span>
-          </div>
-
-          {/* Financial summary for resolved/agreed disputes */}
-          {d.financial_summary && (
-            <p className={`text-xs font-medium mt-2 px-2.5 py-1 rounded-lg inline-block ${
-              d.financial_summary === 'Aucune penalite'
-                ? 'bg-emerald-50 text-emerald-700'
-                : 'bg-red-50 text-red-700'
-            }`} data-testid="financial-summary">
-              {d.financial_summary}
-            </p>
+          ) : (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-100 text-red-700" data-testid="proof-badge-no">
+              <XCircle className="w-2.5 h-2.5" /> Sans preuve
+            </span>
           )}
         </div>
 
-        {/* Right: CTA */}
-        <div className="flex-shrink-0 flex items-center gap-2">
-          <span className="hidden sm:inline text-xs font-medium text-slate-500">
-            {d.status === 'escalated' ? 'Arbitrer' : 'Voir la decision'}
+        {/* Positions */}
+        <div className="flex items-center gap-3 text-xs">
+          <span className="text-slate-500">
+            Org : <strong className="text-slate-700">{POSITION_LABELS[d.positions?.organizer] || '—'}</strong>
           </span>
-          <ChevronRight className="w-5 h-5 text-slate-400" />
+          <span className="text-slate-300">vs</span>
+          <span className="text-slate-500">
+            Part : <strong className="text-slate-700">{POSITION_LABELS[d.positions?.participant] || '—'}</strong>
+          </span>
         </div>
+
+        {/* Financial summary for resolved/agreed */}
+        {d.financial_summary && (
+          <p className={`text-[11px] font-medium mt-1.5 px-2 py-0.5 rounded-lg inline-block ${
+            d.financial_summary === 'Aucune penalite'
+              ? 'bg-emerald-50 text-emerald-700'
+              : 'bg-red-50 text-red-700'
+          }`} data-testid="financial-summary">
+            {d.financial_summary}
+          </p>
+        )}
+      </div>
+
+      {/* CTA */}
+      <div className="flex-shrink-0 flex items-center gap-1">
+        <span className="hidden sm:inline text-xs font-medium text-slate-500">
+          {d.status === 'escalated' ? 'Arbitrer' : 'Voir'}
+        </span>
+        <ChevronRight className="w-4 h-4 text-slate-400" />
       </div>
     </Link>
   );

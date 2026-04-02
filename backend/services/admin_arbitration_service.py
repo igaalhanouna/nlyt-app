@@ -14,6 +14,114 @@ from utils.date_utils import now_utc
 logger = logging.getLogger(__name__)
 
 
+def build_evidence_summary_for_target(appointment_id: str, target_participant_id: str, duration_minutes: int = 0) -> dict:
+    """Build a user-facing evidence summary for a single target participant.
+
+    Returns structured, human-readable proof data (no raw payloads).
+    Designed for the /decisions detail page — transparency without overload.
+    """
+    # Evidence items for target
+    evidence_items = list(db.evidence_items.find(
+        {"appointment_id": appointment_id, "participant_id": target_participant_id},
+        {"_id": 0, "source": 1, "source_timestamp": 1, "derived_facts": 1}
+    ))
+
+    # Proof sessions for target
+    proof_sessions = list(db.proof_sessions.find(
+        {"appointment_id": appointment_id, "participant_id": target_participant_id},
+        {"_id": 0, "checked_in_at": 1, "checked_out_at": 1,
+         "heartbeat_count": 1, "active_duration_seconds": 1, "score": 1,
+         "proof_level": 1}
+    ))
+
+    # --- Video ---
+    video_sessions = []
+    for e in evidence_items:
+        if e["source"] == "video_conference":
+            df = e.get("derived_facts") or {}
+            dur = df.get("duration_seconds")
+            pct = round((dur / (duration_minutes * 60)) * 100) if dur and duration_minutes else None
+            video_sessions.append({
+                "joined_at": df.get("joined_at"),
+                "left_at": df.get("left_at"),
+                "duration_seconds": dur,
+                "provider": df.get("provider"),
+                "pct_of_rdv": pct,
+            })
+    total_video_sec = sum(s.get("duration_seconds") or 0 for s in video_sessions)
+    video = {
+        "has_data": len(video_sessions) > 0,
+        "sessions": video_sessions,
+        "total_duration_seconds": total_video_sec,
+        "total_pct_of_rdv": round((total_video_sec / (duration_minutes * 60)) * 100) if total_video_sec and duration_minutes else None,
+    }
+
+    # --- GPS ---
+    gps = {"has_data": False}
+    for e in evidence_items:
+        if e["source"] == "gps":
+            df = e.get("derived_facts") or {}
+            gps = {
+                "has_data": True,
+                "distance_meters": df.get("distance_meters"),
+                "within_radius": df.get("gps_within_radius", False),
+                "geographic_detail": df.get("geographic_detail"),
+            }
+            break
+
+    # --- Checkin ---
+    checkin = {"has_data": False}
+    for e in evidence_items:
+        if e["source"] == "manual_checkin":
+            df = e.get("derived_facts") or {}
+            checkin = {
+                "has_data": True,
+                "timestamp": e.get("source_timestamp"),
+                "temporal_detail": df.get("temporal_detail"),
+            }
+            break
+
+    # --- QR ---
+    qr = {"has_data": False}
+    for e in evidence_items:
+        if e["source"] == "qr":
+            qr = {
+                "has_data": True,
+                "timestamp": e.get("source_timestamp"),
+            }
+            break
+
+    # --- NLYT Proof Sessions ---
+    nlyt = {"has_data": False}
+    if proof_sessions:
+        best_score = max(ps.get("score") or 0 for ps in proof_sessions)
+        total_active = sum(ps.get("active_duration_seconds") or 0 for ps in proof_sessions)
+        best_level = None
+        for ps in proof_sessions:
+            if ps.get("score") == best_score:
+                best_level = ps.get("proof_level")
+                break
+        nlyt = {
+            "has_data": True,
+            "best_score": best_score,
+            "total_active_seconds": total_active,
+            "proof_level": best_level,
+            "session_count": len(proof_sessions),
+        }
+
+    # --- Overall signal ---
+    has_any = video["has_data"] or gps["has_data"] or checkin["has_data"] or qr["has_data"] or nlyt["has_data"]
+
+    return {
+        "has_any_evidence": has_any,
+        "video": video,
+        "gps": gps,
+        "checkin": checkin,
+        "qr": qr,
+        "nlyt": nlyt,
+    }
+
+
 def build_tech_dossier(appointment_id: str, target_participant_id: str) -> dict:
     """Aggregate all technical evidence for the admin dossier.
 

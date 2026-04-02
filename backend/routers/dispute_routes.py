@@ -414,6 +414,14 @@ async def get_dispute_detail(dispute_id: str, request: Request):
         dispute['appointment_id'], dispute['target_participant_id'], user['user_id']
     )
 
+    # Tech evidence summary for transparency (user-facing, no raw payloads)
+    from services.admin_arbitration_service import build_evidence_summary_for_target
+    dispute['tech_evidence_summary'] = build_evidence_summary_for_target(
+        dispute['appointment_id'],
+        dispute['target_participant_id'],
+        dispute.get('appointment_duration_minutes', 0),
+    )
+
     _enrich_dispute_for_user(dispute, user['user_id'])
 
     # Get user's own declaration from attendance sheet
