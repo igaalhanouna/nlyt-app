@@ -42,6 +42,16 @@ Application SaaS (React/FastAPI/MongoDB) de gestion des presences avec garanties
 
 ## Completed Features (Latest)
 
+### Harmonisation Wording Arbitration (2026-04-02)
+- AdminArbitrationList.js: positions affichees en phrases completes "{Name} (org.) maintient {Target} {status}"
+- AdminArbitrationDetail.js: 4 zones corrigees:
+  - PositionCard: "X maintient que Y est absent" / "X maintient etre present"
+  - Declarants: "X declare que Y est absent" (au lieu de "X dit : Absent")
+  - Tech dossier: "1 participant declare X present" (au lieu de "Declare: 1x present")
+  - buildDisagreementPhrase: meme pattern "maintient que"
+- Positions null affichent "position non soumise" au lieu de tiret
+- Tests: 20/20 PASS (iteration 174)
+
 ### Refonte Wording "Ce qui a ete declare" (2026-04-02)
 - Toutes les declarations suivent le pattern "X declare Y status" ou "X se declare status"
 - Plus aucun statut isole (Absent, Present) sans contexte
