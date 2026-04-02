@@ -602,9 +602,10 @@ def get_dispute_detail_for_admin(dispute_id: str) -> dict:
     if org_p:
         dispute["organizer_name"] = f"{org_p.get('first_name', '')} {org_p.get('last_name', '')}".strip()
 
-    # Counterpart name: the OTHER party (the one who is not the target)
-    # If target is the organizer → counterpart is the first non-org participant
-    # If target is a participant → counterpart is the organizer
+    # Counterpart name: the person facing the organizer in the dispute.
+    # Rule:
+    #   - If target IS a participant → counterpart = target (they face the organizer)
+    #   - If target IS the organizer → counterpart = first accepted non-org participant
     if target_p and org_p:
         target_is_org = (dispute.get("target_participant_id") == org_p.get("participant_id")) if org_p.get("participant_id") else False
     else:
@@ -620,8 +621,8 @@ def get_dispute_detail_for_admin(dispute_id: str) -> dict:
         if cp:
             dispute["counterpart_name"] = f"{cp.get('first_name', '')} {cp.get('last_name', '')}".strip()
     else:
-        # Target is a participant → counterpart = organizer
-        dispute["counterpart_name"] = dispute.get("organizer_name", "")
+        # Target is a participant → counterpart = target (the person facing the org)
+        dispute["counterpart_name"] = dispute.get("target_name", "")
 
     # Tech dossier
     tech_dossier = build_tech_dossier(apt_id, target_pid)

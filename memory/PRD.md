@@ -42,6 +42,14 @@ Application SaaS (React/FastAPI/MongoDB) de gestion des presences avec garanties
 
 ## Completed Features (Latest)
 
+### Fix Duplication counterpart_name dans /arbitration (2026-04-02)
+- Bug: counterpart_name = organizer_name au lieu de target_name quand cible = participant
+- Cause: logique inversee ligne 624 de admin_arbitration_service.py
+- Fix: counterpart_name = target_name (la contrepartie de l'org = la cible)
+- Verifie sur 57 disputes: 0 duplication restante
+- Cas A (cible=participant), B (cible=org), C (multi-participants): tous valides
+- Screenshot confirme: "Test Audit maintient que Igaal est absent" vs "Igaal maintient etre present"
+
 ### Refonte Wording Detail Financier /decisions (2026-04-02)
 - "Montant preleve" → "Montant preleve a {Nom}" (qui paie = explicite)
 - "Verse a l'organisateur" → "Montant recu par {Nom} (organisateur)" (qui recoit = explicite)
