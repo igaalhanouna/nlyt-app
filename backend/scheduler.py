@@ -2,15 +2,15 @@
 Background Scheduler for NLYT
 Runs periodic tasks like reminder emails
 
-Two types of reminders:
-1. Cancellation deadline reminder (reminder_service.py) - 1h before deadline
-2. Event reminders (event_reminder_service.py) - 10min/1h/1day before RDV
+All jobs are protected by a distributed MongoDB lock to prevent
+concurrent execution across multiple pods/instances.
 """
 import asyncio
 import logging
 from datetime import datetime, timezone
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
+from services.distributed_lock import acquire_lock, release_lock
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -18,161 +18,240 @@ logger = logging.getLogger(__name__)
 scheduler = AsyncIOScheduler()
 
 
+# ═══════════════════════════════════════════════════════════════════
+# Job definitions — each protected by distributed lock
+# ═══════════════════════════════════════════════════════════════════
+
 async def cancellation_deadline_reminder_job():
     """Job to send reminders 1h before cancellation deadline"""
+    if not acquire_lock("cancellation_deadline_reminder", ttl_seconds=240):
+        return
     try:
         from services.reminder_service import run_reminder_job
         await run_reminder_job()
     except Exception as e:
         logger.error(f"[SCHEDULER] Cancellation deadline reminder job failed: {str(e)}")
+    finally:
+        release_lock("cancellation_deadline_reminder")
 
 
 async def event_reminder_job():
     """Job to send event reminders (10min/1h/1day before RDV)"""
+    if not acquire_lock("event_reminder", ttl_seconds=90):
+        return
     try:
         from services.event_reminder_service import run_event_reminder_job
         await run_event_reminder_job()
     except Exception as e:
         logger.error(f"[SCHEDULER] Event reminder job failed: {str(e)}")
+    finally:
+        release_lock("event_reminder")
 
 
 async def attendance_evaluation_job():
     """Job to evaluate attendance for ended appointments"""
+    if not acquire_lock("attendance_evaluation", ttl_seconds=90):
+        return
     try:
         from services.attendance_service import run_attendance_evaluation_job
         run_attendance_evaluation_job()
     except Exception as e:
         logger.error(f"[SCHEDULER] Attendance evaluation job failed: {str(e)}")
+    finally:
+        release_lock("attendance_evaluation")
 
 
 async def review_timeout_job():
     """Job to auto-resolve stale review_required records after 15 days"""
+    if not acquire_lock("review_timeout", ttl_seconds=1800):
+        return
     try:
         from services.attendance_service import run_review_timeout_job
         run_review_timeout_job()
     except Exception as e:
         logger.error(f"[SCHEDULER] Review timeout job failed: {str(e)}")
+    finally:
+        release_lock("review_timeout")
 
 
 async def declarative_deadline_job():
     """Job to enforce 48h deadline on attendance sheets"""
+    if not acquire_lock("declarative_deadline", ttl_seconds=240):
+        return
     try:
         from services.declarative_service import run_declarative_deadline_job
         run_declarative_deadline_job()
     except Exception as e:
         logger.error(f"[SCHEDULER] Declarative deadline job failed: {str(e)}")
+    finally:
+        release_lock("declarative_deadline")
 
 
 async def dispute_escalation_job():
     """Job to escalate disputes past 7-day deadline"""
+    if not acquire_lock("dispute_escalation", ttl_seconds=600):
+        return
     try:
         from services.declarative_service import run_dispute_deadline_job
         run_dispute_deadline_job()
     except Exception as e:
         logger.error(f"[SCHEDULER] Dispute escalation job failed: {str(e)}")
+    finally:
+        release_lock("dispute_escalation")
 
 
 async def auto_fetch_attendance_job():
     """Job to auto-fetch video attendance from Zoom/Teams after meetings end"""
+    if not acquire_lock("auto_fetch_attendance", ttl_seconds=240):
+        return
     try:
         from services.auto_fetch_attendance_service import run_auto_fetch_attendance_job
         run_auto_fetch_attendance_job()
     except Exception as e:
         logger.error(f"[SCHEDULER] Auto-fetch attendance job failed: {str(e)}")
+    finally:
+        release_lock("auto_fetch_attendance")
 
 
 async def distribution_hold_expiry_job():
     """Job to finalize distributions whose 15-day hold period has expired"""
+    if not acquire_lock("distribution_hold_expiry", ttl_seconds=600):
+        return
     try:
         from services.distribution_service import finalize_expired_holds
         finalize_expired_holds()
     except Exception as e:
         logger.error(f"[SCHEDULER] Distribution hold expiry job failed: {str(e)}")
+    finally:
+        release_lock("distribution_hold_expiry")
 
 
 async def contestation_timeout_job():
     """Job to auto-reject stale contestations after 30 days"""
+    if not acquire_lock("contestation_timeout", ttl_seconds=1800):
+        return
     try:
         from services.distribution_service import run_contestation_timeout_job
         run_contestation_timeout_job()
     except Exception as e:
         logger.error(f"[SCHEDULER] Contestation timeout job failed: {str(e)}")
+    finally:
+        release_lock("contestation_timeout")
 
 
 async def ledger_reconciliation_job():
     """Job to verify wallet balances match the ledger"""
+    if not acquire_lock("ledger_reconciliation", ttl_seconds=1800):
+        return
     try:
         from services.wallet_service import run_reconciliation_job
         run_reconciliation_job()
     except Exception as e:
         logger.error(f"[SCHEDULER] Ledger reconciliation job failed: {str(e)}")
+    finally:
+        release_lock("ledger_reconciliation")
 
 
 async def impact_stats_refresh_job():
     """Job to refresh cached public impact statistics"""
+    if not acquire_lock("impact_stats_refresh", ttl_seconds=900):
+        return
     try:
         from services.distribution_service import refresh_impact_stats
         refresh_impact_stats()
     except Exception as e:
         logger.error(f"[SCHEDULER] Impact stats refresh job failed: {str(e)}")
+    finally:
+        release_lock("impact_stats_refresh")
 
 
 async def proposal_expiration_job():
     """Job to expire stale modification proposals (24h timeout)"""
+    if not acquire_lock("proposal_expiration", ttl_seconds=240):
+        return
     try:
         from services.modification_service import expire_stale_proposals
         expire_stale_proposals()
     except Exception as e:
         logger.error(f"[SCHEDULER] Proposal expiration job failed: {str(e)}")
+    finally:
+        release_lock("proposal_expiration")
 
 
 async def modification_vote_reminder_job():
     """Job to send vote reminders for proposals expiring within 1 hour"""
+    if not acquire_lock("modification_vote_reminder", ttl_seconds=600):
+        return
     try:
         from services.modification_service import send_modification_vote_reminders
         send_modification_vote_reminders()
     except Exception as e:
         logger.error(f"[SCHEDULER] Vote reminder job failed: {str(e)}")
+    finally:
+        release_lock("modification_vote_reminder")
 
 
 async def calendar_retry_job():
     """Job to retry failed/out_of_sync calendar sync operations with exponential backoff"""
+    if not acquire_lock("calendar_retry", ttl_seconds=90):
+        return
     try:
         from services.calendar_retry_service import run_calendar_retry_job
         run_calendar_retry_job()
     except Exception as e:
         logger.error(f"[SCHEDULER] Calendar retry job failed: {str(e)}")
+    finally:
+        release_lock("calendar_retry")
 
 
 async def stale_payout_detection_job():
     """Job to detect payouts stuck in processing for more than 24h"""
+    if not acquire_lock("stale_payout_detection", ttl_seconds=1800):
+        return
     try:
         from services.stale_payout_detector import scan_stale_payouts
         scan_stale_payouts()
     except Exception as e:
         logger.error(f"[SCHEDULER] Stale payout detection job failed: {str(e)}")
+    finally:
+        release_lock("stale_payout_detection")
 
 
 async def graph_subscription_renewal_job():
     """Job to renew Microsoft Graph webhook subscriptions before expiry"""
+    if not acquire_lock("graph_subscription_renewal", ttl_seconds=1800):
+        return
     try:
         from routers.video_webhooks import renew_all_graph_subscriptions
         renew_all_graph_subscriptions()
     except Exception as e:
         logger.error(f"[SCHEDULER] Graph subscription renewal job failed: {str(e)}")
+    finally:
+        release_lock("graph_subscription_renewal")
 
 
 async def sheet_reminder_job():
     """Job to send reminders for pending attendance sheets approaching deadline"""
+    if not acquire_lock("sheet_reminder", ttl_seconds=900):
+        return
     try:
         from services.declarative_service import run_sheet_reminder_job
         run_sheet_reminder_job()
     except Exception as e:
         logger.error(f"[SCHEDULER] Sheet reminder job failed: {str(e)}")
+    finally:
+        release_lock("sheet_reminder")
 
+
+# ═══════════════════════════════════════════════════════════════════
+# Scheduler setup
+# ═══════════════════════════════════════════════════════════════════
 
 def start_scheduler():
-    """Start the background scheduler"""
+    """Start the background scheduler with distributed locking."""
+    from services.distributed_lock import ensure_lock_indexes
+    ensure_lock_indexes()
+
     # Job 1: Cancellation deadline reminders (every 5 minutes)
     scheduler.add_job(
         cancellation_deadline_reminder_job,
@@ -327,10 +406,10 @@ def start_scheduler():
     )
 
     scheduler.start()
-    logger.info("[SCHEDULER] Background scheduler started")
+    logger.info("[SCHEDULER] Background scheduler started (distributed locks enabled)")
     logger.info("[SCHEDULER]    - Cancellation deadline reminders: every 5 minutes")
     logger.info("[SCHEDULER]    - Event reminders (10min/1h/1day): every 2 minutes")
-    logger.info("[SCHEDULER]    - Attendance evaluation: every 10 minutes")
+    logger.info("[SCHEDULER]    - Attendance evaluation: every 2 minutes")
     logger.info("[SCHEDULER]    - Auto-fetch video attendance (Zoom/Teams): every 5 minutes")
     logger.info("[SCHEDULER]    - Distribution hold expiry: every 15 minutes")
     logger.info("[SCHEDULER]    - Impact stats refresh: every 30 minutes")
