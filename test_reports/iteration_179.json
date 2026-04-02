@@ -1,0 +1,121 @@
+{
+  "summary": "Recette UI V5.1 — Complete product rendering verification for 5 test scenarios. All 10 test cases passed. Both organizer (testuser_audit@nlyt.app) and participant (igaal@hotmail.com) perspectives verified. V5.1 rule correctly applied: only accepted_guaranteed participants enter declarative phase, non-guaranteed are auto-waived.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "Dashboard Historique (Participant view)",
+        "issues": [
+          "S2 and S4 show 'Vérification en cours' label even though declarative_phase=not_needed. This is technically correct (participant sees their own record status which is manual_review for organizer), but could be confusing. Consider showing 'Aucune pénalité applicable' more prominently."
+        ]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/test_reports/qa_recette_v51.json"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "V5.1 rule correctly implemented: non-guaranteed participants are auto-waived with decision_source='non_guaranteed_auto_waived'",
+    "Attendance sheets correctly created only for guaranteed participants (S1: 2 sheets, S3: 2 sheets)",
+    "Non-guaranteed participants correctly excluded from attendance sheet targets (S3: Fresh User not a target)",
+    "S2/S4 correctly have declarative_phase='not_needed' and 0 attendance sheets",
+    "S5 correctly shows 'Engagement respecté — aucune pénalité' with all records resolved as on_time"
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100% (database verification passed)",
+    "frontend": "100% (all UI scenarios verified)"
+  },
+  "test_credentials": {
+    "organizer": "testuser_audit@nlyt.app / TestAudit123!",
+    "participant": "igaal@hotmail.com / Test123!"
+  },
+  "seed_data_creation": "5 test scenarios (ui-recette-s1 to s5) pre-seeded in database",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Recette UI V5.1 complete. 5 test scenarios verified: S1 (2 guaranteed, collecting), S2 (1 non-guaranteed, not_needed), S3 (mix, collecting), S4 (<2 guaranteed, not_needed), S5 (resolved). All V5.1 rules correctly applied.",
+  "test_results": {
+    "organizer_perspective": {
+      "dashboard_historique": {
+        "status": "PASS",
+        "details": "5 RDV appear in timeline. All show 'Confirmé' badge (participant view). S1/S3 show 'Vérification en cours', S2/S4 show 'Vérification en cours', S5 shows 'Engagement respecté'."
+      },
+      "presences_page": {
+        "status": "PASS",
+        "details": "2 pending sheets: S1 and S3 (correct). S2/S4/S5 do NOT show pending sheets (correct)."
+      },
+      "litiges_page": {
+        "status": "PASS",
+        "details": "0 open disputes (correct)."
+      },
+      "decisions_page": {
+        "status": "PASS",
+        "details": "No decisions rendered yet (correct - S5 resolved via declarative, not dispute)."
+      },
+      "admin_arbitration": {
+        "status": "PASS",
+        "details": "0 escalated disputes (correct)."
+      },
+      "s1_sheet_targets": {
+        "status": "PASS",
+        "details": "2 targets: Igaal Hanouna + Vous-même (self-declaration). Only guaranteed participants."
+      },
+      "s3_sheet_targets": {
+        "status": "PASS",
+        "details": "2 targets: Igaal Hanouna + Vous-même. Non-guaranteed participant (Fresh User) NOT a target (correct)."
+      }
+    },
+    "participant_perspective": {
+      "dashboard_historique": {
+        "status": "PASS",
+        "details": "5 RDV appear. S1/S3: 'Confirmé' + 'Vérification en cours'. S2/S4: 'Garantie en attente' + 'Aucune pénalité applicable'. S5: 'Confirmé' + 'Engagement respecté'."
+      },
+      "presences_page": {
+        "status": "PASS",
+        "details": "2 pending sheets: S1 and S3 (correct - only where participant is accepted_guaranteed). S2/S4 NOT shown (correct - waived)."
+      },
+      "litiges_page": {
+        "status": "PASS",
+        "details": "0 open disputes (correct)."
+      }
+    },
+    "database_verification": {
+      "s1": {
+        "status": "PASS",
+        "phase": "collecting",
+        "sheets": 2,
+        "records": "2 manual_review"
+      },
+      "s2": {
+        "status": "PASS",
+        "phase": "not_needed",
+        "sheets": 0,
+        "records": "1 manual_review (org) + 1 waived (part)"
+      },
+      "s3": {
+        "status": "PASS",
+        "phase": "collecting",
+        "sheets": 2,
+        "records": "2 manual_review + 1 waived"
+      },
+      "s4": {
+        "status": "PASS",
+        "phase": "not_needed",
+        "sheets": 0,
+        "records": "1 manual_review (org) + 2 waived"
+      },
+      "s5": {
+        "status": "PASS",
+        "phase": "not_needed (resolved)",
+        "sheets": "2 submitted",
+        "records": "2 on_time"
+      }
+    }
+  }
+}
