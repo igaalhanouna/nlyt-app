@@ -200,20 +200,21 @@ export default function AdminArbitrationDetail() {
                 {/* Declarants */}
                 {hasDeclarants && (
                   <div>
-                    {(ds.declarants || []).map((dec, i) => (
-                      <div key={i} className="flex items-center gap-2 text-sm py-1.5">
-                        {dec.declared_status === 'absent' ? (
-                          <UserX className="w-4 h-4 text-red-500" />
-                        ) : (
-                          <UserCheck className="w-4 h-4 text-emerald-500" />
-                        )}
-                        <span className="text-slate-700 font-medium">{dec.first_name || 'Participant'}</span>
-                        <span className="text-slate-400">dit :</span>
-                        <span className={`font-medium ${dec.declared_status === 'absent' ? 'text-red-600' : 'text-emerald-600'}`}>
-                          {dec.declared_status === 'absent' ? 'Absent' : dec.declared_status === 'present_late' ? 'Présent en retard' : 'Présent à l\'heure'}
-                        </span>
-                      </div>
-                    ))}
+                    {(ds.declarants || []).map((dec, i) => {
+                      const declName = dec.first_name || 'Un participant';
+                      const statusLabel = dec.declared_status === 'absent' ? 'absent' : dec.declared_status === 'present_late' ? 'present en retard' : 'present a l\'heure';
+                      const phrase = `${declName} declare que ${dispute.target_name || 'la cible'} est ${statusLabel}`;
+                      return (
+                        <div key={i} className="flex items-center gap-2 text-sm py-1.5">
+                          {dec.declared_status === 'absent' ? (
+                            <UserX className="w-4 h-4 text-red-500" />
+                          ) : (
+                            <UserCheck className="w-4 h-4 text-emerald-500" />
+                          )}
+                          <span className="text-slate-700">{phrase}</span>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
 
@@ -384,11 +385,14 @@ function PositionCard({ role, declarantName, subjectName, isSelfDeclaration, pos
   const textColor = isPresent ? 'text-emerald-700' : isAbsent ? 'text-red-700' : 'text-amber-700';
 
   const statusLabel = POSITION_STATUS[position];
-  const phrase = statusLabel
-    ? (declarantName === subjectName
-        ? `${declarantName} déclare être ${statusLabel}`
-        : `Selon ${declarantName}, ${subjectName} était ${statusLabel}`)
-    : 'Position non soumise';
+  let phrase;
+  if (!statusLabel) {
+    phrase = 'Position non soumise';
+  } else if (isSelfDeclaration || declarantName === subjectName) {
+    phrase = `${declarantName} maintient etre ${statusLabel}`;
+  } else {
+    phrase = `${declarantName} maintient que ${subjectName} est ${statusLabel}`;
+  }
 
   return (
     <div className={`flex-1 rounded-lg border p-4 ${colors}`} data-testid={`position-${role.toLowerCase()}`}>
@@ -697,9 +701,9 @@ function ParticipantDossierCard({ p, durationMinutes }) {
       {/* Declarations about this person */}
       {(declPresent > 0 || declAbsent > 0) && (
         <div className="flex items-center gap-3 text-xs mb-3 pb-2 border-b border-slate-100">
-          <span className="text-slate-400">Declare :</span>
-          {declPresent > 0 && <span className="text-emerald-600 font-medium">{declPresent}x present</span>}
-          {declAbsent > 0 && <span className="text-red-600 font-medium">{declAbsent}x absent</span>}
+          {declPresent > 0 && <span className="text-emerald-600 font-medium">{declPresent} participant{declPresent > 1 ? 's' : ''} declare{declPresent > 1 ? 'nt' : ''} {name} present</span>}
+          {declPresent > 0 && declAbsent > 0 && <span className="text-slate-300">|</span>}
+          {declAbsent > 0 && <span className="text-red-600 font-medium">{declAbsent} participant{declAbsent > 1 ? 's' : ''} declare{declAbsent > 1 ? 'nt' : ''} {name} absent</span>}
         </div>
       )}
 
@@ -886,10 +890,10 @@ function buildDisagreementPhrase(dispute) {
   const orgSays = POSITION_STATUS[org] || '?';
   const parSays = POSITION_STATUS[par] || '?';
   const orgPhrase = orgName === targetName
-    ? `${orgName} déclare être ${orgSays}`
-    : `Selon ${orgName}, ${targetName} était ${orgSays}`;
+    ? `${orgName} maintient etre ${orgSays}`
+    : `${orgName} maintient que ${targetName} est ${orgSays}`;
   const cpPhrase = cpName === targetName
-    ? `${cpName} déclare être ${parSays}`
-    : `Selon ${cpName}, ${targetName} était ${parSays}`;
-  return `Désaccord : ${orgPhrase}. ${cpPhrase}.`;
+    ? `${cpName} maintient etre ${parSays}`
+    : `${cpName} maintient que ${targetName} est ${parSays}`;
+  return `Desaccord : ${orgPhrase}. ${cpPhrase}.`;
 }

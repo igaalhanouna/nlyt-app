@@ -5,9 +5,9 @@ import AppNavbar from '../../components/AppNavbar';
 import { Shield, Clock, CheckCircle, XCircle, Scale, ChevronRight, Video, MapPin, Calendar, User } from 'lucide-react';
 
 const POSITION_LABELS = {
-  confirmed_present: 'Present a l\'heure',
-  confirmed_absent: 'Absent',
-  confirmed_late_penalized: 'Retard penalise',
+  confirmed_present: 'present',
+  confirmed_absent: 'absent',
+  confirmed_late_penalized: 'en retard',
 };
 
 const STATUS_BADGES = {
@@ -273,15 +273,23 @@ function DisputeSubRow({ d, activeFilter }) {
           )}
         </div>
 
-        {/* Positions */}
-        <div className="flex items-center gap-3 text-xs">
-          <span className="text-slate-500">
-            Org : <strong className="text-slate-700">{POSITION_LABELS[d.positions?.organizer] || '—'}</strong>
-          </span>
-          <span className="text-slate-300">vs</span>
-          <span className="text-slate-500">
-            Part : <strong className="text-slate-700">{POSITION_LABELS[d.positions?.participant] || '—'}</strong>
-          </span>
+        {/* Positions — full phrases */}
+        <div className="flex items-center gap-1 text-xs flex-wrap">
+          {d.positions?.organizer ? (
+            <span className="text-slate-600">
+              {d.organizer_name || 'L\'organisateur'} <span className="text-slate-400">(org.)</span> maintient {d.target_name || 'la cible'} <strong className={d.positions.organizer === 'confirmed_absent' ? 'text-red-600' : d.positions.organizer === 'confirmed_present' ? 'text-emerald-600' : 'text-amber-600'}>{POSITION_LABELS[d.positions.organizer] || '?'}</strong>
+            </span>
+          ) : (
+            <span className="text-slate-400">Org. : position non soumise</span>
+          )}
+          <span className="text-slate-200 mx-1">|</span>
+          {d.positions?.participant ? (
+            <span className="text-slate-600">
+              {d.target_name || 'La cible'} se maintient <strong className={d.positions.participant === 'confirmed_absent' ? 'text-red-600' : d.positions.participant === 'confirmed_present' ? 'text-emerald-600' : 'text-amber-600'}>{POSITION_LABELS[d.positions.participant] || '?'}</strong>
+            </span>
+          ) : (
+            <span className="text-slate-400">Cible : position non soumise</span>
+          )}
         </div>
 
         {/* Financial summary for resolved/agreed */}

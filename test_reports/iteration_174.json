@@ -1,0 +1,62 @@
+{
+  "summary": "Iteration 174: Wording Harmonization on Arbitration Pages - All tests PASS. Frontend wording changes verified on /admin/arbitration (list and detail) and /decisions/{id} (regression check). All phrases now follow the format 'X declare que Y est [status]' or 'X maintient que Y est [status]'. No isolated statuses like 'Absent' or 'Present' without context.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": {
+    "frontend": {
+      "admin_arbitration_list_loads": "PASS - /admin/arbitration page loads with data-testid='admin-arbitration-page'",
+      "admin_arbitration_stats": "PASS - Stats cards (escalated=0, awaiting=48, resolved=9, agreed=0) display correctly",
+      "admin_arbitration_list_position_phrases_organizer": "PASS - Organizer positions show '{OrgName} (org.) maintient {TargetName} {status}' format (e.g., 'Test Audit (org.) maintient Igaal Hanouna absent')",
+      "admin_arbitration_list_position_phrases_participant": "PASS - Participant positions show '{TargetName} se maintient {status}' format (e.g., 'Igaal Hanouna se maintient present')",
+      "admin_arbitration_list_null_positions": "PASS - Null positions show 'Org. : position non soumise' and 'Cible : position non soumise' instead of dash",
+      "admin_arbitration_list_grouping": "PASS - Disputes grouped by appointment (no regression)",
+      "admin_arbitration_detail_loads": "PASS - /admin/arbitration/{id} page loads with data-testid='admin-arbitration-detail'",
+      "admin_arbitration_detail_position_card_self": "PASS - PositionCard shows '{Name} maintient etre {status}' for self-declaration (e.g., 'Test Audit maintient etre présent à l'heure')",
+      "admin_arbitration_detail_position_card_other": "PASS - PositionCard shows '{Name} maintient que {Target} est {status}' for other (e.g., 'Test Audit maintient que Igaal Hanouna est absent')",
+      "admin_arbitration_detail_position_card_null": "PASS - PositionCard shows 'Position non soumise' when position is null",
+      "admin_arbitration_detail_disagreement_phrase": "PASS - buildDisagreementPhrase uses 'maintient que' wording (e.g., 'Desaccord : Test Audit maintient que Igaal Hanouna est absent. Test Audit maintient que Igaal Hanouna est présent à l'heure.')",
+      "admin_arbitration_detail_declarant_section": "PASS - Declarant section shows '{Name} declare que {Target} est {status}' (e.g., 'Test declare que Igaal Hanouna est absent')",
+      "admin_arbitration_detail_tech_dossier_declarations": "PASS - Tech dossier shows '{N} participant(s) declare(nt) {Name} present/absent' (e.g., '1 participant declare Igaal Hanouna absent')",
+      "admin_arbitration_detail_verdict_banner": "PASS - Verdict banner displays correctly (no regression)",
+      "admin_arbitration_detail_financial_preview": "PASS - Financial preview displays correctly (no regression)",
+      "admin_arbitration_detail_resolution_readonly": "PASS - Resolution readonly bloc displays correctly for resolved disputes (no regression)",
+      "decisions_page_loads": "PASS - /decisions page loads with decision list",
+      "decisions_detail_loads": "PASS - /decisions/{id} page loads with data-testid='decision-detail-page'",
+      "decisions_detail_outcome_bloc": "PASS - Decision outcome bloc displays correctly (no regression)",
+      "decisions_detail_declarations_bloc": "PASS - Declarations bloc uses proper wording (no regression from iteration 173)"
+    }
+  },
+  "test_report_links": [
+    "/app/frontend/src/pages/admin/AdminArbitrationList.js",
+    "/app/frontend/src/pages/admin/AdminArbitrationDetail.js",
+    "/app/frontend/src/pages/decisions/DecisionDetailPage.js"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "AdminArbitrationList.js L276-293: DisputeSubRow positions correctly use full phrases with POSITION_LABELS map and 'maintient' wording",
+    "AdminArbitrationList.js L283-284: Null positions correctly show 'position non soumise' instead of dash",
+    "AdminArbitrationDetail.js L381-409: PositionCard correctly builds phrases with 'maintient etre' (self) or 'maintient que' (other) wording",
+    "AdminArbitrationDetail.js L882-899: buildDisagreementPhrase correctly uses 'maintient que' wording for disagreement summary",
+    "AdminArbitrationDetail.js L203-217: Declarant section correctly shows '{Name} declare que {Target} est {status}' format",
+    "AdminArbitrationDetail.js L703-706: Tech dossier declarations correctly show '{N} participant(s) declare(nt) {Name} present/absent' format"
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "N/A (frontend-only testing)",
+    "frontend": "100% (20/20 checks passed)"
+  },
+  "test_credentials": {
+    "admin": "testuser_audit@nlyt.app / TestAudit123!"
+  },
+  "seed_data_creation": "No seed data created - used existing disputes in database",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Wording harmonization fully tested and working. Key implementation points: (1) AdminArbitrationList.js: DisputeSubRow at L276-293 uses full phrases for positions with 'maintient' wording, null positions show 'position non soumise'. (2) AdminArbitrationDetail.js: PositionCard at L381-409 uses 'maintient etre' (self) or 'maintient que' (other), buildDisagreementPhrase at L882-899 uses 'maintient que', declarant section at L203-217 uses 'declare que', tech dossier at L703-706 uses 'declare(nt)' format. (3) DecisionDetailPage.js unchanged from iteration 173 - still working correctly. All phrases now follow the format 'X declare que Y est [status]' or 'X maintient que Y est [status]'. No isolated statuses without context."
+}
