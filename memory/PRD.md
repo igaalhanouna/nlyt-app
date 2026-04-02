@@ -11,73 +11,60 @@ Application SaaS (React/FastAPI/MongoDB) de gestion des presences avec garanties
 - **Video**: Zoom, Microsoft Teams (OAuth)
 - **Auth**: Email/password + Google OAuth + Microsoft OAuth (common tenant)
 
-## QA Campaign Results (2026-03-29)
+## Completed Features (Latest Session - 2026-04-02)
 
-### Overall: 54/56 tests passed, 2 bugs found and fixed
+### Refonte Moteur Declaratif V5 + Migration
+- Auto-litiges elimines (guard target_user_id != organizer_user_id)
+- unknown = neutre (ne cree plus de litige)
+- 3 categories: waived / on_time / litige
+- Migration: 48 litiges resolus, 23 RDV liberes
+- Tests: 27/27 PASS (iteration 175)
 
-| Bloc | Tests | Result |
-|------|-------|--------|
-| A - Auth/Onboarding | 4/4 | PASS |
-| B - Permissions/Roles | 2/2 | PASS |
-| C - Creation/Modification RDV | 9/9 | PASS (C2 titre vide fixed) |
-| D - Invitations | 2/2 | PASS |
-| E - Presences | 4/4 | PASS |
-| F - Litiges | 2/2 | PASS |
-| G - Arbitrage Admin | 2/2 | PASS |
-| H - Wallet | 6/6 | PASS (H6 double payout fixed) |
-| I - Charity Payouts | 15/15 | PASS |
-| J - Calendrier | 5/5 | PASS |
-| K - Notifications | 3/3 | PASS |
+### Fix Critique: waived dans /decisions (P1)
+- `waived` ajoute dans OUTCOME_CFG frontend: "Classe sans suite" style gris neutre
+- DecisionDetailPage: label "Classe sans suite pour {name}", sous-titre "Aucune penalite — information insuffisante"
+- FinancialSection: waived = "Aucun prelevement. La garantie a ete liberee."
+- Backend: financial_impact.type='neutral' pour waived (dispute_routes.py)
+- Backend: financial_summary='Aucune penalite' pour waived (admin_arbitration_service.py)
+- OPENED_REASON_LABELS enrichi avec les raisons V5
+- Tests: 30/30 PASS (iteration 176)
 
-## Security Layers - Wallet Payouts
-1. **Idempotency key** - unique per request, stored in DB with TTL 24h
-2. **Cooldown** - rejects if last payout < 10s ago
-3. **Atomic $gte guard** - MongoDB prevents overdraft at DB level
-4. **Rollback** - re-credits wallet if payout record creation fails
-5. **Audit logging** - every step logged with request_id, user_id, amount, status
+### Simplification Categories Admin (P2)
+- Fusion "Resolus" + "Accords mutuels" en "Clos" (1 seul filtre)
+- Renommage "Positions en cours" en "En attente des parties"
+- 3 KPI au lieu de 4: "A arbitrer" / "En attente des parties" / "Clos"
+- Sous-indicateur: "Clos — Accord mutuel" vs "Clos — Arbitrage"
+- Backend: FILTER_QUERIES closed + get_arbitration_stats total_closed
+- Tests: 30/30 PASS (iteration 176)
 
-## Completed Features (Latest)
+## Categorisation Produit (Modele Cible Valide)
 
-### Refonte Moteur Declaratif V5 + Migration Donnees (2026-04-02)
-- **Faille 1 corrigee: Auto-litiges** — Guard dans `open_dispute`: si `target_user_id == organizer_user_id` -> pas de litige, auto-resolution en `waived` avec `decision_source=auto_no_self_dispute`
-- **Faille 2 corrigee: Fausse interpretation des unknown** — `unknown` est desormais neutre, ne cree plus de litige
-- **Nouvelle logique en 3 categories**:
-  - `waived` : absence d'information -> garantie liberee, pas de penalite
-  - `on_time` : presence confirmee (declarations unanimes positives) -> garantie liberee
-  - Litige : signal negatif explicite (au moins 1 declaration "absent" ou preuve tech negative)
-- **Petits groupes (<3)**: 0 exprime + pas neg tech -> waived | >=1 toutes positives -> on_time | tout absent -> litige
-- **Grands groupes (>=3)**: 0 exprime -> waived | 1 positif -> waived | 1 negatif -> litige | >=2 unanimes positifs -> on_time | >=2 unanimes absent -> checks contradiction existants
-- **Migration V5**: Script `fix_v4_legacy_disputes.py` execute — 48 litiges resolus (22 auto-litiges + 26 unknown-based), 23 RDV liberes, moteur financier relance pour liberation des garanties
-- Tests: 27/27 PASS (18 unit + 9 API, iteration 175)
-- Fichiers: `declarative_service.py` (8 edits), `fix_v4_legacy_disputes.py` (migration)
+### Cote Utilisateur — 3 familles exclusives
+| Famille | Condition | Contenu |
+|---|---|---|
+| Presences | declarative_phase IN (initialized, collecting) | Feuilles a remplir |
+| Litiges | dispute status IN (awaiting_positions, escalated) | Litiges non clos |
+| Decisions | dispute status IN (resolved, agreed_*) | Litiges clos |
 
-### Fix Duplication counterpart_name dans /arbitration (2026-04-02)
-- Fix: counterpart_name = target_name
+### Cote Admin — 3 categories
+| Categorie | Statuts | Action admin |
+|---|---|---|
+| A arbitrer | escalated | Trancher |
+| En attente des parties | awaiting_positions | Informatif |
+| Clos | resolved + agreed_* | Historique |
 
-### Refonte Wording Detail Financier /decisions (2026-04-02)
-- "Montant preleve a {Nom}", "Montant recu par {Nom} (organisateur)"
-- Tests: 20/20 PASS (iteration 174)
-
-### Harmonisation Wording Arbitration (2026-04-02)
-- "{Name} maintient que {Target} {status}"
-- Tests: 20/20 PASS (iteration 174)
-
-### Refonte Wording "Ce qui a ete declare" (2026-04-02)
-- "X declare Y status" partout
-- Tests: 33/33 PASS (iteration 173)
-
-### Transparence Preuves /decisions + Regroupement /arbitration (2026-04-02)
-- tech_evidence_summary + regroupement par RDV
-- Tests: 28/28 PASS (iteration 172)
+### Outcomes supportes dans /decisions
+| Outcome | Label | Style | Impact financier |
+|---|---|---|---|
+| on_time | Presence validee | vert | Aucune penalite |
+| no_show | Absence confirmee | rouge | Penalite |
+| late_penalized | Retard confirme | ambre | Penalite |
+| waived | Classe sans suite | gris | Aucune penalite |
 
 ## Data Integrity Rules
 - Participant documents MUST have valid user_id when user exists
-- Every appointment MUST have an is_organizer=True participant record
-- Charity wallet debit ONLY on completed payout
 - ObjectId exclusion from all MongoDB responses
-- GUARANTEE RULE: No guarantee without Stripe verification
-- BUSINESS STATUS RULE: Le statut participant metier ne doit JAMAIS etre ecrase par un statut financier
-- **V5: Unknown = neutre, absence de preuve != preuve negative, auto-litige interdit**
+- V5: unknown = neutre, absence de preuve != preuve negative, auto-litige interdit
 
 ## Upcoming Tasks (P1)
 - Test reel Zoom/Teams avec vrais tokens
