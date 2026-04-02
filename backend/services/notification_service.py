@@ -217,9 +217,12 @@ def _fire_email(coro):
 def notify_decision_rendered(dispute: dict, appointment_title: str = ""):
     """Notify both parties when a dispute is resolved (decision rendered).
     Trigger point: resolve_dispute() after status set to 'resolved'.
+
+    EQUITY: Target MUST be notified even without an account.
     """
     org_id = dispute.get("organizer_user_id")
     target_id = dispute.get("target_user_id")
+    target_pid = dispute.get("target_participant_id")
     dispute_id = dispute.get("dispute_id")
     apt_id = dispute.get("appointment_id")
 
@@ -246,21 +249,18 @@ def notify_decision_rendered(dispute: dict, appointment_title: str = ""):
     title_text = appointment_title or apt["title"]
     message = f"{outcome_label} — {source_label}"
 
-    for uid in [org_id, target_id]:
-        if not uid:
-            continue
-        # 1. In-app notification (always first)
+    # ── 1. Notify ORGANIZER ──
+    if org_id:
         create_notification(
-            user_id=uid,
+            user_id=org_id,
             event_type="decision",
             reference_id=dispute_id,
             appointment_id=apt_id,
             title=title_text,
             message=message,
         )
-        # 2. Email (idempotent, fire-and-forget)
-        if not was_email_sent(uid, "decision", dispute_id):
-            user_info = _get_user_info(uid)
+        if not was_email_sent(org_id, "decision", dispute_id):
+            user_info = _get_user_info(org_id)
             if user_info.get("email"):
                 try:
                     from services.email_service import EmailService
@@ -273,10 +273,58 @@ def notify_decision_rendered(dispute: dict, appointment_title: str = ""):
                         final_outcome=outcome,
                         resolved_by=resolved_by,
                         appointment_timezone=apt["timezone"],
+                        needs_account=False,
                     ))
-                    mark_email_sent(uid, "decision", dispute_id)
+                    mark_email_sent(org_id, "decision", dispute_id)
                 except Exception as e:
-                    logger.warning(f"[NOTIF-EMAIL] Failed to send decision email to {uid}: {e}")
+                    logger.warning(f"[NOTIF-EMAIL] Failed to send decision email to organizer {org_id}: {e}")
+
+    # ── 2. Notify TARGET ──
+    target_email, target_name, has_account = _resolve_target_contact(target_id, target_pid)
+    if target_email:
+        idempotency_uid = target_id if has_account else f"no_account_{target_email}"
+        if has_account:
+            create_notification(
+                user_id=target_id,
+                event_type="decision",
+                reference_id=dispute_id,
+                appointment_id=apt_id,
+                title=title_text,
+                message=message,
+            )
+        if not was_email_sent(idempotency_uid, "decision", dispute_id):
+            if not has_account:
+                create_notification(
+                    user_id=idempotency_uid,
+                    event_type="decision",
+                    reference_id=dispute_id,
+                    appointment_id=apt_id,
+                    title=title_text,
+                    message=f"[email-only] {message}",
+                )
+            try:
+                from services.email_service import EmailService
+                _fire_email(EmailService.send_decision_rendered_email(
+                    to_email=target_email,
+                    to_name=target_name,
+                    appointment_title=title_text,
+                    appointment_date=apt["start_datetime"],
+                    dispute_id=dispute_id,
+                    final_outcome=outcome,
+                    resolved_by=resolved_by,
+                    appointment_timezone=apt["timezone"],
+                    needs_account=not has_account,
+                ))
+                mark_email_sent(idempotency_uid, "decision", dispute_id)
+                if not has_account:
+                    logger.info(f"[NOTIF-EMAIL] Decision email sent to non-account user {target_email} for dispute {dispute_id}")
+            except Exception as e:
+                logger.warning(f"[NOTIF-EMAIL] Failed to send decision email to target {target_email}: {e}")
+    elif not target_id:
+        logger.error(
+            f"[NOTIF-EMAIL][EQUITY] Cannot notify target for decision on dispute {dispute_id}: "
+            f"no user_id AND no email found for participant {target_pid}."
+        )
 
 
 def notify_dispute_opened(dispute: dict, appointment_title: str = ""):
@@ -439,6 +487,32 @@ def notify_dispute_opened(dispute: dict, appointment_title: str = ""):
 DISPUTE_DEADLINE_DAYS = 7  # Duplicated from declarative_service for reference
 
 
+def _resolve_target_contact(target_user_id, target_participant_id):
+    """Resolve the target's contact info.
+    Returns (email, name, has_account).
+    - If user has an account: returns their user info.
+    - If no account: falls back to the participants collection.
+    """
+    if target_user_id:
+        user_info = _get_user_info(target_user_id)
+        if user_info.get("email"):
+            return user_info["email"], user_info["name"], True
+
+    # Fallback: resolve from participants collection
+    if target_participant_id:
+        participant = db.participants.find_one(
+            {"participant_id": target_participant_id},
+            {"_id": 0, "email": 1, "first_name": 1, "last_name": 1}
+        )
+        if participant and participant.get("email"):
+            fn = participant.get("first_name", "")
+            ln = participant.get("last_name", "")
+            name = f"{fn} {ln}".strip() or participant["email"] or "Participant"
+            return participant["email"], name, False
+
+    return None, "Participant", False
+
+
 def notify_dispute_position_submitted(dispute: dict, submitter_user_id: str, appointment_title: str = ""):
     """Notify the OTHER party when one party submits their position.
     Trigger point: submit_dispute_position() after position saved.
@@ -471,9 +545,12 @@ def notify_dispute_escalated(dispute: dict, appointment_title: str = ""):
     """Notify both parties when a dispute is escalated to arbitration.
     Trigger point: _check_positions_and_resolve() on disagreement.
     Email + In-app (validated by user).
+
+    EQUITY: Target MUST be notified even without an account (same pattern as dispute_opened).
     """
     org_id = dispute.get("organizer_user_id")
     target_id = dispute.get("target_user_id")
+    target_pid = dispute.get("target_participant_id")
     dispute_id = dispute.get("dispute_id")
     apt_id = dispute.get("appointment_id")
 
@@ -481,22 +558,27 @@ def notify_dispute_escalated(dispute: dict, appointment_title: str = ""):
     title_text = appointment_title or apt["title"]
     message = "Les positions divergent — le dossier est transmis a un arbitre."
 
-    for uid in [org_id, target_id]:
-        if not uid:
-            continue
-        # 1. In-app notification
+    # ── 1. Notify ORGANIZER ──
+    if org_id:
         create_notification(
-            user_id=uid,
+            user_id=org_id,
             event_type="dispute_update",
             reference_id=dispute_id,
             appointment_id=apt_id,
             title=title_text,
             message=message,
         )
-        # 2. Email for escalation
-        # Note: escalation uses a DIFFERENT email_type key to avoid clash with dispute_opened email
-        if not was_email_sent(uid, "dispute_escalated", dispute_id):
-            user_info = _get_user_info(uid)
+        if not was_email_sent(org_id, "dispute_escalated", dispute_id):
+            # Create tracking record for escalation email idempotency
+            create_notification(
+                user_id=org_id,
+                event_type="dispute_escalated",
+                reference_id=dispute_id,
+                appointment_id=apt_id,
+                title=title_text,
+                message=f"[email-tracking] {message}",
+            )
+            user_info = _get_user_info(org_id)
             if user_info.get("email"):
                 try:
                     from services.email_service import EmailService
@@ -507,7 +589,53 @@ def notify_dispute_escalated(dispute: dict, appointment_title: str = ""):
                         appointment_date=apt["start_datetime"],
                         dispute_id=dispute_id,
                         appointment_timezone=apt["timezone"],
+                        needs_account=False,
                     ))
-                    mark_email_sent(uid, "dispute_escalated", dispute_id)
+                    mark_email_sent(org_id, "dispute_escalated", dispute_id)
                 except Exception as e:
-                    logger.warning(f"[NOTIF-EMAIL] Failed to send escalation email to {uid}: {e}")
+                    logger.warning(f"[NOTIF-EMAIL] Failed to send escalation email to organizer {org_id}: {e}")
+
+    # ── 2. Notify TARGET ──
+    target_email, target_name, has_account = _resolve_target_contact(target_id, target_pid)
+    if target_email:
+        idempotency_uid = target_id if has_account else f"no_account_{target_email}"
+        if has_account:
+            create_notification(
+                user_id=target_id,
+                event_type="dispute_update",
+                reference_id=dispute_id,
+                appointment_id=apt_id,
+                title=title_text,
+                message=message,
+            )
+        if not was_email_sent(idempotency_uid, "dispute_escalated", dispute_id):
+            # Create tracking record for idempotency
+            create_notification(
+                user_id=idempotency_uid,
+                event_type="dispute_escalated",
+                reference_id=dispute_id,
+                appointment_id=apt_id,
+                title=title_text,
+                message=f"[email-tracking] {message}" if has_account else f"[email-only] {message}",
+            )
+            try:
+                from services.email_service import EmailService
+                _fire_email(EmailService.send_dispute_escalated_email(
+                    to_email=target_email,
+                    to_name=target_name,
+                    appointment_title=title_text,
+                    appointment_date=apt["start_datetime"],
+                    dispute_id=dispute_id,
+                    appointment_timezone=apt["timezone"],
+                    needs_account=not has_account,
+                ))
+                mark_email_sent(idempotency_uid, "dispute_escalated", dispute_id)
+                if not has_account:
+                    logger.info(f"[NOTIF-EMAIL] Escalation email sent to non-account user {target_email} for dispute {dispute_id}")
+            except Exception as e:
+                logger.warning(f"[NOTIF-EMAIL] Failed to send escalation email to target {target_email}: {e}")
+    elif not target_id:
+        logger.error(
+            f"[NOTIF-EMAIL][EQUITY] Cannot notify target for escalated dispute {dispute_id}: "
+            f"no user_id AND no email found for participant {target_pid}."
+        )

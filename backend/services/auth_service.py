@@ -238,7 +238,10 @@ class AuthService:
             "created_at": user['created_at'],
             "role": user_role,
         }
-        
+
+        # Auto-link orphan participants and disputes on login
+        _auto_link_user_to_participants(user['user_id'], user['email'])
+
         return {"success": True, "access_token": access_token, "user": user_response}
     
     @staticmethod
@@ -320,3 +323,42 @@ class AuthService:
         
         logger.error(f"Password reset failed: User {email} not found")
         return {"success": False, "error": "Utilisateur introuvable"}
+
+
+def _auto_link_user_to_participants(user_id: str, email: str):
+    """Auto-link orphan participants and disputes to this user on login.
+    Fixes the case where a user was invited by email, then creates an account later.
+    Without this, disputes with target_user_id=None remain invisible to the new user.
+    """
+    # 1. Link participants: set user_id where email matches and user_id is missing
+    result = db.participants.update_many(
+        {"email": email, "$or": [{"user_id": None}, {"user_id": ""}]},
+        {"$set": {"user_id": user_id}}
+    )
+    if result.modified_count > 0:
+        logger.info(
+            f"[AUTO-LINK] Linked {result.modified_count} orphan participant(s) "
+            f"to user {user_id} ({email})"
+        )
+
+        # 2. Link disputes: update target_user_id where target_participant_id matches
+        linked_pids = [
+            p["participant_id"]
+            for p in db.participants.find(
+                {"email": email, "user_id": user_id},
+                {"_id": 0, "participant_id": 1}
+            )
+        ]
+        if linked_pids:
+            dispute_result = db.declarative_disputes.update_many(
+                {
+                    "target_participant_id": {"$in": linked_pids},
+                    "$or": [{"target_user_id": None}, {"target_user_id": ""}],
+                },
+                {"$set": {"target_user_id": user_id}}
+            )
+            if dispute_result.modified_count > 0:
+                logger.info(
+                    f"[AUTO-LINK] Linked {dispute_result.modified_count} orphan dispute(s) "
+                    f"to user {user_id} ({email})"
+                )

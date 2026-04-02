@@ -73,6 +73,10 @@ def _find_or_create_oauth_user(email: str, first_name: str, last_name: str, prov
 
 def _build_jwt_response(user: dict, is_new: bool):
     """Generate JWT and standard response for OAuth login."""
+    # Auto-link orphan participants on every OAuth login
+    from services.auth_service import _auto_link_user_to_participants
+    _auto_link_user_to_participants(user["user_id"], user["email"])
+
     token_data = {
         "user_id": user["user_id"],
         "email": user["email"],

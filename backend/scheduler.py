@@ -254,19 +254,19 @@ def start_scheduler():
         replace_existing=True
     )
 
-    # Job 10: Declarative deadline — enforce 48h sheet deadline (every 15 minutes)
+    # Job 10: Declarative deadline — enforce 48h sheet deadline (every 5 minutes)
     scheduler.add_job(
         declarative_deadline_job,
-        trigger=IntervalTrigger(minutes=15),
+        trigger=IntervalTrigger(minutes=5),
         id='declarative_deadline_job',
         name='Enforce 48h attendance sheet deadline',
         replace_existing=True
     )
 
-    # Job 11: Dispute escalation — escalate disputes past 7-day deadline (every 6 hours)
+    # Job 11: Dispute escalation — escalate disputes past 7-day deadline (every 15 minutes)
     scheduler.add_job(
         dispute_escalation_job,
-        trigger=IntervalTrigger(hours=6),
+        trigger=IntervalTrigger(minutes=15),
         id='dispute_escalation_job',
         name='Escalate disputes past 7-day deadline',
         replace_existing=True
@@ -320,7 +320,8 @@ def start_scheduler():
     logger.info("[SCHEDULER]    - Review timeout (15 days): every 6 hours")
     logger.info("[SCHEDULER]    - Contestation timeout (30 days): every 12 hours")
     logger.info("[SCHEDULER]    - Ledger reconciliation: every 6 hours")
-    logger.info("[SCHEDULER]    - Vote reminders (expiring proposals): every 15 minutes")
+    logger.info("[SCHEDULER]    - Declarative deadline: every 5 minutes")
+    logger.info("[SCHEDULER]    - Dispute escalation: every 15 minutes")
     logger.info("[SCHEDULER]    - Stale payout detection (>24h): every 6 hours")
     logger.info("[SCHEDULER]    - Graph subscription renewal: every 24 hours")
 

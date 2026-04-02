@@ -39,7 +39,9 @@ export default function AuthCallback() {
 
           loginWithToken(data.access_token, data.user);
           toast.success(data.is_new_account ? 'Compte créé avec Google' : 'Connexion avec Google réussie');
-          navigate('/dashboard', { replace: true });
+          const savedRedirect = localStorage.getItem('nlyt_auth_redirect');
+          localStorage.removeItem('nlyt_auth_redirect');
+          navigate(savedRedirect || '/dashboard', { replace: true });
           return;
         }
 
@@ -55,7 +57,9 @@ export default function AuthCallback() {
 
           loginWithToken(data.access_token, data.user);
           toast.success(data.is_new_account ? 'Compte créé avec Microsoft' : 'Connexion avec Microsoft réussie');
-          navigate('/dashboard', { replace: true });
+          const savedRedirect = localStorage.getItem('nlyt_auth_redirect');
+          localStorage.removeItem('nlyt_auth_redirect');
+          navigate(savedRedirect || '/dashboard', { replace: true });
           return;
         }
 

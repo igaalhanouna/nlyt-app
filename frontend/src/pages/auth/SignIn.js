@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -10,6 +10,8 @@ import OAuthButtons from './OAuthButtons';
 
 export default function SignIn() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const redirectTo = searchParams.get('redirect');
   const { login } = useAuth();
   const [formData, setFormData] = useState({
     email: '',
@@ -28,7 +30,7 @@ export default function SignIn() {
       await login(formData.email, formData.password);
       setNotVerifiedEmail(null);
       toast.success('Connexion réussie');
-      navigate('/dashboard');
+      navigate(redirectTo || '/dashboard');
     } catch (error) {
       const errorData = error.response?.data;
       const errorType = typeof errorData?.detail === 'object' ? errorData.detail.error : errorData?.detail;
@@ -147,7 +149,7 @@ export default function SignIn() {
 
           <div className="mt-6 text-center text-sm text-slate-600">
             Pas encore de compte ?{' '}
-            <Link to="/signup" className="inline-flex items-center min-h-[44px] sm:min-h-0 text-blue-600 hover:text-blue-800 hover:underline font-semibold">
+            <Link to={redirectTo ? `/signup?redirect=${encodeURIComponent(redirectTo)}` : '/signup'} className="inline-flex items-center min-h-[44px] sm:min-h-0 text-blue-600 hover:text-blue-800 hover:underline font-semibold">
               Créer un compte
             </Link>
           </div>

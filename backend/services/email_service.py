@@ -1173,6 +1173,7 @@ class EmailService:
         appointment_date: str,
         dispute_id: str,
         appointment_timezone: str = 'Europe/Paris',
+        needs_account: bool = False,
     ):
         formatted_date = format_email_datetime(appointment_date, appointment_timezone)
         subject = f"Litige transmis a un arbitre — {appointment_title}"
@@ -1182,7 +1183,18 @@ class EmailService:
             + _detail_row("Date :", formatted_date)
         )
 
-        dispute_url = f"{SITE_URL}/litiges/{dispute_id}"
+        if needs_account:
+            dispute_url = f"{SITE_URL}/register?redirect=/litiges/{dispute_id}"
+            cta_html = (
+                _btn(dispute_url, "Creer mon compte et suivre le dossier")
+                + _small(
+                    "Vous n'avez pas encore de compte NLYT. "
+                    "Creez-en un pour suivre l'avancement de votre dossier."
+                )
+            )
+        else:
+            dispute_url = f"{SITE_URL}/litiges/{dispute_id}"
+            cta_html = _btn_secondary(dispute_url, "Suivre le dossier")
 
         body = (
             _greeting(to_name)
@@ -1195,7 +1207,7 @@ class EmailService:
                 "Vous n'avez aucune action a effectuer. L'arbitre rendra sa decision "
                 "dans les meilleurs delais et vous serez notifie du resultat."
             )
-            + _btn_secondary(dispute_url, "Suivre le dossier")
+            + cta_html
             + _brand_note("L'arbitrage garantit une decision impartiale pour les deux parties.")
         )
 
@@ -1215,6 +1227,7 @@ class EmailService:
         final_outcome: str,
         resolved_by: str,
         appointment_timezone: str = 'Europe/Paris',
+        needs_account: bool = False,
     ):
         formatted_date = format_email_datetime(appointment_date, appointment_timezone)
 
@@ -1248,7 +1261,18 @@ class EmailService:
             '</div>'
         )
 
-        decision_url = f"{SITE_URL}/decisions/{dispute_id}"
+        if needs_account:
+            decision_url = f"{SITE_URL}/register?redirect=/decisions/{dispute_id}"
+            cta_html = (
+                _btn(decision_url, "Creer mon compte et voir la decision")
+                + _small(
+                    "Vous n'avez pas encore de compte NLYT. "
+                    "Creez-en un pour consulter le detail de la decision et ses impacts."
+                )
+            )
+        else:
+            decision_url = f"{SITE_URL}/decisions/{dispute_id}"
+            cta_html = _btn(decision_url, "Voir le detail de la decision")
 
         body = (
             _greeting(to_name)
@@ -1257,7 +1281,7 @@ class EmailService:
             )
             + _info_box(details)
             + outcome_block
-            + _btn(decision_url, "Voir le detail de la decision")
+            + cta_html
             + _small("Cette decision est definitive. Les impacts financiers ont ete appliques automatiquement.")
             + _brand_note("Transparence et equite — le fondement de NLYT.")
         )

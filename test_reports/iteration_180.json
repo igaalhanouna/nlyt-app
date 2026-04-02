@@ -1,0 +1,109 @@
+{
+  "summary": "Phase 1 pre-production testing complete. All 12 backend notification tests pass (qa_phase1_notifications.py), all 12 blind spot tests pass (qa_blind_spots.py). Frontend redirect flow verified: /register route alias works, redirect param propagates between SignUp↔SignIn, OAuth localStorage storage works, login redirects to target URL. Scheduler intervals verified: declarative_deadline_job=5min, dispute_escalation_job=15min. Auto-linkage function tested and working.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/qa_phase1_notifications.py",
+    "/app/backend/tests/qa_blind_spots.py"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "notify_dispute_escalated() and notify_decision_rendered() correctly use _resolve_target_contact() helper to handle both with-account and without-account targets",
+    "Email idempotency implemented via was_email_sent() check before sending, using 'no_account_{email}' as idempotency key for users without accounts",
+    "_auto_link_user_to_participants() correctly links both participants AND disputes when user logs in with matching email",
+    "Scheduler intervals correctly set: declarative_deadline_job=5min (line 260), dispute_escalation_job=15min (line 269)",
+    "OAuthButtons.js correctly stores redirect in localStorage before OAuth redirect (line 12-14 for Google, line 26-28 for Microsoft)",
+    "AuthCallback.js correctly reads localStorage nlyt_auth_redirect and navigates to it after OAuth success (lines 42-44, 60-62)"
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100% (24/24 tests: 12 qa_phase1_notifications + 12 qa_blind_spots)",
+    "frontend": "100% (5/5 tests: register route, redirect propagation, OAuth buttons, localStorage, login redirect)"
+  },
+  "test_credentials": {
+    "admin": "testuser_audit@nlyt.app / TestAudit123!",
+    "user": "igaal@hotmail.com / Test123!"
+  },
+  "seed_data_creation": "None - used existing test data and temporary test data cleaned up after tests",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Phase 1 pre-production features fully tested. All notification flows (escalation, decision) work for both with-account and without-account targets. Auto-linkage function links orphan participants AND disputes on login. Scheduler intervals reduced as specified. Frontend redirect flow works end-to-end.",
+  "tests_executed": {
+    "backend_tests": {
+      "qa_phase1_notifications": {
+        "total": 12,
+        "passed": 12,
+        "failed": 0,
+        "coverage": [
+          "A1-OPEN-NOTIF: Ouverture notification in-app cible avec compte",
+          "A2-OPEN-EMAIL: Ouverture email cible avec compte",
+          "A3-ESC-EMAIL: Escalade email cible avec compte",
+          "A4-DEC-NOTIF: Decision notification in-app cible avec compte",
+          "A5-DEC-EMAIL: Decision email cible avec compte",
+          "A6-IDEMP: Idempotence pas de doublon email escalade",
+          "B1-OPEN-EMAIL: Ouverture email cible sans compte",
+          "B2-ESC-EMAIL: Escalade email cible sans compte",
+          "B3-DEC-EMAIL: Decision email cible sans compte",
+          "B4-IDEMP: Idempotence sans compte pas de doublon",
+          "B5-ORG-ALL: Organisateur recoit 3 emails (open+esc+dec)",
+          "B6-CTA: Email escalade CTA creer mon compte"
+        ]
+      },
+      "qa_blind_spots": {
+        "total": 12,
+        "passed": 12,
+        "failed": 0,
+        "coverage": [
+          "BS-1: Review timeout vs dispute active",
+          "BS-2: Reconciliation credit_available_direct",
+          "BS-3: Phase analyzing stuck recovery",
+          "BS-4: Reclassification after immediate_release",
+          "BS-5: debit_refund multi-distribution",
+          "BS-6: Observer sees unrelated disputes",
+          "BS-7: CAS idempotence double evaluation",
+          "BS-8: Dispute without deadline field",
+          "BS-8b: Dispute without deadline not escalated",
+          "BS-9: Capture released guarantee",
+          "BS-10: Resolve dispute no beneficiary",
+          "BS-11: Auto-litige guard org vs org"
+        ]
+      },
+      "auto_linkage_test": {
+        "total": 1,
+        "passed": 1,
+        "failed": 0,
+        "coverage": [
+          "_auto_link_user_to_participants links both participants AND disputes"
+        ]
+      }
+    },
+    "frontend_tests": {
+      "total": 5,
+      "passed": 5,
+      "failed": 0,
+      "coverage": [
+        "/register route alias shows SignUp page",
+        "Redirect param propagates from SignUp to SignIn link",
+        "Redirect param propagates from SignIn to SignUp link",
+        "OAuth buttons (Google & Microsoft) visible",
+        "Login with redirect param navigates to target URL"
+      ]
+    },
+    "scheduler_verification": {
+      "declarative_deadline_job": "IntervalTrigger(minutes=5) - line 260",
+      "dispute_escalation_job": "IntervalTrigger(minutes=15) - line 269"
+    },
+    "api_health": {
+      "endpoint": "GET /api/health",
+      "status": 200,
+      "response": "{\"status\":\"healthy\",\"service\":\"NLYT API\"}"
+    }
+  }
+}

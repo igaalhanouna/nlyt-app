@@ -1,19 +1,30 @@
 import React, { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Button } from '../../components/ui/button';
 import { safeFetchJson } from '../../utils/safeFetchJson';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
 // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
-function handleGoogleLogin() {
+function handleGoogleLogin(redirectAfterAuth) {
+  // Store redirect target for after OAuth callback
+  if (redirectAfterAuth) {
+    localStorage.setItem('nlyt_auth_redirect', redirectAfterAuth);
+  }
   const redirectUrl = window.location.origin + '/auth/callback';
   window.location.href = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(redirectUrl)}`;
 }
 
 export default function OAuthButtons({ loading: parentLoading }) {
   const [msLoading, setMsLoading] = useState(false);
+  const [searchParams] = useSearchParams();
+  const redirectTo = searchParams.get('redirect');
 
   const handleMicrosoftLogin = async () => {
+    // Store redirect target for after OAuth callback
+    if (redirectTo) {
+      localStorage.setItem('nlyt_auth_redirect', redirectTo);
+    }
     setMsLoading(true);
     try {
       const { ok, data } = await safeFetchJson(`${API_URL}/api/auth/microsoft/login`);
@@ -37,7 +48,7 @@ export default function OAuthButtons({ loading: parentLoading }) {
         type="button"
         variant="outline"
         className="w-full min-h-[44px] sm:min-h-0 flex items-center justify-center gap-3 border-slate-300 hover:bg-slate-50 text-slate-700 font-medium"
-        onClick={handleGoogleLogin}
+        onClick={() => handleGoogleLogin(redirectTo)}
         disabled={disabled}
         data-testid="oauth-google-btn"
       >

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -10,6 +10,8 @@ import OAuthButtons from './OAuthButtons';
 
 export default function SignUp() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const redirectTo = searchParams.get('redirect');
   const { register } = useAuth();
   const [formData, setFormData] = useState({
     email: '',
@@ -35,7 +37,8 @@ export default function SignUp() {
       }
       
       toast.success('Compte créé ! Vérifiez votre email.');
-      navigate('/signin');
+      const signinUrl = redirectTo ? `/signin?redirect=${encodeURIComponent(redirectTo)}` : '/signin';
+      navigate(signinUrl);
     } catch (error) {
       const errorData = error.response?.data;
       
@@ -188,7 +191,7 @@ export default function SignUp() {
 
           <div className="mt-6 text-center text-sm text-slate-600">
             Déjà un compte ?{' '}
-            <Link to="/signin" className="inline-flex items-center min-h-[44px] sm:min-h-0 text-blue-600 hover:text-blue-800 hover:underline font-semibold">
+            <Link to={redirectTo ? `/signin?redirect=${encodeURIComponent(redirectTo)}` : '/signin'} className="inline-flex items-center min-h-[44px] sm:min-h-0 text-blue-600 hover:text-blue-800 hover:underline font-semibold">
               Se connecter
             </Link>
           </div>
