@@ -13,6 +13,18 @@ Application SaaS (React/FastAPI/MongoDB) de gestion des presences avec garanties
 
 ## Completed Features (Latest Session - 2026-04-02/03)
 
+### Notification Email Litige — Equite d'information (2026-04-04)
+- Email automatique envoye des l'ouverture d'un litige a TOUTES les parties
+- 3 cas couverts :
+  - Cible avec compte NLYT : notification in-app + email avec lien direct /litiges/{id}
+  - Cible sans compte NLYT : email avec CTA "Creer mon compte et repondre" (lien /register?redirect=/litiges/{id})
+  - Cas degrade (aucun email) : log d'alerte equite, pas de crash
+- Contenu enrichi : montant de la garantie en jeu, delai de 7 jours, CTA contextuel
+- Idempotence : tracking via create_notification + mark_email_sent (meme pour les non-comptes)
+- Organisateur aussi notifie avec variante specifique ("en tant qu'organisateur")
+- Tests : 9/9 OK (qa_dispute_notification.py) + 0 regression sur audit (12/12)
+- Fichiers modifies : notification_service.py, email_service.py
+
 ### Audit Produit Global + QA Angles Morts (2026-04-04)
 - Audit exhaustif du code source : cartographie complete des flux, transitions, interactions inter-modules
 - 11 angles morts testes, 5 failles identifiees et corrigees :
@@ -102,8 +114,9 @@ Application SaaS (React/FastAPI/MongoDB) de gestion des presences avec garanties
 ## Upcoming Tasks (P1)
 - Test reel Zoom/Teams avec vrais tokens
 - Dashboard admin plateforme pour arbitrer les litiges escalades
+- Distributed lock pour scheduler multi-pod (identifie dans l'audit)
 
 ## Future Tasks (P2)
 - Charity Payouts V2 (Automatisation via Stripe Connect)
 - Webhooks temps reel Zoom/Teams en production
-- Notification email/push lors de la creation d'un litige
+- Notifications email pour escalade et decision rendue (templates deja implementes)

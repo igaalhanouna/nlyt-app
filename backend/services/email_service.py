@@ -1087,6 +1087,11 @@ class EmailService:
         dispute_id: str,
         reason: str,
         appointment_timezone: str = 'Europe/Paris',
+        penalty_amount: float = None,
+        penalty_currency: str = 'EUR',
+        deadline_days: int = 7,
+        needs_account: bool = False,
+        is_target: bool = True,
     ):
         formatted_date = format_email_datetime(appointment_date, appointment_timezone)
         subject = f"Litige ouvert — {appointment_title}"
@@ -1097,20 +1102,60 @@ class EmailService:
             + _detail_row("Lieu :", appointment_location or "Non specifie")
         )
 
-        dispute_url = f"{SITE_URL}/litiges/{dispute_id}"
+        # Stakes section — what's at risk
+        stakes_html = ""
+        if penalty_amount and penalty_amount > 0 and is_target:
+            currency_upper = (penalty_currency or "EUR").upper()
+            stakes_html = _alert_box(
+                f'<p style="margin:0 0 6px 0;font-size:14px;font-weight:600;color:#991B1B;">Ce qui est en jeu</p>'
+                f'<p style="margin:0;font-size:14px;color:#92400E;">'
+                f'Une garantie de <strong>{penalty_amount} {currency_upper}</strong> est liee a cet engagement. '
+                f'Si le litige aboutit a une absence confirmee, ce montant sera preleve.</p>',
+                border_color="#EF4444", bg="#FEF2F2",
+            )
+
+        # Deadline section
+        deadline_html = _alert_box(
+            f'<p style="margin:0;font-size:14px;color:#92400E;">'
+            f'<strong>Delai :</strong> Vous avez <strong>{deadline_days} jours</strong> pour soumettre votre position. '
+            f'Passe ce delai, le dossier sera automatiquement transmis a un arbitre neutre.</p>'
+        )
+
+        # CTA depends on whether user has an account
+        if needs_account:
+            dispute_url = f"{SITE_URL}/register?redirect=/litiges/{dispute_id}"
+            cta_html = (
+                _btn(dispute_url, "Creer mon compte et repondre")
+                + _small(
+                    "Vous n'avez pas encore de compte NLYT. "
+                    "Creez-en un en quelques secondes pour acceder au litige et faire valoir votre position."
+                )
+            )
+        else:
+            dispute_url = f"{SITE_URL}/litiges/{dispute_id}"
+            cta_html = _btn(dispute_url, "Voir le litige et repondre")
+
+        # Role-specific intro
+        if is_target:
+            intro = (
+                f"Un desaccord a ete signale concernant votre presence "
+                f"a l'engagement <strong>{appointment_title}</strong>. "
+                f"Vous etes invite(e) a faire valoir votre position."
+            )
+        else:
+            intro = (
+                f"Un desaccord a ete signale sur l'engagement <strong>{appointment_title}</strong>. "
+                f"En tant qu'organisateur, votre position est attendue."
+            )
 
         body = (
             _greeting(to_name)
-            + _paragraph(
-                f"Un desaccord a ete signale sur l'engagement <strong>{appointment_title}</strong>."
-            )
+            + _paragraph(intro)
             + _info_box(details)
-            + _alert_box(
-                '<p style="margin:0;font-size:14px;color:#92400E;">'
-                'Votre position est attendue. Sans reponse dans le delai imparti, '
-                'le dossier sera automatiquement transmis a un arbitre.</p>'
-            )
-            + _btn(dispute_url, "Voir le litige et repondre")
+            + stakes_html
+            + deadline_html
+            + cta_html
+            + _fallback_link(dispute_url)
             + _brand_note("Chaque partie a un droit de parole egal. C'est le principe Trustless.")
         )
 

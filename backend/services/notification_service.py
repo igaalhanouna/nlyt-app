@@ -282,31 +282,43 @@ def notify_decision_rendered(dispute: dict, appointment_title: str = ""):
 def notify_dispute_opened(dispute: dict, appointment_title: str = ""):
     """Notify both parties when a dispute is opened.
     Trigger point: open_dispute() after DB insert.
+
+    EQUITY REQUIREMENT: The target MUST be notified even if they have no NLYT account.
+    Three cases:
+      1. User with account (target_user_id exists) → in-app + email
+      2. User with account but inactive → in-app + email (they'll see it when they log in)
+      3. User without account (target_user_id is None) → email only, with "create account" CTA
     """
     org_id = dispute.get("organizer_user_id")
     target_id = dispute.get("target_user_id")
     dispute_id = dispute.get("dispute_id")
     apt_id = dispute.get("appointment_id")
+    target_pid = dispute.get("target_participant_id")
 
     apt = _get_appointment_context(apt_id)
     title_text = appointment_title or apt["title"]
     message = "Un litige a ete ouvert — votre position est attendue."
 
-    for uid in [org_id, target_id]:
-        if not uid:
-            continue
-        # 1. In-app notification
+    # Fetch penalty info for the email
+    appointment_doc = db.appointments.find_one(
+        {"appointment_id": apt_id},
+        {"_id": 0, "penalty_amount": 1, "penalty_currency": 1}
+    )
+    penalty_amount = appointment_doc.get("penalty_amount") if appointment_doc else None
+    penalty_currency = appointment_doc.get("penalty_currency", "EUR") if appointment_doc else "EUR"
+
+    # ── 1. Notify ORGANIZER (always has an account) ──
+    if org_id:
         create_notification(
-            user_id=uid,
+            user_id=org_id,
             event_type="dispute_update",
             reference_id=dispute_id,
             appointment_id=apt_id,
             title=title_text,
             message=message,
         )
-        # 2. Email
-        if not was_email_sent(uid, "dispute_update", dispute_id):
-            user_info = _get_user_info(uid)
+        if not was_email_sent(org_id, "dispute_update", dispute_id):
+            user_info = _get_user_info(org_id)
             if user_info.get("email"):
                 try:
                     from services.email_service import EmailService
@@ -319,10 +331,112 @@ def notify_dispute_opened(dispute: dict, appointment_title: str = ""):
                         dispute_id=dispute_id,
                         reason=dispute.get("opened_reason", ""),
                         appointment_timezone=apt["timezone"],
+                        penalty_amount=penalty_amount,
+                        penalty_currency=penalty_currency,
+                        is_target=False,
                     ))
-                    mark_email_sent(uid, "dispute_update", dispute_id)
+                    mark_email_sent(org_id, "dispute_update", dispute_id)
                 except Exception as e:
-                    logger.warning(f"[NOTIF-EMAIL] Failed to send dispute opened email to {uid}: {e}")
+                    logger.warning(f"[NOTIF-EMAIL] Failed to send dispute opened email to organizer {org_id}: {e}")
+
+    # ── 2. Notify TARGET ──
+    if target_id:
+        # Case 1 & 2: User has an account → in-app notification + email
+        create_notification(
+            user_id=target_id,
+            event_type="dispute_update",
+            reference_id=dispute_id,
+            appointment_id=apt_id,
+            title=title_text,
+            message=message,
+        )
+        if not was_email_sent(target_id, "dispute_update", dispute_id):
+            user_info = _get_user_info(target_id)
+            if user_info.get("email"):
+                try:
+                    from services.email_service import EmailService
+                    _fire_email(EmailService.send_dispute_opened_email(
+                        to_email=user_info["email"],
+                        to_name=user_info["name"],
+                        appointment_title=title_text,
+                        appointment_date=apt["start_datetime"],
+                        appointment_location=apt["location"],
+                        dispute_id=dispute_id,
+                        reason=dispute.get("opened_reason", ""),
+                        appointment_timezone=apt["timezone"],
+                        penalty_amount=penalty_amount,
+                        penalty_currency=penalty_currency,
+                        is_target=True,
+                        needs_account=False,
+                    ))
+                    mark_email_sent(target_id, "dispute_update", dispute_id)
+                except Exception as e:
+                    logger.warning(f"[NOTIF-EMAIL] Failed to send dispute opened email to target {target_id}: {e}")
+    else:
+        # Case 3: User has NO account → email-only notification with "create account" CTA
+        # Resolve email from the participants collection using target_participant_id
+        target_email = None
+        target_name = "Participant"
+        if target_pid:
+            participant = db.participants.find_one(
+                {"participant_id": target_pid},
+                {"_id": 0, "email": 1, "first_name": 1, "last_name": 1}
+            )
+            if participant:
+                target_email = participant.get("email")
+                fn = participant.get("first_name", "")
+                ln = participant.get("last_name", "")
+                target_name = f"{fn} {ln}".strip() or target_email or "Participant"
+
+        if target_email:
+            # Use email as idempotency key (no user_id available)
+            # Create a tracking notification record for idempotency
+            idempotency_key = f"no_account_{target_email}"
+            if not was_email_sent(idempotency_key, "dispute_update", dispute_id):
+                # Create a tracking record (no in-app notification, email-only)
+                create_notification(
+                    user_id=idempotency_key,
+                    event_type="dispute_update",
+                    reference_id=dispute_id,
+                    appointment_id=apt_id,
+                    title=title_text,
+                    message=f"[email-only] {message}",
+                )
+                try:
+                    from services.email_service import EmailService
+                    _fire_email(EmailService.send_dispute_opened_email(
+                        to_email=target_email,
+                        to_name=target_name,
+                        appointment_title=title_text,
+                        appointment_date=apt["start_datetime"],
+                        appointment_location=apt["location"],
+                        dispute_id=dispute_id,
+                        reason=dispute.get("opened_reason", ""),
+                        appointment_timezone=apt["timezone"],
+                        penalty_amount=penalty_amount,
+                        penalty_currency=penalty_currency,
+                        is_target=True,
+                        needs_account=True,
+                    ))
+                    mark_email_sent(idempotency_key, "dispute_update", dispute_id)
+                    logger.info(
+                        f"[NOTIF-EMAIL] Dispute notification sent to non-account user "
+                        f"{target_email} for dispute {dispute_id}"
+                    )
+                except Exception as e:
+                    logger.warning(
+                        f"[NOTIF-EMAIL] Failed to send dispute opened email to "
+                        f"non-account user {target_email}: {e}"
+                    )
+        else:
+            logger.error(
+                f"[NOTIF-EMAIL][EQUITY] Cannot notify target for dispute {dispute_id}: "
+                f"no user_id AND no email found for participant {target_pid}. "
+                f"The target has {DISPUTE_DEADLINE_DAYS} days to respond but no way to know."
+            )
+
+
+DISPUTE_DEADLINE_DAYS = 7  # Duplicated from declarative_service for reference
 
 
 def notify_dispute_position_submitted(dispute: dict, submitter_user_id: str, appointment_title: str = ""):
