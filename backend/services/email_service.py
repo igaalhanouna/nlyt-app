@@ -1288,3 +1288,120 @@ class EmailService:
 
         html_content = _base_template(body, accent=oc["accent"])
         return await EmailService.send_email(to_email, subject, html_content, email_type="decision_rendered")
+
+
+    # ─────────────────────────────────────────────────────────────
+    # Attendance Sheet Notifications
+    # ─────────────────────────────────────────────────────────────
+
+    @staticmethod
+    async def send_attendance_sheet_email(
+        to_email: str,
+        to_name: str,
+        appointment_title: str,
+        appointment_date: str,
+        appointment_location: str,
+        appointment_id: str,
+        deadline_datetime: str,
+        target_count: int,
+        appointment_timezone: str = 'Europe/Paris',
+        needs_account: bool = False,
+    ):
+        formatted_date = format_email_datetime(appointment_date, appointment_timezone)
+        formatted_deadline = format_email_datetime(deadline_datetime, appointment_timezone)
+        subject = f"Feuille de presence a remplir — {appointment_title}"
+
+        details = (
+            _detail_row("Engagement :", f"<strong>{appointment_title}</strong>")
+            + _detail_row("Date :", formatted_date)
+            + _detail_row("Lieu :", appointment_location or "Non specifie")
+        )
+
+        action_html = _alert_box(
+            f'<p style="margin:0 0 8px 0;font-size:14px;font-weight:600;color:#1E40AF;">Ce que vous devez faire</p>'
+            f'<p style="margin:0 0 8px 0;font-size:14px;color:#1E3A5F;">'
+            f'Declarez si chaque participant etait <strong>present</strong> ou <strong>absent</strong> '
+            f'lors de cet engagement. Vous avez {target_count} declaration(s) a effectuer.</p>'
+            f'<p style="margin:0;font-size:14px;color:#92400E;">'
+            f'<strong>Avant le :</strong> {formatted_deadline}</p>',
+            border_color="#3B82F6", bg="#EFF6FF",
+        )
+
+        consequence_html = _alert_box(
+            '<p style="margin:0;font-size:13px;color:#92400E;">'
+            'Si vous ne repondez pas avant la deadline, vos declarations seront marquees '
+            '"inconnues" et le moteur de resolution tranchera sans votre avis.</p>'
+        )
+
+        if needs_account:
+            sheet_url = f"{SITE_URL}/register?redirect=/presences"
+            cta_html = (
+                _btn(sheet_url, "Creer mon compte et remplir ma feuille")
+                + _small(
+                    "Vous n'avez pas encore de compte NLYT. "
+                    "Creez-en un en quelques secondes pour acceder a votre feuille de presence."
+                )
+            )
+        else:
+            sheet_url = f"{SITE_URL}/presences"
+            cta_html = _btn(sheet_url, "Remplir ma feuille de presence")
+
+        body = (
+            _greeting(to_name)
+            + _paragraph(
+                f"Suite a l'engagement <strong>{appointment_title}</strong>, "
+                f"une feuille de presence vous attend."
+            )
+            + _info_box(details)
+            + action_html
+            + consequence_html
+            + cta_html
+            + _fallback_link(sheet_url)
+            + _brand_note("Chaque declaration compte. C'est le principe Trustless.")
+        )
+
+        html_content = _base_template(body, accent="info")
+        return await EmailService.send_email(to_email, subject, html_content, email_type="sheet_pending")
+
+    @staticmethod
+    async def send_attendance_sheet_reminder_email(
+        to_email: str,
+        to_name: str,
+        appointment_title: str,
+        deadline_datetime: str,
+        hours_remaining: int,
+        appointment_timezone: str = 'Europe/Paris',
+        needs_account: bool = False,
+    ):
+        formatted_deadline = format_email_datetime(deadline_datetime, appointment_timezone)
+        subject = f"Rappel : feuille de presence — {appointment_title}"
+
+        urgency_html = _alert_box(
+            f'<p style="margin:0 0 6px 0;font-size:14px;font-weight:600;color:#991B1B;">Temps restant limite</p>'
+            f'<p style="margin:0;font-size:14px;color:#92400E;">'
+            f'Il vous reste environ <strong>{hours_remaining}h</strong> pour remplir votre feuille '
+            f'(avant le {formatted_deadline}). '
+            f'Passe ce delai, vos declarations seront marquees "inconnues".</p>',
+            border_color="#EF4444", bg="#FEF2F2",
+        )
+
+        if needs_account:
+            sheet_url = f"{SITE_URL}/register?redirect=/presences"
+            cta_html = _btn(sheet_url, "Creer mon compte et remplir ma feuille", bg="#EF4444")
+        else:
+            sheet_url = f"{SITE_URL}/presences"
+            cta_html = _btn(sheet_url, "Remplir ma feuille maintenant", bg="#EF4444")
+
+        body = (
+            _greeting(to_name)
+            + _paragraph(
+                f"Votre feuille de presence pour <strong>{appointment_title}</strong> "
+                f"n'a pas encore ete soumise."
+            )
+            + urgency_html
+            + cta_html
+            + _brand_note("Votre avis compte dans la resolution.")
+        )
+
+        html_content = _base_template(body, accent="danger")
+        return await EmailService.send_email(to_email, subject, html_content, email_type="sheet_reminder")

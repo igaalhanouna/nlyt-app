@@ -165,13 +165,18 @@ def initialize_declarative_phase(appointment_id: str):
     for p in active_participants:
         p_user_id = p.get('user_id')
         p_pid = p.get('participant_id')
+        p_email = p.get('email', '')
 
-        if not p_user_id:
-            continue
+        # EQUITY FIX: Do NOT skip participants without user_id.
+        # They get a sheet linked by participant_id. When they create an account,
+        # auto-linkage fills in submitted_by_user_id at login.
+
+        # Use user_id if available, otherwise use email as placeholder identifier
+        sheet_owner_id = p_user_id or p_email or p_pid
 
         existing = db.attendance_sheets.find_one({
             "appointment_id": appointment_id,
-            "submitted_by_user_id": p_user_id
+            "submitted_by_participant_id": p_pid,
         })
         if existing:
             continue
@@ -212,7 +217,7 @@ def initialize_declarative_phase(appointment_id: str):
         db.attendance_sheets.insert_one({
             "sheet_id": str(uuid.uuid4()),
             "appointment_id": appointment_id,
-            "submitted_by_user_id": p_user_id,
+            "submitted_by_user_id": sheet_owner_id,
             "submitted_by_participant_id": p_pid,
             "status": "pending",
             "submitted_at": None,
@@ -243,6 +248,17 @@ def initialize_declarative_phase(appointment_id: str):
                 f"{len(review_records)} records in review, {sheets_created} sheets created, "
                 f"{len(active_participants)} active participants. "
                 f"Deadline: {deadline.isoformat()}")
+
+    # EQUITY: Notify all participants who have a pending sheet
+    try:
+        all_sheets = list(db.attendance_sheets.find(
+            {"appointment_id": appointment_id, "status": "pending"},
+            {"_id": 0}
+        ))
+        from services.notification_service import notify_sheets_created
+        notify_sheets_created(appointment_id, all_sheets)
+    except Exception as e:
+        logger.warning(f"[DECLARATIVE] Failed to send sheet notifications for {appointment_id}: {e}")
 
 
 def _get_user_id(participant_id: str) -> str:
@@ -304,6 +320,23 @@ def submit_sheet(appointment_id: str, user_id: str, declarations: list) -> dict:
         "appointment_id": appointment_id,
         "submitted_by_user_id": user_id,
     })
+    # Fallback: look up by participant_id if user was recently auto-linked
+    if not sheet:
+        participant = db.participants.find_one(
+            {"user_id": user_id, "appointment_id": appointment_id},
+            {"_id": 0, "participant_id": 1}
+        )
+        if participant:
+            sheet = db.attendance_sheets.find_one({
+                "appointment_id": appointment_id,
+                "submitted_by_participant_id": participant["participant_id"],
+            })
+            # Fix the sheet's user_id linkage for future lookups
+            if sheet:
+                db.attendance_sheets.update_one(
+                    {"sheet_id": sheet["sheet_id"]},
+                    {"$set": {"submitted_by_user_id": user_id}}
+                )
     if not sheet:
         return {"error": "Aucune feuille de présence trouvée pour cet utilisateur"}
 
@@ -1425,3 +1458,56 @@ def get_sheet_status(appointment_id: str) -> dict:
         "submitted_sheets": submitted,
         "deadline": apt.get('declarative_deadline') if apt else None,
     }
+
+
+def run_sheet_reminder_job():
+    """Send reminders for pending sheets approaching deadline (< 12h remaining).
+    Only targets sheets that are still 'pending' (not yet submitted).
+    Idempotent: uses notification_service tracking to avoid duplicates.
+    """
+    from datetime import datetime, timezone as tz
+
+    now = now_utc()
+    reminder_window_hours = 12
+
+    # Find all appointments in "collecting" phase
+    collecting_apts = list(db.appointments.find(
+        {"declarative_phase": "collecting"},
+        {"_id": 0, "appointment_id": 1, "declarative_deadline": 1}
+    ))
+
+    reminded = 0
+    for apt in collecting_apts:
+        deadline_str = apt.get("declarative_deadline")
+        if not deadline_str:
+            continue
+
+        try:
+            deadline = datetime.fromisoformat(deadline_str.replace('Z', '+00:00'))
+            if hasattr(deadline, 'tzinfo') and deadline.tzinfo is None:
+                deadline = deadline.replace(tzinfo=tz.utc)
+        except (ValueError, TypeError):
+            continue
+
+        hours_left = (deadline - now).total_seconds() / 3600
+
+        # Only remind if between 0 and 12 hours remaining
+        if hours_left <= 0 or hours_left > reminder_window_hours:
+            continue
+
+        # Find pending sheets for this appointment
+        pending_sheets = list(db.attendance_sheets.find(
+            {"appointment_id": apt["appointment_id"], "status": "pending"},
+            {"_id": 0}
+        ))
+
+        for sheet in pending_sheets:
+            try:
+                from services.notification_service import notify_sheet_reminder
+                notify_sheet_reminder(sheet, apt["appointment_id"], int(hours_left))
+                reminded += 1
+            except Exception as e:
+                logger.warning(f"[SHEET_REMINDER] Failed for sheet {sheet.get('sheet_id')}: {e}")
+
+    if reminded:
+        logger.info(f"[SHEET_REMINDER] Sent {reminded} reminder(s)")

@@ -162,6 +162,15 @@ async def graph_subscription_renewal_job():
         logger.error(f"[SCHEDULER] Graph subscription renewal job failed: {str(e)}")
 
 
+async def sheet_reminder_job():
+    """Job to send reminders for pending attendance sheets approaching deadline"""
+    try:
+        from services.declarative_service import run_sheet_reminder_job
+        run_sheet_reminder_job()
+    except Exception as e:
+        logger.error(f"[SCHEDULER] Sheet reminder job failed: {str(e)}")
+
+
 def start_scheduler():
     """Start the background scheduler"""
     # Job 1: Cancellation deadline reminders (every 5 minutes)
@@ -308,6 +317,15 @@ def start_scheduler():
         replace_existing=True
     )
 
+    # Job 16: Sheet reminder — remind participants with pending sheets < 12h before deadline (every 30 minutes)
+    scheduler.add_job(
+        sheet_reminder_job,
+        trigger=IntervalTrigger(minutes=30),
+        id='sheet_reminder_job',
+        name='Remind participants with pending attendance sheets',
+        replace_existing=True
+    )
+
     scheduler.start()
     logger.info("[SCHEDULER] Background scheduler started")
     logger.info("[SCHEDULER]    - Cancellation deadline reminders: every 5 minutes")
@@ -322,6 +340,7 @@ def start_scheduler():
     logger.info("[SCHEDULER]    - Ledger reconciliation: every 6 hours")
     logger.info("[SCHEDULER]    - Declarative deadline: every 5 minutes")
     logger.info("[SCHEDULER]    - Dispute escalation: every 15 minutes")
+    logger.info("[SCHEDULER]    - Sheet reminder (<12h): every 30 minutes")
     logger.info("[SCHEDULER]    - Stale payout detection (>24h): every 6 hours")
     logger.info("[SCHEDULER]    - Graph subscription renewal: every 24 hours")
 

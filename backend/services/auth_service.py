@@ -362,3 +362,21 @@ def _auto_link_user_to_participants(user_id: str, email: str):
                     f"[AUTO-LINK] Linked {dispute_result.modified_count} orphan dispute(s) "
                     f"to user {user_id} ({email})"
                 )
+
+            # 3. Link attendance sheets: update submitted_by_user_id
+            sheet_result = db.attendance_sheets.update_many(
+                {
+                    "submitted_by_participant_id": {"$in": linked_pids},
+                    "$or": [
+                        {"submitted_by_user_id": None},
+                        {"submitted_by_user_id": ""},
+                        {"submitted_by_user_id": email},  # was stored with email as placeholder
+                    ],
+                },
+                {"$set": {"submitted_by_user_id": user_id}}
+            )
+            if sheet_result.modified_count > 0:
+                logger.info(
+                    f"[AUTO-LINK] Linked {sheet_result.modified_count} orphan attendance sheet(s) "
+                    f"to user {user_id} ({email})"
+                )

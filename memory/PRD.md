@@ -13,6 +13,17 @@ Application SaaS (React/FastAPI/MongoDB) de gestion des presences avec garanties
 
 ## Completed Features (Latest Session - 2026-04-02/03)
 
+### Notifications Feuilles de Presence — Equite declarative (2026-04-04)
+- Email automatique a l'ouverture de la phase collecting pour TOUS les participants (avec et sans compte)
+- Fix critique : les participants sans compte ne sont plus exclus de la phase declarative (sheets creees avec email placeholder)
+- Relance automatique 12h avant deadline via scheduler (job toutes les 30 min)
+- Auto-linkage etendu : attendance_sheets liees au user_id au login (en plus des participants et disputes)
+- Fallback submit_sheet : lookup par participant_id si user_id non encore lie
+- Templates email : contexte RDV, action attendue, deadline exacte, consequence du silence, CTA contextuel
+- Idempotence complete sur les 2 emails (sheet_pending + sheet_reminder)
+- Tests : 19/19 OK + 0 regression (43/43 total)
+- Fichiers modifies : declarative_service.py, notification_service.py, email_service.py, auth_service.py, scheduler.py
+
 ### Phase 1 Pre-Production — Equite & UX (2026-04-04)
 - Notifications escalade/decision pour participants sans compte : email avec CTA "creer mon compte" (3 etapes couvertes)
 - Parcours register → redirect litige : route /register alias, propagation redirect param SignUp↔SignIn↔OAuth, auto-linkage participant/dispute au login

@@ -639,3 +639,143 @@ def notify_dispute_escalated(dispute: dict, appointment_title: str = ""):
             f"[NOTIF-EMAIL][EQUITY] Cannot notify target for escalated dispute {dispute_id}: "
             f"no user_id AND no email found for participant {target_pid}."
         )
+
+
+# ═══════════════════════════════════════════════════════════════════
+# ATTENDANCE SHEET NOTIFICATIONS — Equity requirement
+# ═══════════════════════════════════════════════════════════════════
+
+def notify_sheets_created(appointment_id: str, sheets: list):
+    """Notify all participants who have a pending attendance sheet.
+    Called right after initialize_declarative_phase() creates sheets.
+
+    EQUITY: Participants without an account MUST be notified by email
+    with a CTA to create their account and fill their sheet.
+    """
+    apt = _get_appointment_context(appointment_id)
+    title_text = apt["title"]
+
+    appointment_doc = db.appointments.find_one(
+        {"appointment_id": appointment_id},
+        {"_id": 0, "declarative_deadline": 1, "penalty_amount": 1}
+    )
+    deadline_str = appointment_doc.get("declarative_deadline", "") if appointment_doc else ""
+
+    for sheet in sheets:
+        user_id = sheet.get("submitted_by_user_id")
+        pid = sheet.get("submitted_by_participant_id")
+        target_count = len([d for d in sheet.get("declarations", []) if not d.get("is_self_declaration")])
+
+        # Resolve contact info
+        email, name, has_account = _resolve_target_contact(user_id if user_id else None, pid)
+
+        if not email:
+            logger.error(
+                f"[NOTIF-EMAIL][EQUITY] Cannot notify participant {pid} about sheet "
+                f"for {appointment_id}: no email found."
+            )
+            continue
+
+        idempotency_uid = user_id if has_account else f"no_account_{email}"
+
+        # In-app notification (only for account holders)
+        if has_account and user_id:
+            create_notification(
+                user_id=user_id,
+                event_type="sheet_pending",
+                reference_id=sheet["sheet_id"],
+                appointment_id=appointment_id,
+                title=title_text,
+                message="Votre feuille de presence est en attente.",
+            )
+
+        # Email notification
+        if not was_email_sent(idempotency_uid, "sheet_pending", sheet["sheet_id"]):
+            # Create tracking record for idempotency
+            create_notification(
+                user_id=idempotency_uid,
+                event_type="sheet_pending",
+                reference_id=sheet["sheet_id"],
+                appointment_id=appointment_id,
+                title=title_text,
+                message=f"{'[email-tracking]' if has_account else '[email-only]'} Feuille de presence en attente.",
+            )
+            try:
+                from services.email_service import EmailService
+                _fire_email(EmailService.send_attendance_sheet_email(
+                    to_email=email,
+                    to_name=name,
+                    appointment_title=title_text,
+                    appointment_date=apt["start_datetime"],
+                    appointment_location=apt["location"],
+                    appointment_id=appointment_id,
+                    deadline_datetime=deadline_str,
+                    target_count=target_count,
+                    appointment_timezone=apt["timezone"],
+                    needs_account=not has_account,
+                ))
+                mark_email_sent(idempotency_uid, "sheet_pending", sheet["sheet_id"])
+                if not has_account:
+                    logger.info(
+                        f"[NOTIF-EMAIL] Sheet notification sent to non-account user "
+                        f"{email} for sheet {sheet['sheet_id']}"
+                    )
+            except Exception as e:
+                logger.warning(f"[NOTIF-EMAIL] Failed to send sheet email to {email}: {e}")
+
+
+def notify_sheet_reminder(sheet: dict, appointment_id: str, hours_remaining: int):
+    """Send a reminder to a participant who has NOT submitted their sheet.
+    Called by the reminder job for sheets still pending < 12h before deadline.
+
+    EQUITY: Non-account participants also get the reminder.
+    """
+    apt = _get_appointment_context(appointment_id)
+    title_text = apt["title"]
+
+    user_id = sheet.get("submitted_by_user_id")
+    pid = sheet.get("submitted_by_participant_id")
+    sheet_id = sheet.get("sheet_id")
+
+    deadline_str = sheet.get("deadline", "")
+
+    email, name, has_account = _resolve_target_contact(user_id if user_id else None, pid)
+    if not email:
+        return
+
+    idempotency_uid = user_id if has_account else f"no_account_{email}"
+
+    # In-app notification for account holders
+    if has_account and user_id:
+        create_notification(
+            user_id=user_id,
+            event_type="sheet_reminder",
+            reference_id=sheet_id,
+            appointment_id=appointment_id,
+            title=title_text,
+            message=f"Rappel : il vous reste {hours_remaining}h pour remplir votre feuille.",
+        )
+
+    if not was_email_sent(idempotency_uid, "sheet_reminder", sheet_id):
+        create_notification(
+            user_id=idempotency_uid,
+            event_type="sheet_reminder",
+            reference_id=sheet_id,
+            appointment_id=appointment_id,
+            title=title_text,
+            message=f"{'[email-tracking]' if has_account else '[email-only]'} Rappel feuille de presence.",
+        )
+        try:
+            from services.email_service import EmailService
+            _fire_email(EmailService.send_attendance_sheet_reminder_email(
+                to_email=email,
+                to_name=name,
+                appointment_title=title_text,
+                deadline_datetime=deadline_str,
+                hours_remaining=hours_remaining,
+                appointment_timezone=apt["timezone"],
+                needs_account=not has_account,
+            ))
+            mark_email_sent(idempotency_uid, "sheet_reminder", sheet_id)
+        except Exception as e:
+            logger.warning(f"[NOTIF-EMAIL] Failed to send sheet reminder to {email}: {e}")
