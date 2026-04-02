@@ -9,6 +9,7 @@
 - Email: igaal.hanouna@gmail.com
 - Password: OrgTest123!
 - Role: user
+- Note: Login may fail - password possibly changed by user
 
 - Email: igaal@hotmail.com
 - Password: Test123!
