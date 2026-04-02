@@ -275,6 +275,20 @@ async def list_my_disputes(request: Request):
         {"_id": 0}
     ).sort("created_at", -1))
 
+    # BS-6 FIX: Filter out disputes where the user is just an observer (not a party).
+    # Keep only disputes where user is organizer, target, or counterpart.
+    relevant_disputes = []
+    for d in disputes:
+        is_organizer = (d.get('organizer_user_id') == user_id)
+        is_target = (d.get('target_user_id') == user_id)
+        is_counterpart = False
+        if not is_organizer and not is_target:
+            # Check if this user is a counterpart (submitted a declaration about the target)
+            is_counterpart = _is_dispute_counterpart(user_id, d['appointment_id'], d['target_participant_id'])
+        if is_organizer or is_target or is_counterpart:
+            relevant_disputes.append(d)
+    disputes = relevant_disputes
+
     for d in disputes:
         apt = db.appointments.find_one(
             {"appointment_id": d['appointment_id']},

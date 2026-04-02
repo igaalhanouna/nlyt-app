@@ -316,7 +316,10 @@ def run_reconciliation_job() -> dict:
 
     Reports any drift without making destructive corrections.
     """
-    MONEY_IN_TYPES = ("credit_pending",)
+    # BS-2 FIX: Include credit_available_direct in money-in types.
+    # Immediate-release distributions credit available_balance directly
+    # and must be counted as money-in for reconciliation accuracy.
+    MONEY_IN_TYPES = ("credit_pending", "credit_available_direct")
     MONEY_OUT_TYPES = ("debit_payout", "debit_refund")
 
     now_iso = datetime.now(timezone.utc).isoformat()

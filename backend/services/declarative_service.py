@@ -388,7 +388,10 @@ def _run_analysis(appointment_id: str):
     # concurrent _check_and_trigger_analysis calls or deadline job.
     cas_result = db.appointments.update_one(
         {"appointment_id": appointment_id, "declarative_phase": "collecting"},
-        {"$set": {"declarative_phase": "analyzing"}}
+        {"$set": {
+            "declarative_phase": "analyzing",
+            "declarative_analyzing_started_at": now_utc().isoformat(),
+        }}
     )
     if cas_result.modified_count == 0:
         current = db.appointments.find_one(
@@ -1257,6 +1260,43 @@ def run_declarative_deadline_job():
     ))
 
     now = now_utc()
+    # BS-3 FIX: Detect and recover from stuck "analyzing" phases.
+    # If an appointment has been in "analyzing" for > 30 minutes, it's considered stuck.
+    # Reset to "collecting" so the normal analysis flow can retry.
+    stuck_analyzing = list(db.appointments.find(
+        {"declarative_phase": "analyzing"},
+        {"_id": 0, "appointment_id": 1, "declarative_analyzing_started_at": 1, "updated_at": 1}
+    ))
+    for stuck in stuck_analyzing:
+        stuck_apt_id = stuck["appointment_id"]
+        # Use analyzing_started_at if available, otherwise updated_at
+        started_str = stuck.get("declarative_analyzing_started_at") or stuck.get("updated_at", "")
+        if not started_str:
+            continue
+        try:
+            started_dt = datetime.fromisoformat(started_str.replace('Z', '+00:00'))
+            if hasattr(started_dt, 'tzinfo') and started_dt.tzinfo is None:
+                from datetime import timezone as tz
+                started_dt = started_dt.replace(tzinfo=tz.utc)
+            stuck_minutes = (now - started_dt).total_seconds() / 60
+            if stuck_minutes > 30:
+                logger.warning(
+                    f"[AUTO-RECOVERY][ANALYZING] Appointment {stuck_apt_id}: "
+                    f"stuck in 'analyzing' for {stuck_minutes:.0f} min. "
+                    f"Resetting to 'collecting' for retry."
+                )
+                db.appointments.update_one(
+                    {"appointment_id": stuck_apt_id, "declarative_phase": "analyzing"},
+                    {"$set": {
+                        "declarative_phase": "collecting",
+                        "updated_at": now.isoformat(),
+                    }}
+                )
+                # Immediately retry analysis
+                _run_analysis(stuck_apt_id)
+        except (ValueError, TypeError):
+            continue
+
     processed = 0
     for apt in appointments:
         apt_id = apt['appointment_id']

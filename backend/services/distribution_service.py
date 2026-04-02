@@ -466,8 +466,13 @@ def cancel_distribution(distribution_id: str, reason: str) -> dict:
     if not dist:
         return {"success": False, "error": "Distribution introuvable"}
 
-    if dist["status"] in ("cancelled", "completed"):
-        return {"success": False, "error": f"Distribution déjà {dist['status']}"}
+    if dist["status"] == "cancelled":
+        return {"success": False, "error": "Distribution déjà annulée"}
+
+    # BS-4 FIX: Allow cancellation of "completed" distributions (immediate_release).
+    # These need reversal when a reclassification happens after consensus/arbitrage.
+    # For "completed" distributions, we still process the refund — the funds are
+    # in available_balance (not pending), so debit_refund will find them there.
 
     now_iso = datetime.now(timezone.utc).isoformat()
     refund_errors = []

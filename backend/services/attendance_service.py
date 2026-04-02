@@ -1048,7 +1048,7 @@ def _process_reclassification(record: dict, previous_outcome: str, new_outcome: 
     # Handle transition: was penalized → now non-penalized → cancel distribution + release
     if previous_outcome in PENALIZED and new_outcome in NON_PENALIZED:
         existing_dist = db.distributions.find_one({"guarantee_id": guarantee['guarantee_id']}, {"_id": 0})
-        if existing_dist and existing_dist['status'] not in ('cancelled', 'completed'):
+        if existing_dist and existing_dist['status'] != 'cancelled':
             cancel_dist(existing_dist['distribution_id'], f"Reclassifié: {previous_outcome} → {new_outcome}")
 
         if guarantee.get('status') in ('completed', 'dev_pending'):
@@ -1106,10 +1106,44 @@ def run_review_timeout_job():
     # Group by appointment to batch process
     appointment_ids = list({r['appointment_id'] for r in stale_records})
 
+    # BS-1 FIX: Pre-fetch appointments with active declarative phases or open disputes
+    # to avoid auto-waiving participants who are in active dispute resolution.
+    active_declarative_apt_ids = set()
+    for apt_doc in db.appointments.find(
+        {"appointment_id": {"$in": appointment_ids},
+         "declarative_phase": {"$in": ["collecting", "analyzing", "disputed"]}},
+        {"_id": 0, "appointment_id": 1}
+    ):
+        active_declarative_apt_ids.add(apt_doc["appointment_id"])
+
+    # Also check for any open disputes on these appointments
+    active_dispute_pids = set()
+    for disp in db.declarative_disputes.find(
+        {"appointment_id": {"$in": appointment_ids},
+         "status": {"$in": ["awaiting_positions", "awaiting_evidence", "escalated"]}},
+        {"_id": 0, "target_participant_id": 1, "appointment_id": 1}
+    ):
+        active_dispute_pids.add((disp["appointment_id"], disp["target_participant_id"]))
+
     for apt_id in appointment_ids:
         apt_records = [r for r in stale_records if r['appointment_id'] == apt_id]
 
         for record in apt_records:
+            # BS-1 GUARD: Skip auto-waive if this appointment has an active declarative phase
+            # or if this specific participant has an open dispute.
+            if apt_id in active_declarative_apt_ids:
+                logger.info(
+                    f"[ATTENDANCE] Review timeout SKIPPED for {record['participant_id']} "
+                    f"in {apt_id}: active declarative phase"
+                )
+                continue
+
+            if (apt_id, record['participant_id']) in active_dispute_pids:
+                logger.info(
+                    f"[ATTENDANCE] Review timeout SKIPPED for {record['participant_id']} "
+                    f"in {apt_id}: open dispute exists"
+                )
+                continue
             # Auto-resolve: release guarantee (no penalty — doubt in favor of participant)
             new_outcome = "waived"
 
