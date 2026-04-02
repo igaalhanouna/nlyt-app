@@ -21,6 +21,15 @@ Application SaaS (React/FastAPI/MongoDB) de gestion des presences avec garanties
 - Garanties: pas de pending sheet, pas de litige, pas d'arbitrage admin, pas de penalite
 - Tests: 24/24 PASS (iteration 177) — 6 nouveaux tests V5.1 (Tests 12-17)
 
+### UX Timeline Cards — Visibilite des participants inactifs (2026-04-03)
+- Banniere explicite: "Tous les participants ont decline" / "ont annule" / "ont annule ou decline"
+- Progress bar corrigee: exclut l'organisateur des compteurs (participants_count, accepted_count = non-org seulement)
+- Progress bar masquee si 0 participants actifs (no_active_participants=true)
+- Badge discret "Sans participant" (gris, icone UserX) combine avec badge temporel
+- Statut `declined` desormais visible (etait invisible auparavant)
+- Counterparty corrige: ne montre plus l'organisateur lui-meme, affiche "Aucun participant" si aucun actif
+- Tests: 100% PASS (iteration 178) — API + frontend + 0 regression sur 30 cartes
+
 ### Refonte Moteur Declaratif V5 + Migration
 - Auto-litiges elimines (guard target_user_id != organizer_user_id)
 - unknown = neutre (ne cree plus de litige)
