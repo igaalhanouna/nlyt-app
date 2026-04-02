@@ -136,6 +136,11 @@ export default function DecisionDetailPage() {
           )}
         </section>
 
+        {/* B2. Financial breakdown (juste apres la decision) */}
+        {fc.penalty_amount != null && (
+          <FinancialSection fc={fc} outcome={outcome} targetName={targetName} ds={ds} data={data} />
+        )}
+
         {/* C. Preuves factuelles (NOUVEAU) */}
         <TechEvidenceSection tes={tes} targetName={targetName} appointmentType={data.appointment_type} />
 
@@ -169,12 +174,7 @@ export default function DecisionDetailPage() {
           </section>
         )}
 
-        {/* F. Financial breakdown */}
-        {fc.penalty_amount != null && (
-          <FinancialSection fc={fc} outcome={outcome} targetName={targetName} ds={ds} data={data} />
-        )}
-
-        {/* G. Final status */}
+        {/* F. Final status */}
         <div className="text-center py-4">
           <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-slate-100 text-sm font-medium text-slate-600" data-testid="decision-status">
             <Clock className="w-4 h-4" />
