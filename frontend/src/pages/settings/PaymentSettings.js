@@ -13,6 +13,7 @@ export default function PaymentSettings() {
   const [loading, setLoading] = useState(true);
   const [settingUp, setSettingUp] = useState(false);
   const [removing, setRemoving] = useState(false);
+  const [confirmRemove, setConfirmRemove] = useState(false);
   const [polling, setPolling] = useState(false);
 
   const fetchPaymentMethod = useCallback(async () => {
@@ -83,7 +84,8 @@ export default function PaymentSettings() {
   };
 
   const handleRemove = async () => {
-    if (!window.confirm("Supprimer votre carte par défaut ? Vos futurs engagements nécessiteront une saisie manuelle.")) return;
+    if (!confirmRemove) { setConfirmRemove(true); return; }
+    setConfirmRemove(false);
     setRemoving(true);
     try {
       await api.delete('/api/user-settings/me/payment-method');
@@ -177,6 +179,13 @@ export default function PaymentSettings() {
                 {removing ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Trash2 className="w-4 h-4 mr-2" />}
                 Supprimer
               </Button>
+              {confirmRemove && (
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <span className="text-xs text-red-600 font-medium">Supprimer la carte ?</span>
+                  <button onClick={handleRemove} disabled={removing} className="px-2 py-1 text-xs font-bold text-white bg-red-600 rounded hover:bg-red-700 transition-colors disabled:opacity-50" data-testid="confirm-remove-card">Oui</button>
+                  <button onClick={() => setConfirmRemove(false)} className="px-2 py-1 text-xs font-medium text-slate-600 bg-slate-100 rounded hover:bg-slate-200 transition-colors" data-testid="cancel-remove-card">Non</button>
+                </div>
+              )}
             </div>
           </div>
         ) : (

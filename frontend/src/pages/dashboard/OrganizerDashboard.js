@@ -111,7 +111,7 @@ function ImpactCard({ totalCharityCents }) {
 }
 
 // ── Action Required Section ──
-function ActionCard({ item, onRemind, onAccept, onDecline, onCancel, onDelete, onGuarantee, now, onNavigate }) {
+function ActionCard({ item, onRemind, onAccept, onDecline, onCancel, onDelete, onGuarantee, now, onNavigate, confirmCancelId, onCancelConfirmReset }) {
   const isParticipant = item.role === 'participant';
   const isOrgAlert = !isParticipant && item.action_required;
   const needsOrgGuarantee = !isParticipant && item.needs_organizer_guarantee;
@@ -214,9 +214,17 @@ function ActionCard({ item, onRemind, onAccept, onDecline, onCancel, onDelete, o
               <Bell className="w-3.5 h-3.5 mr-1.5" /> Relancer
             </Button>
             {!isActionStarted && (
-              <Button size="sm" variant="outline" className="h-11 md:h-8 text-xs flex-1 md:flex-none border-red-200 text-red-600 hover:bg-red-50" onClick={() => onCancel(item)} data-testid={`cancel-action-${item.appointment_id}`}>
-                <Ban className="w-3.5 h-3.5 mr-1.5" /> Annuler
-              </Button>
+              confirmCancelId === item.appointment_id ? (
+                <div className="flex items-center gap-1.5 flex-1 md:flex-none">
+                  <span className="text-xs text-red-600 font-medium">Annuler ?</span>
+                  <button onClick={() => onCancel(item)} className="px-2 py-1 text-xs font-bold text-white bg-red-600 rounded hover:bg-red-700 transition-colors" data-testid={`confirm-cancel-${item.appointment_id}`}>Oui</button>
+                  <button onClick={onCancelConfirmReset} className="px-2 py-1 text-xs font-medium text-slate-600 bg-slate-100 rounded hover:bg-slate-200 transition-colors" data-testid={`deny-cancel-${item.appointment_id}`}>Non</button>
+                </div>
+              ) : (
+                <Button size="sm" variant="outline" className="h-11 md:h-8 text-xs flex-1 md:flex-none border-red-200 text-red-600 hover:bg-red-50" onClick={() => onCancel(item)} data-testid={`cancel-action-${item.appointment_id}`}>
+                  <Ban className="w-3.5 h-3.5 mr-1.5" /> Annuler
+                </Button>
+              )
             )}
           </>
         ) : (
@@ -295,7 +303,7 @@ function formatChangeSummary(mod) {
 }
 
 // ── Timeline Card (unified for organizer + participant) ──
-function TimelineCard({ item, isPast, onDelete, onRemind, onQuit, onDecline, onGuarantee, now, fromTab, onNavigate, hasModification, modActionRequired, modificationData }) {
+function TimelineCard({ item, isPast, onDelete, onRemind, onQuit, onDecline, onGuarantee, now, fromTab, onNavigate, hasModification, modActionRequired, modificationData, confirmQuitId, onQuitConfirmReset }) {
   const isParticipant = item.role === 'participant';
   const badge = getTemporalBadge(item, now);
   const isOngoing = badge.key === 'ongoing';
@@ -568,15 +576,23 @@ function TimelineCard({ item, isPast, onDelete, onRemind, onQuit, onDecline, onG
           </Button>
         )}
         {canQuit && (
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-11 md:h-7 text-xs flex-1 md:flex-none border-red-200 text-red-600 hover:bg-red-50"
-            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onQuit(item); }}
-            data-testid={`quit-btn-${item.appointment_id}`}
-          >
-            <LogOut className="w-3.5 h-3.5 mr-1.5" /> Annuler
-          </Button>
+          confirmQuitId === item.appointment_id ? (
+            <div className="flex items-center gap-1.5 flex-1 md:flex-none" onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+              <span className="text-xs text-red-600 font-medium">Annuler ?</span>
+              <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); onQuit(item); }} className="px-2 py-1 text-xs font-bold text-white bg-red-600 rounded hover:bg-red-700 transition-colors" data-testid={`confirm-quit-${item.appointment_id}`}>Oui</button>
+              <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); onQuitConfirmReset(); }} className="px-2 py-1 text-xs font-medium text-slate-600 bg-slate-100 rounded hover:bg-slate-200 transition-colors" data-testid={`deny-quit-${item.appointment_id}`}>Non</button>
+            </div>
+          ) : (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-11 md:h-7 text-xs flex-1 md:flex-none border-red-200 text-red-600 hover:bg-red-50"
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); onQuit(item); }}
+              data-testid={`quit-btn-${item.appointment_id}`}
+            >
+              <LogOut className="w-3.5 h-3.5 mr-1.5" /> Annuler
+            </Button>
+          )
         )}
         {canQuitDisabled && (
           <span title="Le délai d'annulation est dépassé" className="flex-1 md:flex-none">
@@ -642,6 +658,8 @@ export default function OrganizerDashboard() {
   const [impactCents, setImpactCents] = useState(0);
   const [deleteModal, setDeleteModal] = useState({ open: false, item: null });
   const [deleting, setDeleting] = useState(false);
+  const [confirmCancelId, setConfirmCancelId] = useState(null);
+  const [confirmQuitId, setConfirmQuitId] = useState(null);
   const [workspaceDropdownOpen, setWorkspaceDropdownOpen] = useState(false);
   const [responding, setResponding] = useState(null);
   const [allModifications, setAllModifications] = useState([]);
@@ -763,7 +781,8 @@ export default function OrganizerDashboard() {
   };
 
   const handleCancelAppointment = async (item) => {
-    if (!window.confirm(`Annuler l'engagement "${item.title}" ? Les participants seront notifiés.`)) return;
+    if (confirmCancelId !== item.appointment_id) { setConfirmCancelId(item.appointment_id); setConfirmQuitId(null); return; }
+    setConfirmCancelId(null);
     try {
       await appointmentAPI.cancel(item.appointment_id);
       const aptId = item.appointment_id;
@@ -794,7 +813,8 @@ export default function OrganizerDashboard() {
 
   const handleQuitParticipation = async (item) => {
     if (!item.invitation_token) return;
-    if (!window.confirm(`Annuler votre participation à "${item.title}" ? Cette action est irréversible si le délai est respecté.`)) return;
+    if (confirmQuitId !== item.appointment_id) { setConfirmQuitId(item.appointment_id); setConfirmCancelId(null); return; }
+    setConfirmQuitId(null);
     try {
       await invitationAPI.cancelParticipation(item.invitation_token);
       toast.success('Participation annulée');
@@ -1087,7 +1107,7 @@ export default function OrganizerDashboard() {
                   </div>
                   <div className="space-y-3">
                     {invItems.slice(0, 8).map(item => (
-                      <ActionCard key={`${item.role}-${item.appointment_id}`} item={item} onRemind={handleRemind} onAccept={handleAcceptInvitation} onDecline={handleDeclineInvitation} onCancel={handleCancelAppointment} onDelete={handleDeleteClick} onGuarantee={handleGuaranteeOrganizer} now={now} onNavigate={saveScroll} />
+                      <ActionCard key={`${item.role}-${item.appointment_id}`} item={item} onRemind={handleRemind} onAccept={handleAcceptInvitation} onDecline={handleDeclineInvitation} onCancel={handleCancelAppointment} onDelete={handleDeleteClick} onGuarantee={handleGuaranteeOrganizer} now={now} onNavigate={saveScroll} confirmCancelId={confirmCancelId} onCancelConfirmReset={() => setConfirmCancelId(null)} />
                     ))}
                   </div>
                 </div>
@@ -1202,7 +1222,7 @@ export default function OrganizerDashboard() {
                   <div className="space-y-3">
                     {filteredUpcoming.map(merged =>
                       merged.type === 'timeline' ? (
-                        <TimelineCard key={`tl-${merged.data.appointment_id}`} item={merged.data} isPast={false} onDelete={handleDeleteClick} onRemind={handleRemind} onQuit={handleQuitParticipation} onDecline={handleDeclineInvitation} onGuarantee={handleGuaranteeOrganizer} now={now} fromTab="upcoming" onNavigate={saveScroll} hasModification={modPendingAptIds.has(merged.data.appointment_id)} modActionRequired={modActionAptIds.has(merged.data.appointment_id)} modificationData={modDataByAptId[merged.data.appointment_id]} />
+                        <TimelineCard key={`tl-${merged.data.appointment_id}`} item={merged.data} isPast={false} onDelete={handleDeleteClick} onRemind={handleRemind} onQuit={handleQuitParticipation} onDecline={handleDeclineInvitation} onGuarantee={handleGuaranteeOrganizer} now={now} fromTab="upcoming" onNavigate={saveScroll} hasModification={modPendingAptIds.has(merged.data.appointment_id)} modActionRequired={modActionAptIds.has(merged.data.appointment_id)} modificationData={modDataByAptId[merged.data.appointment_id]} confirmQuitId={confirmQuitId} onQuitConfirmReset={() => setConfirmQuitId(null)} />
                       ) : (
                         <ExternalEventCard key={`ext-${merged.data.external_event_id}`} event={merged.data} />
                       )
@@ -1220,7 +1240,7 @@ export default function OrganizerDashboard() {
                 ) : (
                   <div className="space-y-3">
                     {filteredPast.slice(0, pastVisible).map(item => (
-                      <TimelineCard key={`past-${item.role}-${item.appointment_id}`} item={item} isPast={true} onDelete={handleDeleteClick} onRemind={handleRemind} onQuit={handleQuitParticipation} onDecline={handleDeclineInvitation} onGuarantee={handleGuaranteeOrganizer} now={now} fromTab="past" onNavigate={saveScroll} hasModification={modPendingAptIds.has(item.appointment_id)} modActionRequired={modActionAptIds.has(item.appointment_id)} modificationData={modDataByAptId[item.appointment_id]} />
+                      <TimelineCard key={`past-${item.role}-${item.appointment_id}`} item={item} isPast={true} onDelete={handleDeleteClick} onRemind={handleRemind} onQuit={handleQuitParticipation} onDecline={handleDeclineInvitation} onGuarantee={handleGuaranteeOrganizer} now={now} fromTab="past" onNavigate={saveScroll} hasModification={modPendingAptIds.has(item.appointment_id)} modActionRequired={modActionAptIds.has(item.appointment_id)} modificationData={modDataByAptId[item.appointment_id]} confirmQuitId={confirmQuitId} onQuitConfirmReset={() => setConfirmQuitId(null)} />
                     ))}
                     {filteredPast.length > pastVisible && (
                       <div className="pt-4 text-center">

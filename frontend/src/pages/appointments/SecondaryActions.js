@@ -14,6 +14,7 @@ export default function QuickActions({
   onParticipantCancelComplete,
 }) {
   const [cancellingParticipation, setCancellingParticipation] = useState(false);
+  const [confirmCancel, setConfirmCancel] = useState(false);
 
   // Temporal checks
   const startDt = appointment?.start_datetime ? parseUTC(appointment.start_datetime) : null;
@@ -39,7 +40,8 @@ export default function QuickActions({
 
   const handleCancelParticipation = async () => {
     if (!viewerInvitationToken) return;
-    if (!window.confirm('Annuler votre participation ? Cette action est irréversible si le délai d\'annulation est respecté.')) return;
+    if (!confirmCancel) { setConfirmCancel(true); return; }
+    setConfirmCancel(false);
     setCancellingParticipation(true);
     try {
       await invitationAPI.cancelParticipation(viewerInvitationToken);
@@ -111,18 +113,26 @@ export default function QuickActions({
 
       {/* Cancel participation — participant leaves */}
       {canCancelParticipation && (
-        <button
-          onClick={handleCancelParticipation}
-          disabled={cancellingParticipation}
-          className="flex items-center gap-1.5 text-xs text-red-500 hover:text-red-700 font-medium py-1.5 transition-colors min-h-[44px] disabled:opacity-50"
-          data-testid="cancel-participation-btn"
-        >
-          {cancellingParticipation
-            ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            : <LogOut className="w-3.5 h-3.5" />
-          }
-          Annuler ma participation
-        </button>
+        confirmCancel ? (
+          <div className="flex items-center gap-2 py-1.5">
+            <span className="text-xs text-red-600 font-medium">Annuler votre participation ?</span>
+            <button onClick={handleCancelParticipation} disabled={cancellingParticipation} className="px-2 py-1 text-xs font-bold text-white bg-red-600 rounded hover:bg-red-700 transition-colors disabled:opacity-50" data-testid="confirm-cancel-participation">Oui</button>
+            <button onClick={() => setConfirmCancel(false)} className="px-2 py-1 text-xs font-medium text-slate-600 bg-slate-100 rounded hover:bg-slate-200 transition-colors" data-testid="cancel-cancel-participation">Non</button>
+          </div>
+        ) : (
+          <button
+            onClick={handleCancelParticipation}
+            disabled={cancellingParticipation}
+            className="flex items-center gap-1.5 text-xs text-red-500 hover:text-red-700 font-medium py-1.5 transition-colors min-h-[44px] disabled:opacity-50"
+            data-testid="cancel-participation-btn"
+          >
+            {cancellingParticipation
+              ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              : <LogOut className="w-3.5 h-3.5" />
+            }
+            Annuler ma participation
+          </button>
+        )
       )}
       {cancelParticipationDisabled && (
         <span title="Le délai d'annulation est dépassé">

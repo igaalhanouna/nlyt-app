@@ -19,6 +19,7 @@ export default function AdminUsers() {
   const [changingRole, setChangingRole] = useState(null);
   const [deleting, setDeleting] = useState(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+  const [pendingRoleChange, setPendingRoleChange] = useState(null); // { userId, email, newRole }
 
   const token = localStorage.getItem('nlyt_token');
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
@@ -39,9 +40,11 @@ export default function AdminUsers() {
 
   const handleRoleChange = async (u, newRole) => {
     if (newRole === (u.role || 'user')) return;
-    const label = ROLE_LABELS[newRole] || newRole;
-    if (!window.confirm(`Changer le role de ${u.email} en "${label}" ?`)) return;
-
+    if (!pendingRoleChange || pendingRoleChange.userId !== u.user_id || pendingRoleChange.newRole !== newRole) {
+      setPendingRoleChange({ userId: u.user_id, email: u.email, newRole });
+      return;
+    }
+    setPendingRoleChange(null);
     setChangingRole(u.user_id);
     try {
       const { ok, data } = await safeFetchJson(`${API_URL}/api/admin/users/${u.user_id}/role`, {
@@ -177,6 +180,13 @@ export default function AdminUsers() {
                           </select>
                           <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
                         </div>
+                        {pendingRoleChange && pendingRoleChange.userId === u.user_id && (
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs text-amber-600 font-medium">{ROLE_LABELS[pendingRoleChange.newRole]} ?</span>
+                            <button onClick={() => handleRoleChange(u, pendingRoleChange.newRole)} className="px-2 py-1 text-xs font-bold text-white bg-amber-600 rounded hover:bg-amber-700 transition-colors" data-testid={`confirm-role-${u.user_id}`}>Oui</button>
+                            <button onClick={() => setPendingRoleChange(null)} className="px-2 py-1 text-xs font-medium text-slate-600 bg-slate-100 rounded hover:bg-slate-200 transition-colors" data-testid={`cancel-role-${u.user_id}`}>Non</button>
+                          </div>
+                        )}
                         {confirmDeleteId === u.user_id ? (
                           <div className="flex items-center gap-1.5">
                             <span className="text-xs text-red-600 font-medium">Supprimer ?</span>
