@@ -28,6 +28,9 @@ TERMINAL_PARTICIPANT_STATUSES = frozenset({
     'cancelled_by_participant', 'declined', 'guarantee_released',
 })
 
+# Statuts de déclaration considérés comme positifs (présence confirmée).
+POSITIVE_DECLARATION_STATUSES = frozenset({'present_on_time', 'present_late'})
+
 
 # ═══════════════════════════════════════════════════════════════════
 # Phase initialization
@@ -187,6 +190,26 @@ def _get_user_id(participant_id: str) -> str:
             )
             return user['user_id']
     return ''
+
+
+def _has_negative_tech_evidence(target_pid: str, appointment_id: str) -> bool:
+    """Check for explicit negative technical evidence against a participant.
+
+    Principle: 'absence of evidence is NOT evidence of absence'.
+    Only returns True if concrete tech signals indicate absence.
+    manual_review alone = inconclusive, NOT negative.
+    Evidence items (GPS, video, check-in) are POSITIVE presence indicators.
+    """
+    record = db.attendance_records.find_one(
+        {"appointment_id": appointment_id, "participant_id": target_pid},
+        {"_id": 0}
+    )
+    if not record:
+        return False
+    tech_details = record.get("tech_evaluation") or {}
+    if isinstance(tech_details, dict) and tech_details.get("negative_signal"):
+        return True
+    return False
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -353,8 +376,9 @@ def _run_analysis(appointment_id: str):
         if result['auto_resolvable']:
             _apply_declarative_outcome(appointment_id, result)
         else:
-            open_dispute(appointment_id, result['target_participant_id'], result.get('reason_if_not', 'unknown'))
-            any_dispute = True
+            dispute_id = open_dispute(appointment_id, result['target_participant_id'], result.get('reason_if_not', 'unknown'))
+            if dispute_id is not None:
+                any_dispute = True
 
     new_phase = "disputed" if any_dispute else "resolved"
     db.appointments.update_one(
@@ -383,8 +407,12 @@ def _run_analysis(appointment_id: str):
 def _run_small_group_analysis(appointment_id: str, review_records: list, submitted_sheets: list) -> list:
     """For < 3 participants: direct comparison of ALL declarations including self-declarations.
 
-    Rule: Agreement (all same status) → auto-resolve. Any disagreement → dispute.
-    Self-declarations are included with equal weight (no special treatment).
+    V5 Rules:
+    - 0 expressed (all unknown) + no negative tech evidence -> waived (presumption)
+    - 0 expressed + negative tech evidence -> dispute
+    - All expressed positive (present_on_time/present_late) -> auto-resolve
+    - Any 'absent' signal -> dispute
+    - Mix present/absent -> dispute
     """
     results = []
     for record in review_records:
@@ -401,19 +429,51 @@ def _run_small_group_analysis(appointment_id: str, review_records: list, submitt
                     })
 
         if not all_declarations:
-            results.append({
-                "target_participant_id": target_pid,
-                "tiers_expressed_count": 0,
-                "auto_resolvable": False,
-                "reason_if_not": "no_declarations_received",
-                "confidence_level": "LOW",
-            })
+            # 0 expressed — apply presumption rule
+            has_neg_tech = _has_negative_tech_evidence(target_pid, appointment_id)
+            if has_neg_tech:
+                results.append({
+                    "target_participant_id": target_pid,
+                    "tiers_expressed_count": 0,
+                    "auto_resolvable": False,
+                    "reason_if_not": "negative_tech_with_no_declarations",
+                    "confidence_level": "LOW",
+                })
+            else:
+                logger.info(
+                    f"[DECLARATIVE][PRESUMPTION] {target_pid}: 0 expressed, no negative tech "
+                    f"-> waived (small group, appointment {appointment_id})"
+                )
+                results.append({
+                    "target_participant_id": target_pid,
+                    "tiers_expressed_count": 0,
+                    "auto_resolvable": True,
+                    "unanimous_status": "waived",
+                    "confidence_level": "LOW",
+                })
             continue
 
         statuses = set(d['declared_status'] for d in all_declarations)
-        if len(statuses) == 1:
-            # Agreement — all parties said the same thing
-            agreed_status = statuses.pop()
+        has_negative = 'absent' in statuses
+
+        if has_negative:
+            # Any absent signal -> dispute (whether unanimous absent or mixed)
+            reason = "unanimous_absence" if len(statuses) == 1 else "small_group_disagreement"
+            results.append({
+                "target_participant_id": target_pid,
+                "tiers_expressed_count": len(all_declarations),
+                "tiers_unanimous": len(statuses) == 1,
+                "auto_resolvable": False,
+                "reason_if_not": reason,
+                "confidence_level": "LOW",
+            })
+        elif statuses <= POSITIVE_DECLARATION_STATUSES:
+            # All expressed are positive — auto-resolve
+            if len(statuses) == 1:
+                agreed_status = statuses.pop()
+            else:
+                # Mixed positive (on_time + late): default to on_time (presence confirmed)
+                agreed_status = 'present_on_time'
             results.append({
                 "target_participant_id": target_pid,
                 "tiers_expressed_count": len(all_declarations),
@@ -423,7 +483,7 @@ def _run_small_group_analysis(appointment_id: str, review_records: list, submitt
                 "confidence_level": "MEDIUM",
             })
         else:
-            # Disagreement — positions differ
+            # Unknown status value — dispute (safety)
             results.append({
                 "target_participant_id": target_pid,
                 "tiers_expressed_count": len(all_declarations),
@@ -439,54 +499,172 @@ def _run_small_group_analysis(appointment_id: str, review_records: list, submitt
 def _run_large_group_analysis(appointment_id: str, review_records: list, submitted_sheets: list) -> list:
     """For >= 3 participants: cross-declaration analysis with unanimity and coherence checks.
     Self-declarations are EXCLUDED (tiers only).
+
+    V5 Rules:
+    - 0 expressed + no neg tech -> waived
+    - 1 expressed positive + no neg tech -> waived (insufficient for on_time)
+    - 1 expressed negative -> dispute
+    - >=2 unanimous positive -> on_time/late (auto-resolve)
+    - >=2 unanimous absent -> existing contradiction checks -> no_show or dispute
+    - >=2 disagreement -> dispute
     """
     global_coherence = _check_global_coherence(submitted_sheets)
 
     results = []
     for record in review_records:
         target_pid = record['participant_id']
-
         unanimity = _check_unanimity(target_pid, submitted_sheets)
-        contradiction = _check_contradiction_signals(
-            target_pid, unanimity, submitted_sheets, appointment_id
-        )
+        expressed_count = unanimity.get('expressed_count', 0)
 
-        auto_resolvable = (
-            unanimity.get('unanimous', False)
-            and global_coherence.get('coherent', False)
-            and not contradiction.get('contradiction', False)
-        )
+        # -- Case 1: 0 expressed (all unknown) --
+        if expressed_count == 0:
+            has_neg_tech = _has_negative_tech_evidence(target_pid, appointment_id)
+            if has_neg_tech:
+                results.append({
+                    "target_participant_id": target_pid,
+                    "tiers_expressed_count": 0,
+                    "tiers_unanimous": False,
+                    "auto_resolvable": False,
+                    "reason_if_not": "negative_tech_with_no_declarations",
+                    "confidence_level": "LOW",
+                })
+            else:
+                logger.info(
+                    f"[DECLARATIVE][PRESUMPTION] {target_pid}: 0 tiers expressed, no negative tech "
+                    f"-> waived (large group, appointment {appointment_id})"
+                )
+                results.append({
+                    "target_participant_id": target_pid,
+                    "tiers_expressed_count": 0,
+                    "tiers_unanimous": False,
+                    "unanimous_status": "waived",
+                    "auto_resolvable": True,
+                    "confidence_level": "LOW",
+                })
+            continue
 
-        confidence = "MEDIUM" if auto_resolvable else "LOW"
-        reason = None
-        if not auto_resolvable:
-            reasons = []
-            if not unanimity.get('unanimous'):
-                reasons.append(unanimity.get('reason', 'no_unanimity'))
-            if not global_coherence.get('coherent'):
-                reasons.append(global_coherence.get('reason', 'incoherent'))
-            if contradiction.get('contradiction'):
-                reasons.append(contradiction.get('reason', 'contradiction'))
-            reason = "; ".join(reasons)
+        # -- Case 2: 1 single expressed --
+        if unanimity.get('reason') == 'single_expressed':
+            single_status = unanimity.get('status')
+            if single_status == 'absent':
+                # 1 negative signal -> dispute
+                results.append({
+                    "target_participant_id": target_pid,
+                    "tiers_expressed_count": 1,
+                    "tiers_unanimous": False,
+                    "auto_resolvable": False,
+                    "reason_if_not": "single_negative_signal",
+                    "confidence_level": "LOW",
+                })
+            else:
+                # 1 positive signal -> waived (not enough for on_time in large group)
+                has_neg_tech = _has_negative_tech_evidence(target_pid, appointment_id)
+                if has_neg_tech:
+                    results.append({
+                        "target_participant_id": target_pid,
+                        "tiers_expressed_count": 1,
+                        "tiers_unanimous": False,
+                        "auto_resolvable": False,
+                        "reason_if_not": "tech_contradicts_single_positive",
+                        "confidence_level": "LOW",
+                    })
+                else:
+                    logger.info(
+                        f"[DECLARATIVE][PRESUMPTION] {target_pid}: 1 tiers says '{single_status}', "
+                        f"no negative tech -> waived (large group, appointment {appointment_id})"
+                    )
+                    results.append({
+                        "target_participant_id": target_pid,
+                        "tiers_expressed_count": 1,
+                        "tiers_unanimous": False,
+                        "unanimous_status": "waived",
+                        "auto_resolvable": True,
+                        "confidence_level": "LOW",
+                    })
+            continue
 
+        # -- Case 3: >=2 unanimous --
+        if unanimity.get('unanimous'):
+            status = unanimity.get('status')
+            if status in POSITIVE_DECLARATION_STATUSES:
+                # >=2 unanimous positive -> auto-resolve
+                results.append({
+                    "target_participant_id": target_pid,
+                    "tiers_expressed_count": expressed_count,
+                    "tiers_unanimous": True,
+                    "unanimous_status": status,
+                    "auto_resolvable": True,
+                    "confidence_level": "MEDIUM",
+                })
+            elif status == 'absent':
+                # >=2 unanimous absent -> existing contradiction checks
+                contradiction = _check_contradiction_signals(
+                    target_pid, unanimity, submitted_sheets, appointment_id
+                )
+                auto_ok = (
+                    global_coherence.get('coherent', False)
+                    and not contradiction.get('contradiction', False)
+                )
+                if auto_ok:
+                    results.append({
+                        "target_participant_id": target_pid,
+                        "tiers_expressed_count": expressed_count,
+                        "tiers_unanimous": True,
+                        "unanimous_status": status,
+                        "contestant_contradiction": False,
+                        "collusion_detected": False,
+                        "tech_signal_contradiction": False,
+                        "auto_resolvable": True,
+                        "confidence_level": "MEDIUM",
+                    })
+                else:
+                    reasons = []
+                    if not global_coherence.get('coherent'):
+                        reasons.append(global_coherence.get('reason', 'incoherent'))
+                    if contradiction.get('contradiction'):
+                        reasons.append(contradiction.get('reason', 'contradiction'))
+                    results.append({
+                        "target_participant_id": target_pid,
+                        "tiers_expressed_count": expressed_count,
+                        "tiers_unanimous": True,
+                        "unanimous_status": status,
+                        "contestant_contradiction": contradiction.get('reason') == 'contestant_contradiction',
+                        "collusion_detected": contradiction.get('reason') == 'collusion_signal',
+                        "tech_signal_contradiction": contradiction.get('reason') == 'tech_signal_contradiction',
+                        "auto_resolvable": False,
+                        "reason_if_not": "; ".join(reasons),
+                        "confidence_level": "LOW",
+                    })
+            else:
+                # Other unanimous status -> auto-resolve
+                results.append({
+                    "target_participant_id": target_pid,
+                    "tiers_expressed_count": expressed_count,
+                    "tiers_unanimous": True,
+                    "unanimous_status": status,
+                    "auto_resolvable": True,
+                    "confidence_level": "MEDIUM",
+                })
+            continue
+
+        # -- Case 4: >=2 disagreement --
         results.append({
             "target_participant_id": target_pid,
-            "tiers_expressed_count": unanimity.get('expressed_count', 0),
-            "tiers_unanimous": unanimity.get('unanimous', False),
-            "unanimous_status": unanimity.get('status'),
-            "contestant_contradiction": contradiction.get('reason') == 'contestant_contradiction',
-            "collusion_detected": contradiction.get('reason') == 'collusion_signal',
-            "tech_signal_contradiction": contradiction.get('reason') == 'tech_signal_contradiction',
-            "confidence_level": confidence,
-            "auto_resolvable": auto_resolvable,
-            "reason_if_not": reason,
+            "tiers_expressed_count": expressed_count,
+            "tiers_unanimous": False,
+            "auto_resolvable": False,
+            "reason_if_not": unanimity.get('reason', 'tiers_disagreement'),
+            "confidence_level": "LOW",
         })
 
     return results
 
 
 def _check_unanimity(target_pid: str, sheets: list) -> dict:
-    """Check if all tiers agree on target_pid's status."""
+    """Check tiers declarations for target_pid.
+
+    V5: Returns granular info for 0, 1, and >=2 expressed cases.
+    """
     declarations = []
     for s in sheets:
         if s.get('submitted_by_participant_id') == target_pid:
@@ -495,10 +673,18 @@ def _check_unanimity(target_pid: str, sheets: list) -> dict:
             if d['target_participant_id'] == target_pid:
                 declarations.append(d)
 
-    expressed = [d for d in declarations if d.get('declared_status') != 'unknown']
+    expressed = [d for d in declarations if d.get('declared_status') not in (None, 'unknown')]
 
-    if len(expressed) < MIN_TIERS_EXPRESSED:
-        return {"unanimous": False, "reason": "fewer_than_2_expressed", "expressed_count": len(expressed)}
+    if len(expressed) == 0:
+        return {"unanimous": False, "reason": "no_expressed", "expressed_count": 0}
+
+    if len(expressed) == 1:
+        return {
+            "unanimous": False,
+            "reason": "single_expressed",
+            "expressed_count": 1,
+            "status": expressed[0]['declared_status'],
+        }
 
     statuses = set(d['declared_status'] for d in expressed)
 
@@ -588,7 +774,7 @@ def _check_contradiction_signals(target_pid: str, unanimity: dict, sheets: list,
 # ═══════════════════════════════════════════════════════════════════
 
 def _apply_declarative_outcome(appointment_id: str, result: dict):
-    """Apply a MEDIUM confidence declarative outcome to an attendance record."""
+    """Apply a declarative outcome to an attendance record."""
     target_pid = result['target_participant_id']
     declared = result.get('unanimous_status')
 
@@ -596,20 +782,24 @@ def _apply_declarative_outcome(appointment_id: str, result: dict):
         'present_on_time': 'on_time',
         'present_late': 'late',
         'absent': 'no_show',
+        'waived': 'waived',
     }
     outcome = outcome_map.get(declared, 'manual_review')
 
     if outcome == 'manual_review':
         return
 
+    decision_source = "declarative_presumption" if outcome == "waived" else "declarative"
+    confidence = "LOW" if outcome == "waived" else result.get('confidence_level', 'MEDIUM')
+
     db.attendance_records.update_one(
         {"appointment_id": appointment_id, "participant_id": target_pid},
         {"$set": {
             "outcome": outcome,
             "review_required": False,
-            "decision_source": "declarative",
-            "confidence_level": "MEDIUM",
-            "decided_by": "declarative_consensus",
+            "decision_source": decision_source,
+            "confidence_level": confidence,
+            "decided_by": "declarative_presumption" if outcome == "waived" else "declarative_consensus",
             "decided_at": now_utc().isoformat(),
             "declarative_details": {
                 "tiers_expressed": result.get('tiers_expressed_count', 0),
@@ -617,7 +807,7 @@ def _apply_declarative_outcome(appointment_id: str, result: dict):
             }
         }}
     )
-    logger.info(f"[DECLARATIVE] Applied {outcome} to {target_pid} (declarative, MEDIUM confidence)")
+    logger.info(f"[DECLARATIVE] Applied {outcome} to {target_pid} ({decision_source}, {confidence} confidence)")
 
 
 def open_dispute(appointment_id: str, target_participant_id: str, reason: str):
@@ -634,13 +824,33 @@ def open_dispute(appointment_id: str, target_participant_id: str, reason: str):
         return existing.get('dispute_id')
 
     target_user_id = _get_user_id(target_participant_id)
-    deadline = now_utc() + timedelta(days=DISPUTE_DEADLINE_DAYS)
-
     appointment = db.appointments.find_one(
         {"appointment_id": appointment_id},
         {"_id": 0, "organizer_id": 1}
     )
     organizer_user_id = appointment.get("organizer_id") if appointment else None
+
+    # ── GUARD: Auto-litige interdit ─────────────────────────────
+    if target_user_id and organizer_user_id and target_user_id == organizer_user_id:
+        logger.warning(
+            f"[DISPUTE][GUARD] Auto-litige bloque pour {target_participant_id} "
+            f"dans {appointment_id}: target_user_id == organizer_user_id ({target_user_id}). "
+            f"Auto-resolution en 'waived'."
+        )
+        db.attendance_records.update_one(
+            {"appointment_id": appointment_id, "participant_id": target_participant_id},
+            {"$set": {
+                "outcome": "waived",
+                "review_required": False,
+                "decision_source": "auto_no_self_dispute",
+                "confidence_level": "LOW",
+                "decided_by": "engine_guard",
+                "decided_at": now_utc().isoformat(),
+            }}
+        )
+        return None
+
+    deadline = now_utc() + timedelta(days=DISPUTE_DEADLINE_DAYS)
 
     dispute = {
         "dispute_id": str(uuid.uuid4()),
