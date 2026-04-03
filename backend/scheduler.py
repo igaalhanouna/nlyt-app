@@ -104,6 +104,11 @@ JOB_REGISTRY = {
         "interval_seconds": 1800,
         "ttl_seconds": 900,
     },
+    "stale_guarantee_cleanup": {
+        "name": "Cleanup garanties abandonnees (>1h)",
+        "interval_seconds": 900,
+        "ttl_seconds": 600,
+    },
 }
 
 
@@ -196,6 +201,11 @@ async def sheet_reminder_job():
     await run_locked_job("sheet_reminder", 900, run_sheet_reminder_job)
 
 
+async def stale_guarantee_cleanup_job():
+    from services.stale_guarantee_cleanup import run_stale_guarantee_cleanup
+    await run_locked_job("stale_guarantee_cleanup", 600, run_stale_guarantee_cleanup)
+
+
 # ═══════════════════════════════════════════════════════════════════
 # Scheduler setup
 # ═══════════════════════════════════════════════════════════════════
@@ -219,6 +229,7 @@ _JOB_SCHEDULE = {
     "stale_payout_detection": (stale_payout_detection_job, {"hours": 6}),
     "graph_subscription_renewal": (graph_subscription_renewal_job, {"hours": 24}),
     "sheet_reminder": (sheet_reminder_job, {"minutes": 30}),
+    "stale_guarantee_cleanup": (stale_guarantee_cleanup_job, {"minutes": 15}),
 }
 
 

@@ -475,3 +475,82 @@ async def scheduler_health(request: Request):
         },
         "jobs": jobs,
     }
+
+
+# ═══════════════════════════════════════════════════════════════════
+# Stripe Webhook Monitoring
+# ═══════════════════════════════════════════════════════════════════
+
+@router.get("/stripe-webhook-status")
+async def stripe_webhook_status(request: Request):
+    """
+    Stripe webhook monitoring — admin only.
+
+    Shows recent events, error rates, and active admin alerts.
+    """
+    await require_admin(request)
+
+    now = datetime.now(timezone.utc)
+
+    # Last 50 webhook events received
+    recent_events = list(db.stripe_events.find(
+        {},
+        {"_id": 0}
+    ).sort("received_at", -1).limit(50))
+
+    # Format events for display
+    events_by_type = {}
+    for ev in recent_events:
+        etype = ev.get("event_type", "unknown")
+        events_by_type.setdefault(etype, 0)
+        events_by_type[etype] += 1
+
+    # Active admin alerts (unresolved)
+    active_alerts = list(db.admin_alerts.find(
+        {"resolved": False},
+        {"_id": 0}
+    ).sort("created_at", -1).limit(20))
+
+    # Sanitize ObjectId if present
+    for alert in active_alerts:
+        alert.pop("_id", None)
+
+    # Stats
+    total_events_24h = db.stripe_events.count_documents({
+        "received_at": {"$gte": (now - __import__('datetime').timedelta(hours=24)).isoformat()}
+    })
+    total_events_all = db.stripe_events.count_documents({})
+
+    # Guarantees status summary
+    guarantee_statuses = {}
+    pipeline = [
+        {"$group": {"_id": "$status", "count": {"$sum": 1}}}
+    ]
+    for g in db.payment_guarantees.aggregate(pipeline):
+        guarantee_statuses[g["_id"] or "unknown"] = g["count"]
+
+    # Frozen wallets
+    frozen_count = db.wallets.count_documents({"frozen": True})
+
+    return {
+        "checked_at": now.isoformat(),
+        "events": {
+            "total_all_time": total_events_all,
+            "last_24h": total_events_24h,
+            "by_type_last_50": events_by_type,
+            "recent": [
+                {
+                    "event_id": ev.get("event_id"),
+                    "type": ev.get("event_type"),
+                    "received_at": ev.get("received_at"),
+                }
+                for ev in recent_events[:10]
+            ],
+        },
+        "alerts": {
+            "active_count": len(active_alerts),
+            "items": active_alerts,
+        },
+        "guarantees": guarantee_statuses,
+        "frozen_wallets": frozen_count,
+    }

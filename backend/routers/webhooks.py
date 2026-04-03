@@ -242,6 +242,79 @@ async def stripe_webhook(request: Request):
                 return {"status": "success", "event_type": event_type, "result": result}
             return {"status": "success", "event_type": event_type}
         
+        # Handle charge.dispute.created (CHARGEBACK)
+        elif event_type == "charge.dispute.created":
+            dispute = event_data
+            charge_id = dispute.get("charge", "unknown")
+            dispute_amount = dispute.get("amount", 0)
+            dispute_currency = dispute.get("currency", "eur")
+            dispute_reason = dispute.get("reason", "unknown")
+            dispute_status = dispute.get("status", "unknown")
+            pi_id = dispute.get("payment_intent", "unknown")
+
+            logger.error(
+                f"CHARGEBACK event_id={event_id} charge={charge_id} pi={pi_id} "
+                f"amount={dispute_amount} currency={dispute_currency} "
+                f"reason={dispute_reason} status={dispute_status}"
+            )
+
+            now_iso = datetime.now(timezone.utc).isoformat()
+
+            # Find the guarantee linked to this PaymentIntent
+            guarantee = None
+            if pi_id and pi_id != "unknown":
+                guarantee = db.payment_guarantees.find_one(
+                    {"stripe_payment_intent_id": pi_id},
+                    {"_id": 0}
+                )
+
+            # Freeze wallet if we can identify the user
+            frozen_wallet = None
+            if guarantee:
+                participant = db.participants.find_one(
+                    {"participant_id": guarantee.get("participant_id")},
+                    {"_id": 0, "user_id": 1, "email": 1}
+                )
+                if participant and participant.get("user_id"):
+                    frozen_wallet = db.wallets.find_one_and_update(
+                        {"user_id": participant["user_id"]},
+                        {"$set": {
+                            "frozen": True,
+                            "frozen_reason": f"chargeback_{charge_id}",
+                            "frozen_at": now_iso,
+                            "updated_at": now_iso,
+                        }},
+                        return_document=True,
+                    )
+                    if frozen_wallet:
+                        logger.error(
+                            f"WALLET_FROZEN event_id={event_id} "
+                            f"user_id={participant['user_id']} "
+                            f"wallet_id={frozen_wallet.get('wallet_id')} "
+                            f"reason=chargeback"
+                        )
+
+            # Create critical admin alert
+            db.admin_alerts.insert_one({
+                "alert_id": f"chargeback_{charge_id}",
+                "type": "chargeback",
+                "severity": "critical",
+                "stripe_charge_id": charge_id,
+                "stripe_payment_intent_id": pi_id,
+                "stripe_dispute_id": dispute.get("id"),
+                "amount": dispute_amount,
+                "currency": dispute_currency,
+                "reason": dispute_reason,
+                "guarantee_id": guarantee.get("guarantee_id") if guarantee else None,
+                "appointment_id": guarantee.get("appointment_id") if guarantee else None,
+                "wallet_frozen": frozen_wallet is not None,
+                "created_at": now_iso,
+                "resolved": False,
+            })
+            logger.error(f"ADMIN_ALERT_CREATED event_id={event_id} type=chargeback charge={charge_id}")
+
+            return {"status": "success", "event_type": event_type, "chargeback": True}
+        
         logger.info(f"UNHANDLED event_id={event_id} type={event_type} — no specific handler")
         return {"status": "success", "event_type": event_type}
     
