@@ -1327,6 +1327,55 @@ def run_declarative_deadline_job():
         except (ValueError, TypeError):
             continue
 
+    # ── V5.1 Retroactive Guard ─────────────────────────────────────
+    # Clean up collecting phases that should never have opened:
+    # if < 2 accepted_guaranteed participants are in manual_review,
+    # the declarative phase is unsolvable → auto-waive + not_needed.
+    for apt in appointments:
+        apt_id = apt['appointment_id']
+        review_recs = list(db.attendance_records.find(
+            {"appointment_id": apt_id, "outcome": "manual_review", "review_required": True},
+            {"_id": 0, "participant_id": 1}
+        ))
+        guaranteed_count = 0
+        for rr in review_recs:
+            p_doc = db.participants.find_one(
+                {"participant_id": rr["participant_id"]},
+                {"_id": 0, "status": 1}
+            )
+            if p_doc and p_doc.get("status") == "accepted_guaranteed":
+                guaranteed_count += 1
+        if guaranteed_count < 2:
+            for rr in review_recs:
+                db.attendance_records.update_one(
+                    {"appointment_id": apt_id, "participant_id": rr["participant_id"]},
+                    {"$set": {
+                        "outcome": "waived",
+                        "review_required": False,
+                        "decision_source": "retroactive_guard_insufficient_guaranteed",
+                        "confidence_level": "HIGH",
+                        "decided_by": "engine_guard",
+                        "decided_at": now.isoformat(),
+                    }}
+                )
+            db.appointments.update_one(
+                {"appointment_id": apt_id},
+                {"$set": {"declarative_phase": "not_needed", "updated_at": now.isoformat()}}
+            )
+            db.attendance_sheets.delete_many(
+                {"appointment_id": apt_id, "status": "pending"}
+            )
+            logger.info(
+                f"[DECLARATIVE][RETROACTIVE-GUARD] {apt_id}: "
+                f"only {guaranteed_count} guaranteed in review → auto-waived, phase=not_needed"
+            )
+
+    # Re-fetch after guard cleanup (some may have been set to not_needed)
+    appointments = list(db.appointments.find(
+        {"declarative_phase": "collecting"},
+        {"_id": 0}
+    ))
+
     processed = 0
     for apt in appointments:
         apt_id = apt['appointment_id']

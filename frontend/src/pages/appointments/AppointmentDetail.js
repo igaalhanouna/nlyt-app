@@ -201,11 +201,23 @@ function FinancialResultSection({ appointment, participants, isOrganizer }) {
             statusText = 'Dispense';
             explanation = 'Aucune penalite applicable';
           } else if (isReview) {
+            const phase = appointment?.declarative_phase;
             statusIcon = <Clock className="w-4 h-4" />;
             statusColor = 'text-amber-700';
             statusBg = 'bg-amber-50';
-            statusText = 'En cours de verification';
-            explanation = 'Decision en attente — aucune action financiere pour le moment';
+            if (phase === 'collecting') {
+              statusText = 'Declarations en cours';
+              explanation = 'En attente des feuilles de presence — aucune action financiere pour le moment';
+            } else if (phase === 'analyzing') {
+              statusText = 'Analyse en cours';
+              explanation = 'Les declarations sont en cours d\'analyse — resultat imminent';
+            } else if (phase === 'disputed') {
+              statusText = 'Litige ouvert';
+              explanation = 'Un desaccord a ete detecte — en attente de resolution';
+            } else {
+              statusText = 'En cours de verification';
+              explanation = 'Decision en attente — aucune action financiere pour le moment';
+            }
           } else {
             statusIcon = <CreditCard className="w-4 h-4" />;
             statusColor = 'text-slate-500';
