@@ -126,7 +126,7 @@ async def stripe_webhook(request: Request):
                 
                 return {"status": "success", "event_type": event_type, "result": result}
         
-        # Handle payment_intent.succeeded (penalty capture)
+        # Handle payment_intent.succeeded (penalty capture confirmed)
         elif event_type == "payment_intent.succeeded":
             payment_intent = event_data
             metadata = payment_intent.get("metadata", {})
@@ -141,6 +141,58 @@ async def stripe_webhook(request: Request):
                     }}
                 )
                 logger.info(f"CAPTURE_CONFIRMED event_id={event_id} guarantee_id={guarantee_id}")
+        
+        # Handle payment_intent.payment_failed (penalty capture FAILED)
+        elif event_type == "payment_intent.payment_failed":
+            payment_intent = event_data
+            metadata = payment_intent.get("metadata", {})
+            guarantee_id = metadata.get("guarantee_id")
+            failure_code = payment_intent.get("last_payment_error", {}).get("code", "unknown")
+            failure_msg = payment_intent.get("last_payment_error", {}).get("message", "Unknown error")
+            pi_id = payment_intent.get("id", "unknown")
+            amount = payment_intent.get("amount", 0)
+
+            logger.error(
+                f"CAPTURE_FAILED event_id={event_id} guarantee_id={guarantee_id or 'N/A'} "
+                f"pi_id={pi_id} amount={amount} failure_code={failure_code} failure_msg={failure_msg}"
+            )
+
+            if guarantee_id:
+                now_iso = datetime.now(timezone.utc).isoformat()
+                db.payment_guarantees.update_one(
+                    {"guarantee_id": guarantee_id},
+                    {"$set": {
+                        "status": "capture_failed",
+                        "capture_failed_at": now_iso,
+                        "capture_failure_code": failure_code,
+                        "capture_failure_message": failure_msg[:500],
+                        "stripe_payment_intent_id": pi_id,
+                        "updated_at": now_iso,
+                    }}
+                )
+
+                # Create admin alert for manual follow-up
+                guarantee = db.payment_guarantees.find_one(
+                    {"guarantee_id": guarantee_id},
+                    {"_id": 0, "appointment_id": 1, "participant_id": 1, "penalty_amount": 1, "penalty_currency": 1}
+                )
+                db.admin_alerts.insert_one({
+                    "alert_id": f"capture_failed_{guarantee_id}",
+                    "type": "capture_failed",
+                    "severity": "critical",
+                    "guarantee_id": guarantee_id,
+                    "appointment_id": guarantee.get("appointment_id") if guarantee else None,
+                    "participant_id": guarantee.get("participant_id") if guarantee else None,
+                    "amount": amount,
+                    "failure_code": failure_code,
+                    "failure_message": failure_msg[:500],
+                    "stripe_payment_intent_id": pi_id,
+                    "created_at": now_iso,
+                    "resolved": False,
+                })
+                logger.error(f"ADMIN_ALERT_CREATED event_id={event_id} type=capture_failed guarantee_id={guarantee_id}")
+
+            return {"status": "success", "event_type": event_type, "capture_failed": True}
         
         # Handle Stripe Connect account updates
         elif event_type == "account.updated":
